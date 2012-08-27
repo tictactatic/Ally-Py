@@ -11,7 +11,11 @@ Implementation for the PO file management.
 
 from ally.container import wire
 from ally.container.ioc import injected
+<<<<<<< HEAD
 from ally.support.util_io import IInputStream
+=======
+from ally.container.support import setup
+>>>>>>> NR-232 - Media Archive - Video plugin
 from babel import localedata, core
 from babel.core import Locale, UnknownLocaleError
 from babel.messages.catalog import Catalog
