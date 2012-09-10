@@ -9,8 +9,16 @@ Created on Mar 27, 2012
 Provides unit testing for the sql alchemy mapper.
 '''
 
+# Required in order to register the package extender whenever the unit test is run.
+if True:
+    import package_extender
+    package_extender.PACKAGE_EXTENDER.setForUnitTest(True)
+
+# --------------------------------------------------------------------
+
 from .samples.api.article import IArticleService, Article
-from .samples.api.article_type import ArticleType, IArticleTypeService, QArticleType
+from .samples.api.article_type import ArticleType, IArticleTypeService, \
+    QArticleType
 from .samples.impl.article import ArticleServiceAlchemy
 from .samples.impl.article_type import ArticleTypeServiceAlchemy
 from .samples.meta import meta
