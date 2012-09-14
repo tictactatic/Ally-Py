@@ -9,6 +9,13 @@ Created on Jun 9, 2011
 Provides unit testing for the API authentication types module.
 '''
 
+# Required in order to register the package extender whenever the unit test is run.
+if True:
+    import package_extender
+    package_extender.PACKAGE_EXTENDER.setForUnitTest(True)
+
+# --------------------------------------------------------------------
+
 import unittest
 from ally.api.config import model
 from ally.api.authentication import auth
