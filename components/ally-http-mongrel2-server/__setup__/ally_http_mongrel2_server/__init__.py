@@ -14,10 +14,10 @@ from ally.container import ioc
 
 # --------------------------------------------------------------------
 
-NAME = 'ally HTTP cherrypy server'
+NAME = 'ally HTTP mongrel2 server'
 GROUP = ally_api.GROUP
 VERSION = '1.0'
-DESCRIPTION = 'Provides the HTTP cherrypy server'
+DESCRIPTION = 'Provides the HTTP mongrel2 server'
 
 # --------------------------------------------------------------------
 # The default configurations
