@@ -9,15 +9,15 @@ Created on Jul 15, 2011
 Contains setup and configuration files for the HTTP REST server.
 '''
 
-from .. import ally_api
+from __setup__ import ally_api
 from ally.container import ioc
 
 # --------------------------------------------------------------------
 
-NAME = 'ally HTTP cherrypy server'
+NAME = 'ally HTTP mongrel2 server'
 GROUP = ally_api.GROUP
 VERSION = '1.0'
-DESCRIPTION = 'Provides the HTTP cherrypy server'
+DESCRIPTION = 'Provides the setting in the plugins required for mongrel2 server'
 
 # --------------------------------------------------------------------
 # The default configurations
