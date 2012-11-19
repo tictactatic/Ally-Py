@@ -81,7 +81,7 @@
 <span class="sd">    &#39;&#39;&#39;</span>
     <span class="n">__slots__</span> <span class="o">=</span> <span class="p">()</span>
 
-    <span class="nd">@abc.abstractmethod</span>
+    <span class="nd">@abc.abstractclassmethod</span>
 <div class="viewcode-block" id="IInputStream.read"><a class="viewcode-back" href="../../../ally.support.html#ally.support.util_io.IInputStream.read">[docs]</a>    <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nbytes</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        To read a file&#39;s contents, call f.read(size), which reads some quantity of data and returns it as a string.</span>
@@ -106,7 +106,7 @@
 <span class="sd">    &#39;&#39;&#39;</span>
     <span class="n">__slots__</span> <span class="o">=</span> <span class="p">()</span>
 
-    <span class="nd">@abc.abstractmethod</span>
+    <span class="nd">@abc.abstractclassmethod</span>
 <div class="viewcode-block" id="IOutputStream.write"><a class="viewcode-back" href="../../../ally.support.html#ally.support.util_io.IOutputStream.write">[docs]</a>    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">):</span>
         <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        Write the bytes or bytearray object, b and return the number of bytes written. When in non-blocking mode,</span>
@@ -128,7 +128,7 @@
 <span class="sd">    &#39;&#39;&#39;</span>
     <span class="n">__slots__</span> <span class="o">=</span> <span class="p">()</span>
 
-    <span class="nd">@abc.abstractmethod</span>
+    <span class="nd">@abc.abstractclassmethod</span>
 <div class="viewcode-block" id="IClosable.close"><a class="viewcode-back" href="../../../ally.support.html#ally.support.util_io.IClosable.close">[docs]</a>    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        Close the stream and block any other operations to the stream.</span>
@@ -142,7 +142,7 @@
 
 <span class="c"># --------------------------------------------------------------------</span>
 </div>
-<div class="viewcode-block" id="replaceInFile"><a class="viewcode-back" href="../../../ally.support.html#ally.support.util_io.replaceInFile">[docs]</a><span class="k">class</span> <span class="nc">replaceInFile</span><span class="p">:</span>
+<div class="viewcode-block" id="ReplaceInFile"><a class="viewcode-back" href="../../../ally.support.html#ally.support.util_io.ReplaceInFile">[docs]</a><span class="k">class</span> <span class="nc">ReplaceInFile</span><span class="p">:</span>
     <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Provides the file read replacing.</span>
 <span class="sd">    &#39;&#39;&#39;</span>
@@ -174,11 +174,12 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_maxKey</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">replacements</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">v</span><span class="p">)))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_leftOver</span> <span class="o">=</span> <span class="bp">None</span>
 
-<div class="viewcode-block" id="replaceInFile.read"><a class="viewcode-back" href="../../../ally.support.html#ally.support.util_io.replaceInFile.read">[docs]</a>    <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">count</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+<div class="viewcode-block" id="ReplaceInFile.read"><a class="viewcode-back" href="../../../ally.support.html#ally.support.util_io.ReplaceInFile.read">[docs]</a>    <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">count</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        Perform the data read.</span>
 <span class="sd">        &#39;&#39;&#39;</span>
-        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fileObj</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">count</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">count</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span> <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fileObj</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span> <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fileObj</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">count</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">data</span><span class="p">:</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_leftOver</span><span class="p">:</span>
@@ -278,7 +279,7 @@
     <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">encodingError</span><span class="p">,</span> <span class="nb">str</span><span class="p">),</span> <span class="s">&#39;Invalid encoding error set </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">encodingError</span>
     <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">iterable</span><span class="p">:</span>
         <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">),</span> <span class="s">&#39;Invalid value </span><span class="si">%s</span><span class="s"> received&#39;</span> <span class="o">%</span> <span class="n">value</span>
-        <span class="k">yield</span> <span class="n">value</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">charSet</span><span class="p">,</span> <span class="n">encodingError</span><span class="p">)</span>
+        <span class="k">yield</span> <span class="n">value</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">encoding</span><span class="o">=</span><span class="n">charSet</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="n">encodingError</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="openURI"><a class="viewcode-back" href="../../../ally.support.html#ally.support.util_io.openURI">[docs]</a><span class="k">def</span> <span class="nf">openURI</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
     <span class="sd">&#39;&#39;&#39;</span>
@@ -346,11 +347,8 @@
                 <span class="n">destDir</span> <span class="o">=</span> <span class="n">dirname</span><span class="p">(</span><span class="n">dest</span><span class="p">)</span>
                 <span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">destDir</span><span class="p">):</span> <span class="n">makedirs</span><span class="p">(</span><span class="n">destDir</span><span class="p">)</span>
 
-                <span class="c">#TODO: fix: why it used a temp file and why the .exec is hard coded.</span>
                 <span class="n">zipFile</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span><span class="n">zipInfo</span><span class="o">.</span><span class="n">filename</span><span class="p">,</span> <span class="n">tmpDir</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
                 <span class="n">move</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">tmpDir</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">normOSPath</span><span class="p">(</span><span class="n">zipInfo</span><span class="o">.</span><span class="n">filename</span><span class="p">)),</span> <span class="n">dest</span><span class="p">)</span>
-                <span class="c">#TODO: check for future python versions if the own flag is set.</span>
-                <span class="c"># The chmod is done because in linux the execute flag is lost.</span>
                 <span class="k">if</span> <span class="n">zipInfo</span><span class="o">.</span><span class="n">filename</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s">&#39;.exe&#39;</span><span class="p">):</span> <span class="n">os</span><span class="o">.</span><span class="n">chmod</span><span class="p">(</span><span class="n">dest</span><span class="p">,</span> <span class="n">stat</span><span class="p">(</span><span class="n">dest</span><span class="p">)</span><span class="o">.</span><span class="n">st_mode</span> <span class="o">|</span> <span class="n">S_IEXEC</span><span class="p">)</span>
 
         <span class="k">return</span>
@@ -369,7 +367,7 @@
             <span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">destDir</span><span class="p">):</span> <span class="n">makedirs</span><span class="p">(</span><span class="n">destDir</span><span class="p">)</span>
             <span class="n">copy</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="n">dest</span><span class="p">)</span>
 </div>
-<div class="viewcode-block" id="keepOpen"><a class="viewcode-back" href="../../../ally.support.html#ally.support.util_io.keepOpen">[docs]</a><span class="k">class</span> <span class="nc">keepOpen</span><span class="p">:</span>
+<div class="viewcode-block" id="KeepOpen"><a class="viewcode-back" href="../../../ally.support.html#ally.support.util_io.KeepOpen">[docs]</a><span class="k">class</span> <span class="nc">KeepOpen</span><span class="p">:</span>
     <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Keeps opened a file object, basically blocks the close calls.</span>
 <span class="sd">    &#39;&#39;&#39;</span>
@@ -385,7 +383,7 @@
         <span class="k">assert</span> <span class="n">fileObj</span><span class="p">,</span> <span class="s">&#39;A file object is required </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">fileObj</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_fileObj</span> <span class="o">=</span> <span class="n">fileObj</span>
 
-<div class="viewcode-block" id="keepOpen.close"><a class="viewcode-back" href="../../../ally.support.html#ally.support.util_io.keepOpen.close">[docs]</a>    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="KeepOpen.close"><a class="viewcode-back" href="../../../ally.support.html#ally.support.util_io.KeepOpen.close">[docs]</a>    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        Block the close action.</span>
 <span class="sd">        &#39;&#39;&#39;</span>

@@ -1,10 +1,10 @@
 processor Package
 =================
 
-:mod:`processor` Package
-------------------------
+:mod:`asyncore_content` Module
+------------------------------
 
-.. automodule:: ally.core.http.impl.processor
+.. automodule:: ally.core.http.impl.processor.asyncore_content
     :members:
     :undoc-members:
     :show-inheritance:

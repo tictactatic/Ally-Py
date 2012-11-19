@@ -64,7 +64,7 @@
 <span class="kn">from</span> <span class="nn">ally.core.http.spec.codes</span> <span class="kn">import</span> <span class="n">INVALID_HEADER_VALUE</span>
 <span class="kn">from</span> <span class="nn">ally.core.http.spec.server</span> <span class="kn">import</span> <span class="n">IEncoderHeader</span><span class="p">,</span> <span class="n">IDecoderHeader</span>
 <span class="kn">from</span> <span class="nn">ally.core.spec.codes</span> <span class="kn">import</span> <span class="n">Code</span>
-<span class="kn">from</span> <span class="nn">ally.design.context</span> <span class="kn">import</span> <span class="n">Context</span><span class="p">,</span> <span class="n">requires</span><span class="p">,</span> <span class="n">defines</span>
+<span class="kn">from</span> <span class="nn">ally.design.context</span> <span class="kn">import</span> <span class="n">Context</span><span class="p">,</span> <span class="n">requires</span><span class="p">,</span> <span class="n">defines</span><span class="p">,</span> <span class="n">optional</span>
 <span class="kn">from</span> <span class="nn">ally.design.processor</span> <span class="kn">import</span> <span class="n">HandlerProcessorProceed</span>
 <span class="kn">from</span> <span class="nn">ally.support.util_io</span> <span class="kn">import</span> <span class="n">IInputStream</span><span class="p">,</span> <span class="n">IClosable</span>
 
@@ -81,8 +81,8 @@
     <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    The request content context.</span>
 <span class="sd">    &#39;&#39;&#39;</span>
-    <span class="c"># ---------------------------------------------------------------- Required</span>
-    <span class="n">source</span> <span class="o">=</span> <span class="n">requires</span><span class="p">(</span><span class="n">IInputStream</span><span class="p">)</span>
+    <span class="c"># ---------------------------------------------------------------- Optional</span>
+    <span class="n">source</span> <span class="o">=</span> <span class="n">optional</span><span class="p">(</span><span class="n">IInputStream</span><span class="p">)</span>
     <span class="c"># ---------------------------------------------------------------- Defined</span>
     <span class="n">length</span> <span class="o">=</span> <span class="n">defines</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">doc</span><span class="o">=</span><span class="s">&#39;&#39;&#39;</span>
 <span class="s">    @rtype: integer</span>
@@ -134,7 +134,9 @@
                 <span class="n">response</span><span class="o">.</span><span class="n">errorMessage</span> <span class="o">=</span> <span class="s">&#39;Invalid value </span><span class="se">\&#39;</span><span class="si">%s</span><span class="se">\&#39;</span><span class="s"> for header </span><span class="se">\&#39;</span><span class="si">%s</span><span class="se">\&#39;</span><span class="s">&#39;</span>\
                 <span class="s">&#39;, expected an integer value&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">nameContentLength</span><span class="p">)</span>
                 <span class="k">return</span>
-            <span class="k">else</span><span class="p">:</span> <span class="n">requestCnt</span><span class="o">.</span><span class="n">source</span> <span class="o">=</span> <span class="n">StreamLimitedLength</span><span class="p">(</span><span class="n">requestCnt</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="n">requestCnt</span><span class="o">.</span><span class="n">length</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">RequestContentDecode</span><span class="o">.</span><span class="n">source</span> <span class="ow">in</span> <span class="n">requestCnt</span><span class="p">:</span>
+                    <span class="n">requestCnt</span><span class="o">.</span><span class="n">source</span> <span class="o">=</span> <span class="n">StreamLimitedLength</span><span class="p">(</span><span class="n">requestCnt</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="n">requestCnt</span><span class="o">.</span><span class="n">length</span><span class="p">)</span>
 </div></div>
 <div class="viewcode-block" id="StreamLimitedLength"><a class="viewcode-back" href="../../../../../../../ally.core.http.impl.processor.headers.html#ally.core.http.impl.processor.headers.content_length.StreamLimitedLength">[docs]</a><span class="k">class</span> <span class="nc">StreamLimitedLength</span><span class="p">(</span><span class="n">IInputStream</span><span class="p">,</span> <span class="n">IClosable</span><span class="p">):</span>
     <span class="sd">&#39;&#39;&#39;</span>
