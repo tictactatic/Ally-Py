@@ -56,6 +56,17 @@
             
   <div class="section" id="ally-package">
 <h1>ally Package<a class="headerlink" href="#ally-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="id1">
+<h2><a class="reference internal" href="#module-ally" title="ally"><tt class="xref py py-mod docutils literal"><span class="pre">ally</span></tt></a> Package<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h2>
+<span class="target" id="module-ally"></span><p>Created on Jun 1, 2011</p>
+<p>&#64;package: ally api
+&#64;copyright: 2012 Sourcefabric o.p.s.
+&#64;license: <a class="reference external" href="http://www.gnu.org/licenses/gpl-3.0.txt">http://www.gnu.org/licenses/gpl-3.0.txt</a>
+&#64;author: Gabriel Nistor</p>
+<p>Contains all the modules that are used for describing and configuring API services and models. A general description
+will be that the modules are used for describing types for models, call inputs and outputs and the <em>configure</em> module
+provides the means for generating this description objects by using python decorators and descriptors.</p>
+</div>
 <div class="section" id="module-ally.exception">
 <span id="exception-module"></span><h2><tt class="xref py py-mod docutils literal"><span class="pre">exception</span></tt> Module<a class="headerlink" href="#module-ally.exception" title="Permalink to this headline">¶</a></h2>
 <p>Created on May 31, 2011</p>
@@ -112,7 +123,7 @@ The internal errors (the ones that are made by the implementation and not data) 
 <dl class="function">
 <dt id="ally.internationalization.NC_">
 <tt class="descclassname">ally.internationalization.</tt><tt class="descname">NC_</tt><big>(</big><em>ctxt</em>, <em>msg</em><big>)</big><a class="reference internal" href="_modules/ally/internationalization.html#NC_"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ally.internationalization.NC_" title="Permalink to this definition">¶</a></dt>
-<dd><p>Like &#64;see: <a href="#id1"><span class="problematic" id="id2">N_</span></a>, but use the provided context for the message.</p>
+<dd><p>Like &#64;see: <a href="#id2"><span class="problematic" id="id3">N_</span></a>, but use the provided context for the message.</p>
 <dl class="docutils">
 <dt>&#64;param ctxt: string</dt>
 <dd>The context of the key message.</dd>
@@ -251,6 +262,7 @@ languages.</p>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="ally.core.html">core Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ally.core.html#id1"><tt class="docutils literal"><span class="pre">core</span></tt> Package</a></li>
 <li class="toctree-l2"><a class="reference internal" href="ally.core.html#subpackages">Subpackages</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="ally.core.authentication.html">authentication Package</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="ally.core.authentication.html#subpackages">Subpackages</a><ul>
@@ -283,11 +295,10 @@ languages.</p>
 <li class="toctree-l4"><a class="reference internal" href="ally.core.http.html#id1"><tt class="docutils literal"><span class="pre">http</span></tt> Package</a></li>
 <li class="toctree-l4"><a class="reference internal" href="ally.core.http.html#subpackages">Subpackages</a><ul>
 <li class="toctree-l5"><a class="reference internal" href="ally.core.http.impl.html">impl Package</a><ul>
-<li class="toctree-l6"><a class="reference internal" href="ally.core.http.impl.html#id1"><tt class="docutils literal"><span class="pre">impl</span></tt> Package</a></li>
 <li class="toctree-l6"><a class="reference internal" href="ally.core.http.impl.html#module-ally.core.http.impl.url_encoded"><tt class="docutils literal"><span class="pre">url_encoded</span></tt> Module</a></li>
 <li class="toctree-l6"><a class="reference internal" href="ally.core.http.impl.html#subpackages">Subpackages</a><ul>
 <li class="toctree-l7"><a class="reference internal" href="ally.core.http.impl.processor.html">processor Package</a><ul>
-<li class="toctree-l8"><a class="reference internal" href="ally.core.http.impl.processor.html#id1"><tt class="docutils literal"><span class="pre">processor</span></tt> Package</a></li>
+<li class="toctree-l8"><a class="reference internal" href="ally.core.http.impl.processor.html#module-ally.core.http.impl.processor.asyncore_content"><tt class="docutils literal"><span class="pre">asyncore_content</span></tt> Module</a></li>
 <li class="toctree-l8"><a class="reference internal" href="ally.core.http.impl.processor.html#module-ally.core.http.impl.processor.encoder"><tt class="docutils literal"><span class="pre">encoder</span></tt> Module</a></li>
 <li class="toctree-l8"><a class="reference internal" href="ally.core.http.impl.processor.html#module-ally.core.http.impl.processor.fetcher"><tt class="docutils literal"><span class="pre">fetcher</span></tt> Module</a></li>
 <li class="toctree-l8"><a class="reference internal" href="ally.core.http.impl.processor.html#module-ally.core.http.impl.processor.header"><tt class="docutils literal"><span class="pre">header</span></tt> Module</a></li>
@@ -324,8 +335,10 @@ languages.</p>
 </li>
 <li class="toctree-l5"><a class="reference internal" href="ally.core.http.server.html">server Package</a><ul>
 <li class="toctree-l6"><a class="reference internal" href="ally.core.http.server.html#id1"><tt class="docutils literal"><span class="pre">server</span></tt> Package</a></li>
+<li class="toctree-l6"><a class="reference internal" href="ally.core.http.server.html#module-ally.core.http.server.server_asyncore"><tt class="docutils literal"><span class="pre">server_asyncore</span></tt> Module</a></li>
 <li class="toctree-l6"><a class="reference internal" href="ally.core.http.server.html#module-ally.core.http.server.server_basic"><tt class="docutils literal"><span class="pre">server_basic</span></tt> Module</a></li>
-<li class="toctree-l6"><a class="reference internal" href="ally.core.http.server.html#module-ally.core.http.server.server_cherrypy"><tt class="docutils literal"><span class="pre">server_cherrypy</span></tt> Module</a></li>
+<li class="toctree-l6"><a class="reference internal" href="ally.core.http.server.html#server-mongrel2-module"><tt class="docutils literal"><span class="pre">server_mongrel2</span></tt> Module</a></li>
+<li class="toctree-l6"><a class="reference internal" href="ally.core.http.server.html#module-ally.core.http.server.wsgi"><tt class="docutils literal"><span class="pre">wsgi</span></tt> Module</a></li>
 </ul>
 </li>
 <li class="toctree-l5"><a class="reference internal" href="ally.core.http.spec.html">spec Package</a><ul>
@@ -340,6 +353,10 @@ languages.</p>
 </li>
 </ul>
 </li>
+</ul>
+</li>
+<li class="toctree-l5"><a class="reference internal" href="ally.core.http.support.html">support Package</a><ul>
+<li class="toctree-l6"><a class="reference internal" href="ally.core.http.support.html#module-ally.core.http.support.tnetstrings"><tt class="docutils literal"><span class="pre">tnetstrings</span></tt> Module</a></li>
 </ul>
 </li>
 </ul>
@@ -447,6 +464,7 @@ languages.</p>
 <li class="toctree-l4"><a class="reference internal" href="ally.support.sqlalchemy.html#id1"><tt class="docutils literal"><span class="pre">sqlalchemy</span></tt> Package</a></li>
 <li class="toctree-l4"><a class="reference internal" href="ally.support.sqlalchemy.html#module-ally.support.sqlalchemy.descriptor"><tt class="docutils literal"><span class="pre">descriptor</span></tt> Module</a></li>
 <li class="toctree-l4"><a class="reference internal" href="ally.support.sqlalchemy.html#module-ally.support.sqlalchemy.mapper"><tt class="docutils literal"><span class="pre">mapper</span></tt> Module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="ally.support.sqlalchemy.html#module-ally.support.sqlalchemy.pool"><tt class="docutils literal"><span class="pre">pool</span></tt> Module</a></li>
 <li class="toctree-l4"><a class="reference internal" href="ally.support.sqlalchemy.html#module-ally.support.sqlalchemy.session"><tt class="docutils literal"><span class="pre">session</span></tt> Module</a></li>
 <li class="toctree-l4"><a class="reference internal" href="ally.support.sqlalchemy.html#module-ally.support.sqlalchemy.util_service"><tt class="docutils literal"><span class="pre">util_service</span></tt> Module</a></li>
 </ul>
@@ -478,6 +496,7 @@ languages.</p>
   <h3><a href="index.html">Table Of Contents</a></h3>
   <ul>
 <li><a class="reference internal" href="#">ally Package</a><ul>
+<li><a class="reference internal" href="#id1"><tt class="docutils literal"><span class="pre">ally</span></tt> Package</a></li>
 <li><a class="reference internal" href="#module-ally.exception"><tt class="docutils literal"><span class="pre">exception</span></tt> Module</a></li>
 <li><a class="reference internal" href="#module-ally.internationalization"><tt class="docutils literal"><span class="pre">internationalization</span></tt> Module</a></li>
 <li><a class="reference internal" href="#module-ally.type_legacy"><tt class="docutils literal"><span class="pre">type_legacy</span></tt> Module</a></li>

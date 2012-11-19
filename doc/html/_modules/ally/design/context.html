@@ -178,7 +178,7 @@
         <span class="k">return</span> <span class="s">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="s">&#39;(&#39;</span><span class="p">,</span> <span class="s">&#39;:&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">status</span><span class="p">),</span> <span class="s">&#39;=&#39;</span> <span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">or</span> <span class="s">&#39;&#39;</span><span class="p">,</span> <span class="s">&#39;:&#39;</span><span class="p">,</span>
                         <span class="s">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">type</span><span class="o">.</span><span class="n">__name__</span> <span class="k">for</span> <span class="nb">type</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">types</span><span class="p">),</span> <span class="s">&#39;)&#39;</span><span class="p">))</span>
 </div>
-<span class="n">ALLOWED</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;__module__&#39;</span><span class="p">,</span> <span class="s">&#39;__doc__&#39;</span><span class="p">}</span>
+<span class="n">ALLOWED</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;__module__&#39;</span><span class="p">,</span> <span class="s">&#39;__doc__&#39;</span><span class="p">,</span> <span class="s">&#39;__locals__&#39;</span><span class="p">}</span>
 <span class="c"># The allowed attributes in a context class.</span>
 <div class="viewcode-block" id="ContextMetaClass"><a class="viewcode-back" href="../../../ally.design.html#ally.design.context.ContextMetaClass">[docs]</a><span class="k">class</span> <span class="nc">ContextMetaClass</span><span class="p">(</span><span class="n">ABCMeta</span><span class="p">):</span>
     <span class="sd">&#39;&#39;&#39;</span>
@@ -226,19 +226,7 @@
     <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    The base context class, this class needs to be inherited by all classes that need to behave like a data context.</span>
 <span class="sd">    &#39;&#39;&#39;</span>
-
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">keyargs</span><span class="p">):</span>
-        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">keyargs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span> <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">__contains__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attribute</span><span class="p">):</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">attribute</span><span class="p">,</span> <span class="n">Attribute</span><span class="p">):</span> <span class="k">return</span> <span class="bp">False</span>
-        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">attribute</span><span class="p">,</span> <span class="n">Attribute</span><span class="p">)</span>
-        <span class="n">owned</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__attributes__</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">attribute</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">owned</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span> <span class="k">return</span> <span class="bp">False</span>
-
-        <span class="k">try</span><span class="p">:</span> <span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">owned</span><span class="o">.</span><span class="n">descriptor</span><span class="o">.</span><span class="n">__get__</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span> <span class="n">attribute</span><span class="o">.</span><span class="n">types</span><span class="p">)</span>
-        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span> <span class="k">return</span> <span class="bp">False</span>
-
+    
     <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">__subclasshook__</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">C</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">cls</span> <span class="ow">is</span> <span class="n">Context</span><span class="p">:</span> <span class="k">return</span> <span class="n">Context</span> <span class="ow">in</span> <span class="n">C</span><span class="o">.</span><span class="n">__mro__</span>
@@ -263,6 +251,18 @@
             <span class="k">return</span> <span class="bp">True</span>
 
         <span class="k">return</span> <span class="bp">NotImplemented</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">keyargs</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">keyargs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span> <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__contains__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attribute</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">attribute</span><span class="p">,</span> <span class="n">Attribute</span><span class="p">):</span> <span class="k">return</span> <span class="bp">False</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">attribute</span><span class="p">,</span> <span class="n">Attribute</span><span class="p">)</span>
+        <span class="n">owned</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__attributes__</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">attribute</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">owned</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span> <span class="k">return</span> <span class="bp">False</span>
+
+        <span class="k">try</span><span class="p">:</span> <span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">owned</span><span class="o">.</span><span class="n">descriptor</span><span class="o">.</span><span class="n">__get__</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span> <span class="n">attribute</span><span class="o">.</span><span class="n">types</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span> <span class="k">return</span> <span class="bp">False</span>
 
 <span class="c"># --------------------------------------------------------------------</span>
 </div>

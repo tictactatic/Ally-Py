@@ -61,8 +61,6 @@
 <span class="sd">&#39;&#39;&#39;</span>
 
 <span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">Iterator</span>
-<span class="kn">from</span> <span class="nn">inspect</span> <span class="kn">import</span> <span class="n">isclass</span>
-<span class="kn">from</span> <span class="nn">threading</span> <span class="kn">import</span> <span class="n">currentThread</span>
 <span class="kn">import</span> <span class="nn">sys</span>
 
 <span class="c"># --------------------------------------------------------------------</span>
@@ -165,93 +163,8 @@
         <span class="k">except</span> <span class="ne">StopIteration</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">stop</span><span class="p">:</span> <span class="k">raise</span>
             <span class="n">stop</span> <span class="o">=</span> <span class="bp">True</span>
-            <span class="k">yield</span> <span class="bp">True</span><span class="p">,</span> <span class="n">item</span>
-
-<span class="c"># --------------------------------------------------------------------</span>
-</div>
-<span class="n">_attrNameIds</span> <span class="o">=</span> <span class="p">{}</span>
-<span class="c"># Used by the attribute to assign a unique id to a name.</span>
-
-<span class="n">attrIdForName</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">_attrNameIds</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">_attrNameIds</span><span class="p">)))</span>
-<span class="c"># Provides the name id.</span>
-
-<div class="viewcode-block" id="AttributeOnThread"><a class="viewcode-back" href="../../../ally.support.html#ally.support.util.AttributeOnThread">[docs]</a><span class="k">class</span> <span class="nc">AttributeOnThread</span><span class="p">:</span>
-    <span class="sd">&#39;&#39;&#39;</span>
-<span class="sd">    Class used for creating attributes for python threads.</span>
-<span class="sd">    &#39;&#39;&#39;</span>
-
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">group</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">valueType</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
-        <span class="sd">&#39;&#39;&#39;</span>
-<span class="sd">        Creates a new attribute.</span>
-<span class="sd">        </span>
-<span class="sd">        @param group: string</span>
-<span class="sd">            The group name for the attribute, this is usually the module name where is created, it helps to distinguish</span>
-<span class="sd">            between same names but with other purposes.</span>
-<span class="sd">        @param name: string</span>
-<span class="sd">            The name of the attribute.</span>
-<span class="sd">        @param valueType: type</span>
-<span class="sd">            The type to check for the set and get values.</span>
-<span class="sd">        &#39;&#39;&#39;</span>
-        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">group</span><span class="p">,</span> <span class="nb">str</span><span class="p">),</span> <span class="s">&#39;Invalid group name </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">group</span>
-        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="nb">str</span><span class="p">),</span> <span class="s">&#39;Invalid name </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">name</span>
-        <span class="k">assert</span> <span class="ow">not</span> <span class="n">valueType</span> <span class="ow">or</span> <span class="n">isclass</span><span class="p">(</span><span class="n">valueType</span><span class="p">),</span> <span class="s">&#39;Invalid value type </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">valueType</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">__group</span> <span class="o">=</span> <span class="n">group</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">__name</span> <span class="o">=</span> <span class="n">name</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">__type</span> <span class="o">=</span> <span class="n">valueType</span>
-        <span class="k">if</span> <span class="n">__debug__</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__id</span> <span class="o">=</span> <span class="n">group</span> <span class="o">+</span> <span class="s">&#39;.&#39;</span> <span class="o">+</span> <span class="n">name</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">__id</span> <span class="o">=</span> <span class="n">attrIdForName</span><span class="p">(</span><span class="n">group</span><span class="p">)</span> <span class="o">+</span> <span class="s">&#39;_&#39;</span> <span class="o">+</span> <span class="n">attrIdForName</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
-
-<div class="viewcode-block" id="AttributeOnThread.has"><a class="viewcode-back" href="../../../ally.support.html#ally.support.util.AttributeOnThread.has">[docs]</a>    <span class="k">def</span> <span class="nf">has</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&#39;&#39;&#39;</span>
-<span class="sd">        Checks if there is a value for the current thread.</span>
-<span class="sd">        </span>
-<span class="sd">        @return: boolean</span>
-<span class="sd">            True if there is a value, False otherwise.</span>
-<span class="sd">        &#39;&#39;&#39;</span>
-        <span class="k">return</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">currentThread</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">__id</span><span class="p">)</span>
-</div>
-<div class="viewcode-block" id="AttributeOnThread.get"><a class="viewcode-back" href="../../../ally.support.html#ally.support.util.AttributeOnThread.get">[docs]</a>    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">default</span><span class="p">):</span>
-        <span class="sd">&#39;&#39;&#39;</span>
-<span class="sd">        Get the value from the current thread.</span>
-<span class="sd">        </span>
-<span class="sd">        @param default: argument</span>
-<span class="sd">            If provided will return the default if no argument value is available.</span>
-<span class="sd">        @return: object</span>
-<span class="sd">            The value.</span>
-<span class="sd">        &#39;&#39;&#39;</span>
-        <span class="n">value</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">currentThread</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">__id</span><span class="p">,</span> <span class="o">*</span><span class="n">default</span><span class="p">)</span>
-        <span class="k">assert</span> <span class="ow">not</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__type</span> <span class="ow">and</span> <span class="n">value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__type</span><span class="p">),</span> <span class="s">&#39;Invalid value </span><span class="si">%s</span><span class="s"> to get for &#39;</span> \
-        <span class="s">&#39;required type </span><span class="si">%s</span><span class="s">, for attribute </span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__type</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__group</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__name</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">value</span>
-</div>
-<div class="viewcode-block" id="AttributeOnThread.set"><a class="viewcode-back" href="../../../ally.support.html#ally.support.util.AttributeOnThread.set">[docs]</a>    <span class="k">def</span> <span class="nf">set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
-        <span class="sd">&#39;&#39;&#39;</span>
-<span class="sd">        Sets the value to the current thread.</span>
-<span class="sd">        </span>
-<span class="sd">        @param value: object</span>
-<span class="sd">            The value to set.</span>
-<span class="sd">        @return: object</span>
-<span class="sd">            The provided value.</span>
-<span class="sd">        &#39;&#39;&#39;</span>
-        <span class="k">assert</span> <span class="ow">not</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__type</span> <span class="ow">and</span> <span class="n">value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__type</span><span class="p">),</span> <span class="s">&#39;Invalid value </span><span class="si">%s</span><span class="s"> to set for &#39;</span> \
-        <span class="s">&#39;required type </span><span class="si">%s</span><span class="s">, for attribute </span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__type</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__group</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__name</span><span class="p">)</span>
-        <span class="nb">setattr</span><span class="p">(</span><span class="n">currentThread</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">__id</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">value</span>
-</div>
-<div class="viewcode-block" id="AttributeOnThread.delete"><a class="viewcode-back" href="../../../ally.support.html#ally.support.util.AttributeOnThread.delete">[docs]</a>    <span class="k">def</span> <span class="nf">delete</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&#39;&#39;&#39;</span>
-<span class="sd">        Deletes the value from the provided object.</span>
-<span class="sd">        &#39;&#39;&#39;</span>
-        <span class="nb">delattr</span><span class="p">(</span><span class="n">currentThread</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">__id</span><span class="p">)</span>
-</div>
-<div class="viewcode-block" id="AttributeOnThread.clear"><a class="viewcode-back" href="../../../ally.support.html#ally.support.util.AttributeOnThread.clear">[docs]</a>    <span class="k">def</span> <span class="nf">clear</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&#39;&#39;&#39;</span>
-<span class="sd">        Deletes the value from the current thread if is present.</span>
-<span class="sd">        &#39;&#39;&#39;</span>
-        <span class="n">thread</span> <span class="o">=</span> <span class="n">currentThread</span><span class="p">()</span>
-        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">thread</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__id</span><span class="p">):</span> <span class="nb">delattr</span><span class="p">(</span><span class="n">thread</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__id</span><span class="p">)</span>
-</pre></div></div></div>
+            <span class="k">yield</span> <span class="bp">True</span><span class="p">,</span> <span class="n">item</span></div>
+</pre></div>
 
           </div>
         </div>

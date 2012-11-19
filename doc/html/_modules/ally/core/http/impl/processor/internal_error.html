@@ -64,12 +64,13 @@
 <span class="kn">from</span> <span class="nn">ally.core.spec.codes</span> <span class="kn">import</span> <span class="n">Code</span><span class="p">,</span> <span class="n">INTERNAL_ERROR</span><span class="p">,</span> <span class="n">BAD_CONTENT</span>
 <span class="kn">from</span> <span class="nn">ally.design.context</span> <span class="kn">import</span> <span class="n">defines</span><span class="p">,</span> <span class="n">Context</span>
 <span class="kn">from</span> <span class="nn">ally.design.processor</span> <span class="kn">import</span> <span class="n">HandlerProcessor</span><span class="p">,</span> <span class="n">Chain</span>
-<span class="kn">from</span> <span class="nn">ally.support.util_io</span> <span class="kn">import</span> <span class="n">IOutputStream</span><span class="p">,</span> <span class="n">readGenerator</span><span class="p">,</span> <span class="n">convertToBytes</span>
-<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">Iterable</span>
-<span class="kn">from</span> <span class="nn">io</span> <span class="kn">import</span> <span class="n">BytesIO</span><span class="p">,</span> <span class="n">StringIO</span>
-<span class="kn">import</span> <span class="nn">logging</span>
-<span class="kn">import</span> <span class="nn">traceback</span>
 <span class="kn">from</span> <span class="nn">ally.exception</span> <span class="kn">import</span> <span class="n">DevelError</span>
+<span class="kn">from</span> <span class="nn">ally.support.util_io</span> <span class="kn">import</span> <span class="n">IOutputStream</span><span class="p">,</span> <span class="n">convertToBytes</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">Iterable</span>
+<span class="kn">from</span> <span class="nn">io</span> <span class="kn">import</span> <span class="n">StringIO</span><span class="p">,</span> <span class="n">BytesIO</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">traceback</span>
 
 <span class="c"># --------------------------------------------------------------------</span>
 
@@ -121,41 +122,52 @@
         <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">chain</span><span class="p">,</span> <span class="n">Chain</span><span class="p">),</span> <span class="s">&#39;Invalid processors chain </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">chain</span>
         <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="n">Response</span><span class="p">),</span> <span class="s">&#39;Invalid response </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">response</span>
         <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">responseCnt</span><span class="p">,</span> <span class="n">ResponseContent</span><span class="p">),</span> <span class="s">&#39;Invalid response content </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">responseCnt</span>
-
-        <span class="n">error</span> <span class="o">=</span> <span class="bp">None</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="k">try</span><span class="p">:</span>
-                <span class="n">chain</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">response</span><span class="o">=</span><span class="n">response</span><span class="p">,</span> <span class="n">responseCnt</span><span class="o">=</span><span class="n">responseCnt</span><span class="p">,</span> <span class="o">**</span><span class="n">keyargs</span><span class="p">)</span>
-                <span class="c"># We process the chain internally so we might cache any exception.</span>
-            <span class="k">except</span> <span class="n">DevelError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        
+        <span class="k">def</span> <span class="nf">onError</span><span class="p">():</span>
+            <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">            Handle the error.</span>
+<span class="sd">            &#39;&#39;&#39;</span>
+            <span class="n">exc</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">exc_info</span><span class="p">()[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">exc</span><span class="p">,</span> <span class="n">DevelError</span><span class="p">):</span>
                 <span class="n">log</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s">&#39;Exception occurred while processing the chain&#39;</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
-                <span class="n">response</span><span class="o">.</span><span class="n">code</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">errorMessage</span> <span class="o">=</span> <span class="n">BAD_CONTENT</span><span class="p">,</span> <span class="s">&#39;Development error&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
-                <span class="n">chain</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">response</span><span class="o">=</span><span class="n">response</span><span class="p">,</span> <span class="n">responseCnt</span><span class="o">=</span><span class="n">responseCnt</span><span class="p">,</span> <span class="o">**</span><span class="n">keyargs</span><span class="p">)</span>
+                <span class="n">response</span><span class="o">.</span><span class="n">code</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">errorMessage</span> <span class="o">=</span> <span class="n">BAD_CONTENT</span><span class="p">,</span> <span class="s">&#39;Development error&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">)</span>
+                <span class="n">chain</span><span class="o">.</span><span class="n">proceed</span><span class="p">()</span>
                 <span class="c"># We try to process now the chain (where it left of) with the exception set.</span>
-        <span class="k">except</span><span class="p">:</span>
+                <span class="k">return</span>
+            
             <span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s">&#39;Exception occurred while processing the chain&#39;</span><span class="p">)</span>
             <span class="n">error</span> <span class="o">=</span> <span class="n">StringIO</span><span class="p">()</span>
             <span class="n">traceback</span><span class="o">.</span><span class="n">print_exc</span><span class="p">(</span><span class="nb">file</span><span class="o">=</span><span class="n">error</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">__debug__</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">responseCnt</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">):</span>
-                <span class="c"># If in debug mode and the response content has a source generator then we will try to read that</span>
-                <span class="c"># in order to catch any exception before the actual streaming.</span>
-                <span class="n">content</span> <span class="o">=</span> <span class="n">BytesIO</span><span class="p">()</span>
-                <span class="k">try</span><span class="p">:</span>
-                    <span class="k">for</span> <span class="nb">bytes</span> <span class="ow">in</span> <span class="n">responseCnt</span><span class="o">.</span><span class="n">source</span><span class="p">:</span> <span class="n">content</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="nb">bytes</span><span class="p">)</span>
-                <span class="k">except</span><span class="p">:</span>
-                    <span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s">&#39;Exception occurred while processing the chain&#39;</span><span class="p">)</span>
-                    <span class="n">error</span> <span class="o">=</span> <span class="n">StringIO</span><span class="p">()</span>
-                    <span class="n">traceback</span><span class="o">.</span><span class="n">print_exc</span><span class="p">(</span><span class="nb">file</span><span class="o">=</span><span class="n">error</span><span class="p">)</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="n">content</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-                    <span class="n">responseCnt</span><span class="o">.</span><span class="n">source</span> <span class="o">=</span> <span class="n">readGenerator</span><span class="p">(</span><span class="n">content</span><span class="p">)</span>
-
-        <span class="k">if</span> <span class="n">error</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
             <span class="n">response</span><span class="o">.</span><span class="n">code</span> <span class="o">=</span> <span class="n">INTERNAL_ERROR</span>
             <span class="n">response</span><span class="o">.</span><span class="n">text</span> <span class="o">=</span> <span class="s">&#39;Upps, please consult the server logs&#39;</span>
             <span class="n">response</span><span class="o">.</span><span class="n">headers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">errorHeaders</span>
             <span class="n">responseCnt</span><span class="o">.</span><span class="n">source</span> <span class="o">=</span> <span class="n">convertToBytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">errorResponse</span><span class="p">(</span><span class="n">error</span><span class="p">),</span> <span class="s">&#39;utf8&#39;</span><span class="p">,</span> <span class="s">&#39;backslashreplace&#39;</span><span class="p">)</span>
+
+        <span class="n">chain</span><span class="o">.</span><span class="n">callBackError</span><span class="p">(</span><span class="n">onError</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">__debug__</span><span class="p">:</span>
+            <span class="c"># If in debug mode and the response content has a source generator then we will try to read that</span>
+            <span class="c"># in order to catch any exception before the actual streaming.</span>
+            <span class="k">def</span> <span class="nf">onFinalize</span><span class="p">():</span>
+                <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">                Handle the finalization</span>
+<span class="sd">                &#39;&#39;&#39;</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">responseCnt</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">):</span>
+                    <span class="n">content</span> <span class="o">=</span> <span class="n">BytesIO</span><span class="p">()</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="k">for</span> <span class="nb">bytes</span> <span class="ow">in</span> <span class="n">responseCnt</span><span class="o">.</span><span class="n">source</span><span class="p">:</span> <span class="n">content</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="nb">bytes</span><span class="p">)</span>
+                    <span class="k">except</span><span class="p">:</span>
+                        <span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s">&#39;Exception occurred while processing the chain&#39;</span><span class="p">)</span>
+                        <span class="n">error</span> <span class="o">=</span> <span class="n">StringIO</span><span class="p">()</span>
+                        <span class="n">traceback</span><span class="o">.</span><span class="n">print_exc</span><span class="p">(</span><span class="nb">file</span><span class="o">=</span><span class="n">error</span><span class="p">)</span>
+                        <span class="n">response</span><span class="o">.</span><span class="n">code</span> <span class="o">=</span> <span class="n">INTERNAL_ERROR</span>
+                        <span class="n">response</span><span class="o">.</span><span class="n">text</span> <span class="o">=</span> <span class="s">&#39;Cannot render response, please consult the server logs&#39;</span>
+                        <span class="n">response</span><span class="o">.</span><span class="n">headers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">errorHeaders</span>
+                        <span class="n">responseCnt</span><span class="o">.</span><span class="n">source</span> <span class="o">=</span> <span class="n">convertToBytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">errorResponse</span><span class="p">(</span><span class="n">error</span><span class="p">),</span> <span class="s">&#39;utf8&#39;</span><span class="p">,</span> <span class="s">&#39;backslashreplace&#39;</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">content</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+                        <span class="n">responseCnt</span><span class="o">.</span><span class="n">source</span> <span class="o">=</span> <span class="n">content</span>
+            
+            <span class="n">chain</span><span class="o">.</span><span class="n">callBack</span><span class="p">(</span><span class="n">onFinalize</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="InternalErrorHandler.errorResponse"><a class="viewcode-back" href="../../../../../../ally.core.http.impl.processor.html#ally.core.http.impl.processor.internal_error.InternalErrorHandler.errorResponse">[docs]</a>    <span class="k">def</span> <span class="nf">errorResponse</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">error</span><span class="p">):</span>
         <span class="sd">&#39;&#39;&#39;</span>

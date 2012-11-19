@@ -17,6 +17,14 @@ sql_alchemy Package
     :undoc-members:
     :show-inheritance:
 
+:mod:`multiprocess_config` Module
+---------------------------------
+
+.. automodule:: sql_alchemy.multiprocess_config
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 Subpackages
 -----------
 

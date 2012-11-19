@@ -1,6 +1,14 @@
 core Package
 ============
 
+:mod:`core` Package
+-------------------
+
+.. automodule:: ally.core
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 Subpackages
 -----------
 

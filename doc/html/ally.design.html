@@ -387,12 +387,71 @@ A text containing the report for the processing creation</dd>
 
 <dl class="class">
 <dt id="ally.design.processor.Chain">
-<em class="property">class </em><tt class="descclassname">ally.design.processor.</tt><tt class="descname">Chain</tt><big>(</big><em>calls</em><big>)</big><a class="reference internal" href="_modules/ally/design/processor.html#Chain"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ally.design.processor.Chain" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">ally.design.processor.</tt><tt class="descname">Chain</tt><big>(</big><em>processing</em><big>)</big><a class="reference internal" href="_modules/ally/design/processor.html#Chain"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ally.design.processor.Chain" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<p>A chain that contains a list of processors (callables) that are executed one by one. Each processor will have
+the duty to proceed with the processing if is the case by calling the chain.</p>
+<dl class="method">
+<dt id="ally.design.processor.Chain.branch">
+<tt class="descname">branch</tt><big>(</big><em>processing</em><big>)</big><a class="reference internal" href="_modules/ally/design/processor.html#Chain.branch"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ally.design.processor.Chain.branch" title="Permalink to this definition">¶</a></dt>
+<dd><p>Branches the chain to a different processing and automatically marks the chain for proceeding.
+If the key arguments are not updated they must be compatible from the previous processing.</p>
 <dl class="docutils">
-<dt>A chain that contains a list of processors (callables) that are executed one by one. Each processor will have</dt>
-<dd>the duty to proceed with the processing if is the case by calling the chain.</dd>
+<dt>&#64;param processing: Processing</dt>
+<dd>The processing to be handled by the chain. Attention the order in which the processors are provided
+is critical since one processor is responsible for delegating to the next.</dd>
+<dt>&#64;return: this chain</dt>
+<dd>This chain for chaining purposes.</dd>
 </dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="ally.design.processor.Chain.callBack">
+<tt class="descname">callBack</tt><big>(</big><em>callBack</em><big>)</big><a class="reference internal" href="_modules/ally/design/processor.html#Chain.callBack"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ally.design.processor.Chain.callBack" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add a call back to the chain that will be called after the chain is completed.
+Also marks the chain as proceeding.</p>
+<dl class="docutils">
+<dt>&#64;param callBack: callable(<a href="#id1"><span class="problematic" id="id2">*</span></a>keyargs)</dt>
+<dd>The call back.</dd>
+<dt>&#64;return: this chain</dt>
+<dd>This chain for chaining purposes.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="ally.design.processor.Chain.callBackError">
+<tt class="descname">callBackError</tt><big>(</big><em>callBack</em><big>)</big><a class="reference internal" href="_modules/ally/design/processor.html#Chain.callBackError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ally.design.processor.Chain.callBackError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add a call back to the chain that will be called if an error occurs. In the received key arguments there will
+be also the error that occurred and the trace back of the error. If there is at least one error call back in 
+the chain the exception that will occur in the chain will not be propagated. Also marks the chain as proceeding.</p>
+<dl class="docutils">
+<dt>&#64;param callBack: callable(<a href="#id3"><span class="problematic" id="id4">*</span></a>keyargs)</dt>
+<dd>The call back.</dd>
+<dt>&#64;return: this chain</dt>
+<dd>This chain for chaining purposes.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="ally.design.processor.Chain.do">
+<tt class="descname">do</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/ally/design/processor.html#Chain.do"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ally.design.processor.Chain.do" title="Permalink to this definition">¶</a></dt>
+<dd><p>Called in order to do the next chain element. A <em>process</em> method needs to be executed first.</p>
+<dl class="docutils">
+<dt>&#64;return: boolean</dt>
+<dd>True if the chain has performed the execution of the next element, False if there is no more to be executed.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="ally.design.processor.Chain.doAll">
+<tt class="descname">doAll</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/ally/design/processor.html#Chain.doAll"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ally.design.processor.Chain.doAll" title="Permalink to this definition">¶</a></dt>
+<dd><p>Do all the chain elements. A <em>process</em> method needs to be executed first.</p>
+<dl class="docutils">
+<dt>&#64;return: this chain</dt>
+<dd>This chain for chaining purposes.</dd>
+</dl>
+</dd></dl>
+
 <dl class="method">
 <dt id="ally.design.processor.Chain.isConsumed">
 <tt class="descname">isConsumed</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/ally/design/processor.html#Chain.isConsumed"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ally.design.processor.Chain.isConsumed" title="Permalink to this definition">¶</a></dt>
@@ -410,16 +469,35 @@ the execution of the other processors.</dd>
 <dd><p>Indicates to the chain that it should proceed with the chain execution after a processor has returned. 
 The proceed is available only when the chain is in execution. The execution is continued with the same
 arguments.</p>
+<dl class="docutils">
+<dt>&#64;return: this chain</dt>
+<dd>This chain for chaining purposes.</dd>
+</dl>
 </dd></dl>
 
 <dl class="method">
 <dt id="ally.design.processor.Chain.process">
 <tt class="descname">process</tt><big>(</big><em>**keyargs</em><big>)</big><a class="reference internal" href="_modules/ally/design/processor.html#Chain.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ally.design.processor.Chain.process" title="Permalink to this definition">¶</a></dt>
-<dd><p>Called in order to execute the next processors in the chain. This method will stop processing when all
-the processors have been executed.</p>
+<dd><p>Called in order to execute the next processors in the chain. This method registers the chain proceed
+execution but in order to actually execute you need to call the <em>do</em> or <em>doAll</em> method.</p>
 <dl class="docutils">
 <dt>&#64;param keyargs: key arguments</dt>
 <dd>The key arguments that are passed on to the next processors.</dd>
+<dt>&#64;return: this chain</dt>
+<dd>This chain for chaining purposes.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="ally.design.processor.Chain.update">
+<tt class="descname">update</tt><big>(</big><em>**keyargs</em><big>)</big><a class="reference internal" href="_modules/ally/design/processor.html#Chain.update"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ally.design.processor.Chain.update" title="Permalink to this definition">¶</a></dt>
+<dd><p>Used to update the key arguments of the processing and also mark the chain for proceeding. A <em>process</em> method
+needs to be executed first.</p>
+<dl class="docutils">
+<dt>&#64;param keyargs: key arguments</dt>
+<dd>The key arguments that need to be updated and passed on to the next processors.</dd>
+<dt>&#64;return: this chain</dt>
+<dd>This chain for chaining purposes.</dd>
 </dl>
 </dd></dl>
 
@@ -466,9 +544,9 @@ contexts. The function will not receive the chain as an argument and will always
 <em class="property">class </em><tt class="descclassname">ally.design.processor.</tt><tt class="descname">HandlerProcessor</tt><a class="reference internal" href="_modules/ally/design/processor.html#HandlerProcessor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ally.design.processor.HandlerProcessor" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <a class="reference internal" href="#ally.design.processor.Handler" title="ally.design.processor.Handler"><tt class="xref py py-class docutils literal"><span class="pre">ally.design.processor.Handler</span></tt></a></p>
 <p>A handler that contains a processor derived on the contextual &#8216;process&#8217; function.</p>
-<dl class="method">
+<dl class="classmethod">
 <dt id="ally.design.processor.HandlerProcessor.process">
-<tt class="descname">process</tt><big>(</big><em>chain</em>, <em>**keyargs</em><big>)</big><a class="reference internal" href="_modules/ally/design/processor.html#HandlerProcessor.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ally.design.processor.HandlerProcessor.process" title="Permalink to this definition">¶</a></dt>
+<em class="property">classmethod </em><tt class="descname">process</tt><big>(</big><em>chain</em>, <em>**keyargs</em><big>)</big><a class="reference internal" href="_modules/ally/design/processor.html#HandlerProcessor.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ally.design.processor.HandlerProcessor.process" title="Permalink to this definition">¶</a></dt>
 <dd><p>The contextual process function used by the handler.</p>
 <dl class="docutils">
 <dt>&#64;param chain: Chain</dt>
@@ -483,9 +561,9 @@ contexts. The function will not receive the chain as an argument and will always
 <em class="property">class </em><tt class="descclassname">ally.design.processor.</tt><tt class="descname">HandlerProcessorProceed</tt><a class="reference internal" href="_modules/ally/design/processor.html#HandlerProcessorProceed"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ally.design.processor.HandlerProcessorProceed" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <a class="reference internal" href="#ally.design.processor.Handler" title="ally.design.processor.Handler"><tt class="xref py py-class docutils literal"><span class="pre">ally.design.processor.Handler</span></tt></a></p>
 <p>A handler that contains a processor derived on the contextual &#8216;process&#8217; function.</p>
-<dl class="method">
+<dl class="classmethod">
 <dt id="ally.design.processor.HandlerProcessorProceed.process">
-<tt class="descname">process</tt><big>(</big><em>**keyargs</em><big>)</big><a class="reference internal" href="_modules/ally/design/processor.html#HandlerProcessorProceed.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ally.design.processor.HandlerProcessorProceed.process" title="Permalink to this definition">¶</a></dt>
+<em class="property">classmethod </em><tt class="descname">process</tt><big>(</big><em>**keyargs</em><big>)</big><a class="reference internal" href="_modules/ally/design/processor.html#HandlerProcessorProceed.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ally.design.processor.HandlerProcessorProceed.process" title="Permalink to this definition">¶</a></dt>
 <dd><p>The contextual process function used by the handler, this process will not require a chain and will always
 proceed with the execution.</p>
 </dd></dl>
@@ -508,16 +586,6 @@ a processing at one time.</p>
 <dt id="ally.design.processor.Processing.contexts">
 <tt class="descname">contexts</tt><a class="headerlink" href="#ally.design.processor.Processing.contexts" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
-
-<dl class="method">
-<dt id="ally.design.processor.Processing.newChain">
-<tt class="descname">newChain</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/ally/design/processor.html#Processing.newChain"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ally.design.processor.Processing.newChain" title="Permalink to this definition">¶</a></dt>
-<dd><p>Constructs a new processors chain.</p>
-<dl class="docutils">
-<dt>&#64;return: Chain</dt>
-<dd>The chain of processors.</dd>
-</dl>
-</dd></dl>
 
 </dd></dl>
 

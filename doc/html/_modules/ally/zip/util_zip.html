@@ -111,13 +111,13 @@
     <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">stopPath</span><span class="p">,</span> <span class="nb">str</span><span class="p">),</span> <span class="s">&#39;Invalid stop path </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">stopPath</span>
     <span class="c"># make sure the file path is normalized and uses the OS separator</span>
     <span class="n">filePath</span> <span class="o">=</span> <span class="n">normOSPath</span><span class="p">(</span><span class="n">filePath</span><span class="p">,</span> <span class="bp">True</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">is_zipfile</span><span class="p">(</span><span class="n">filePath</span><span class="p">):</span>
-        <span class="k">return</span> <span class="p">(</span><span class="n">filePath</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">is_zipfile</span><span class="p">(</span><span class="n">filePath</span><span class="p">):</span> <span class="k">return</span> <span class="n">filePath</span><span class="p">,</span> <span class="s">&#39;&#39;</span>
+    
     <span class="n">parentPath</span> <span class="o">=</span> <span class="n">filePath</span>
     <span class="n">stopPathLen</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">stopPath</span><span class="p">)</span>
     <span class="k">while</span> <span class="nb">len</span><span class="p">(</span><span class="n">parentPath</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">stopPathLen</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">is_zipfile</span><span class="p">(</span><span class="n">parentPath</span><span class="p">):</span>
-            <span class="k">return</span> <span class="p">(</span><span class="n">parentPath</span><span class="p">,</span> <span class="n">normZipPath</span><span class="p">(</span><span class="n">filePath</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">parentPath</span><span class="p">):]))</span>
+            <span class="k">return</span> <span class="n">parentPath</span><span class="p">,</span> <span class="n">normZipPath</span><span class="p">(</span><span class="n">filePath</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">parentPath</span><span class="p">):])</span>
         <span class="n">nextSubPath</span> <span class="o">=</span> <span class="n">dirname</span><span class="p">(</span><span class="n">parentPath</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">nextSubPath</span> <span class="o">==</span> <span class="n">parentPath</span><span class="p">:</span> <span class="k">break</span>
         <span class="n">parentPath</span> <span class="o">=</span> <span class="n">nextSubPath</span>
