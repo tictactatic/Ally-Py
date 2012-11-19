@@ -16,4 +16,5 @@ will come...
 
 * Ally-Py for developers - [overview][1]
 
+[Ally-Py]: http://www.sourcefabric.org/en/superdesk/ally_py/
 [1]: https://wiki.sourcefabric.org/x/OIGg
