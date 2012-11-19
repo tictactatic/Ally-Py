@@ -71,7 +71,7 @@
 <span class="sd">    &#39;&#39;&#39;</span>
     <span class="n">__slots__</span> <span class="o">=</span> <span class="p">()</span>
 
-    <span class="nd">@abc.abstractmethod</span>
+    <span class="nd">@abc.abstractclassmethod</span>
 <div class="viewcode-block" id="IRender.value"><a class="viewcode-back" href="../../../../../ally.core.spec.transform.html#ally.core.spec.transform.render.IRender.value">[docs]</a>    <span class="k">def</span> <span class="nf">value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
         <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        Called to signal that a value has to be rendered.</span>
@@ -82,7 +82,7 @@
 <span class="sd">            The value.</span>
 <span class="sd">        &#39;&#39;&#39;</span>
 </div>
-    <span class="nd">@abc.abstractmethod</span>
+    <span class="nd">@abc.abstractclassmethod</span>
 <div class="viewcode-block" id="IRender.objectStart"><a class="viewcode-back" href="../../../../../ally.core.spec.transform.html#ally.core.spec.transform.render.IRender.objectStart">[docs]</a>    <span class="k">def</span> <span class="nf">objectStart</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">attributes</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        Called to signal that an object has to be rendered.</span>
@@ -93,13 +93,13 @@
 <span class="sd">            The attributes for the value.</span>
 <span class="sd">        &#39;&#39;&#39;</span>
 </div>
-    <span class="nd">@abc.abstractmethod</span>
+    <span class="nd">@abc.abstractclassmethod</span>
 <div class="viewcode-block" id="IRender.objectEnd"><a class="viewcode-back" href="../../../../../ally.core.spec.transform.html#ally.core.spec.transform.render.IRender.objectEnd">[docs]</a>    <span class="k">def</span> <span class="nf">objectEnd</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        Called to signal that the current object has ended the rendering.</span>
 <span class="sd">        &#39;&#39;&#39;</span>
 </div>
-    <span class="nd">@abc.abstractmethod</span>
+    <span class="nd">@abc.abstractclassmethod</span>
 <div class="viewcode-block" id="IRender.collectionStart"><a class="viewcode-back" href="../../../../../ally.core.spec.transform.html#ally.core.spec.transform.render.IRender.collectionStart">[docs]</a>    <span class="k">def</span> <span class="nf">collectionStart</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">attributes</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        Called to signal that a collection has to be rendered.</span>
@@ -110,7 +110,7 @@
 <span class="sd">            The attributes for the collection.</span>
 <span class="sd">        &#39;&#39;&#39;</span>
 </div>
-    <span class="nd">@abc.abstractmethod</span>
+    <span class="nd">@abc.abstractclassmethod</span>
 <div class="viewcode-block" id="IRender.collectionEnd"><a class="viewcode-back" href="../../../../../ally.core.spec.transform.html#ally.core.spec.transform.render.IRender.collectionEnd">[docs]</a>    <span class="k">def</span> <span class="nf">collectionEnd</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        Called to signal that the current collection has ended the rendering.</span>
