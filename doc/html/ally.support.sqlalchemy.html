@@ -324,6 +324,55 @@ also provide to the model additional information extracted from the SQL alchemy 
 </dd></dl>
 
 </div>
+<div class="section" id="module-ally.support.sqlalchemy.pool">
+<span id="pool-module"></span><h2><tt class="xref py py-mod docutils literal"><span class="pre">pool</span></tt> Module<a class="headerlink" href="#module-ally.support.sqlalchemy.pool" title="Permalink to this headline">¶</a></h2>
+<p>Created on Oct 18, 2012</p>
+<p>&#64;package support sqlalchemy
+&#64;copyright 2011 Sourcefabric o.p.s.
+&#64;license <a class="reference external" href="http://www.gnu.org/licenses/gpl-3.0.txt">http://www.gnu.org/licenses/gpl-3.0.txt</a>
+&#64;author: Gabriel Nistor</p>
+<p>Contains pool implementations for sql alchemy database setup.</p>
+<dl class="class">
+<dt id="ally.support.sqlalchemy.pool.SingletonProcessWrapper">
+<em class="property">class </em><tt class="descclassname">ally.support.sqlalchemy.pool.</tt><tt class="descname">SingletonProcessWrapper</tt><big>(</big><em>wrapped</em><big>)</big><a class="reference internal" href="_modules/ally/support/sqlalchemy/pool.html#SingletonProcessWrapper"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ally.support.sqlalchemy.pool.SingletonProcessWrapper" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">sqlalchemy.pool.Pool</span></tt></p>
+<p>Class made based on &#64;see: sqlalchemy.pool.Pool, only implements the public methods.</p>
+<p>A Pool that wraps another pool that will be recreated for each process.</p>
+<p>Maintains one pool per each process, never moving a connection pool to a process other than the one which it
+was created in.</p>
+<dl class="method">
+<dt id="ally.support.sqlalchemy.pool.SingletonProcessWrapper.connect">
+<tt class="descname">connect</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/ally/support/sqlalchemy/pool.html#SingletonProcessWrapper.connect"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ally.support.sqlalchemy.pool.SingletonProcessWrapper.connect" title="Permalink to this definition">¶</a></dt>
+<dd><p>&#64;see: Pool.connect</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="ally.support.sqlalchemy.pool.SingletonProcessWrapper.dispose">
+<tt class="descname">dispose</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/ally/support/sqlalchemy/pool.html#SingletonProcessWrapper.dispose"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ally.support.sqlalchemy.pool.SingletonProcessWrapper.dispose" title="Permalink to this definition">¶</a></dt>
+<dd><p>&#64;see: Pool.dispose</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="ally.support.sqlalchemy.pool.SingletonProcessWrapper.recreate">
+<tt class="descname">recreate</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/ally/support/sqlalchemy/pool.html#SingletonProcessWrapper.recreate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ally.support.sqlalchemy.pool.SingletonProcessWrapper.recreate" title="Permalink to this definition">¶</a></dt>
+<dd><p>&#64;see: Pool.recreate</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="ally.support.sqlalchemy.pool.SingletonProcessWrapper.status">
+<tt class="descname">status</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/ally/support/sqlalchemy/pool.html#SingletonProcessWrapper.status"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ally.support.sqlalchemy.pool.SingletonProcessWrapper.status" title="Permalink to this definition">¶</a></dt>
+<dd><p>&#64;see: Pool.status</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="ally.support.sqlalchemy.pool.SingletonProcessWrapper.unique_connection">
+<tt class="descname">unique_connection</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/ally/support/sqlalchemy/pool.html#SingletonProcessWrapper.unique_connection"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ally.support.sqlalchemy.pool.SingletonProcessWrapper.unique_connection" title="Permalink to this definition">¶</a></dt>
+<dd><p>&#64;see: Pool.unique_connection</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
 <div class="section" id="module-ally.support.sqlalchemy.session">
 <span id="session-module"></span><h2><tt class="xref py py-mod docutils literal"><span class="pre">session</span></tt> Module<a class="headerlink" href="#module-ally.support.sqlalchemy.session" title="Permalink to this headline">¶</a></h2>
 <p>Created on Jan 5, 2012</p>
@@ -339,10 +388,10 @@ also provide to the model additional information extracted from the SQL alchemy 
 <p>Class that provides for the services that use SQLAlchemy the session support.
 All services that use SQLAlchemy have to extend this class in order to provide the sql alchemy session
 of the request, the session will be automatically handled by the session processor.</p>
-<dl class="attribute">
+<dl class="method">
 <dt id="ally.support.sqlalchemy.session.SessionSupport.session">
-<tt class="descname">session</tt><a class="headerlink" href="#ally.support.sqlalchemy.session.SessionSupport.session" title="Permalink to this definition">¶</a></dt>
-<dd><p>alias of <tt class="xref py py-class docutils literal"><span class="pre">Session</span></tt></p>
+<tt class="descname">session</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/ally/support/sqlalchemy/session.html#SessionSupport.session"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ally.support.sqlalchemy.session.SessionSupport.session" title="Permalink to this definition">¶</a></dt>
+<dd><p>Provide or construct a session.</p>
 </dd></dl>
 
 </dd></dl>
@@ -432,6 +481,17 @@ thread session creator if one is not already created.</p>
 </dl>
 </dd></dl>
 
+<dl class="function">
+<dt id="ally.support.sqlalchemy.session.setKeepAlive">
+<tt class="descclassname">ally.support.sqlalchemy.session.</tt><tt class="descname">setKeepAlive</tt><big>(</big><em>keep</em><big>)</big><a class="reference internal" href="_modules/ally/support/sqlalchemy/session.html#setKeepAlive"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ally.support.sqlalchemy.session.setKeepAlive" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set the flag that indicates if a session should be closed or kept alive after a call has finalized.
+If the session is left opened then other processes need to close it.</p>
+<dl class="docutils">
+<dt>&#64;param keep: boolean</dt>
+<dd>Flag indicating that the session should be left open (True) or not (False).</dd>
+</dl>
+</dd></dl>
+
 </div>
 <div class="section" id="module-ally.support.sqlalchemy.util_service">
 <span id="util-service-module"></span><h2><tt class="xref py py-mod docutils literal"><span class="pre">util_service</span></tt> Module<a class="headerlink" href="#module-ally.support.sqlalchemy.util_service" title="Permalink to this headline">¶</a></h2>
@@ -488,6 +548,7 @@ thread session creator if one is not already created.</p>
 <li><a class="reference internal" href="#id1"><tt class="docutils literal"><span class="pre">sqlalchemy</span></tt> Package</a></li>
 <li><a class="reference internal" href="#module-ally.support.sqlalchemy.descriptor"><tt class="docutils literal"><span class="pre">descriptor</span></tt> Module</a></li>
 <li><a class="reference internal" href="#module-ally.support.sqlalchemy.mapper"><tt class="docutils literal"><span class="pre">mapper</span></tt> Module</a></li>
+<li><a class="reference internal" href="#module-ally.support.sqlalchemy.pool"><tt class="docutils literal"><span class="pre">pool</span></tt> Module</a></li>
 <li><a class="reference internal" href="#module-ally.support.sqlalchemy.session"><tt class="docutils literal"><span class="pre">session</span></tt> Module</a></li>
 <li><a class="reference internal" href="#module-ally.support.sqlalchemy.util_service"><tt class="docutils literal"><span class="pre">util_service</span></tt> Module</a></li>
 </ul>

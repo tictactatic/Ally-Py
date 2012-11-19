@@ -93,9 +93,7 @@
         <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">IOutputStream</span><span class="p">),</span> <span class="s">&#39;Invalid content output stream </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">output</span>
 
         <span class="n">outputb</span> <span class="o">=</span> <span class="n">getwriter</span><span class="p">(</span><span class="n">charSet</span><span class="p">)(</span><span class="n">output</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">encodingError</span><span class="p">)</span>
-        <span class="k">try</span><span class="p">:</span> <span class="n">xml</span> <span class="o">=</span> <span class="n">XMLGenerator</span><span class="p">(</span><span class="n">outputb</span><span class="p">,</span> <span class="n">charSet</span><span class="p">,</span> <span class="bp">True</span><span class="p">)</span>
-        <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span> <span class="n">xml</span> <span class="o">=</span> <span class="n">XMLGenerator</span><span class="p">(</span><span class="n">outputb</span><span class="p">,</span> <span class="n">charSet</span><span class="p">)</span> <span class="c"># This is for python 3.1 compatibility</span>
-            
+        <span class="n">xml</span> <span class="o">=</span> <span class="n">XMLGenerator</span><span class="p">(</span><span class="n">outputb</span><span class="p">,</span> <span class="n">charSet</span><span class="p">,</span> <span class="n">short_empty_elements</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">RenderXML</span><span class="p">(</span><span class="n">xml</span><span class="p">)</span>
 
 <span class="c"># --------------------------------------------------------------------</span>

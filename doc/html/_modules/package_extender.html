@@ -236,7 +236,7 @@
 <span class="c"># --------------------------------------------------------------------</span>
 
 <span class="n">PACKAGE_EXTENDER</span> <span class="o">=</span> <span class="n">PackageExtender</span><span class="p">()</span>
-<span class="k">del</span> <span class="n">PackageExtender</span> <span class="c"># We remove the class so no other instance can be created.</span>
+<span class="k">del</span> <span class="n">PackageExtender</span>  <span class="c"># We remove the class so no other instance can be created.</span>
 
 <span class="c"># Registers into the python sys._meta_path the package extender.</span>
 <span class="k">if</span> <span class="ow">not</span> <span class="n">sys</span><span class="o">.</span><span class="n">meta_path</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">sys</span><span class="o">.</span><span class="n">meta_path</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">PACKAGE_EXTENDER</span><span class="p">:</span>
