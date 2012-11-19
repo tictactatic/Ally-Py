@@ -1,6 +1,14 @@
 ally Package
 ============
 
+:mod:`ally` Package
+-------------------
+
+.. automodule:: ally
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 :mod:`exception` Module
 -----------------------
 
