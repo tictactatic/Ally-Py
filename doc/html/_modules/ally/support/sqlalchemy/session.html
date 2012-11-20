@@ -64,22 +64,15 @@
     <span class="n">bindAfterListener</span><span class="p">,</span> <span class="n">bindExceptionListener</span><span class="p">,</span> <span class="n">indexAfter</span><span class="p">,</span> <span class="n">INDEX_LOCK_BEGIN</span><span class="p">,</span> \
     <span class="n">indexBefore</span><span class="p">,</span> <span class="n">INDEX_LOCK_END</span>
 <span class="kn">from</span> <span class="nn">ally.exception</span> <span class="kn">import</span> <span class="n">DevelError</span>
-<span class="kn">from</span> <span class="nn">ally.support.util</span> <span class="kn">import</span> <span class="n">AttributeOnThread</span>
 <span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">deque</span>
 <span class="kn">from</span> <span class="nn">sqlalchemy.exc</span> <span class="kn">import</span> <span class="n">InvalidRequestError</span>
 <span class="kn">from</span> <span class="nn">sqlalchemy.orm.session</span> <span class="kn">import</span> <span class="n">Session</span>
 <span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">threading</span> <span class="kn">import</span> <span class="n">current_thread</span>
 
 <span class="c"># --------------------------------------------------------------------</span>
 
 <span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="n">__name__</span><span class="p">)</span>
-
-<span class="n">ATTR_SESSION_CREATE</span> <span class="o">=</span> <span class="n">AttributeOnThread</span><span class="p">(</span><span class="n">__name__</span><span class="p">,</span> <span class="s">&#39;session_create&#39;</span><span class="p">,</span> <span class="n">deque</span><span class="p">)</span>
-<span class="c"># Attribute used for storing the session creator on the thread</span>
-<span class="n">ATTR_SESSION</span> <span class="o">=</span> <span class="n">AttributeOnThread</span><span class="p">(</span><span class="n">__name__</span><span class="p">,</span> <span class="s">&#39;session&#39;</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span>
-<span class="c"># Attribute used for storing the session on the thread</span>
-<span class="n">ATTR_KEEP_ALIVE</span> <span class="o">=</span> <span class="n">AttributeOnThread</span><span class="p">(</span><span class="n">__name__</span><span class="p">,</span> <span class="s">&#39;session_alive&#39;</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)</span>
-<span class="c"># Attribute used for storing the flag that indicates if a session should be closed or kept alive after a call. </span>
 
 <span class="n">INDEX_SESSION_BEGIN</span> <span class="o">=</span> <span class="n">indexAfter</span><span class="p">(</span><span class="s">&#39;sql_session_begin&#39;</span><span class="p">,</span> <span class="n">INDEX_LOCK_BEGIN</span><span class="p">)</span>
 <span class="c"># The sql session begin index.</span>
@@ -95,15 +88,25 @@
 <span class="sd">    of the request, the session will be automatically handled by the session processor.</span>
 <span class="sd">    &#39;&#39;&#39;</span>
 
-    <span class="n">session</span> <span class="o">=</span> <span class="n">Session</span>
-
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="SessionSupport.session"><a class="viewcode-back" href="../../../../ally.support.sqlalchemy.html#ally.support.sqlalchemy.session.SessionSupport.session">[docs]</a>    <span class="k">def</span> <span class="nf">session</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&#39;&#39;&#39;</span>
-<span class="sd">        Bind the session method.</span>
+<span class="sd">        Provide or construct a session.</span>
 <span class="sd">        &#39;&#39;&#39;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">session</span> <span class="o">=</span> <span class="n">openSession</span>
+        <span class="k">return</span> <span class="n">openSession</span><span class="p">()</span>
 
 <span class="c"># --------------------------------------------------------------------</span>
+</div></div>
+<div class="viewcode-block" id="setKeepAlive"><a class="viewcode-back" href="../../../../ally.support.sqlalchemy.html#ally.support.sqlalchemy.session.setKeepAlive">[docs]</a><span class="k">def</span> <span class="nf">setKeepAlive</span><span class="p">(</span><span class="n">keep</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Set the flag that indicates if a session should be closed or kept alive after a call has finalized.</span>
+<span class="sd">    If the session is left opened then other processes need to close it.</span>
+<span class="sd">    </span>
+<span class="sd">    @param keep: boolean</span>
+<span class="sd">        Flag indicating that the session should be left open (True) or not (False).</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">keep</span><span class="p">,</span> <span class="nb">bool</span><span class="p">),</span> <span class="s">&#39;Invalid keep flag </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">keep</span>
+    <span class="n">current_thread</span><span class="p">()</span><span class="o">.</span><span class="n">_ally_db_session_alive</span> <span class="o">=</span> <span class="n">keep</span>
+    
 </div>
 <div class="viewcode-block" id="beginWith"><a class="viewcode-back" href="../../../../ally.support.sqlalchemy.html#ally.support.sqlalchemy.session.beginWith">[docs]</a><span class="k">def</span> <span class="nf">beginWith</span><span class="p">(</span><span class="n">sessionCreator</span><span class="p">):</span>
     <span class="sd">&#39;&#39;&#39;</span>
@@ -113,8 +116,8 @@
 <span class="sd">        The session creator class.</span>
 <span class="sd">    &#39;&#39;&#39;</span>
     <span class="k">assert</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">sessionCreator</span><span class="p">,</span> <span class="n">Session</span><span class="p">),</span> <span class="s">&#39;Invalid session creator </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">sessionCreator</span>
-    <span class="n">creators</span> <span class="o">=</span> <span class="n">ATTR_SESSION_CREATE</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">None</span><span class="p">)</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">creators</span><span class="p">:</span> <span class="n">creators</span> <span class="o">=</span> <span class="n">ATTR_SESSION_CREATE</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">deque</span><span class="p">())</span>
+    <span class="k">try</span><span class="p">:</span> <span class="n">creators</span> <span class="o">=</span> <span class="n">current_thread</span><span class="p">()</span><span class="o">.</span><span class="n">_ally_db_session_create</span>
+    <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span> <span class="n">creators</span> <span class="o">=</span> <span class="n">current_thread</span><span class="p">()</span><span class="o">.</span><span class="n">_ally_db_session_create</span> <span class="o">=</span> <span class="n">deque</span><span class="p">()</span>
     <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">creators</span><span class="p">,</span> <span class="n">deque</span><span class="p">)</span>
     <span class="n">creators</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sessionCreator</span><span class="p">)</span>
     <span class="k">assert</span> <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;Begin session creator </span><span class="si">%s</span><span class="s">&#39;</span><span class="p">,</span> <span class="n">sessionCreator</span><span class="p">)</span> <span class="ow">or</span> <span class="bp">True</span>
@@ -124,14 +127,15 @@
 <span class="sd">    Function to provide the session on the current thread, this will automatically create a session based on the current </span>
 <span class="sd">    thread session creator if one is not already created.</span>
 <span class="sd">    &#39;&#39;&#39;</span>
-    <span class="n">creators</span> <span class="o">=</span> <span class="n">ATTR_SESSION_CREATE</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">None</span><span class="p">)</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">creators</span><span class="p">:</span> <span class="k">raise</span> <span class="n">DevelError</span><span class="p">(</span><span class="s">&#39;Invalid call, it seems that the thread is not tagged with an SQL session&#39;</span><span class="p">)</span>
+    <span class="n">thread</span> <span class="o">=</span> <span class="n">current_thread</span><span class="p">()</span>
+    <span class="k">try</span><span class="p">:</span> <span class="n">creators</span> <span class="o">=</span> <span class="n">thread</span><span class="o">.</span><span class="n">_ally_db_session_create</span>
+    <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span> <span class="k">raise</span> <span class="n">DevelError</span><span class="p">(</span><span class="s">&#39;Invalid call, it seems that the thread is not tagged with an SQL session&#39;</span><span class="p">)</span>
     <span class="n">creator</span> <span class="o">=</span> <span class="n">creators</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
     <span class="n">creatorId</span> <span class="o">=</span> <span class="nb">id</span><span class="p">(</span><span class="n">creator</span><span class="p">)</span>
-    <span class="n">sessions</span> <span class="o">=</span> <span class="n">ATTR_SESSION</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">None</span><span class="p">)</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">sessions</span><span class="p">:</span>
+    <span class="k">try</span><span class="p">:</span> <span class="n">sessions</span> <span class="o">=</span> <span class="n">thread</span><span class="o">.</span><span class="n">_ally_db_session</span>
+    <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
         <span class="n">session</span> <span class="o">=</span> <span class="n">creator</span><span class="p">()</span>
-        <span class="n">ATTR_SESSION</span><span class="o">.</span><span class="n">set</span><span class="p">({</span><span class="n">creatorId</span><span class="p">:</span><span class="n">session</span><span class="p">})</span>
+        <span class="n">thread</span><span class="o">.</span><span class="n">_ally_db_session</span> <span class="o">=</span> <span class="p">{</span><span class="n">creatorId</span><span class="p">:</span><span class="n">session</span><span class="p">}</span>
         <span class="k">assert</span> <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;Created SQL Alchemy session </span><span class="si">%s</span><span class="s">&#39;</span><span class="p">,</span> <span class="n">session</span><span class="p">)</span> <span class="ow">or</span> <span class="bp">True</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">session</span> <span class="o">=</span> <span class="n">sessions</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">creatorId</span><span class="p">)</span>
@@ -144,11 +148,12 @@
     <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Function to check if there is a session on the current thread.</span>
 <span class="sd">    &#39;&#39;&#39;</span>
-    <span class="n">creators</span> <span class="o">=</span> <span class="n">ATTR_SESSION_CREATE</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">None</span><span class="p">)</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">creators</span><span class="p">:</span> <span class="k">raise</span> <span class="n">DevelError</span><span class="p">(</span><span class="s">&#39;Invalid call, it seems that the thread is not tagged with an SQL session&#39;</span><span class="p">)</span>
+    <span class="n">thread</span> <span class="o">=</span> <span class="n">current_thread</span><span class="p">()</span>
+    <span class="k">try</span><span class="p">:</span> <span class="n">creators</span> <span class="o">=</span> <span class="n">thread</span><span class="o">.</span><span class="n">_ally_db_session_create</span>
+    <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span> <span class="k">raise</span> <span class="n">DevelError</span><span class="p">(</span><span class="s">&#39;Invalid call, it seems that the thread is not tagged with an SQL session&#39;</span><span class="p">)</span>
     <span class="n">creatorId</span> <span class="o">=</span> <span class="nb">id</span><span class="p">(</span><span class="n">creators</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
-    <span class="n">sessions</span> <span class="o">=</span> <span class="n">ATTR_SESSION</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">None</span><span class="p">)</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">sessions</span><span class="p">:</span> <span class="k">return</span> <span class="bp">False</span>
+    <span class="k">try</span><span class="p">:</span> <span class="n">sessions</span> <span class="o">=</span> <span class="n">thread</span><span class="o">.</span><span class="n">_ally_db_session</span>
+    <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span> <span class="k">return</span> <span class="bp">False</span>
     <span class="k">return</span> <span class="n">creatorId</span> <span class="ow">in</span> <span class="n">sessions</span>
 </div>
 <div class="viewcode-block" id="endCurrent"><a class="viewcode-back" href="../../../../ally.support.sqlalchemy.html#ally.support.sqlalchemy.session.endCurrent">[docs]</a><span class="k">def</span> <span class="nf">endCurrent</span><span class="p">(</span><span class="n">sessionCloser</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
@@ -159,15 +164,16 @@
 <span class="sd">        A Callable that will be invoked for the ended transaction. It will take as a parameter the session to be closed.</span>
 <span class="sd">    &#39;&#39;&#39;</span>
     <span class="k">assert</span> <span class="ow">not</span> <span class="n">sessionCloser</span> <span class="ow">or</span> <span class="nb">callable</span><span class="p">(</span><span class="n">sessionCloser</span><span class="p">),</span> <span class="s">&#39;Invalid session closer </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">sessionCloser</span>
-    <span class="n">creators</span> <span class="o">=</span> <span class="n">ATTR_SESSION_CREATE</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">None</span><span class="p">)</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">creators</span><span class="p">:</span> <span class="k">raise</span> <span class="n">DevelError</span><span class="p">(</span><span class="s">&#39;Illegal end transaction call, there is no transaction begun&#39;</span><span class="p">)</span>
+    <span class="n">thread</span> <span class="o">=</span> <span class="n">current_thread</span><span class="p">()</span>
+    <span class="k">try</span><span class="p">:</span> <span class="n">creators</span> <span class="o">=</span> <span class="n">thread</span><span class="o">.</span><span class="n">_ally_db_session_create</span>
+    <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span> <span class="k">raise</span> <span class="n">DevelError</span><span class="p">(</span><span class="s">&#39;Illegal end transaction call, there is no transaction begun&#39;</span><span class="p">)</span>
     <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">creators</span><span class="p">,</span> <span class="n">deque</span><span class="p">)</span>
 
     <span class="n">creator</span> <span class="o">=</span> <span class="n">creators</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
     <span class="k">assert</span> <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;End session creator </span><span class="si">%s</span><span class="s">&#39;</span><span class="p">,</span> <span class="n">creator</span><span class="p">)</span> <span class="ow">or</span> <span class="bp">True</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">creators</span><span class="p">:</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">ATTR_KEEP_ALIVE</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">False</span><span class="p">):</span> <span class="n">endSessions</span><span class="p">(</span><span class="n">sessionCloser</span><span class="p">)</span>
-        <span class="n">ATTR_SESSION_CREATE</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">current_thread</span><span class="p">(),</span> <span class="s">&#39;_ally_db_session_alive&#39;</span><span class="p">,</span> <span class="bp">False</span><span class="p">):</span> <span class="n">endSessions</span><span class="p">(</span><span class="n">sessionCloser</span><span class="p">)</span>
+        <span class="k">del</span> <span class="n">thread</span><span class="o">.</span><span class="n">_ally_db_session_create</span>
 </div>
 <div class="viewcode-block" id="endSessions"><a class="viewcode-back" href="../../../../ally.support.sqlalchemy.html#ally.support.sqlalchemy.session.endSessions">[docs]</a><span class="k">def</span> <span class="nf">endSessions</span><span class="p">(</span><span class="n">sessionCloser</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
     <span class="sd">&#39;&#39;&#39;</span>
@@ -177,12 +183,13 @@
 <span class="sd">        A Callable that will be invoked for the ended transactions. It will take as a parameter the session to be closed.</span>
 <span class="sd">    &#39;&#39;&#39;</span>
     <span class="k">assert</span> <span class="ow">not</span> <span class="n">sessionCloser</span> <span class="ow">or</span> <span class="nb">callable</span><span class="p">(</span><span class="n">sessionCloser</span><span class="p">),</span> <span class="s">&#39;Invalid session closer </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">sessionCloser</span>
-    <span class="n">sessions</span> <span class="o">=</span> <span class="n">ATTR_SESSION</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">None</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">sessions</span><span class="p">:</span>
-        <span class="k">while</span> <span class="n">sessions</span><span class="p">:</span>
-            <span class="n">_creatorId</span><span class="p">,</span> <span class="n">session</span> <span class="o">=</span> <span class="n">sessions</span><span class="o">.</span><span class="n">popitem</span><span class="p">()</span>
-            <span class="k">if</span> <span class="n">sessionCloser</span><span class="p">:</span> <span class="n">sessionCloser</span><span class="p">(</span><span class="n">session</span><span class="p">)</span>
-    <span class="n">ATTR_SESSION</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+    <span class="n">thread</span> <span class="o">=</span> <span class="n">current_thread</span><span class="p">()</span>
+    <span class="k">try</span><span class="p">:</span> <span class="n">sessions</span> <span class="o">=</span> <span class="n">thread</span><span class="o">.</span><span class="n">_ally_db_session</span>
+    <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span> <span class="k">return</span>
+    <span class="k">while</span> <span class="n">sessions</span><span class="p">:</span>
+        <span class="n">_creatorId</span><span class="p">,</span> <span class="n">session</span> <span class="o">=</span> <span class="n">sessions</span><span class="o">.</span><span class="n">popitem</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">sessionCloser</span><span class="p">:</span> <span class="n">sessionCloser</span><span class="p">(</span><span class="n">session</span><span class="p">)</span>
+    <span class="k">del</span> <span class="n">thread</span><span class="o">.</span><span class="n">_ally_db_session</span>
     <span class="k">assert</span> <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;Ended all sessions&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="bp">True</span>
 
 <span class="c"># --------------------------------------------------------------------</span>
@@ -253,17 +260,17 @@
 <span class="sd">    @return: boolean</span>
 <span class="sd">        True if a session was commited, False otherwise.</span>
 <span class="sd">    &#39;&#39;&#39;</span>
-    <span class="n">creators</span> <span class="o">=</span> <span class="n">ATTR_SESSION_CREATE</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">None</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">creators</span><span class="p">:</span>
-        <span class="n">creator</span> <span class="o">=</span> <span class="n">creators</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-        <span class="n">creatorId</span> <span class="o">=</span> <span class="nb">id</span><span class="p">(</span><span class="n">creator</span><span class="p">)</span>
-        <span class="n">sessions</span> <span class="o">=</span> <span class="n">ATTR_SESSION</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">None</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">sessions</span><span class="p">:</span>
-            <span class="n">session</span> <span class="o">=</span> <span class="n">sessions</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">creatorId</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">session</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
-                <span class="n">commit</span><span class="p">(</span><span class="n">session</span><span class="p">)</span>
-                <span class="k">return</span> <span class="bp">True</span>
-    <span class="k">return</span> <span class="bp">False</span>
+    <span class="n">thread</span> <span class="o">=</span> <span class="n">current_thread</span><span class="p">()</span>
+    <span class="k">try</span><span class="p">:</span> <span class="n">creators</span> <span class="o">=</span> <span class="n">thread</span><span class="o">.</span><span class="n">_ally_db_session_create</span>
+    <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span> <span class="k">return</span> <span class="bp">False</span>
+    <span class="n">creator</span> <span class="o">=</span> <span class="n">creators</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">creatorId</span> <span class="o">=</span> <span class="nb">id</span><span class="p">(</span><span class="n">creator</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span> <span class="n">sessions</span> <span class="o">=</span> <span class="n">thread</span><span class="o">.</span><span class="n">_ally_db_session</span>
+    <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span> <span class="k">return</span> <span class="bp">False</span>
+    <span class="n">session</span> <span class="o">=</span> <span class="n">sessions</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">creatorId</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">session</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">commit</span><span class="p">(</span><span class="n">session</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">True</span>
 </pre></div></div>
 
           </div>

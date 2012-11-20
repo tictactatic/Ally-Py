@@ -164,7 +164,7 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
             this.data = {};
             //this.exTime = new Date
             //this.exTime.setMinutes(this.exTime.getMinutes() + 5);
-            this.parseHash(data);
+            this._parseHash(data);
 			this._new = true;
             var self = this.pushUnique ? this.pushUnique() : this;
             self._forDelete = false;
@@ -172,7 +172,7 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
             self._clientHash = null;
             if( options && typeof options == 'object' ) $.extend(self, options);
             if( typeof data == 'object' ) {
-                self.parse(data);
+                self._parse(data);
             }
 			//console.log('Changes',self.changeset);
             if(!$.isEmptyObject(self.changeset)) {
@@ -224,7 +224,7 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
                 return dataAdapter(href).insert(this.feed()).done(function(data)
                 {
                     self._changed = false;
-                    self.parse(data);
+                    self._parse(data);
                     self._uniq && self._uniq.replace(self._clientHash, self.hash(), self);
                     self._clientHash = null;
                     self.triggerHandler('insert')
@@ -248,7 +248,7 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
                 ret = (this.href && dataAdapter(this.href).read(arguments[0]).done(function(data)
                 {
                     //console.log('Pull: ',$.extend({},data));
-                    self.parse(data);
+                    self._parse(data);
                     /**
                      * delete should come first of everything
                      * caz it can be some update data or read data that is telling is a deleted model.
@@ -273,7 +273,6 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
         {
             this.triggerHandler('delete');
             this._uniq && this._uniq.remove(this.hash());
-            delete this;
         },
         remove: function()
         {
@@ -291,16 +290,33 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
         {
             return model
         },
+		/**
+		 * should be override by implementation
+		 */
+		parse: function(data)
+		{
+			return data;
+		},		
         /*!
          * @param data the data to parse into the model
          */
-        parse: function(data)
+        _parse: function(data)
         {
-            if(data instanceof Model) {
-                data = data.data;
-            }
+			/*!
+			 * if the data received is a instance of the model then 
+			 * use the data from the model
+			 */
+			if(data instanceof Model) {
+				data = data.data;
+			} else {
+				/*!
+				 * call the parse implementation
+				 */
+				data = this.parse(data);
+			}
             if(data._parsed)
                 return;
+
             for( var i in data )
             {
                 if( this.defaults[i] ) switch(true)
@@ -315,7 +331,7 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
                         // an existing one and we don't need a new one
                         // TODO instanceof Model?
                         !data[i].href && this.data[i].relationHash && this.data[i].relationHash(data[i]);
-
+ 
                         continue;
                         break;
 
@@ -331,9 +347,12 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
                         continue;
                         break;
                 }
+                /*!
+                 * If the model is not a new model then get the change set.
+                 */
                 if( !this._new ) 
                 {
-					//console.log('Is not new');
+					//console.log('Is not new!');
                     if( $.type(data[i]) === 'object' )
                     {
                         if(compareObj(this.data[i], data[i]))
@@ -341,18 +360,28 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
                     }
                     else if( this.data[i] != data[i] )
                     {
-                        this.changeset[i] = data[i];
+                        this.changeset[i] = data[i];undefined
                     }
                 }
                 if( $.type(data[i]) === 'object' && $.type(this.data[i]) === 'object' )
                     $.extend(true, this.data[i], data[i]);
-                else
+                else 
                     this.data[i] = data[i];
+            }
+            /*!
+             * Set all defaults if it is a new model.
+             */
+            if( this._new ) {
+                for( i in this.defaults ) {
+                    if($.type(this.data[i]) === 'undefined') {
+                        this.data[i] = this.defaults[i];
+                    }
+                }
             }
 			this._new = false;
             data._parsed = true;
         },
-        parseHash: function(data)
+        _parseHash: function(data)
         {
             if( typeof data == 'string' )
                 this.href = data;
@@ -387,7 +416,7 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
                 options = val;
             }
             options = $.extend({},{ silent: false}, options);
-            this.clearChangeset().parse(data);
+            this.clearChangeset()._parse(data);
             this._changed = true;
             if(!$.isEmptyObject(this.changeset)) {
                 if(!options.silent)
@@ -424,6 +453,25 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
 			$(this).off(evt, handler);
 			return this;
 		},
+        /*!
+         * used to place events who only trigger once  this model,
+         * scope of the call method is sent as obj argument
+         */
+        one: function(evt, handler, obj)
+        {
+            if(obj === undefined) {
+                $(this).off(evt, handler);
+                $(this).one(evt, handler);
+            }
+            else {          
+                var newhandler = function(){
+                    handler.apply(obj, arguments);
+                };
+                $(this).off(evt, newhandler );
+                $(this).one(evt, newhandler );
+            }
+            return this;
+        },
         /*!
          * used to place events on this model,
          * scope of the call method is sent as obj argument
@@ -546,12 +594,14 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
     Collection.prototype =
     {
         _list: [],
+        _events: {},
         getList: function(){ return this._list; },
         count: function(){ return this._list.length; },
         _construct: function()
         {
             if( !this.model ) this.model = Model;
             this._list = [];
+            this._events = {};
             this.desynced = true;
             var buildData = buildOptions = function(){ void(0); },
                 self = this;
@@ -566,7 +616,7 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
                         this.href = arguments[i];
                         break;
                     case 'array': // a list of models, a function we're going to call after setting options
-                        buildData = (function(args){ return function(){ this._list = this.parse(args); }})(arguments[i]);
+                        buildData = (function(args){ return function(){ this._list = this._parse(args); }})(arguments[i]);
                         break;
                     case 'object': // options, same technique as above
                         buildOptions = (function(args){ return function(){ this.options = args; if(args.href) this.href = args.href; }})(arguments[i]);
@@ -639,36 +689,52 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
         sync: function()
         {
             var self = this;
+            if(!self.href && self.url) {
+                self.setHref( self.url.get() );
+            }
             return (this.href &&
                 this.syncAdapter.request.call(this.syncAdapter, this.href).read(arguments[0]).done(function(data)
                 {					
-                    var data = self.parse(data), changeset = [], updates = [], count = self._list.length;
+                    var attr = self.parseAttributes(data), list = self._parse(data), changeset = [], removeings = [], updates = [], addings = [], count = self._list.length;
                      // important or it will infiloop
-                    for( var i=0; i < data.list.length; i++ )
+                    for( var i=0; i < list.length; i++ )
                     {
                         var model = false;
                         for( var j=0; j<count; j++ ) {
-							if( data.list[i].hash() == self._list[j].hash() )
+							if( list[i].hash() == self._list[j].hash() )
                             {
-								model = data.list[i];
+								model = list[i];
                                 break;
                             }
 						}
                         if( !model ) {
-                            if( !data.list[i].isDeleted() ) {
-								self._list.push(data.list[i]);
-								changeset.push(data.list[i]);
+                            if( !list[i].isDeleted() ) {
+								self._list.push(list[i]);
+								changeset.push(list[i]);
+                                if( self.hasEvent('addings') ) {
+                                    addings.push(list[i]);
+                                }
 							} else {
-								updates.push(data[i]);							
+                                if( self.hasEvent('updates') ) {
+								    updates.push(list[i]);
+                                }					
 							}
                         }
                         else {
-							updates.push(model);
-                            self._list[j].parse(model.data);
-                            if( model.isDeleted() ) {
-                                model._remove();
+                            if( self.hasEvent('updates') ) {
+                                updates.push(model);
+                            }
+                            if(self.isCollectionDeleted(model)) {
+                                self._list.splice(i,1);
+                                if( self.hasEvent('removeings') ) {
+                                    removeings.push(model);
+                                }
+
+                            }
+                            if( model.isDeleted()) {
+                                model._remove();                                
                             } else if( model.isChanged() ){
-								changeset.push(data.list[i]);
+								changeset.push(model);
 							}
                             else {
                                 model.on('delete', function(){ self.remove(this.hash()); })
@@ -683,16 +749,36 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
 					 */
 					if( ( count === 0) ){
 						//console.log('read');
-						self.triggerHandler('read');
+
+						self.triggerHandler('read',[self._list, attr]);
                     } else {                    
                         /**
                          * Trigger handler with changeset extraparameter as a vector of vectors,
                          * caz jquery will send extraparameters as arguments when calling handler
                          */
-                        self.triggerHandler('updates', [updates]);
-						self.triggerHandler('update', [changeset]);
+                        if( updates.length && self.hasEvent('updates') ) {
+                            self.triggerHandler('updates', [updates,attr]);
+                        }
+                        if( addings.length && self.hasEvent('addings') ) {
+                            self.triggerHandler('addings', [addings,attr]);
+                        }
+                        if( removeings.length && self.hasEvent('removeings') ) {
+                            self.triggerHandler('removeings', [removeings,attr]);
+                        }
+                        if( self.hasEvent('modified') ) {
+                            self.triggerHandler('modified', [list,attr]);
+                        }
+						self.triggerHandler('update', [changeset,attr]);
 					}
                 }));
+        },
+        /*!
+         * overwrite this to add other logic in implementation
+         * ex: if a model hasn't a field then this should be removed from the collection
+         */
+        isCollectionDeleted: function(model)
+        {
+            return false;
         },
         /*!
          * overwrite this to add other logic upon parse complex type data
@@ -701,35 +787,43 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
         {
             return model;
         },
-        /*!
-         *
-         */
-        parse: function(data)
+        parseAttributes: function(data)
         {
-            if(data.parsed) {
-                return data.parsed;
+            return data;
+        },
+		/**
+		 * should be override by implementation
+         * is important that the parse deletes the list itself
+		 */
+		parse: function(data)
+		{
+			var ret = data;
+			if( !Array.isArray(data) ) for( i in data )
+			{
+				if( $.isArray(data[i]) )
+				{
+					ret = data[i];
+                    /*!
+                     * Important that the data is delete from the list itself
+                     * if not deleted the list we could get a very big object
+                     */
+                    delete data[i];
+					break;
+				}
+			}
+			return ret;
+		},
+        /*!
+         * the list parser private method, to be called from sync
+         */
+        _parse: function(data)
+        {
+            var list = this.parse(data),
+            newlist = [];
+            for( var i = 0, count = list.length; i < count;  i++ ) {
+                newlist.push( this.modelDataBuild(new this.model(list[i])) );
             }
-            // get the important list data from request
-            var extractListData = function(data)
-            {
-                var ret = data;
-                if( !Array.isArray(data) ) for( i in data )
-                {
-                    if( $.isArray(data[i]) )
-                    {
-                        ret = data[i];
-                        break;
-                    }
-                }
-                return ret;
-            },
-            theData = extractListData(data);
-            list = [];
-            for( var i in theData ) {
-                list.push( this.modelDataBuild(new this.model(theData[i])) );
-            }
-            data.parsed = {list: list, total: data.total};
-            return data.parsed;
+            return newlist;
         },
         insert: function(model)
         {
@@ -746,8 +840,35 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
         off: function(evt, handler)		
 		{
 			$(this).off(evt, handler);
+            var arrEvt = evt.split(" ");
+            for(var i = 0, count = arrEvt.length; i < count; i++ ){
+                delete this._events[arrEvt[i]];
+            }
 			return this;
 		},
+        /*!
+         * used to place events on this model,
+         * scope of the call method is sent as obj argument
+         */
+        one: function(evt, handler, obj)
+        {
+            if(obj === undefined) {
+                $(this).off(evt, handler);
+                $(this).one(evt, handler);
+            }
+            else {          
+                var newhandler = function(){
+                    handler.apply(obj, arguments);
+                };
+                $(this).off(evt, newhandler );
+                $(this).one(evt, newhandler );
+            }
+            var arrEvt = evt.split(" ");
+            for(var i = 0, count = arrEvt.length; i < count; i++ ){
+                this._events[arrEvt[i]] = true;
+            }
+            return this;
+        },
 		/*!
          * used to place events on this model,
          * scope of the call method is sent as obj argument
@@ -765,6 +886,10 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
 				$(this).off(evt, newhandler );
 				$(this).on(evt, newhandler );
 			}
+            var arrEvt = evt.split(" ");
+            for(var i = 0, count = arrEvt.length; i < count; i++ ){
+                this._events[arrEvt[i]] = true;
+            }
             return this;
         },
         /*!
@@ -784,16 +909,25 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
         {
             $(this).triggerHandler(evt, data);
             return this;
+        },
+        /*!
+         * return true is the collection has evt else false
+         */
+        hasEvent: function(evt)
+        {
+            return $.type(this._events[evt]) === 'undefined' ? false :  this._events[evt];
         }
     };
 
-    Collection.extend = cextendFnc = function(props)
+    Collection.extend = cextendFnc = function(props, options)
     {
         var newly;
         newly = Class.extend.call(this, props);
         newly.extend = cextendFnc;
-        if(options && options.register)
-            Collection[options.register] = newly;
+        if(options && options.register) {
+            Register[options.register] = newly;
+            delete options.register;
+        }
         return newly;
     };
     // view

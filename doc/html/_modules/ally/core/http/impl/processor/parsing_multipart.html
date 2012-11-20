@@ -129,7 +129,7 @@
     <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Contains the data required by the multi part stream.</span>
 <span class="sd">    &#39;&#39;&#39;</span>
-    <span class="n">charSet</span> <span class="o">=</span> <span class="s">&#39;ASCII&#39;</span>
+    <span class="n">charSet</span> <span class="o">=</span> <span class="s">&#39;UTF8&#39;</span>
     <span class="c"># The character set used in decoding the multi part header areas.</span>
     <span class="n">formatMarkStart</span> <span class="o">=</span> <span class="s">&#39;--</span><span class="si">%s</span><span class="se">\r\n</span><span class="s">&#39;</span>
     <span class="c"># The format used in constructing the separator marker between the multi part content.</span>
@@ -213,7 +213,7 @@
                 <span class="k">return</span>
 
         <span class="k">if</span> <span class="n">Request</span><span class="o">.</span><span class="n">decoder</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">request</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">isMultipart</span><span class="p">:</span> <span class="n">chain</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">request</span><span class="o">=</span><span class="n">request</span><span class="p">,</span> <span class="n">requestCnt</span><span class="o">=</span><span class="n">requestCnt</span><span class="p">,</span> <span class="n">response</span><span class="o">=</span><span class="n">response</span><span class="p">,</span> <span class="o">**</span><span class="n">keyargs</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">isMultipart</span><span class="p">:</span> <span class="n">chain</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">requestCnt</span><span class="o">=</span><span class="n">requestCnt</span><span class="p">)</span>
             <span class="k">return</span> <span class="c"># Skip if there is no decoder.</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">processParsing</span><span class="p">(</span><span class="n">request</span><span class="o">=</span><span class="n">request</span><span class="p">,</span> <span class="n">requestCnt</span><span class="o">=</span><span class="n">requestCnt</span><span class="p">,</span> <span class="n">response</span><span class="o">=</span><span class="n">response</span><span class="p">,</span> <span class="o">**</span><span class="n">keyargs</span><span class="p">):</span>
@@ -222,10 +222,8 @@
                 <span class="n">nextContent</span> <span class="o">=</span> <span class="n">requestCnt</span><span class="o">.</span><span class="n">fetchNextContent</span><span class="p">()</span>
                 <span class="k">if</span> <span class="n">nextContent</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
                     <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">nextContent</span><span class="p">,</span> <span class="n">RequestContentMultiPart</span><span class="p">),</span> <span class="s">&#39;Invalid request content </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">nextContent</span>
-                    <span class="n">keyargs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">requestCnt</span><span class="o">=</span><span class="n">nextContent</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span> <span class="n">keyargs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">requestCnt</span><span class="o">=</span><span class="n">requestCnt</span><span class="p">)</span>
-
-        <span class="n">chain</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">request</span><span class="o">=</span><span class="n">request</span><span class="p">,</span> <span class="n">response</span><span class="o">=</span><span class="n">response</span><span class="p">,</span> <span class="o">**</span><span class="n">keyargs</span><span class="p">)</span>
+                    <span class="n">chain</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">requestCnt</span><span class="o">=</span><span class="n">nextContent</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span> <span class="n">chain</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">requestCnt</span><span class="o">=</span><span class="n">requestCnt</span><span class="p">)</span>
 
 <span class="c"># --------------------------------------------------------------------</span>
 </div></div>
@@ -452,13 +450,10 @@
             <span class="n">req</span><span class="o">.</span><span class="n">headers</span> <span class="o">=</span> <span class="n">stream</span><span class="o">.</span><span class="n">_pullHeaders</span><span class="p">()</span>
             <span class="k">if</span> <span class="n">stream</span><span class="o">.</span><span class="n">_flag</span> <span class="o">&amp;</span> <span class="n">FLAG_CLOSED</span><span class="p">:</span> <span class="n">stream</span><span class="o">.</span><span class="n">_flag</span> <span class="o">^=</span> <span class="n">FLAG_CLOSED</span>
 
-            <span class="n">chain</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_processing</span><span class="o">.</span><span class="n">newChain</span><span class="p">()</span>
-            <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">chain</span><span class="p">,</span> <span class="n">Chain</span><span class="p">),</span> <span class="s">&#39;Invalid chain </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">chain</span>
-
             <span class="n">reqCnt</span><span class="o">.</span><span class="n">source</span> <span class="o">=</span> <span class="n">stream</span>
             <span class="n">reqCnt</span><span class="o">.</span><span class="n">fetchNextContent</span> <span class="o">=</span> <span class="n">NextContent</span><span class="p">(</span><span class="n">reqCnt</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_response</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_processing</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">,</span> <span class="n">stream</span><span class="p">)</span>
             <span class="n">reqCnt</span><span class="o">.</span><span class="n">previousContent</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_requestCnt</span>
-            <span class="n">chain</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">request</span><span class="o">=</span><span class="n">req</span><span class="p">,</span> <span class="n">requestCnt</span><span class="o">=</span><span class="n">reqCnt</span><span class="p">,</span> <span class="n">response</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_response</span><span class="p">)</span>
+            <span class="n">Chain</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_processing</span><span class="p">)</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">request</span><span class="o">=</span><span class="n">req</span><span class="p">,</span> <span class="n">requestCnt</span><span class="o">=</span><span class="n">reqCnt</span><span class="p">,</span> <span class="n">response</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_response</span><span class="p">)</span><span class="o">.</span><span class="n">doAll</span><span class="p">()</span>
 
             <span class="k">return</span> <span class="n">reqCnt</span></div>
 </pre></div>

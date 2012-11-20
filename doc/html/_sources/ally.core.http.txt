@@ -17,4 +17,5 @@ Subpackages
     ally.core.http.impl
     ally.core.http.server
     ally.core.http.spec
+    ally.core.http.support
 

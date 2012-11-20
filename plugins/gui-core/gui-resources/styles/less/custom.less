@@ -89,6 +89,15 @@
 	margin:0 5px;
 }
 
+.table-sort thead tr {
+	.asc {
+		background: url("../../images/sort-asc.png") no-repeat 90% center;
+	}
+	.desc {
+		background: url("../../images/sort-desc.png") no-repeat 90% center;
+	}
+}
+
 .live-blog-content 
 {
 	border: 1px solid @boxBorder;
@@ -502,4 +511,11 @@ section.configure-blog [data-value="OutputLink"].focus
 {
 	width:300px;position:fixed;left:50%;top:40px;margin-left:-150px;z-index:9000;box-shadow:1px 1px 4px rgba(0,0,0, 0.3);
 	.close{ background: none; border: none; }
+
+}
+
+.table th[data-sort]
+{ 
+    cursor: pointer; 
+    &:hover{ background-color: @tableBackgroundHover }
 }

@@ -142,7 +142,7 @@
             <span class="k">except</span> <span class="n">InputError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
                 <span class="n">response</span><span class="o">.</span><span class="n">code</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">text</span> <span class="o">=</span> <span class="n">BAD_CONTENT</span><span class="p">,</span> <span class="s">&#39;Bad content&#39;</span>
                 <span class="n">response</span><span class="o">.</span><span class="n">errorDetails</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">processInputError</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
-            <span class="k">return</span> <span class="c"># We need to stop the chain if we have been able to provide the parsing</span>
+            <span class="k">return</span>  <span class="c"># We need to stop the chain if we have been able to provide the parsing</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">assert</span> <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;The content type </span><span class="se">\&#39;</span><span class="si">%s</span><span class="se">\&#39;</span><span class="s"> is not for this </span><span class="si">%s</span><span class="s"> parser&#39;</span><span class="p">,</span> <span class="n">requestCnt</span><span class="o">.</span><span class="n">type</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span> <span class="ow">or</span> <span class="bp">True</span>
 
@@ -188,7 +188,7 @@
 
     <span class="c"># ----------------------------------------------------------------</span>
 </div>
-    <span class="nd">@abc.abstractmethod</span>
+    <span class="nd">@abc.abstractclassmethod</span>
 <div class="viewcode-block" id="ParseBaseHandler.parse"><a class="viewcode-back" href="../../../../../../ally.core.impl.processor.parser.html#ally.core.impl.processor.parser.base.ParseBaseHandler.parse">[docs]</a>    <span class="k">def</span> <span class="nf">parse</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">decoder</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">source</span><span class="p">,</span> <span class="n">charSet</span><span class="p">):</span>
         <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        Parse the input stream using the decoder.</span>

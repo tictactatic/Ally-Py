@@ -98,7 +98,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">isPrimitive</span> <span class="o">=</span> <span class="n">isPrimitive</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">isContainable</span> <span class="o">=</span> <span class="n">isContainable</span>
 
-    <span class="nd">@abc.abstractmethod</span>
+    <span class="nd">@abc.abstractclassmethod</span>
 <div class="viewcode-block" id="Type.isOf"><a class="viewcode-back" href="../../../ally.api.html#ally.api.type.Type.isOf">[docs]</a>    <span class="k">def</span> <span class="nf">isOf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">type</span><span class="p">):</span>
         <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        Checks if the provided type is compatible with this type.</span>
@@ -109,7 +109,7 @@
 <span class="sd">            True if the type is of this type, False otherwise.</span>
 <span class="sd">        &#39;&#39;&#39;</span>
 </div>
-    <span class="nd">@abc.abstractmethod</span>
+    <span class="nd">@abc.abstractclassmethod</span>
 <div class="viewcode-block" id="Type.isValid"><a class="viewcode-back" href="../../../ally.api.html#ally.api.type.Type.isValid">[docs]</a>    <span class="k">def</span> <span class="nf">isValid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
         <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        Checks if the provided object instance is represented by this API type.</span>
@@ -118,19 +118,19 @@
 <span class="sd">            The object instance to check.</span>
 <span class="sd">        &#39;&#39;&#39;</span>
 </div>
-    <span class="nd">@abc.abstractmethod</span>
+    <span class="nd">@abc.abstractclassmethod</span>
     <span class="k">def</span> <span class="nf">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        Provides the hash code for the type.</span>
 <span class="sd">        &#39;&#39;&#39;</span>
 
-    <span class="nd">@abc.abstractmethod</span>
+    <span class="nd">@abc.abstractclassmethod</span>
     <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        Equality check.</span>
 <span class="sd">        &#39;&#39;&#39;</span>
 
-    <span class="nd">@abc.abstractmethod</span>
+    <span class="nd">@abc.abstractclassmethod</span>
     <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        The string representation.</span>

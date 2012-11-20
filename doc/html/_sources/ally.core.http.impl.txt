@@ -1,14 +1,6 @@
 impl Package
 ============
 
-:mod:`impl` Package
--------------------
-
-.. automodule:: ally.core.http.impl
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 :mod:`url_encoded` Module
 -------------------------
 
