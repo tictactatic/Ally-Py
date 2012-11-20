@@ -71,16 +71,22 @@
 <dl class="class">
 <dt id="ally.core.cdm.processor.content_delivery.ContentDeliveryHandler">
 <em class="property">class </em><tt class="descclassname">ally.core.cdm.processor.content_delivery.</tt><tt class="descname">ContentDeliveryHandler</tt><a class="reference internal" href="_modules/ally/core/cdm/processor/content_delivery.html#ContentDeliveryHandler"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ally.core.cdm.processor.content_delivery.ContentDeliveryHandler" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <a class="reference internal" href="ally.design.html#ally.design.processor.HandlerProcessor" title="ally.design.processor.HandlerProcessor"><tt class="xref py py-class docutils literal"><span class="pre">ally.design.processor.HandlerProcessor</span></tt></a></p>
+<dd><p>Bases: <a class="reference internal" href="ally.design.html#ally.design.processor.Handler" title="ally.design.processor.Handler"><tt class="xref py py-class docutils literal"><span class="pre">ally.design.processor.Handler</span></tt></a></p>
 <p>Implementation for a processor that delivers the content based on the URL.</p>
 <dl class="attribute">
 <dt id="ally.core.cdm.processor.content_delivery.ContentDeliveryHandler.defaultContentType">
 <tt class="descname">defaultContentType</tt><em class="property"> = 'application/octet-stream'</em><a class="headerlink" href="#ally.core.cdm.processor.content_delivery.ContentDeliveryHandler.defaultContentType" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
+<dl class="attribute">
+<dt id="ally.core.cdm.processor.content_delivery.ContentDeliveryHandler.errorAssembly">
+<tt class="descname">errorAssembly</tt><a class="headerlink" href="#ally.core.cdm.processor.content_delivery.ContentDeliveryHandler.errorAssembly" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <tt class="xref py py-class docutils literal"><span class="pre">Assembly</span></tt></p>
+</dd></dl>
+
 <dl class="method">
 <dt id="ally.core.cdm.processor.content_delivery.ContentDeliveryHandler.process">
-<tt class="descname">process</tt><big>(</big><em>chain</em>, <em>request</em>, <em>response</em>, <em>responseCnt</em>, <em>**keyargs</em><big>)</big><a class="reference internal" href="_modules/ally/core/cdm/processor/content_delivery.html#ContentDeliveryHandler.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ally.core.cdm.processor.content_delivery.ContentDeliveryHandler.process" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">process</tt><big>(</big><em>errorProcessing</em>, <em>chain</em>, <em>request</em>, <em>response</em>, <em>responseCnt</em>, <em>**keyargs</em><big>)</big><a class="reference internal" href="_modules/ally/core/cdm/processor/content_delivery.html#ContentDeliveryHandler.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ally.core.cdm.processor.content_delivery.ContentDeliveryHandler.process" title="Permalink to this definition">¶</a></dt>
 <dd><p>&#64;see: HandlerProcessor.process</p>
 <p>Provide the file content as a response.</p>
 </dd></dl>
@@ -132,6 +138,12 @@
 <dl class="attribute">
 <dt id="ally.core.cdm.processor.content_delivery.Response.code">
 <tt class="descname">code</tt><a class="headerlink" href="#ally.core.cdm.processor.content_delivery.Response.code" title="Permalink to this definition">¶</a></dt>
+<dd><p>Defines a context attribute.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="ally.core.cdm.processor.content_delivery.Response.length">
+<tt class="descname">length</tt><a class="headerlink" href="#ally.core.cdm.processor.content_delivery.Response.length" title="Permalink to this definition">¶</a></dt>
 <dd><p>Defines a context attribute.</p>
 </dd></dl>
 

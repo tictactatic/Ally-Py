@@ -61,7 +61,7 @@
 <span class="sd">&#39;&#39;&#39;</span>
 
 <span class="kn">from</span> <span class="nn">ally.design.processor</span> <span class="kn">import</span> <span class="n">Chain</span><span class="p">,</span> <span class="n">HandlerProcessor</span>
-<span class="kn">from</span> <span class="nn">ally.support.sqlalchemy.session</span> <span class="kn">import</span> <span class="n">rollback</span><span class="p">,</span> <span class="n">commit</span><span class="p">,</span> <span class="n">ATTR_KEEP_ALIVE</span><span class="p">,</span> \
+<span class="kn">from</span> <span class="nn">ally.support.sqlalchemy.session</span> <span class="kn">import</span> <span class="n">rollback</span><span class="p">,</span> <span class="n">commit</span><span class="p">,</span> <span class="n">setKeepAlive</span><span class="p">,</span> \
     <span class="n">endSessions</span>
 <span class="kn">from</span> <span class="nn">ally.design.context</span> <span class="kn">import</span> <span class="n">Context</span><span class="p">,</span> <span class="n">optional</span>
 <span class="kn">from</span> <span class="nn">ally.core.spec.codes</span> <span class="kn">import</span> <span class="n">Code</span>
@@ -91,16 +91,23 @@
         <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">chain</span><span class="p">,</span> <span class="n">Chain</span><span class="p">),</span> <span class="s">&#39;Invalid processors chain </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">chain</span>
         <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="n">Response</span><span class="p">),</span> <span class="s">&#39;Invalid response </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">response</span>
 
-        <span class="n">ATTR_KEEP_ALIVE</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">chain</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">response</span><span class="o">=</span><span class="n">response</span><span class="p">,</span> <span class="o">**</span><span class="n">keyargs</span><span class="p">)</span>
-            <span class="c"># We process the chain inside the try because we need control over the processing.</span>
-        <span class="k">except</span><span class="p">:</span>
-            <span class="n">endSessions</span><span class="p">(</span><span class="n">rollback</span><span class="p">)</span>
-            <span class="k">raise</span>
+        <span class="n">setKeepAlive</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+        
+        <span class="k">def</span> <span class="nf">onFinalize</span><span class="p">():</span>
+            <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">            Handle the finalization</span>
+<span class="sd">            &#39;&#39;&#39;</span>
+            <span class="k">if</span> <span class="n">Response</span><span class="o">.</span><span class="n">code</span> <span class="ow">in</span> <span class="n">response</span> <span class="ow">and</span> <span class="n">response</span><span class="o">.</span><span class="n">code</span><span class="o">.</span><span class="n">isSuccess</span><span class="p">:</span> <span class="n">endSessions</span><span class="p">(</span><span class="n">commit</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span> <span class="n">endSessions</span><span class="p">(</span><span class="n">rollback</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="n">Response</span><span class="o">.</span><span class="n">code</span> <span class="ow">in</span> <span class="n">response</span> <span class="ow">and</span> <span class="n">response</span><span class="o">.</span><span class="n">code</span><span class="o">.</span><span class="n">isSuccess</span><span class="p">:</span> <span class="n">endSessions</span><span class="p">(</span><span class="n">commit</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span> <span class="n">endSessions</span><span class="p">(</span><span class="n">rollback</span><span class="p">)</span></div></div>
+        <span class="k">def</span> <span class="nf">onError</span><span class="p">():</span>
+            <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">            Handle the error.</span>
+<span class="sd">            &#39;&#39;&#39;</span>
+            <span class="n">endSessions</span><span class="p">(</span><span class="n">rollback</span><span class="p">)</span>
+        
+        <span class="n">chain</span><span class="o">.</span><span class="n">callBack</span><span class="p">(</span><span class="n">onFinalize</span><span class="p">)</span>
+        <span class="n">chain</span><span class="o">.</span><span class="n">callBackError</span><span class="p">(</span><span class="n">onError</span><span class="p">)</span></div></div>
 </pre></div>
 
           </div>

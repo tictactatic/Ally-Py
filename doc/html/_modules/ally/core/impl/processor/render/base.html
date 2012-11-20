@@ -129,12 +129,11 @@
 
             <span class="n">response</span><span class="o">.</span><span class="n">renderFactory</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">renderFactory</span><span class="p">,</span> <span class="n">responseCnt</span><span class="o">.</span><span class="n">charSet</span><span class="p">)</span>
             <span class="k">return</span> <span class="c"># We need to stop the chain if we have been able to provide the encoding</span>
-
         <span class="n">chain</span><span class="o">.</span><span class="n">proceed</span><span class="p">()</span>
 
     <span class="c"># ----------------------------------------------------------------</span>
 </div>
-    <span class="nd">@abc.abstractmethod</span>
+    <span class="nd">@abc.abstractclassmethod</span>
 <div class="viewcode-block" id="RenderBaseHandler.renderFactory"><a class="viewcode-back" href="../../../../../../ally.core.impl.processor.render.html#ally.core.impl.processor.render.base.RenderBaseHandler.renderFactory">[docs]</a>    <span class="k">def</span> <span class="nf">renderFactory</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">charSet</span><span class="p">,</span> <span class="n">output</span><span class="p">):</span>
         <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        Factory method used for creating a renderer.</span>

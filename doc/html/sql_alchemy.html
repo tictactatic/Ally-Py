@@ -27,7 +27,7 @@
     <script type="text/javascript" src="_static/doctools.js"></script>
     <link rel="top" title="ally-py 1.0b1 documentation" href="index.html" />
     <link rel="next" title="impl Package" href="sql_alchemy.impl.html" />
-    <link rel="prev" title="all Package" href="resources.ffmpeg.all.all.html" /> 
+    <link rel="prev" title="package_extender Module" href="package_extender.html" /> 
   </head>
   <body>
     <div class="related">
@@ -43,7 +43,7 @@
           <a href="sql_alchemy.impl.html" title="impl Package"
              accesskey="N">next</a> |</li>
         <li class="right" >
-          <a href="resources.ffmpeg.all.all.html" title="all Package"
+          <a href="package_extender.html" title="package_extender Module"
              accesskey="P">previous</a> |</li>
         <li><a href="index.html">ally-py 1.0b1 documentation</a> &raquo;</li> 
       </ul>
@@ -68,11 +68,26 @@
 <div class="section" id="module-sql_alchemy.database_config">
 <span id="database-config-module"></span><h2><tt class="xref py py-mod docutils literal"><span class="pre">database_config</span></tt> Module<a class="headerlink" href="#module-sql_alchemy.database_config" title="Permalink to this headline">¶</a></h2>
 <p>Created on Jan 8, 2012</p>
-<p>&#64;package support sqlalchemy
-&#64;copyright 2011 Sourcefabric o.p.s.
-&#64;license <a class="reference external" href="http://www.gnu.org/licenses/gpl-3.0.txt">http://www.gnu.org/licenses/gpl-3.0.txt</a>
+<p>&#64;package: support sqlalchemy
+&#64;copyright: 2011 Sourcefabric o.p.s.
+&#64;license: <a class="reference external" href="http://www.gnu.org/licenses/gpl-3.0.txt">http://www.gnu.org/licenses/gpl-3.0.txt</a>
 &#64;author: Gabriel Nistor</p>
 <p>Contains sql alchemy database setup.</p>
+</div>
+<div class="section" id="module-sql_alchemy.multiprocess_config">
+<span id="multiprocess-config-module"></span><h2><tt class="xref py py-mod docutils literal"><span class="pre">multiprocess_config</span></tt> Module<a class="headerlink" href="#module-sql_alchemy.multiprocess_config" title="Permalink to this headline">¶</a></h2>
+<p>Created on Oct 24, 2012</p>
+<p>&#64;package: support sqlalchemy
+&#64;copyright: 2011 Sourcefabric o.p.s.
+&#64;license: <a class="reference external" href="http://www.gnu.org/licenses/gpl-3.0.txt">http://www.gnu.org/licenses/gpl-3.0.txt</a>
+&#64;author: Gabriel Nistor</p>
+<p>Provides the configuration used for wraping the connection pool to properly support multiple processes.</p>
+<dl class="function">
+<dt id="sql_alchemy.multiprocess_config.enableMultiProcessPool">
+<tt class="descclassname">sql_alchemy.multiprocess_config.</tt><tt class="descname">enableMultiProcessPool</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/sql_alchemy/multiprocess_config.html#enableMultiProcessPool"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sql_alchemy.multiprocess_config.enableMultiProcessPool" title="Permalink to this definition">¶</a></dt>
+<dd><p>Wraps all the engines in the current assembly with a pool that allows for working on multiple processes.</p>
+</dd></dl>
+
 </div>
 <div class="section" id="subpackages">
 <h2>Subpackages<a class="headerlink" href="#subpackages" title="Permalink to this headline">¶</a></h2>
@@ -100,6 +115,7 @@
 <li><a class="reference internal" href="#">sql_alchemy Package</a><ul>
 <li><a class="reference internal" href="#id1"><tt class="docutils literal"><span class="pre">sql_alchemy</span></tt> Package</a></li>
 <li><a class="reference internal" href="#module-sql_alchemy.database_config"><tt class="docutils literal"><span class="pre">database_config</span></tt> Module</a></li>
+<li><a class="reference internal" href="#module-sql_alchemy.multiprocess_config"><tt class="docutils literal"><span class="pre">multiprocess_config</span></tt> Module</a></li>
 <li><a class="reference internal" href="#subpackages">Subpackages</a><ul>
 </ul>
 </li>
@@ -108,8 +124,8 @@
 </ul>
 
   <h4>Previous topic</h4>
-  <p class="topless"><a href="resources.ffmpeg.all.all.html"
-                        title="previous chapter">all Package</a></p>
+  <p class="topless"><a href="package_extender.html"
+                        title="previous chapter">package_extender Module</a></p>
   <h4>Next topic</h4>
   <p class="topless"><a href="sql_alchemy.impl.html"
                         title="next chapter">impl Package</a></p>
@@ -148,7 +164,7 @@
           <a href="sql_alchemy.impl.html" title="impl Package"
              >next</a> |</li>
         <li class="right" >
-          <a href="resources.ffmpeg.all.all.html" title="all Package"
+          <a href="package_extender.html" title="package_extender Module"
              >previous</a> |</li>
         <li><a href="index.html">ally-py 1.0b1 documentation</a> &raquo;</li> 
       </ul>
