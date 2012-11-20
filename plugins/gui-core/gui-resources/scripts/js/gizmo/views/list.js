@@ -258,6 +258,7 @@ function($, superdesk, giz)
          */
         render: function(cb)
         {
+            console.log('render')
             this.paginate();
             var data = {pagination: this.page},
                 self = this;
@@ -268,8 +269,6 @@ function($, superdesk, giz)
                 $.isFunction(cb) && cb.apply(self);
                 // render list
                 self.renderList();
-                // render again on read and update
-                self.collection.on('read update', self.renderList, self);
             });
             $.superdesk.hideLoader();
         }
