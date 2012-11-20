@@ -61,15 +61,110 @@
             
   <div class="section" id="processor-package">
 <h1>processor Package<a class="headerlink" href="#processor-package" title="Permalink to this headline">¶</a></h1>
-<div class="section" id="id1">
-<h2><tt class="xref py py-mod docutils literal"><span class="pre">processor</span></tt> Package<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h2>
-<span class="target" id="module-ally.core.http.impl.processor"></span><p>Created on Jul 15, 2011</p>
+<div class="section" id="module-ally.core.http.impl.processor.asyncore_content">
+<span id="asyncore-content-module"></span><h2><tt class="xref py py-mod docutils literal"><span class="pre">asyncore_content</span></tt> Module<a class="headerlink" href="#module-ally.core.http.impl.processor.asyncore_content" title="Permalink to this headline">¶</a></h2>
+<p>Created on Nov 1, 2012</p>
 <p>&#64;package: ally core http
 &#64;copyright: 2012 Sourcefabric o.p.s.
 &#64;license: <a class="reference external" href="http://www.gnu.org/licenses/gpl-3.0.txt">http://www.gnu.org/licenses/gpl-3.0.txt</a>
 &#64;author: Gabriel Nistor</p>
-<p>Contains the processors that are specific for HTTP data handling, for instance the URI to resource path processor or the
-request content wrapper processor.</p>
+<p>Provides the asyncore handling of content.</p>
+<dl class="class">
+<dt id="ally.core.http.impl.processor.asyncore_content.AsyncoreContentHandler">
+<em class="property">class </em><tt class="descclassname">ally.core.http.impl.processor.asyncore_content.</tt><tt class="descname">AsyncoreContentHandler</tt><a class="reference internal" href="_modules/ally/core/http/impl/processor/asyncore_content.html#AsyncoreContentHandler"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ally.core.http.impl.processor.asyncore_content.AsyncoreContentHandler" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="ally.design.html#ally.design.processor.HandlerProcessor" title="ally.design.processor.HandlerProcessor"><tt class="xref py py-class docutils literal"><span class="pre">ally.design.processor.HandlerProcessor</span></tt></a></p>
+<p>Provides asyncore content handling, basically this handler buffers up the async data received in order to be
+used by the other handlers.</p>
+<dl class="attribute">
+<dt id="ally.core.http.impl.processor.asyncore_content.AsyncoreContentHandler.contentMethods">
+<tt class="descname">contentMethods</tt><em class="property"> = {2, 4}</em><a class="headerlink" href="#ally.core.http.impl.processor.asyncore_content.AsyncoreContentHandler.contentMethods" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="ally.core.http.impl.processor.asyncore_content.AsyncoreContentHandler.dumpRequestsPath">
+<tt class="descname">dumpRequestsPath</tt><a class="headerlink" href="#ally.core.http.impl.processor.asyncore_content.AsyncoreContentHandler.dumpRequestsPath" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <tt class="xref py py-class docutils literal"><span class="pre">str</span></tt></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="ally.core.http.impl.processor.asyncore_content.AsyncoreContentHandler.dumpRequestsSize">
+<tt class="descname">dumpRequestsSize</tt><em class="property"> = 1048576</em><a class="headerlink" href="#ally.core.http.impl.processor.asyncore_content.AsyncoreContentHandler.dumpRequestsSize" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="ally.core.http.impl.processor.asyncore_content.AsyncoreContentHandler.process">
+<tt class="descname">process</tt><big>(</big><em>chain</em>, <em>request</em>, <em>requestCnt</em>, <em>response</em>, <em>**keyargs</em><big>)</big><a class="reference internal" href="_modules/ally/core/http/impl/processor/asyncore_content.html#AsyncoreContentHandler.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ally.core.http.impl.processor.asyncore_content.AsyncoreContentHandler.process" title="Permalink to this definition">¶</a></dt>
+<dd><p>&#64;see: HandlerProcessor.process</p>
+<p>Provide the headers encoders and decoders.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="ally.core.http.impl.processor.asyncore_content.ReaderInFile">
+<em class="property">class </em><tt class="descclassname">ally.core.http.impl.processor.asyncore_content.</tt><tt class="descname">ReaderInFile</tt><big>(</big><em>path</em>, <em>chain</em>, <em>requestCnt</em><big>)</big><a class="reference internal" href="_modules/ally/core/http/impl/processor/asyncore_content.html#ReaderInFile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ally.core.http.impl.processor.asyncore_content.ReaderInFile" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<p>Provides the reader in file.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="ally.core.http.impl.processor.asyncore_content.ReaderInMemory">
+<em class="property">class </em><tt class="descclassname">ally.core.http.impl.processor.asyncore_content.</tt><tt class="descname">ReaderInMemory</tt><big>(</big><em>chain</em>, <em>requestCnt</em><big>)</big><a class="reference internal" href="_modules/ally/core/http/impl/processor/asyncore_content.html#ReaderInMemory"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ally.core.http.impl.processor.asyncore_content.ReaderInMemory" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<p>Provides the reader in memory.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="ally.core.http.impl.processor.asyncore_content.Request">
+<em class="property">class </em><tt class="descclassname">ally.core.http.impl.processor.asyncore_content.</tt><tt class="descname">Request</tt><big>(</big><em>**keyargs</em><big>)</big><a class="reference internal" href="_modules/ally/core/http/impl/processor/asyncore_content.html#Request"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ally.core.http.impl.processor.asyncore_content.Request" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="ally.design.html#ally.design.context.Context" title="ally.design.context.Context"><tt class="xref py py-class docutils literal"><span class="pre">ally.design.context.Context</span></tt></a></p>
+<p>The request context.</p>
+<dl class="attribute">
+<dt id="ally.core.http.impl.processor.asyncore_content.Request.method">
+<tt class="descname">method</tt><a class="headerlink" href="#ally.core.http.impl.processor.asyncore_content.Request.method" title="Permalink to this definition">¶</a></dt>
+<dd><p>Defines a context attribute.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="ally.core.http.impl.processor.asyncore_content.RequestContent">
+<em class="property">class </em><tt class="descclassname">ally.core.http.impl.processor.asyncore_content.</tt><tt class="descname">RequestContent</tt><big>(</big><em>**keyargs</em><big>)</big><a class="reference internal" href="_modules/ally/core/http/impl/processor/asyncore_content.html#RequestContent"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ally.core.http.impl.processor.asyncore_content.RequestContent" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="ally.design.html#ally.design.context.Context" title="ally.design.context.Context"><tt class="xref py py-class docutils literal"><span class="pre">ally.design.context.Context</span></tt></a></p>
+<p>The request content context.</p>
+<dl class="attribute">
+<dt id="ally.core.http.impl.processor.asyncore_content.RequestContent.contentReader">
+<tt class="descname">contentReader</tt><a class="headerlink" href="#ally.core.http.impl.processor.asyncore_content.RequestContent.contentReader" title="Permalink to this definition">¶</a></dt>
+<dd><p>Defines a context attribute.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="ally.core.http.impl.processor.asyncore_content.RequestContent.length">
+<tt class="descname">length</tt><a class="headerlink" href="#ally.core.http.impl.processor.asyncore_content.RequestContent.length" title="Permalink to this definition">¶</a></dt>
+<dd><p>Defines a context attribute.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="ally.core.http.impl.processor.asyncore_content.RequestContent.source">
+<tt class="descname">source</tt><a class="headerlink" href="#ally.core.http.impl.processor.asyncore_content.RequestContent.source" title="Permalink to this definition">¶</a></dt>
+<dd><p>Defines a context attribute.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="ally.core.http.impl.processor.asyncore_content.Response">
+<em class="property">class </em><tt class="descclassname">ally.core.http.impl.processor.asyncore_content.</tt><tt class="descname">Response</tt><big>(</big><em>**keyargs</em><big>)</big><a class="reference internal" href="_modules/ally/core/http/impl/processor/asyncore_content.html#Response"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ally.core.http.impl.processor.asyncore_content.Response" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="ally.design.html#ally.design.context.Context" title="ally.design.context.Context"><tt class="xref py py-class docutils literal"><span class="pre">ally.design.context.Context</span></tt></a></p>
+<p>The response context.</p>
+<dl class="attribute">
+<dt id="ally.core.http.impl.processor.asyncore_content.Response.code">
+<tt class="descname">code</tt><a class="headerlink" href="#ally.core.http.impl.processor.asyncore_content.Response.code" title="Permalink to this definition">¶</a></dt>
+<dd><p>Defines a context attribute.</p>
+</dd></dl>
+
+</dd></dl>
+
 </div>
 <div class="section" id="module-ally.core.http.impl.processor.encoder">
 <span id="encoder-module"></span><h2><tt class="xref py py-mod docutils literal"><span class="pre">encoder</span></tt> Module<a class="headerlink" href="#module-ally.core.http.impl.processor.encoder" title="Permalink to this headline">¶</a></h2>
@@ -332,7 +427,7 @@ the reference.</dd>
 
 <dl class="attribute">
 <dt id="ally.core.http.impl.processor.fetcher.FetcherHandler.typeResponse">
-<tt class="descname">typeResponse</tt><em class="property"> = &lt;ally.api.type.TypeClass object at 0x5c389b0&gt;</em><a class="headerlink" href="#ally.core.http.impl.processor.fetcher.FetcherHandler.typeResponse" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">typeResponse</tt><em class="property"> = &lt;ally.api.type.TypeClass object at 0x5e01a50&gt;</em><a class="headerlink" href="#ally.core.http.impl.processor.fetcher.FetcherHandler.typeResponse" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 </dd></dl>
@@ -502,7 +597,7 @@ the arguments (beside of the model id one which is None in the indexes) to be us
 <dd><p>Read the parameters for the provided name.</p>
 <dl class="docutils">
 <dt>&#64;param name: string</dt>
-<dd>The name to read the parameters for.</dd>
+<dd>The name (lower case) to read the parameters for.</dd>
 <dt>&#64;return: deque[string]</dt>
 <dd>The list of found values, might be empty.</dd>
 </dl>
@@ -722,7 +817,7 @@ the arguments (beside of the model id one which is None in the indexes) to be us
 <dd>The criteria type to decode.</dd>
 <dt>&#64;param getterCriteria: callable(object) -&gt; object</dt>
 <dd>The getter used to get the criteria from the target object.</dd>
-<dt>&#64;return: callable(<a href="#id2"><span class="problematic" id="id3">**</span></a>data) -&gt; boolean</dt>
+<dt>&#64;return: callable(<a href="#id1"><span class="problematic" id="id2">**</span></a>data) -&gt; boolean</dt>
 <dd>The exploit that provides the criteria decoding.</dd>
 </dl>
 </dd></dl>
@@ -734,7 +829,7 @@ the arguments (beside of the model id one which is None in the indexes) to be us
 <dl class="docutils">
 <dt>&#64;param invoker: Invoker</dt>
 <dd>The invoker to create a parameters decoder for.</dd>
-<dt>&#64;return: callable(<a href="#id4"><span class="problematic" id="id5">**</span></a>data) -&gt; boolean</dt>
+<dt>&#64;return: callable(<a href="#id3"><span class="problematic" id="id4">**</span></a>data) -&gt; boolean</dt>
 <dd>The exploit that provides the invoker decoding.</dd>
 </dl>
 </dd></dl>
@@ -747,9 +842,9 @@ paths that are processed by the provided children.</p>
 <dl class="docutils">
 <dt>&#64;param ascending: boolean</dt>
 <dd>The value used for this order.</dd>
-<dt>&#64;param exploitOrder: callable(<a href="#id6"><span class="problematic" id="id7">**</span></a>data) -&gt; boolean</dt>
+<dt>&#64;param exploitOrder: callable(<a href="#id5"><span class="problematic" id="id6">**</span></a>data) -&gt; boolean</dt>
 <dd>The exploit to be used in the order decoding.</dd>
-<dt>&#64;return: callable(<a href="#id8"><span class="problematic" id="id9">**</span></a>data) -&gt; boolean</dt>
+<dt>&#64;return: callable(<a href="#id7"><span class="problematic" id="id8">**</span></a>data) -&gt; boolean</dt>
 <dd>The exploit that provides the ordering decoding.</dd>
 </dl>
 </dd></dl>
@@ -759,9 +854,9 @@ paths that are processed by the provided children.</p>
 <tt class="descname">decodePath</tt><big>(</big><em>children</em><big>)</big><a class="reference internal" href="_modules/ally/core/http/impl/processor/parameter.html#ParameterHandler.decodePath"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ally.core.http.impl.processor.parameter.ParameterHandler.decodePath" title="Permalink to this definition">¶</a></dt>
 <dd><p>Exploit to locate a decoder in the provided children based on the exploit path.</p>
 <dl class="docutils">
-<dt>&#64;param children: dictionary{string, callable(<a href="#id10"><span class="problematic" id="id11">**</span></a>data)}</dt>
+<dt>&#64;param children: dictionary{string, callable(<a href="#id9"><span class="problematic" id="id10">**</span></a>data)}</dt>
 <dd>The children exploits to be identified based on the key.</dd>
-<dt>&#64;return: callable(<a href="#id12"><span class="problematic" id="id13">**</span></a>data) -&gt; boolean</dt>
+<dt>&#64;return: callable(<a href="#id11"><span class="problematic" id="id12">**</span></a>data) -&gt; boolean</dt>
 <dd>The exploit that provides the path decoding.</dd>
 </dl>
 </dd></dl>
@@ -775,7 +870,7 @@ paths that are processed by the provided children.</p>
 <dd>The setter used to set the value to the target object.</dd>
 <dt>&#64;param typeValue: Type</dt>
 <dd>The type of the value to decode.</dd>
-<dt>&#64;return: callable(<a href="#id14"><span class="problematic" id="id15">**</span></a>data) -&gt; boolean</dt>
+<dt>&#64;return: callable(<a href="#id13"><span class="problematic" id="id14">**</span></a>data) -&gt; boolean</dt>
 <dd>The exploit that provides the primitive decoding.</dd>
 </dl>
 </dd></dl>
@@ -789,7 +884,7 @@ paths that are processed by the provided children.</p>
 <dd>The setter used to set the value to the target object.</dd>
 <dt>&#64;param typeItem: Type</dt>
 <dd>The type represented by the list items.</dd>
-<dt>&#64;return: callable(<a href="#id16"><span class="problematic" id="id17">**</span></a>data) -&gt; boolean</dt>
+<dt>&#64;return: callable(<a href="#id15"><span class="problematic" id="id16">**</span></a>data) -&gt; boolean</dt>
 <dd>The exploit that provides the primitive list decoding.</dd>
 </dl>
 </dd></dl>
@@ -803,7 +898,7 @@ paths that are processed by the provided children.</p>
 <dd>The criteria entry type to set the order for.</dd>
 <dt>&#64;param getterQuery: callable(object) -&gt; object</dt>
 <dd>The getter used to get the query from the target object.</dd>
-<dt>&#64;return: callable(<a href="#id18"><span class="problematic" id="id19">**</span></a>data) -&gt; boolean</dt>
+<dt>&#64;return: callable(<a href="#id17"><span class="problematic" id="id18">**</span></a>data) -&gt; boolean</dt>
 <dd>The exploit that sets the ordering.</dd>
 </dl>
 </dd></dl>
@@ -817,7 +912,7 @@ paths that are processed by the provided children.</p>
 <dd>The criteria type to encode.</dd>
 <dt>&#64;param getterCriteria: callable(object) -&gt; object</dt>
 <dd>The getter used to get the criteria from the value object.</dd>
-<dt>&#64;return: callable(<a href="#id20"><span class="problematic" id="id21">**</span></a>data)</dt>
+<dt>&#64;return: callable(<a href="#id19"><span class="problematic" id="id20">**</span></a>data)</dt>
 <dd>The exploit that provides the criteria encoding.</dd>
 </dl>
 </dd></dl>
@@ -831,7 +926,7 @@ paths that are processed by the provided children.</p>
 <dd>The criteria entry type to get the order for.</dd>
 <dt>&#64;param getterQuery: callable(object) -&gt; object</dt>
 <dd>The getter used to get the query from the value object.</dd>
-<dt>&#64;return: callable(<a href="#id22"><span class="problematic" id="id23">**</span></a>data)</dt>
+<dt>&#64;return: callable(<a href="#id21"><span class="problematic" id="id22">**</span></a>data)</dt>
 <dd>The exploit that gets the ordering.</dd>
 </dl>
 </dd></dl>
@@ -843,7 +938,7 @@ paths that are processed by the provided children.</p>
 <dl class="docutils">
 <dt>&#64;param invoker: Invoker</dt>
 <dd>The invoker to create a parameters encoder for.</dd>
-<dt>&#64;return: callable(<a href="#id24"><span class="problematic" id="id25">**</span></a>data)</dt>
+<dt>&#64;return: callable(<a href="#id23"><span class="problematic" id="id24">**</span></a>data)</dt>
 <dd>The exploit that provides the invoker encoding.</dd>
 </dl>
 </dd></dl>
@@ -853,9 +948,9 @@ paths that are processed by the provided children.</p>
 <tt class="descname">encodeOrder</tt><big>(</big><em>exploitOrder</em><big>)</big><a class="reference internal" href="_modules/ally/core/http/impl/processor/parameter.html#ParameterHandler.encodeOrder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ally.core.http.impl.processor.parameter.ParameterHandler.encodeOrder" title="Permalink to this definition">¶</a></dt>
 <dd><p>Exploit to encode the order.</p>
 <dl class="docutils">
-<dt>&#64;param exploitOrder: callable(<a href="#id26"><span class="problematic" id="id27">**</span></a>data) -&gt; boolean</dt>
+<dt>&#64;param exploitOrder: callable(<a href="#id25"><span class="problematic" id="id26">**</span></a>data) -&gt; boolean</dt>
 <dd>The exploit to be used in getting the order values.</dd>
-<dt>&#64;return: callable(<a href="#id28"><span class="problematic" id="id29">**</span></a>data) -&gt; boolean</dt>
+<dt>&#64;return: callable(<a href="#id27"><span class="problematic" id="id28">**</span></a>data) -&gt; boolean</dt>
 <dd>The exploit that provides the ordering encode.</dd>
 </dl>
 </dd></dl>
@@ -865,9 +960,9 @@ paths that are processed by the provided children.</p>
 <tt class="descname">encodePath</tt><big>(</big><em>children</em><big>)</big><a class="reference internal" href="_modules/ally/core/http/impl/processor/parameter.html#ParameterHandler.encodePath"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ally.core.http.impl.processor.parameter.ParameterHandler.encodePath" title="Permalink to this definition">¶</a></dt>
 <dd><p>Exploit to encode the path of the exploits by using the children keys.</p>
 <dl class="docutils">
-<dt>&#64;param children: dictionary{string, callable(<a href="#id30"><span class="problematic" id="id31">**</span></a>data)}</dt>
+<dt>&#64;param children: dictionary{string, callable(<a href="#id29"><span class="problematic" id="id30">**</span></a>data)}</dt>
 <dd>The children exploits to be identified based on the key.</dd>
-<dt>&#64;return: callable(<a href="#id32"><span class="problematic" id="id33">**</span></a>data)</dt>
+<dt>&#64;return: callable(<a href="#id31"><span class="problematic" id="id32">**</span></a>data)</dt>
 <dd>The exploit that provides the path encoding.</dd>
 </dl>
 </dd></dl>
@@ -881,7 +976,7 @@ paths that are processed by the provided children.</p>
 <dd>The type of the value to encode.</dd>
 <dt>&#64;param getterValue: callable(object) -&gt; object</dt>
 <dd>The getter used to get the value from the value object.</dd>
-<dt>&#64;return: callable(<a href="#id34"><span class="problematic" id="id35">**</span></a>data)</dt>
+<dt>&#64;return: callable(<a href="#id33"><span class="problematic" id="id34">**</span></a>data)</dt>
 <dd>The exploit that provides the primitive encoding.</dd>
 </dl>
 </dd></dl>
@@ -1027,7 +1122,7 @@ paths that are processed by the provided children.</p>
 <p>Contains the data required by the multi part stream.</p>
 <dl class="attribute">
 <dt id="ally.core.http.impl.processor.parsing_multipart.DataMultiPart.charSet">
-<tt class="descname">charSet</tt><em class="property"> = 'ASCII'</em><a class="headerlink" href="#ally.core.http.impl.processor.parsing_multipart.DataMultiPart.charSet" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">charSet</tt><em class="property"> = 'UTF8'</em><a class="headerlink" href="#ally.core.http.impl.processor.parsing_multipart.DataMultiPart.charSet" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="attribute">
@@ -1267,7 +1362,7 @@ paths that are processed by the provided children.</p>
 for the response content and request content.</p>
 <dl class="attribute">
 <dt id="ally.core.http.impl.processor.text_conversion.BabelConversionDecodeHandler.defaults">
-<tt class="descname">defaults</tt><em class="property"> = {&lt;class 'ally.api.type.DateTime'&gt;: 'short', &lt;class 'ally.api.type.Date'&gt;: 'short', &lt;class 'ally.api.type.Time'&gt;: 'short'}</em><a class="headerlink" href="#ally.core.http.impl.processor.text_conversion.BabelConversionDecodeHandler.defaults" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">defaults</tt><em class="property"> = {&lt;class 'ally.api.type.Time'&gt;: 'short', &lt;class 'ally.api.type.Date'&gt;: 'short', &lt;class 'ally.api.type.DateTime'&gt;: 'short'}</em><a class="headerlink" href="#ally.core.http.impl.processor.text_conversion.BabelConversionDecodeHandler.defaults" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="attribute">
@@ -1282,7 +1377,7 @@ for the response content and request content.</p>
 
 <dl class="attribute">
 <dt id="ally.core.http.impl.processor.text_conversion.BabelConversionDecodeHandler.formats">
-<tt class="descname">formats</tt><em class="property"> = {&lt;class 'ally.api.type.DateTime'&gt;: ('full', 'long', 'medium', 'short'), &lt;class 'ally.api.type.Date'&gt;: ('full', 'long', 'medium', 'short'), &lt;class 'ally.api.type.Time'&gt;: ('full', 'long', 'medium', 'short')}</em><a class="headerlink" href="#ally.core.http.impl.processor.text_conversion.BabelConversionDecodeHandler.formats" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">formats</tt><em class="property"> = {&lt;class 'ally.api.type.Time'&gt;: ('full', 'long', 'medium', 'short'), &lt;class 'ally.api.type.Date'&gt;: ('full', 'long', 'medium', 'short'), &lt;class 'ally.api.type.DateTime'&gt;: ('full', 'long', 'medium', 'short')}</em><a class="headerlink" href="#ally.core.http.impl.processor.text_conversion.BabelConversionDecodeHandler.formats" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="attribute">
@@ -1769,18 +1864,6 @@ populates the parameters and extension format on the request.</p>
 <dd><p>alias of <tt class="xref py py-class docutils literal"><span class="pre">ConverterPath</span></tt></p>
 </dd></dl>
 
-<dl class="method">
-<dt id="ally.core.http.impl.processor.uri.URIHandler.createEncoderPath">
-<tt class="descname">createEncoderPath</tt><big>(</big><em>request</em>, <em>extension=None</em><big>)</big><a class="reference internal" href="_modules/ally/core/http/impl/processor/uri.html#URIHandler.createEncoderPath"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ally.core.http.impl.processor.uri.URIHandler.createEncoderPath" title="Permalink to this definition">¶</a></dt>
-<dd><p>Creates the path encoder for the provided request.</p>
-<dl class="docutils">
-<dt>&#64;param request: Request</dt>
-<dd>The request to create the path encoder for.</dd>
-<dt>&#64;param extension: string</dt>
-<dd>The extension to use on the encoded paths.</dd>
-</dl>
-</dd></dl>
-
 <dl class="attribute">
 <dt id="ally.core.http.impl.processor.uri.URIHandler.headerHost">
 <tt class="descname">headerHost</tt><em class="property"> = 'Host'</em><a class="headerlink" href="#ally.core.http.impl.processor.uri.URIHandler.headerHost" title="Permalink to this definition">¶</a></dt>
@@ -1835,7 +1918,7 @@ populates the parameters and extension format on the request.</p>
   <h3><a href="index.html">Table Of Contents</a></h3>
   <ul>
 <li><a class="reference internal" href="#">processor Package</a><ul>
-<li><a class="reference internal" href="#id1"><tt class="docutils literal"><span class="pre">processor</span></tt> Package</a></li>
+<li><a class="reference internal" href="#module-ally.core.http.impl.processor.asyncore_content"><tt class="docutils literal"><span class="pre">asyncore_content</span></tt> Module</a></li>
 <li><a class="reference internal" href="#module-ally.core.http.impl.processor.encoder"><tt class="docutils literal"><span class="pre">encoder</span></tt> Module</a></li>
 <li><a class="reference internal" href="#module-ally.core.http.impl.processor.fetcher"><tt class="docutils literal"><span class="pre">fetcher</span></tt> Module</a></li>
 <li><a class="reference internal" href="#module-ally.core.http.impl.processor.header"><tt class="docutils literal"><span class="pre">header</span></tt> Module</a></li>

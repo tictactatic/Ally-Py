@@ -104,7 +104,7 @@
 <span class="sd">    Implementation for @see: IPOFileManager</span>
 <span class="sd">    &#39;&#39;&#39;</span>
 
-    <span class="n">locale_dir_path</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="s">&#39;workspace&#39;</span><span class="p">,</span> <span class="s">&#39;locale&#39;</span><span class="p">);</span> <span class="n">wire</span><span class="o">.</span><span class="n">config</span><span class="p">(</span><span class="s">&#39;locale_dir_path&#39;</span><span class="p">,</span> <span class="n">doc</span><span class="o">=</span><span class="s">&#39;&#39;&#39;</span>
+    <span class="n">locale_dir_path</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="s">&#39;workspace&#39;</span><span class="p">,</span> <span class="s">&#39;shared&#39;</span><span class="p">,</span> <span class="s">&#39;locale&#39;</span><span class="p">);</span> <span class="n">wire</span><span class="o">.</span><span class="n">config</span><span class="p">(</span><span class="s">&#39;locale_dir_path&#39;</span><span class="p">,</span> <span class="n">doc</span><span class="o">=</span><span class="s">&#39;&#39;&#39;</span>
 <span class="s">    The locale repository path&#39;&#39;&#39;</span><span class="p">)</span>
     <span class="n">catalog_config</span> <span class="o">=</span> <span class="p">{</span>
                       <span class="s">&#39;header_comment&#39;</span><span class="p">:</span><span class="s">&#39;&#39;&#39;</span><span class="se">\</span>
@@ -123,13 +123,11 @@
                       <span class="p">};</span> <span class="n">wire</span><span class="o">.</span><span class="n">config</span><span class="p">(</span><span class="s">&#39;catalog_config&#39;</span><span class="p">,</span> <span class="n">doc</span><span class="o">=</span><span class="s">&#39;&#39;&#39;</span>
 <span class="s">    The global catalog default configuration for templates.</span>
 <span class="s">    </span>
-<span class="s">    :param header_comment: the header comment as string, or `None` for the</span>
-<span class="s">                               default header</span>
+<span class="s">    :param header_comment: the header comment as string, or `None` for the default header</span>
 <span class="s">    :param project: the project&#39;s name</span>
 <span class="s">    :param version: the project&#39;s version</span>
 <span class="s">    :param copyright_holder: the copyright holder of the catalog</span>
-<span class="s">    :param msgid_bugs_address: the email address or URL to submit bug</span>
-<span class="s">                               reports to</span>
+<span class="s">    :param msgid_bugs_address: the email address or URL to submit bug reports to</span>
 <span class="s">    :param creation_date: the date the catalog was created</span>
 <span class="s">    :param revision_date: the date the catalog was revised</span>
 <span class="s">    :param last_translator: the name and email of the last translator</span>
@@ -147,19 +145,16 @@
                        <span class="p">};</span> <span class="n">wire</span><span class="o">.</span><span class="n">config</span><span class="p">(</span><span class="s">&#39;write_po_config&#39;</span><span class="p">,</span> <span class="n">doc</span><span class="o">=</span><span class="s">&#39;&#39;&#39;</span>
 <span class="s">    The configurations used when writing the PO files.</span>
 <span class="s">    </span>
-<span class="s">    :param width: the maximum line width for the generated output; use `None`,</span>
-<span class="s">                  0, or a negative number to completely disable line wrapping</span>
+<span class="s">    :param width: the maximum line width for the generated output; use `None`, 0, or a negative number to</span>
+<span class="s">                  completely disable line wrapping</span>
 <span class="s">    :param no_location: do not emit a location comment for every message</span>
-<span class="s">    :param omit_header: do not include the ``msgid &quot;&quot;`` entry at the top of the</span>
-<span class="s">                        output</span>
+<span class="s">    :param omit_header: do not include the ``msgid &quot;&quot;`` entry at the top of the output</span>
 <span class="s">    :param sort_output: whether to sort the messages in the output by msgid</span>
-<span class="s">    :param sort_by_file: whether to sort the messages in the output by their</span>
-<span class="s">                         locations</span>
-<span class="s">    :param ignore_obsolete: whether to ignore obsolete messages and not include</span>
-<span class="s">                            them in the output; by default they are included as</span>
-<span class="s">                            comments</span>
-<span class="s">    :param include_previous: include the old msgid as a comment when</span>
-<span class="s">                             updating the catalog&#39;&#39;&#39;</span><span class="p">)</span>
+<span class="s">    :param sort_by_file: whether to sort the messages in the output by their locations</span>
+<span class="s">    :param ignore_obsolete: whether to ignore obsolete messages and not include them in the output; by default</span>
+<span class="s">                            they are included as comments</span>
+<span class="s">    :param include_previous: include the old msgid as a comment when updating the catalog</span>
+<span class="s">    &#39;&#39;&#39;</span><span class="p">)</span>
 
     <span class="n">messageService</span> <span class="o">=</span> <span class="n">IMessageService</span><span class="p">;</span> <span class="n">wire</span><span class="o">.</span><span class="n">entity</span><span class="p">(</span><span class="s">&#39;messageService&#39;</span><span class="p">)</span>
     <span class="n">sourceService</span> <span class="o">=</span> <span class="n">ISourceService</span><span class="p">;</span> <span class="n">wire</span><span class="o">.</span><span class="n">entity</span><span class="p">(</span><span class="s">&#39;sourceService&#39;</span><span class="p">)</span>

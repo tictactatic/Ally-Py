@@ -76,10 +76,9 @@
 <span class="sd">        Publish content from a file.</span>
 
 <span class="sd">        @param path: string</span>
-<span class="sd">                The path of the content item. This is a unique</span>
-<span class="sd">                     identifier of the item.</span>
+<span class="sd">            The path of the content item. This is a unique identifier of the item.</span>
 <span class="sd">        @param filePath: string or file object</span>
-<span class="sd">                The path of the file on the file system or a readable file object</span>
+<span class="sd">            The path of the file on the file system or a readable file object</span>
 <span class="sd">        &#39;&#39;&#39;</span>
 </div>
     <span class="nd">@abc.abstractmethod</span>
@@ -88,10 +87,9 @@
 <span class="sd">        Publish content from a file.</span>
 
 <span class="sd">        @param path: string</span>
-<span class="sd">                The path of the content item. This is a unique</span>
-<span class="sd">                     identifier of the item.</span>
+<span class="sd">            The path of the content item. This is a unique identifier of the item.</span>
 <span class="sd">        @param dirPath: string</span>
-<span class="sd">                The path of the directory on the file system</span>
+<span class="sd">            The path of the directory on the file system.</span>
 <span class="sd">        &#39;&#39;&#39;</span>
 </div>
     <span class="nd">@abc.abstractmethod</span>
@@ -100,10 +98,9 @@
 <span class="sd">        Publish content from a string.</span>
 
 <span class="sd">        @param path: string</span>
-<span class="sd">                The path of the content item. This is a unique</span>
-<span class="sd">                     identifier of the item.</span>
+<span class="sd">            The path of the content item. This is a unique identifier of the item.</span>
 <span class="sd">        @param content: input stream</span>
-<span class="sd">                The content as input stream</span>
+<span class="sd">            The content as input stream</span>
 <span class="sd">        &#39;&#39;&#39;</span>
 </div>
     <span class="nd">@abc.abstractmethod</span>
@@ -112,10 +109,9 @@
 <span class="sd">        Re-publish an existing path under a new path.</span>
 
 <span class="sd">        @param oldPath: string</span>
-<span class="sd">                The path of the existing item. This is a unique</span>
-<span class="sd">                     identifier of the item.</span>
+<span class="sd">            The path of the existing item. This is a unique identifier of the item.</span>
 <span class="sd">        @param newPath: string</span>
-<span class="sd">                The new path under which the item will be published.</span>
+<span class="sd">            The new path under which the item will be published.</span>
 <span class="sd">        &#39;&#39;&#39;</span>
 </div>
     <span class="nd">@abc.abstractmethod</span>
@@ -124,8 +120,7 @@
 <span class="sd">        Remove the given path from the repository.</span>
 
 <span class="sd">        @param path: string</span>
-<span class="sd">                The path of the content item. This is a unique</span>
-<span class="sd">                     identifier of the item.</span>
+<span class="sd">            The path of the content item. This is a unique identifier of the item.</span>
 <span class="sd">        &#39;&#39;&#39;</span>
 </div>
     <span class="nd">@abc.abstractmethod</span>

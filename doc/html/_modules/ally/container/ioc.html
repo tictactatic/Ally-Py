@@ -64,11 +64,11 @@
 <span class="kn">from</span> <span class="nn">..support.util_sys</span> <span class="kn">import</span> <span class="n">callerLocals</span>
 <span class="kn">from</span> <span class="nn">._impl.aop_container</span> <span class="kn">import</span> <span class="n">AOPModules</span>
 <span class="kn">from</span> <span class="nn">._impl.entity_handler</span> <span class="kn">import</span> <span class="n">Initializer</span>
-<span class="kn">from</span> <span class="nn">._impl.ioc_setup</span> <span class="kn">import</span> <span class="n">SetupEntity</span><span class="p">,</span> <span class="n">SetupSource</span><span class="p">,</span> <span class="n">SetupConfig</span><span class="p">,</span> <span class="n">SetupFunction</span><span class="p">,</span> <span class="n">SetupEvent</span><span class="p">,</span> \
-    <span class="n">Context</span><span class="p">,</span> <span class="n">SetupReplace</span><span class="p">,</span> <span class="n">SetupStart</span><span class="p">,</span> <span class="n">SetupError</span><span class="p">,</span> <span class="n">register</span><span class="p">,</span> <span class="n">ConfigError</span><span class="p">,</span> <span class="n">Assembly</span>
-<span class="kn">from</span> <span class="nn">._impl.ioc_setup</span> <span class="kn">import</span> <span class="n">SetupReplaceConfig</span><span class="p">,</span> <span class="n">setupsOf</span>
+<span class="kn">from</span> <span class="nn">._impl.ioc_setup</span> <span class="kn">import</span> <span class="n">SetupEntity</span><span class="p">,</span> <span class="n">SetupSource</span><span class="p">,</span> <span class="n">SetupConfig</span><span class="p">,</span> \
+    <span class="n">SetupFunction</span><span class="p">,</span> <span class="n">SetupEvent</span><span class="p">,</span> <span class="n">Context</span><span class="p">,</span> <span class="n">SetupReplace</span><span class="p">,</span> <span class="n">SetupStart</span><span class="p">,</span> <span class="n">SetupError</span><span class="p">,</span> \
+    <span class="n">register</span><span class="p">,</span> <span class="n">ConfigError</span><span class="p">,</span> <span class="n">Assembly</span><span class="p">,</span> <span class="n">SetupReplaceConfig</span><span class="p">,</span> <span class="n">setupsOf</span>
 <span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span><span class="p">,</span> <span class="n">update_wrapper</span>
-<span class="kn">from</span> <span class="nn">inspect</span> <span class="kn">import</span> <span class="n">isclass</span><span class="p">,</span> <span class="n">ismodule</span><span class="p">,</span> <span class="n">getfullargspec</span><span class="p">,</span> <span class="n">isfunction</span>
+<span class="kn">from</span> <span class="nn">inspect</span> <span class="kn">import</span> <span class="n">isclass</span><span class="p">,</span> <span class="n">ismodule</span><span class="p">,</span> <span class="n">getfullargspec</span><span class="p">,</span> <span class="n">isfunction</span><span class="p">,</span> <span class="n">cleandoc</span>
 <span class="kn">import</span> <span class="nn">importlib</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 
@@ -126,35 +126,62 @@
         <span class="k">raise</span> <span class="n">SetupError</span><span class="p">(</span><span class="s">&#39;Invalid name </span><span class="si">%r</span><span class="s"> for configuration, needs to be lower case only&#39;</span> <span class="o">%</span> <span class="n">function</span><span class="o">.</span><span class="n">__name__</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">update_wrapper</span><span class="p">(</span><span class="n">register</span><span class="p">(</span><span class="n">SetupConfig</span><span class="p">(</span><span class="n">function</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">type</span><span class="p">),</span> <span class="n">callerLocals</span><span class="p">()),</span> <span class="n">function</span><span class="p">)</span>
 </div>
-<div class="viewcode-block" id="before"><a class="viewcode-back" href="../../../ally.container.html#ally.container.ioc.before">[docs]</a><span class="k">def</span> <span class="nf">before</span><span class="p">(</span><span class="n">setup</span><span class="p">):</span>
+<div class="viewcode-block" id="doc"><a class="viewcode-back" href="../../../ally.container.html#ally.container.ioc.doc">[docs]</a><span class="k">def</span> <span class="nf">doc</span><span class="p">(</span><span class="n">setup</span><span class="p">,</span> <span class="n">doc</span><span class="p">):</span>
     <span class="sd">&#39;&#39;&#39;</span>
-<span class="sd">    Decorator for setup functions that need to be called before other setup functions.</span>
+<span class="sd">    Updates the documentation of the provided configuration setup.</span>
 <span class="sd">    </span>
-<span class="sd">    @param setup: SetupFunction</span>
-<span class="sd">        The setup function to listen to.</span>
+<span class="sd">    @param setup: SetupConfig</span>
+<span class="sd">        The configuration setup to update the documentation for.</span>
+<span class="sd">    @param doc: string</span>
+<span class="sd">        The documentation to update with, automatically the provided documentation will start on a new line.</span>
 <span class="sd">    &#39;&#39;&#39;</span>
-    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">setup</span><span class="p">,</span> <span class="n">SetupFunction</span><span class="p">),</span> <span class="s">&#39;Invalid setup function </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">setup</span>
+    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">setup</span><span class="p">,</span> <span class="p">(</span><span class="n">SetupConfig</span><span class="p">,</span> <span class="n">SetupReplaceConfig</span><span class="p">)),</span> <span class="s">&#39;Invalid configuration setup </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">setup</span>
+    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">doc</span><span class="p">,</span> <span class="nb">str</span><span class="p">),</span> <span class="s">&#39;Invalid documentation </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">doc</span>
+    
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">setup</span><span class="p">,</span> <span class="n">SetupReplaceConfig</span><span class="p">):</span> <span class="n">setup</span> <span class="o">=</span> <span class="n">setup</span><span class="o">.</span><span class="n">target</span>
+    <span class="k">if</span> <span class="n">setup</span><span class="o">.</span><span class="n">documentation</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span> <span class="n">setup</span><span class="o">.</span><span class="n">documentation</span> <span class="o">+=</span> <span class="s">&#39;</span><span class="se">\n</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">cleandoc</span><span class="p">(</span><span class="n">doc</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="before"><a class="viewcode-back" href="../../../ally.container.html#ally.container.ioc.before">[docs]</a><span class="k">def</span> <span class="nf">before</span><span class="p">(</span><span class="o">*</span><span class="n">setups</span><span class="p">,</span> <span class="n">auto</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Decorator for setup functions that need to be called before the other setup functions. If multiple before setup</span>
+<span class="sd">    functions are provided then the before function will be invoked only for the first setup functions that occurs.</span>
+<span class="sd">    </span>
+<span class="sd">    @param setup: arguments[SetupFunction]</span>
+<span class="sd">        The setup function to listen to.</span>
+<span class="sd">    @param auto: boolean</span>
+<span class="sd">        In some cases the event is not called (for instance externally provided configurations) this means is auto managed</span>
+<span class="sd">        by the container, if placed on False the event is guaranteed to be called regardless of what the container option.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">if</span> <span class="n">__debug__</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">setup</span> <span class="ow">in</span> <span class="n">setups</span><span class="p">:</span> <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">setup</span><span class="p">,</span> <span class="n">SetupFunction</span><span class="p">),</span> <span class="s">&#39;Invalid setup function </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">setup</span>
+    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">auto</span><span class="p">,</span> <span class="nb">bool</span><span class="p">),</span> <span class="s">&#39;Invalid auto flag </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">auto</span>
     <span class="k">def</span> <span class="nf">decorator</span><span class="p">(</span><span class="n">function</span><span class="p">):</span>
         <span class="n">hasType</span><span class="p">,</span> <span class="nb">type</span> <span class="o">=</span> <span class="n">_process</span><span class="p">(</span><span class="n">function</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">hasType</span><span class="p">:</span> <span class="k">raise</span> <span class="n">SetupError</span><span class="p">(</span><span class="s">&#39;No return type expected for function </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">function</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">update_wrapper</span><span class="p">(</span><span class="n">register</span><span class="p">(</span><span class="n">SetupEvent</span><span class="p">(</span><span class="n">function</span><span class="p">,</span> <span class="n">setup</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">SetupEvent</span><span class="o">.</span><span class="n">BEFORE</span><span class="p">),</span> <span class="n">callerLocals</span><span class="p">()),</span> <span class="n">function</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">update_wrapper</span><span class="p">(</span><span class="n">register</span><span class="p">(</span><span class="n">SetupEvent</span><span class="p">(</span><span class="n">function</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">setup</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">setup</span> <span class="ow">in</span> <span class="n">setups</span><span class="p">),</span> <span class="n">SetupEvent</span><span class="o">.</span><span class="n">BEFORE</span><span class="p">,</span> <span class="n">auto</span><span class="p">),</span>
+                                       <span class="n">callerLocals</span><span class="p">()),</span> <span class="n">function</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">decorator</span>
 </div>
-<div class="viewcode-block" id="after"><a class="viewcode-back" href="../../../ally.container.html#ally.container.ioc.after">[docs]</a><span class="k">def</span> <span class="nf">after</span><span class="p">(</span><span class="n">setup</span><span class="p">):</span>
+<div class="viewcode-block" id="after"><a class="viewcode-back" href="../../../ally.container.html#ally.container.ioc.after">[docs]</a><span class="k">def</span> <span class="nf">after</span><span class="p">(</span><span class="o">*</span><span class="n">setups</span><span class="p">,</span> <span class="n">auto</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
     <span class="sd">&#39;&#39;&#39;</span>
-<span class="sd">    Decorator for setup functions that need to be called after other setup functions.</span>
+<span class="sd">    Decorator for setup functions that need to be called after the other setup functions. If multiple after setup</span>
+<span class="sd">    functions are provided then the after function will be invoked only after all the setup functions will occur.</span>
 <span class="sd">    </span>
-<span class="sd">    @param setup: SetupFunction</span>
-<span class="sd">        The setup function to listen to.</span>
+<span class="sd">    @param setups: arguments[SetupFunction]</span>
+<span class="sd">        The setup function(s) to listen to.</span>
+<span class="sd">    @param auto: boolean</span>
+<span class="sd">        In some cases the event is not called (for instance externally provided configurations) this means is auto managed</span>
+<span class="sd">        by the container, if placed on False the event is guaranteed to be called regardless of what the container option.</span>
 <span class="sd">    &#39;&#39;&#39;</span>
-    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">setup</span><span class="p">,</span> <span class="n">SetupFunction</span><span class="p">),</span> <span class="s">&#39;Invalid setup function </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">setup</span>
+    <span class="k">if</span> <span class="n">__debug__</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">setup</span> <span class="ow">in</span> <span class="n">setups</span><span class="p">:</span> <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">setup</span><span class="p">,</span> <span class="n">SetupFunction</span><span class="p">),</span> <span class="s">&#39;Invalid setup function </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">setup</span>
+    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">auto</span><span class="p">,</span> <span class="nb">bool</span><span class="p">),</span> <span class="s">&#39;Invalid auto flag </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">auto</span>
     <span class="k">def</span> <span class="nf">decorator</span><span class="p">(</span><span class="n">function</span><span class="p">):</span>
         <span class="n">hasType</span><span class="p">,</span> <span class="nb">type</span> <span class="o">=</span> <span class="n">_process</span><span class="p">(</span><span class="n">function</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">hasType</span><span class="p">:</span> <span class="k">raise</span> <span class="n">SetupError</span><span class="p">(</span><span class="s">&#39;No return type expected for function </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">function</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">update_wrapper</span><span class="p">(</span><span class="n">register</span><span class="p">(</span><span class="n">SetupEvent</span><span class="p">(</span><span class="n">function</span><span class="p">,</span> <span class="n">setup</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">SetupEvent</span><span class="o">.</span><span class="n">AFTER</span><span class="p">),</span>
+        <span class="k">return</span> <span class="n">update_wrapper</span><span class="p">(</span><span class="n">register</span><span class="p">(</span><span class="n">SetupEvent</span><span class="p">(</span><span class="n">function</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">setup</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">setup</span> <span class="ow">in</span> <span class="n">setups</span><span class="p">),</span> <span class="n">SetupEvent</span><span class="o">.</span><span class="n">AFTER</span><span class="p">,</span> <span class="n">auto</span><span class="p">),</span>
                                        <span class="n">callerLocals</span><span class="p">()),</span> <span class="n">function</span><span class="p">)</span>
-
     <span class="k">return</span> <span class="n">decorator</span>
 </div>
 <div class="viewcode-block" id="replace"><a class="viewcode-back" href="../../../ally.container.html#ally.container.ioc.replace">[docs]</a><span class="k">def</span> <span class="nf">replace</span><span class="p">(</span><span class="n">setup</span><span class="p">):</span>

@@ -71,6 +71,7 @@
 <span class="kn">from</span> <span class="nn">urllib.parse</span> <span class="kn">import</span> <span class="n">urlencode</span><span class="p">,</span> <span class="n">urlunsplit</span><span class="p">,</span> <span class="n">urlsplit</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">deque</span>
+<span class="kn">from</span> <span class="nn">ally.core.http.spec.codes</span> <span class="kn">import</span> <span class="n">MISSING_HEADER</span>
 
 <span class="c"># --------------------------------------------------------------------</span>
 
@@ -172,7 +173,7 @@
         <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="n">Response</span><span class="p">),</span> <span class="s">&#39;Invalid response </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">response</span>
         <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">responseCnt</span><span class="p">,</span> <span class="n">ResponseContent</span><span class="p">),</span> <span class="s">&#39;Invalid response content </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">responseCnt</span>
         <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">uri</span><span class="p">,</span> <span class="nb">str</span><span class="p">),</span> <span class="s">&#39;Invalid request URI </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">request</span><span class="o">.</span><span class="n">uri</span>
-        <span class="k">if</span> <span class="n">Response</span><span class="o">.</span><span class="n">code</span> <span class="ow">in</span> <span class="n">response</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">response</span><span class="o">.</span><span class="n">code</span><span class="o">.</span><span class="n">isSuccess</span><span class="p">:</span> <span class="k">return</span> <span class="c"># Skip in case the response is in error</span>
+        <span class="k">if</span> <span class="n">Response</span><span class="o">.</span><span class="n">code</span> <span class="ow">in</span> <span class="n">response</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">response</span><span class="o">.</span><span class="n">code</span><span class="o">.</span><span class="n">isSuccess</span><span class="p">:</span> <span class="k">return</span>  <span class="c"># Skip in case the response is in error</span>
 
         <span class="n">paths</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">uri</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;/&#39;</span><span class="p">)</span>
         <span class="n">i</span> <span class="o">=</span> <span class="n">paths</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">rfind</span><span class="p">(</span><span class="s">&#39;.&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">paths</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="o">-</span><span class="mi">1</span>
@@ -198,30 +199,19 @@
 
         <span class="k">if</span> <span class="n">Request</span><span class="o">.</span><span class="n">argumentsOfType</span> <span class="ow">in</span> <span class="n">request</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">argumentsOfType</span><span class="p">[</span><span class="n">Scheme</span><span class="p">]</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">scheme</span>
 
-        <span class="n">response</span><span class="o">.</span><span class="n">code</span> <span class="o">=</span> <span class="n">RESOURCE_FOUND</span>
-        <span class="n">response</span><span class="o">.</span><span class="n">encoderPath</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">createEncoderPath</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">extension</span><span class="p">)</span>
-        <span class="n">response</span><span class="o">.</span><span class="n">converterId</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">converterPath</span>
-        <span class="k">if</span> <span class="n">extension</span><span class="p">:</span> <span class="n">responseCnt</span><span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">extension</span>
-
-    <span class="c"># ----------------------------------------------------------------</span>
-</div>
-<div class="viewcode-block" id="URIHandler.createEncoderPath"><a class="viewcode-back" href="../../../../../../ally.core.http.impl.processor.html#ally.core.http.impl.processor.uri.URIHandler.createEncoderPath">[docs]</a>    <span class="k">def</span> <span class="nf">createEncoderPath</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">extension</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
-        <span class="sd">&#39;&#39;&#39;</span>
-<span class="sd">        Creates the path encoder for the provided request.</span>
-<span class="sd">        </span>
-<span class="sd">        @param request: Request</span>
-<span class="sd">            The request to create the path encoder for.</span>
-<span class="sd">        @param extension: string</span>
-<span class="sd">            The extension to use on the encoded paths.</span>
-<span class="sd">        &#39;&#39;&#39;</span>
-        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">Request</span><span class="p">),</span> <span class="s">&#39;Invalid request </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">request</span>
         <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">decoderHeader</span><span class="p">,</span> <span class="n">IDecoderHeader</span><span class="p">),</span> \
         <span class="s">&#39;Invalid request decoder header </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">request</span><span class="o">.</span><span class="n">decoderHeader</span>
         <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">uriRoot</span><span class="p">,</span> <span class="nb">str</span><span class="p">),</span> <span class="s">&#39;Invalid request root URI </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">request</span><span class="o">.</span><span class="n">uriRoot</span>
-        <span class="k">assert</span> <span class="n">extension</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">extension</span><span class="p">,</span> <span class="nb">str</span><span class="p">),</span> <span class="s">&#39;Invalid extension </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">extension</span>
-
         <span class="n">host</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">decoderHeader</span><span class="o">.</span><span class="n">retrieve</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">headerHost</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">EncoderPathURI</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">scheme</span><span class="p">,</span> <span class="n">host</span><span class="p">,</span> <span class="n">request</span><span class="o">.</span><span class="n">uriRoot</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">converterPath</span><span class="p">,</span> <span class="n">extension</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">host</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">response</span><span class="o">.</span><span class="n">code</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">text</span> <span class="o">=</span> <span class="n">MISSING_HEADER</span><span class="p">,</span> <span class="s">&#39;Missing the </span><span class="si">%s</span><span class="s"> header&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">headerHost</span>
+            <span class="k">assert</span> <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;No host header available for URI </span><span class="si">%s</span><span class="s">&#39;</span><span class="p">,</span> <span class="n">request</span><span class="o">.</span><span class="n">uri</span><span class="p">)</span> <span class="ow">or</span> <span class="bp">True</span>
+            <span class="k">return</span>
+        <span class="n">response</span><span class="o">.</span><span class="n">encoderPath</span> <span class="o">=</span> <span class="n">EncoderPathURI</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">scheme</span><span class="p">,</span> <span class="n">host</span><span class="p">,</span> <span class="n">request</span><span class="o">.</span><span class="n">uriRoot</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">converterPath</span><span class="p">,</span> <span class="n">extension</span><span class="p">)</span>
+
+        <span class="n">response</span><span class="o">.</span><span class="n">code</span> <span class="o">=</span> <span class="n">RESOURCE_FOUND</span>
+        <span class="n">response</span><span class="o">.</span><span class="n">converterId</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">converterPath</span>
+        <span class="k">if</span> <span class="n">extension</span><span class="p">:</span> <span class="n">responseCnt</span><span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">extension</span>
 
 <span class="c"># --------------------------------------------------------------------</span>
 </div></div>
@@ -279,7 +269,7 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="nb">str</span><span class="p">),</span> <span class="s">&#39;Invalid path </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">path</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;/&#39;</span><span class="p">):</span>
-                <span class="c">#TODO: improve the relative path detection</span>
+                <span class="c"># TODO: improve the relative path detection</span>
                 <span class="c"># This is an absolute path so we will return it as it is.</span>
                 <span class="k">return</span> <span class="n">path</span>
             <span class="c"># The path is relative to this server so we will convert it in an absolute path</span>
