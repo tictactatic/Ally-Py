@@ -64,6 +64,7 @@
 <span class="kn">from</span> <span class="nn">.container</span> <span class="kn">import</span> <span class="n">Model</span><span class="p">,</span> <span class="n">Container</span><span class="p">,</span> <span class="n">Query</span><span class="p">,</span> <span class="n">Criteria</span>
 <span class="kn">from</span> <span class="nn">ally.api.operator.container</span> <span class="kn">import</span> <span class="n">Service</span>
 <span class="kn">from</span> <span class="nn">ally.api.type</span> <span class="kn">import</span> <span class="n">typeFor</span><span class="p">,</span> <span class="n">TypeClass</span>
+<span class="kn">from</span> <span class="nn">inspect</span> <span class="kn">import</span> <span class="n">isclass</span>
 
 <span class="c"># --------------------------------------------------------------------</span>
 
@@ -309,7 +310,15 @@
         <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">criteriaType</span><span class="p">,</span> <span class="n">TypeCriteria</span><span class="p">),</span> <span class="s">&#39;Invalid criteria class </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">criteriaClass</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">criteria</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">criteriaType</span><span class="o">.</span><span class="n">container</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">criteriaType</span><span class="o">.</span><span class="n">clazz</span><span class="p">,</span> <span class="bp">False</span><span class="p">,</span> <span class="bp">False</span><span class="p">)</span>
-
+        
+<div class="viewcode-block" id="TypeCriteriaEntry.isOf"><a class="viewcode-back" href="../../../../ally.api.operator.html#ally.api.operator.type.TypeCriteriaEntry.isOf">[docs]</a>    <span class="k">def</span> <span class="nf">isOf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">type</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        @see: TypeClass.isOf</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">if</span> <span class="n">isclass</span><span class="p">(</span><span class="nb">type</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="nb">issubclass</span><span class="p">(</span><span class="nb">type</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">clazz</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">issubclass</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">clazz</span><span class="p">,</span> <span class="nb">type</span><span class="p">)):</span> <span class="k">return</span> <span class="bp">True</span>
+        <span class="k">if</span> <span class="bp">self</span> <span class="o">==</span> <span class="n">typeFor</span><span class="p">(</span><span class="nb">type</span><span class="p">):</span> <span class="k">return</span> <span class="bp">True</span>
+        <span class="k">return</span> <span class="bp">False</span>
+</div>
 <div class="viewcode-block" id="TypeCriteriaEntry.childTypes"><a class="viewcode-back" href="../../../../ally.api.operator.html#ally.api.operator.type.TypeCriteriaEntry.childTypes">[docs]</a>    <span class="k">def</span> <span class="nf">childTypes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        Provides the child criteria entry types.</span>

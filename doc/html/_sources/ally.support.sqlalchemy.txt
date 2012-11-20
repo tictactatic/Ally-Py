@@ -25,6 +25,14 @@ sqlalchemy Package
     :undoc-members:
     :show-inheritance:
 
+:mod:`pool` Module
+------------------
+
+.. automodule:: ally.support.sqlalchemy.pool
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 :mod:`session` Module
 ---------------------
 

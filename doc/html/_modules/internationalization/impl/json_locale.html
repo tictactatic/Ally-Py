@@ -72,6 +72,8 @@
 <span class="kn">from</span> <span class="nn">internationalization.api.json_locale</span> <span class="kn">import</span> <span class="n">IJSONLocaleFileService</span>
 <span class="kn">from</span> <span class="nn">internationalization.core.spec</span> <span class="kn">import</span> <span class="n">IPOFileManager</span><span class="p">,</span> <span class="n">InvalidLocaleError</span>
 <span class="kn">from</span> <span class="nn">json.encoder</span> <span class="kn">import</span> <span class="n">JSONEncoder</span>
+<span class="kn">from</span> <span class="nn">io</span> <span class="kn">import</span> <span class="n">BytesIO</span>
+<span class="kn">from</span> <span class="nn">sys</span> <span class="kn">import</span> <span class="n">getdefaultencoding</span>
 
 <span class="c"># --------------------------------------------------------------------</span>
 
@@ -152,7 +154,8 @@
                 <span class="n">republish</span> <span class="o">=</span> <span class="bp">False</span> <span class="k">if</span> <span class="n">mngFileTimestamp</span> <span class="ow">is</span> <span class="bp">None</span> <span class="k">else</span> <span class="n">cdmFileTimestamp</span> <span class="o">&lt;</span> <span class="n">mngFileTimestamp</span>
 
             <span class="k">if</span> <span class="n">republish</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">cdmLocale</span><span class="o">.</span><span class="n">publishContent</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">JSONEncoder</span><span class="p">()</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">poFileManager</span><span class="o">.</span><span class="n">getPluginAsDict</span><span class="p">(</span><span class="n">plugin</span><span class="p">,</span> <span class="n">locale</span><span class="p">)))</span>
+                <span class="n">jsonString</span> <span class="o">=</span> <span class="n">JSONEncoder</span><span class="p">()</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">poFileManager</span><span class="o">.</span><span class="n">getPluginAsDict</span><span class="p">(</span><span class="n">plugin</span><span class="p">,</span> <span class="n">locale</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cdmLocale</span><span class="o">.</span><span class="n">publishContent</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">BytesIO</span><span class="p">(</span><span class="nb">bytes</span><span class="p">(</span><span class="n">jsonString</span><span class="p">,</span> <span class="n">getdefaultencoding</span><span class="p">())))</span>
         <span class="k">except</span> <span class="n">InvalidLocaleError</span><span class="p">:</span> <span class="k">raise</span> <span class="n">InputError</span><span class="p">(</span><span class="n">_</span><span class="p">(</span><span class="s">&#39;Invalid locale </span><span class="si">%(locale)s</span><span class="s">&#39;</span><span class="p">)</span> <span class="o">%</span> <span class="nb">dict</span><span class="p">(</span><span class="n">locale</span><span class="o">=</span><span class="n">locale</span><span class="p">))</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cdmLocale</span><span class="o">.</span><span class="n">getURI</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">scheme</span><span class="p">)</span>
 
@@ -163,7 +166,7 @@
 <span class="sd">        Returns the path to the CDM JSON file corresponding to the given locale and / or</span>
 <span class="sd">        component / plugin. If no component of plugin was specified it returns the</span>
 <span class="sd">        name of the global JSON file.</span>
-<span class="sd">        </span>
+
 <span class="sd">        @param locale: string</span>
 <span class="sd">            The locale.</span>
 <span class="sd">        @param component: string</span>
