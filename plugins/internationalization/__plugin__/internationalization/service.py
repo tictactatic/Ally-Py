@@ -29,6 +29,7 @@ SERVICES = 'internationalization.api.**.I*Service'
 
 support.createEntitySetup('internationalization.impl.**.*')
 support.createEntitySetup('internationalization.*.impl.**.*')
+support.wireEntities(Scanner)
 support.bindToEntities('internationalization.impl.**.*Alchemy', binders=bindInternationalizationSession)
 support.listenToEntities(SERVICES, listeners=addService(bindInternationalizationValidations), beforeBinding=False)
 support.loadAllEntities(SERVICES)
