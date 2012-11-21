@@ -151,7 +151,7 @@ function($, superdesk, giz)
          */
         getCollection: function()
         {
-            return !this.collection ? new (giz.Collection.extend({ model: giz.Model})) : this.collection;
+            return !this.collection ? (this.collection = new (giz.Collection.extend({ model: giz.Model}))) : this.collection;
         },
         /*!
          * refresh collection data
@@ -161,6 +161,7 @@ function($, superdesk, giz)
             var self = this;
             this.collection._list = [];
             this.syncing = true;
+            // get data to be passed to refresh and add done handler  
             var options = {data: self.refreshData(), done: function(data)
             { 
                 self.syncing = false; 
