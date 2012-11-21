@@ -192,6 +192,7 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
         feed: function(format, deep, fromData)
         {
             var ret = {},
+                deep = typeof format == 'boolean' ? format : deep,
                 feedData = fromData ? fromData : this.data;
             for( var i in feedData )
                 ret[i] = feedData[i] instanceof Model ?
