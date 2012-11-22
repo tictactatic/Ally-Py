@@ -1188,7 +1188,7 @@ section.main-section {
 		font-size:12px;
 		}
 		.post-list > li.quote .result-text:before {
-			content:"»";
+			content:"«";
 			padding-right:2px;
 			color:#999;
 			font-family:Georgia, "Times New Roman", Times, serif;
@@ -1196,7 +1196,7 @@ section.main-section {
 			font-weight:
 			}
 		.post-list > li.quote .result-text:after {
-			content:"«";
+			content:"»";
 			padding-left:1px;
 			color:#999;
 			font-family:Georgia, "Times New Roman", Times, serif;
