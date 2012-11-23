@@ -164,7 +164,7 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
             this.data = {};
             //this.exTime = new Date
             //this.exTime.setMinutes(this.exTime.getMinutes() + 5);
-            this.parseHash(data);
+            this._parseHash(data);
 			this._new = true;
             var self = this.pushUnique ? this.pushUnique() : this;
             self._forDelete = false;
@@ -172,7 +172,7 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
             self._clientHash = null;
             if( options && typeof options == 'object' ) $.extend(self, options);
             if( typeof data == 'object' ) {
-                self.parse(data);
+                self._parse(data);
             }
 			//console.log('Changes',self.changeset);
             if(!$.isEmptyObject(self.changeset)) {
@@ -224,7 +224,7 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
                 return dataAdapter(href).insert(this.feed()).done(function(data)
                 {
                     self._changed = false;
-                    self.parse(data);
+                    self._parse(data);
                     self._uniq && self._uniq.replace(self._clientHash, self.hash(), self);
                     self._clientHash = null;
                     self.triggerHandler('insert')
@@ -248,7 +248,7 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
                 ret = (this.href && dataAdapter(this.href).read(arguments[0]).done(function(data)
                 {
                     //console.log('Pull: ',$.extend({},data));
-                    self.parse(data);
+                    self._parse(data);
                     /**
                      * delete should come first of everything
                      * caz it can be some update data or read data that is telling is a deleted model.
@@ -291,16 +291,33 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
         {
             return model
         },
+		/**
+		 * should be override by implementation
+		 */
+		parse: function(data)
+		{
+			return data;
+		},		
         /*!
          * @param data the data to parse into the model
          */
-        parse: function(data)
+        _parse: function(data)
         {
-            if(data instanceof Model) {
-                data = data.data;
-            }
+			/*!
+			 * if the data received is a instance of the model then 
+			 * use the data from the model
+			 */
+			if(data instanceof Model) {
+				data = data.data;
+			} else {
+				/*!
+				 * call the parse implementation
+				 */
+				data = this.parse(data);
+			}
             if(data._parsed)
                 return;
+
             for( var i in data )
             {
                 if( this.defaults[i] ) switch(true)
@@ -352,7 +369,7 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
 			this._new = false;
             data._parsed = true;
         },
-        parseHash: function(data)
+        _parseHash: function(data)
         {
             if( typeof data == 'string' )
                 this.href = data;
@@ -387,7 +404,7 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
                 options = val;
             }
             options = $.extend({},{ silent: false}, options);
-            this.clearChangeset().parse(data);
+            this.clearChangeset()._parse(data);
             this._changed = true;
             if(!$.isEmptyObject(this.changeset)) {
                 if(!options.silent)
@@ -566,7 +583,7 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
                         this.href = arguments[i];
                         break;
                     case 'array': // a list of models, a function we're going to call after setting options
-                        buildData = (function(args){ return function(){ this._list = this.parse(args); }})(arguments[i]);
+                        buildData = (function(args){ return function(){ this._list = this._parse(args); }})(arguments[i]);
                         break;
                     case 'object': // options, same technique as above
                         buildOptions = (function(args){ return function(){ this.options = args; if(args.href) this.href = args.href; }})(arguments[i]);
@@ -642,7 +659,7 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
             return (this.href &&
                 this.syncAdapter.request.call(this.syncAdapter, this.href).read(arguments[0]).done(function(data)
                 {					
-                    var data = self.parse(data), changeset = [], updates = [], count = self._list.length;
+                    var data = self._parse(data), changeset = [], updates = [], count = self._list.length;
                      // important or it will infiloop
                     for( var i=0; i < data.list.length; i++ )
                     {
@@ -664,7 +681,7 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
                         }
                         else {
 							updates.push(model);
-                            self._list[j].parse(model.data);
+                            self._list[j]._parse(model.data);
                             if( model.isDeleted() ) {
                                 model._remove();
                             } else if( model.isChanged() ){
@@ -701,35 +718,37 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
         {
             return model;
         },
+		/**
+		 * should be override by implementation
+		 */
+		parse: function(data)
+		{
+			var ret = data;
+			if( !Array.isArray(data) ) for( i in data )
+			{
+				if( $.isArray(data[i]) )
+				{
+					ret = data[i];
+					break;
+				}
+			}
+			return ret;
+		},		
         /*!
          *
          */
-        parse: function(data)
+        _parse: function(data)
         {
-            if(data.parsed) {
-                return data.parsed;
+            if(data._parsed) {
+                return data._parsed;
             }
-            // get the important list data from request
-            var extractListData = function(data)
-            {
-                var ret = data;
-                if( !Array.isArray(data) ) for( i in data )
-                {
-                    if( $.isArray(data[i]) )
-                    {
-                        ret = data[i];
-                        break;
-                    }
-                }
-                return ret;
-            },
-            theData = extractListData(data);
+            var theData = this.parse(data),
             list = [];
-            for( var i in theData ) {
+            for( var i = 0, count = theData.length; i < count;  i++ ) {
                 list.push( this.modelDataBuild(new this.model(theData[i])) );
             }
-            data.parsed = {list: list, total: data.total};
-            return data.parsed;
+            data._parsed = {list: list, total: data.total};
+            return data._parsed;
         },
         insert: function(model)
         {
