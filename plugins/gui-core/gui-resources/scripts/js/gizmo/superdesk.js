@@ -22,9 +22,7 @@ define(['gizmo', 'jquery', 'jquery/superdesk'], function(giz, $, superdesk)
         try
         { 
             delete this.options.headers['X-Filter'];
-            delete this.options.data['CId.since'];
-			delete this.options.data['offset'];
-			delete this.options.data['limit'];
+            this.options.data = {};
         }
         catch(e){}
     }, 
@@ -77,40 +75,62 @@ define(['gizmo', 'jquery', 'jquery/superdesk'], function(giz, $, superdesk)
             = arguments.length > 1 ? $.makeArray(arguments).join(',') : $.isArray(arguments[0]) ? arguments[0].join(',') : arguments[0];
         return this;
     },
-    since = function(val) // change id implementation
-    {
-        if(!val)
-			delete this.syncAdapter.options.data['CId.since'];
-		else
-			$.extend( true, this.syncAdapter.options, { data:{ 'CId.since': val }} );			
-		return this;
-    },
-    asc = function(col)
-    {
-        $.extend( true, this.syncAdapter.options, { data:{ asc: col }} );
-		return this;
-    },
-    desc = function(col)
-    {
-        $.extend( true, this.syncAdapter.options, { data:{ desc: col }} );
-		return this;
-    },
-	limit = function(limit)
+	param = function(value, key)
 	{
-        $.extend( true, this.syncAdapter.options, { data:{ limit: limit }} );	
+        if(value === undefined)
+			delete this.syncAdapter.options.data[key];
+		else {
+			if(this.syncAdapter.options.data === undefined)
+				this.syncAdapter.options.data = {};
+			this.syncAdapter.options.data[key] = value;
+		}
 		return this;
 	},
-	offset = function(offset)
+	since = function(value, key) // change id implementation
+    {
+		if(key === undefined)
+			key = 'CId';
+		return param.call(this, value, key+'.since');
+    },
+	until = function(value, key) // change id implementation
+    {
+		if(key === undefined)
+			key = 'CId';
+		return param.call(this, value, key+'.until');
+    },	
+	start = function(value, key) // change id implementation
+    {
+		if(key === undefined)
+			key = 'CId';
+		return param.call(this, value, key+'.start');
+    },	
+	end = function(value, key) // change id implementation
+    {
+		if(key === undefined)
+			key = 'CId';
+		return param.call(this, value, key+'.end');
+    },
+    asc = function(value)
+    {
+		return param.call(this, value, 'asc');
+    },
+    desc = function(value)
+    {
+		return param.call(this, value, 'desc');
+    },
+	limit = function(value)
 	{
-		$.extend( true, this.syncAdapter.options, { data:{ offset: offset }} );
-		return this;
+        return param.call(this, value, 'limit');
+	},
+	offset = function(value)
+	{
+		return param.call(this, value, 'offset');
 	},
     Model = giz.Model.extend // superdesk Model 
     ({
         isDeleted: function(){ return this._forDelete || this.data.DeletedOn; },
         syncAdapter: newSync,
-        xfilter: xfilter,
-        since: since
+        xfilter: xfilter
     }),
     Auth = function(model)
     {
@@ -124,15 +144,15 @@ define(['gizmo', 'jquery', 'jquery/superdesk'], function(giz, $, superdesk)
     },
     AuthModel = Model.extend // authenticated superdesk Model
     ({ 
-        syncAdapter: authSync, xfilter: xfilter, since: since
+        syncAdapter: authSync, xfilter: xfilter
     }),
     Collection = giz.Collection.extend
     ({
-        xfilter: xfilter, since: since, asc: asc, desc: desc, limit: limit, offset: offset, syncAdapter: newSync
+        xfilter: xfilter, since: since, until: until, start: start, end: end, asc: asc, desc: desc, limit: limit, offset: offset, syncAdapter: newSync
     }),
     AuthCollection = Collection.extend
     ({
-        xfilter: xfilter, since: since, syncAdapter: authSync
+        xfilter: xfilter, since: since, until: until, start: start, end: end, syncAdapter: authSync
     }),
     
  // set url helper property with superdesk path
