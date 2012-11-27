@@ -28,6 +28,12 @@ class DataModel(Bean):
     @rtype: integer
     Flag indicating several situations for the data encode.
     ''')
+    modelPaths = dict; modelPaths = Attribute(modelPaths, factory=dict, doc='''
+    @rtype: dictionary{ModelType:Path}
+    The model paths that are directly linked with the encoded model. When a model instance is processed
+    this model paths will get updated with the encoded model information. The key represents the model type
+    that the path needs to be updated with and the value the path to be updated.
+    ''')
     path = Path; path = Attribute(path, doc='''
     @rtype: Path|None
     The path of the model.
