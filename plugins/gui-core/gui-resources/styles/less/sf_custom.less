@@ -654,11 +654,12 @@ input{
 .grid {
 	.media-box {
 		.media-box-generic;
+		.media-box-button { .hide }
 		&:hover {
 			.media-box-generic;
 			border: 2px solid #383838;
-			padding:10px 10px 10px;
-			margin: 0px;
+			padding:10px 12px 32px;
+			margin: -8px 3px 8px -8px;
 			.box-shadow(0px,0px,6px,0px,#777777);
 			&.selected {
 				background-color:#bfdfec;
@@ -687,6 +688,7 @@ input{
 			
 				/*this is not part of media-box*/
 				.media-box-button {
+					.show;
 					.media-box-button-generic;
 				}
 				
@@ -1129,13 +1131,13 @@ scratchpad-content-height
 .icon-settings {
 	background: url(../img/icon-settings.png) no-repeat 0px 0px;
 }
-.big-icon-add {
+.media-archive-icon-add {
 	display: inline-block;
 	width: 22px;
 	height: 22px;
 	line-height: 22px;
 	vertical-align:-5px;
-	background-image: url(../img/icon_add_20.png);
+	background-image: url(../../images/icon_add_20.png);
 	background-repeat: no-repeat;
 	margin-right:10px;
 }
