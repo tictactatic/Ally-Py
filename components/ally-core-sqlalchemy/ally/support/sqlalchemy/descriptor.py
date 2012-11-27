@@ -110,8 +110,10 @@ class PropertyHybrid(PropertyMappingProxy, hybrid_property):
         '''
         if instance is None:
             expr = self._ally_proxied.__get__(instance, owner)
-            assert not isinstance(expr, TypeSupport), 'The expression \'%s\' already has a type assigned' % expr
-            expr._ally_type = self._ally_type
+            if isinstance(expr, TypeSupport):
+                assert isinstance(expr, TypeSupport)
+                expr._ally_type == self._ally_type, 'Invalid expression %s has already assigned a different type %s' % (expr, expr._ally_type)
+            else: expr._ally_type = self._ally_type
             return expr
         else:
             return self.fget(instance)
