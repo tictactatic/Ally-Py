@@ -1165,7 +1165,7 @@ a:hover .big-icon-instagram {
 }
 .tool-box-right {
 	float:right;
-	width:20px;
+	width:130px;
 	}
 	
 .post-list > li.published, .search-result-list > li.published {
@@ -1565,6 +1565,23 @@ bootstrap.css (line 1929)
 		background-position:0 -20px;
 		}
 
+.unpublish.image {
+	margin-right: 20px;
+	margin-top: -2px;
+	float: right;
+	background: white url(../../images/unpublish.png) no-repeat 3px 5px;
+	padding: 2px 5px 2px 20px;
+	color: #878787;
+	border-radius: 3px;
+	-moz-border-radius:3px;
+	-webkit-border-radius:3px;
+}
+
+.unpublish.image:hover {
+	background-color: #EFEFEF;
+	text-decoration: none;
+}
+
 .ui-draggable-dragging {
     max-width:500px;
     min-width:200px;
@@ -1590,3 +1607,4 @@ li.google .config-notif, li.ads .config-notif, li.flickr .config-notif, li.youtu
 #soundcloud-sound-results > li.draggable:hover .drag-bar {
     visibility: visible;
 }
+
