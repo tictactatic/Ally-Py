@@ -431,9 +431,10 @@ class EncodeModel(EncodeObject):
         Update the provided model paths dictionary with the provided model instance value.
         '''
         for modelType, path in modelPaths.items():
-            assert isinstance(modelType, TypeModel), 'Invalid model type %s' % modelType
-            assert isinstance(path, Path), 'Invalid path %s' % path
-            path.update(value, modelType)
+            if path:
+                assert isinstance(modelType, TypeModel), 'Invalid model type %s' % modelType
+                assert isinstance(path, Path), 'Invalid path %s' % path
+                path.update(value, modelType)
 
 class EncodeModelProperty(EncodeModel):
     '''
@@ -467,9 +468,10 @@ class EncodeModelProperty(EncodeModel):
         Update the provided model paths dictionary with the provided property instance value.
         '''
         for modelType, path in modelPaths.items():
-            assert isinstance(modelType, TypeModel), 'Invalid model type %s' % modelType
-            assert isinstance(path, Path), 'Invalid path %s' % path
-            path.update(value, modelType.childTypeFor(self.property))
+            if path:
+                assert isinstance(modelType, TypeModel), 'Invalid model type %s' % modelType
+                assert isinstance(path, Path), 'Invalid path %s' % path
+                path.update(value, modelType.childTypeFor(self.property))
 
 class EncodePath:
     '''
