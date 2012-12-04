@@ -253,21 +253,22 @@ function($, superdesk, giz)
          * the template to render
          */
         tmpl: '',
+        renderCallback: $.noop,
         /*!
          * main render
          * adds pagination, renders the template
          */
         render: function(cb)
         {
-            console.log('render')
             this.paginate();
             var data = {pagination: this.page},
                 self = this;
             $.tmpl(self.tmpl, data, function(e, o)
             {
                 self.el.html(o);
-                // execute after render callback
-                $.isFunction(cb) && cb.apply(self);
+                // execute after render callbacks
+                $.isFunction(cb) && cb.call(self);
+                self.renderCallback.call(self);
                 // render list
                 self.renderList();
             });
