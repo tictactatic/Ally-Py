@@ -231,7 +231,7 @@ def buildPartialQuery(sqlQuery, query, mapped, queryClauses):
     
     if lengthAnd == 0:
         if lengthOr == 0:
-            #do nothing
+            #do nothing 
             pass
         elif lengthOr == 1:   
             queryClauses.append(orClauses[0])
