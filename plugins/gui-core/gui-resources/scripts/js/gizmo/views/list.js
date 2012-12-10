@@ -45,13 +45,17 @@ function($, superdesk, giz)
             '.pagination a': { 'click': 'switchPage' }
         },
         
+        getSearchTerm: function()
+        {
+            return $('[name="search"]', self.el).val().toLowerCase();
+        },
         /*!
          * search handlers
          */
         search: function()
         {
             var self = this,
-                src = $('[name="search"]', self.el).val().toLowerCase();
+                src = this.getSearchTerm();
             if( src.length <= 1 )
             {
                 this.refresh();
@@ -241,6 +245,7 @@ function($, superdesk, giz)
          */
         renderList: function()
         {
+            if(!this.firstRender) return;
             var self = this;
             self.clearList();
             this.collection.each(function(){ self.addItem(this); });
@@ -253,21 +258,24 @@ function($, superdesk, giz)
          * the template to render
          */
         tmpl: '',
+        firstRender: false, // a sort of hack for collection
+        renderCallback: $.noop,
         /*!
          * main render
          * adds pagination, renders the template
          */
         render: function(cb)
         {
-            console.log('render')
             this.paginate();
             var data = {pagination: this.page},
                 self = this;
+            this.firstRender = true;
             $.tmpl(self.tmpl, data, function(e, o)
             {
                 self.el.html(o);
-                // execute after render callback
-                $.isFunction(cb) && cb.apply(self);
+                // execute after render callbacks
+                $.isFunction(cb) && cb.call(self);
+                self.renderCallback.call(self);
                 // render list
                 self.renderList();
             });
