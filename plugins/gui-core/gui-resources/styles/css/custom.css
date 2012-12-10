@@ -708,7 +708,28 @@ section.main-section {
 		}
 	.active .big-icon-youtube, .active a:hover .big-icon-youtube { 
 		background-position: -70px -208px;
-		} 
+		}
+
+.big-icon-soundcloud { 
+	background-position: 0 -234px;
+}
+a:hover .big-icon-soundcloud { 
+	background-position: -35px -234px;
+}
+.active .big-icon-soundcloud, .active a:hover .big-icon-soundcloud { 
+	background-position: -70px -234px;
+}
+.big-icon-instagram { 
+	background-position: 0 -260px;
+}
+a:hover .big-icon-instagram { 
+	background-position: -35px -260px;
+}
+.active .big-icon-instagram, .active a:hover .big-icon-instagram { 
+	background-position: -70px -260px;
+}
+
+ 
 		
 /*
 ====================================================
@@ -1144,7 +1165,7 @@ section.main-section {
 }
 .tool-box-right {
 	float:right;
-	width:20px;
+	width:130px;
 	}
 	
 .post-list > li.published, .search-result-list > li.published {
@@ -1188,7 +1209,7 @@ section.main-section {
 		font-size:12px;
 		}
 		.post-list > li.quote .result-text:before {
-			content:"»";
+			content:"«";
 			padding-right:2px;
 			color:#999;
 			font-family:Georgia, "Times New Roman", Times, serif;
@@ -1196,7 +1217,7 @@ section.main-section {
 			font-weight:
 			}
 		.post-list > li.quote .result-text:after {
-			content:"«";
+			content:"»";
 			padding-left:1px;
 			color:#999;
 			font-family:Georgia, "Times New Roman", Times, serif;
@@ -1544,6 +1565,23 @@ bootstrap.css (line 1929)
 		background-position:0 -20px;
 		}
 
+.unpublish.image {
+	margin-right: 20px;
+	margin-top: -2px;
+	float: right;
+	background: white url(../../images/unpublish.png) no-repeat 3px 5px;
+	padding: 2px 5px 2px 20px;
+	color: #878787;
+	border-radius: 3px;
+	-moz-border-radius:3px;
+	-webkit-border-radius:3px;
+}
+
+.unpublish.image:hover {
+	background-color: #EFEFEF;
+	text-decoration: none;
+}
+
 .ui-draggable-dragging {
     max-width:500px;
     min-width:200px;
@@ -1552,7 +1590,7 @@ bootstrap.css (line 1929)
     z-index:2;
 }
 
-li.google .config-notif, li.ads .config-notif, li.flickr .config-notif, li.youtube .config-notif  {
+li.google .config-notif, li.ads .config-notif, li.flickr .config-notif, li.youtube .config-notif, li.soundcloud .config-notif  {
     display: none !important; 
 }
 
@@ -1562,3 +1600,11 @@ li.google .config-notif, li.ads .config-notif, li.flickr .config-notif, li.youtu
 #flickr-image-results > li.draggable:hover .drag-bar {
     visibility: visible;
 }
+
+#soundcloud-sound-results > li .drag-bar {
+    visibility: hidden;
+}
+#soundcloud-sound-results > li.draggable:hover .drag-bar {
+    visibility: visible;
+}
+
