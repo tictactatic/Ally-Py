@@ -996,8 +996,9 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
                     var other = one[evnt], sel = null, dat = {}, fn;
                     if(typeof other === 'string') {
                         fn  = other;
-						//console.log($.type(self[fn]), ', ', this.getEvent(evnt), ', ',selector, ', ',fn);
+						//console.log(this.el, $.type(self[fn]), ', ', this.getEvent(evnt), ', ',selector, ', ',fn);
                         if($.isFunction(self[fn])) {
+                            //console.log(this.el, evnt, selector);
                             $(this.el).on(this.getEvent(evnt), selector, self[fn].bind(self));
                         }
                     }
@@ -1008,7 +1009,7 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
         {
             $(this.el).off(this.getNamespace());
 			return this;
-        },		
+        },	
         getEvent: function(evnt){
             return evnt + this.getNamespace();
         },
