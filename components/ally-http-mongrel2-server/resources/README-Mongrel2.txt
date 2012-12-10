@@ -1,7 +1,10 @@
-Mongrel2 should be installed by people who now what they are doing.
+IMPORTANT NOTE: We currently recommend the installation of Live Desk with Mongrel2 only for advanced users, i.e. people who
+are well versed in server administration.
+
 The ZeroMQ library is not part of the ally-py distribution like SQLAlchemy for instance, this is because ZeroMQ uses native
-coding that needs to be compiled. So the first steps in using the ZeroMQ and Mongrel2 servers are the installation of this
-tools. The described installations steps have been made on lubuntu 12.04 but they should work fine on any ubuntu.
+coding that needs to be compiled. So the first steps in using the ZeroMQ and Mongrel2 servers are the installation of these
+tools. The described installations steps have been made on Ubuntu 12.04 but they should work fine on any Debian based
+distributions.
 
 Installing ZeroMQ
 -----------------------------------------------------------------------------------------------
