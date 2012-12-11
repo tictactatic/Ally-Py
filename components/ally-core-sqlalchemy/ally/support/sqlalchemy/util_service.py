@@ -22,6 +22,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm.mapper import Mapper
 from sqlalchemy.orm.properties import ColumnProperty
 from sqlalchemy.sql.expression import and_, not_, or_
+from ally.api.operator.type import TypeCriteriaEntry
 
 # --------------------------------------------------------------------
 
@@ -144,7 +145,7 @@ def buildQuery(sqlQuery, query, mapped, only=None, exclude=None):
     return sqlQuery
 
 
-def buildPartialQuery(sqlQuery, query, mapped, queryClauses):
+def buildPartialQuery(sqlQuery, query, mapped, queryClauses, andClauses=None, orClauses=None, append=True):
     '''
     Builds the query on the SQL alchemy query.
     
@@ -164,9 +165,9 @@ def buildPartialQuery(sqlQuery, query, mapped, queryClauses):
 
     properties = {cp.key.lower(): getattr(mapper.c, cp.key)
                   for cp in mapper.iterate_properties if isinstance(cp, ColumnProperty)}
-    
-    andClauses = list()
-    orClauses = list()
+
+    if (andClauses is None): andClauses = list()
+    if (orClauses is None): orClauses = list()                 
 
     for criteria in namesForQuery(clazz):
         column = properties.get(criteria.lower())
@@ -224,8 +225,11 @@ def buildPartialQuery(sqlQuery, query, mapped, queryClauses):
             ordered.sort(key=lambda pack: pack[2])
             for column, asc, __ in chain(ordered, unordered):
                 if asc: sqlQuery = sqlQuery.order_by(column)
-                else: sqlQuery = sqlQuery.order_by(column.desc())               
-
+                else: sqlQuery = sqlQuery.order_by(column.desc())   
+                
+    if not append:
+        return sqlQuery
+                    
     lengthAnd = len(andClauses)
     lengthOr = len(orClauses)
     
@@ -250,6 +254,6 @@ def buildPartialQuery(sqlQuery, query, mapped, queryClauses):
         elif lengthOr == 1:   
             queryClauses.append(or_(and_(*andClauses), orClauses[0]))
         elif lengthOr > 1:
-            queryClauses.append(or_(and_(*andClauses), or_(*orClauses)))
+            queryClauses.append(or_(and_(*andClauses), or_(*orClauses)))                          
 
     return sqlQuery
