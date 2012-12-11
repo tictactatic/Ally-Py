@@ -746,6 +746,9 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
                         if( removeings.length && self.hasEvent('removeings') ) {
                             self.triggerHandler('removeings', [removeings,attr]);
                         }
+                        if( list.length && self.hasEvent('modified') ) {
+                            self.triggerHandler('modified', [list,attr]);
+                        }
 						self.triggerHandler('update', [changeset,attr]);
 					}
                 }));
