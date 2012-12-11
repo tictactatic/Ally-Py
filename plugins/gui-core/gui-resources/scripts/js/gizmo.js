@@ -670,6 +670,9 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
         sync: function()
         {
             var self = this;
+            if(!self.href && self.url) {
+                self.setHref( self.url.get() );
+            }
             return (this.href &&
                 this.syncAdapter.request.call(this.syncAdapter, this.href).read(arguments[0]).done(function(data)
                 {					
@@ -867,13 +870,15 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
         }
     };
 
-    Collection.extend = cextendFnc = function(props)
+    Collection.extend = cextendFnc = function(props, options)
     {
         var newly;
         newly = Class.extend.call(this, props);
         newly.extend = cextendFnc;
-        if(options && options.register)
-            Collection[options.register] = newly;
+        if(options && options.register) {
+            Register[options.register] = newly;
+            delete options.register;
+        }
         return newly;
     };
     // view
