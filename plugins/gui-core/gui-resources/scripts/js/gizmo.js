@@ -815,6 +815,10 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
         off: function(evt, handler)		
 		{
 			$(this).off(evt, handler);
+            var arrEvt = evt.split(" ");
+            for(var i = 0, count = arrEvt.length; i < count; i++ ){
+                delete this._events[arrEvt[i]];
+            }
 			return this;
 		},
 		/*!
