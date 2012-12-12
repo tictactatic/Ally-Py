@@ -86,6 +86,7 @@ define(['gizmo', 'jquery', 'jquery/superdesk'], function(giz, $, superdesk)
 		}
 		return this;
 	},
+
 	since = function(value, key) // change id implementation
     {
 		if(key === undefined)
@@ -142,17 +143,27 @@ define(['gizmo', 'jquery', 'jquery/superdesk'], function(giz, $, superdesk)
         };
         return model;
     },
+    Config = function(key, value) {
+        if( value === undefined) {
+            return this._config[key];
+        } else {
+            this._config[key] = value;
+        }
+    },
+    _config = {
+        limit: 15
+    },
     AuthModel = Model.extend // authenticated superdesk Model
     ({ 
         syncAdapter: authSync, xfilter: xfilter
     }),
     Collection = giz.Collection.extend
     ({
-        xfilter: xfilter, since: since, until: until, start: start, end: end, asc: asc, desc: desc, limit: limit, offset: offset, syncAdapter: newSync
+        xfilter: xfilter, param: param, since: since, until: until, start: start, end: end, asc: asc, desc: desc, limit: limit, offset: offset, _config: _config, config: Config, syncAdapter: newSync
     }),
     AuthCollection = Collection.extend
     ({
-        xfilter: xfilter, since: since, until: until, start: start, end: end, syncAdapter: authSync
+        xfilter: xfilter, param: param, since: since, until: until, start: start, end: end, asc: asc, desc: desc, limit: limit, offset: offset, _config: _config, config: Config, syncAdapter: authSync
     }),
     
  // set url helper property with superdesk path
