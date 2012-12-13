@@ -2430,9 +2430,18 @@ ul.posttypes li {
 				border-color:#0073cc;
 			}
 
+.modalscreen {
+	display: none;
+}
+.modalscreen .btn-toolbar {
+	margin-top: 0px;
+	display: inline-block;
+	margin-left: 5px;
+	vertical-align: top;
+}
+
 .black {
 	background-color: #000000;
-}
 .gray {
 	background-color: #4b4b4b;
 }
