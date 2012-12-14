@@ -30,18 +30,8 @@ class AsOrdered:
 
 # --------------------------------------------------------------------
 
-@criteria
-class AsOperator:
-    '''
-    Provides query for properties that can be managed by expression operator function
-    '''
-    operator = str
-
-
-# --------------------------------------------------------------------
-
 @criteria(main='like')
-class AsLike(AsOperator):
+class AsLike:
     '''
     Provides query for properties that can be managed by a like function, this will only handle string types
     '''
@@ -57,7 +47,7 @@ class AsLikeOrdered(AsLike, AsOrdered):
 # --------------------------------------------------------------------
 
 @criteria(main='equal')
-class AsEqual(AsOperator):
+class AsEqual:
     '''
     Provides query for properties that can be managed by a equal function, this will only handle string types.
     '''
@@ -68,11 +58,10 @@ class AsEqualOrdered(AsEqual, AsOrdered):
     '''
     Provides the equal search and also the ordering.
     '''
-
 # --------------------------------------------------------------------
 
 @criteria(main='value')
-class AsBoolean(AsOperator):
+class AsBoolean:
     '''
     Provides query for properties that can be managed as booleans.
     '''
@@ -87,7 +76,7 @@ class AsBooleanOrdered(AsBoolean, AsOrdered):
 # --------------------------------------------------------------------
 
 @criteria(main=('start', 'end'))
-class AsRange(AsOperator):
+class AsRange:
     '''
     Provides a query for properties that need to be handled as a range.
     '''
@@ -105,7 +94,7 @@ class AsRangeOrdered(AsRange, AsOrdered):
 # --------------------------------------------------------------------
 
 @criteria(main=('start', 'end'))
-class AsDate(AsOperator):
+class AsDate:
     '''
     Provides query for properties that can be managed as date.
     '''
@@ -123,7 +112,7 @@ class AsDateOrdered(AsDate, AsOrdered):
 # --------------------------------------------------------------------
 
 @criteria(main=('start', 'end'))
-class AsTime(AsOperator):
+class AsTime:
     '''
     Provides query for properties that can be managed as time.
     '''
@@ -141,7 +130,7 @@ class AsTimeOrdered(AsTime, AsOrdered):
 # --------------------------------------------------------------------
 
 @criteria(main=('start', 'end'))
-class AsDateTime(AsOperator):
+class AsDateTime:
     '''
     Provides query for properties that can be managed as date time.
     '''
