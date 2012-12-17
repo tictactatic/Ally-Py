@@ -1640,7 +1640,7 @@ li.google .config-notif, li.ads .config-notif, li.flickr .config-notif, li.youtu
 	background: url(../img/collapse-open.png) no-repeat 26px 50%;
 }
 
-.modal-body {
+.modal-body-min {
 	min-height: 390px;
 }
 .fullwidth-input {
