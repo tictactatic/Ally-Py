@@ -2119,7 +2119,8 @@ figure {
 a.collaborator-name  {
 	line-height: 22px;
 	font-weight: bold;
-	width: 100px;
+	width: auto;
+	padding-right: 10px;
 	display: inline-block;
 	text-decoration: none;
 	color: #424242;
