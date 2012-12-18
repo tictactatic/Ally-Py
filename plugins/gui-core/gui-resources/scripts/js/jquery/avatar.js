@@ -1,10 +1,12 @@
 define('jquery/avatar', ['utils/str', 'jquery', 'jquery/utils', 'jquery/md5'], function(str, $) {
-    var gravatar = {
+    var coreStyles = config.coreStyles("."),
+    //coreStyles = coreStyles.indexOf('http') === -1? 'http:'+coreStyles : coreStyles;
+    gravatar = {
         url: '//gravatar.com/avatar/%(md5)s?r=%(rate)s&s=%(size)s&d=%(default)s&%(forcedefault)s',
         defaults: {
             rate: 'pg',
             size: 48,
-            default: encodeURIComponent(config.coreStyles(".")+'/../../images/avatar_default_collaborator.jpg'),
+            default: encodeURIComponent(coreStyles+'/../../images/avatar_default_collaborator.jpg'),
             forcedefault: '',
             key: 'Avatar',
             needle: 'Person.EMail'
