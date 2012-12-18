@@ -1581,7 +1581,7 @@ li.google .config-notif, li.ads .config-notif, li.flickr .config-notif  {
  	font-size: 12px;
  	line-height: 18px;
  	padding-left: 40px;
-	background: url(../img/collapse-close.png) no-repeat 28px 50%;
+	background: url(../../images/collapse-close.png) no-repeat 28px 50%;
 }
 	.blogtype-list h3:hover {
 	 	text-decoration: underline;
@@ -1612,7 +1612,7 @@ li.google .config-notif, li.ads .config-notif, li.flickr .config-notif  {
 	background: #d5f4cd;
 }
 .blogtype-list .collapse-open h3 {
-	background: url(../img/collapse-open.png) no-repeat 26px 50%;
+	background: url(../../images/collapse-open.png) no-repeat 26px 50%;
 }
 
 .modal-body {
@@ -1850,7 +1850,7 @@ ul.posttypes li {
 
 
 .icon-underline {
-	background: url(../img/icon-underline.png) no-repeat 0 0;
+	background: url(../../images/icon-underline.png) no-repeat 0 0;
 }
 
 label.bgcolor {
@@ -2148,7 +2148,7 @@ a.collaborator-name-large  {
 
 .searchbox {
 	padding-left: 30px;
-	background: url("../img/search-icon.png") no-repeat 5px center;
+	background: url("../../images/search-icon.png") no-repeat 5px center;
 }
 
 @media all and (min-width:1300px) {
@@ -2219,7 +2219,7 @@ a.collaborator-name-large  {
  	font-size: 12px;
  	line-height: 18px;
  	padding-left: 40px;
-	background: url(../img/collapse-close.png) no-repeat 28px 50%;
+	background: url(../../images/collapse-close.png) no-repeat 28px 50%;
 }
 	.blogtype-list h3:hover {
 	 	text-decoration: underline;
@@ -2250,7 +2250,7 @@ a.collaborator-name-large  {
 	background: #d5f4cd;
 }
 .blogtype-list .collapse-open h3 {
-	background: url(../img/collapse-open.png) no-repeat 26px 50%;
+	background: url(../../images/collapse-open.png) no-repeat 26px 50%;
 }
 
 .modal-body {
@@ -2473,7 +2473,7 @@ ul.posttypes li {
 
 
 .icon-underline {
-	background: url(../img/icon-underline.png) no-repeat 0 0;
+	background: url(../../images/icon-underline.png) no-repeat 0 0;
 }
 
 label.bgcolor {
