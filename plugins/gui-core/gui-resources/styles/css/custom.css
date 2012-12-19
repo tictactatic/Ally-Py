@@ -2174,7 +2174,7 @@ a.collaborator-name-large  {
 
 .searchbox {
 	padding-left: 30px;
-	background: url("../img/search-icon.png") no-repeat 5px center;
+	background: url("../../images/search-icon.png") no-repeat 5px center;
 }
 
 @media all and (min-width:1300px) {
