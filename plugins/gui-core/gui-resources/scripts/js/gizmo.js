@@ -195,9 +195,16 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
                 deep = typeof format == 'boolean' ? format : deep,
                 feedData = fromData ? fromData : this.data;
             for( var i in feedData )
-                ret[i] = feedData[i] instanceof Model ?
-                        (deep ? feedData[i].feed(deep) : feedData[i].relationHash() || feedData[i].hash()) :
-                        feedData[i];
+                if(feedData[i] instanceof Model) {
+                    ret[i] = deep ? feedData[i].feed(deep) : feedData[i].relationHash() || feedData[i].hash();
+                
+                } else if( typeof feedData[i] === 'function' ) {
+                   // TODO: maybe return the defaults
+                } 
+                else {
+                    
+                    ret[i] = feedData[i];    
+                }
             return ret;
         },
         /*!
@@ -220,7 +227,7 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
             }
             if( this._clientHash ) // handle insert
             {
-                //console.log('insert');
+                console.log('insert: ',this.feed());
                 var href = arguments[0] || this.href,
                     feed = this.feed();
 
@@ -230,6 +237,7 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
                 {
                     self._changed = false;
                     self._parse(data);
+
                     self._uniq && self._uniq.replace(self._clientHash, self.hash(), self);
                     self._clientHash = null;
                     self.triggerHandler('insert')
