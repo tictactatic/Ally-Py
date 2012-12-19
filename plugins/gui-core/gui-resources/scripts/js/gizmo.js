@@ -116,7 +116,7 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
                     } 
                     else 
                     {
-                        var options = $.extend(true, {}, predefinedOptions, self.options, userOptions, {data: data});
+                        var options = $.extend(true, {}, predefinedOptions, self.options, userOptions, (Object.keys(data).length ? {data: data} : null));
                         a = $.ajax(self.href(source), options);
                     }
                     self.reset();
