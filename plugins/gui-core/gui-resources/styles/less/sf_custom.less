@@ -666,13 +666,13 @@ input{
 
 
 
-.grid {
+.grid-view {
 	.media-box {
 		.media-box-generic;
 	}
 }
 
-.list {
+.list-view {
 	padding-right:40px;
 	.media-box {
 		.media-box-generic;
@@ -809,6 +809,7 @@ input{
 .media-library-main-content-inner{ position: absolute; }
 .media-box-hover {
 	.media-box-generic;
+	min-height:140px;
 	border: 2px solid #383838;
 	padding:10px 10px 10px;
 	margin: 0px;
@@ -932,15 +933,17 @@ input{
 
 
 /* override bootstrap*/
+/*
 .popover-title {
 	display:none;
 }
+*/
 .popover-inner {
 	width:290px;
 }
 
 .popover-content {
-	background:#d2d2d2;
+	background:#d2d2d2 !important;
 }
 
 
