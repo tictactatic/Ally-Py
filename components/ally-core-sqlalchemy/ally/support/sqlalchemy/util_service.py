@@ -11,7 +11,6 @@ Provides utility methods for SQL alchemy service implementations.
 
 from ally.api.criteria import AsLike, AsOrdered, AsBoolean, AsEqual, AsDate, \
     AsTime, AsDateTime, AsRange
-from ally.api.operator.type import TypeCriteriaEntry
 from ally.api.type import typeFor
 from ally.exception import InputError, Ref
 from ally.internationalization import _
@@ -77,7 +76,7 @@ def buildQuery(sqlQuery, query, mapped, only=None, exclude=None):
     columns = {cp.key.lower(): getattr(mapped, cp.key)
                   for cp in mapper.iterate_properties if isinstance(cp, ColumnProperty)}
     columns = {criteria:columns.get(criteria.lower()) for criteria in namesForQuery(clazz)}
-    
+
     if only:
         if not isinstance(only, tuple): only = (only,)
         assert not exclude, 'Cannot have only \'%s\' and exclude \'%s\' criteria at the same time' % (only, exclude)
