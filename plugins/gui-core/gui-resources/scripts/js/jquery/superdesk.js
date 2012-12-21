@@ -168,7 +168,6 @@ var superdesk =
                 callback.call();
                 return callback;
             }
-            
             this._repository[href] = callback;
             
             History.pushState({href: href}, 

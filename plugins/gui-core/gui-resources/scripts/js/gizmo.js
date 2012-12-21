@@ -116,7 +116,7 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
                     } 
                     else 
                     {
-                        var options = $.extend(true, {}, predefinedOptions, self.options, userOptions, {data: data});
+                        var options = $.extend(true, {}, predefinedOptions, self.options, userOptions, (Object.keys(data).length ? {data: data} : null));
                         a = $.ajax(self.href(source), options);
                     }
                     self.reset();
@@ -192,6 +192,7 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
         feed: function(format, deep, fromData)
         {
             var ret = {},
+                deep = typeof format == 'boolean' ? format : deep,
                 feedData = fromData ? fromData : this.data;
             for( var i in feedData )
                 ret[i] = feedData[i] instanceof Model ?
@@ -995,8 +996,9 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
                     var other = one[evnt], sel = null, dat = {}, fn;
                     if(typeof other === 'string') {
                         fn  = other;
-						//console.log($.type(self[fn]), ', ', this.getEvent(evnt), ', ',selector, ', ',fn);
+						//console.log(this.el, $.type(self[fn]), ', ', this.getEvent(evnt), ', ',selector, ', ',fn);
                         if($.isFunction(self[fn])) {
+                            //console.log(this.el, evnt, selector);
                             $(this.el).on(this.getEvent(evnt), selector, self[fn].bind(self));
                         }
                     }
@@ -1007,7 +1009,7 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
         {
             $(this.el).off(this.getNamespace());
 			return this;
-        },		
+        },	
         getEvent: function(evnt){
             return evnt + this.getNamespace();
         },
