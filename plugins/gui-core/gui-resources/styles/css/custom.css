@@ -1817,34 +1817,34 @@ ul.posttypes li {
 			}
 
 .black {
-	background-color: #000000;
+	background-color: #000000 !important;
 }
 .gray {
-	background-color: #4b4b4b;
+	background-color: #4b4b4b !important;
 }
 .gray-dark {
-	background-color: #6d6d6d;
+	background-color: #6d6d6d !important;
 }
 .blue {
-	background-color: #0062b8;
+	background-color: #0062b8 !important;
 }
 .blue-light {
-	background-color: #0062b8;
+	background-color: #0062b8 !important;
 }
 .green {
-	background-color: #458a45;
+	background-color: #458a45 !important;
 }
 .green-light {
-	background-color: #61c261;
+	background-color: #61c261 !important;
 }
 .red {
-	background-color: #be3730;
+	background-color: #be3730 !important;
 }
 .orange {
-	background-color: #e08a12;
+	background-color: #e08a12 !important;
 }
 .white {
-	background-color: #fff;
+	background-color: #fff !important;
 }
 
 
