@@ -825,7 +825,7 @@ section.main-section {
 			margin-bottom:0;
 			}
 	.search-header {
-		padding:10px 10px 0 10px;
+		padding:10px 10px 10px 10px;
 		}
 		.search-header form {
 			margin-bottom:0;
@@ -1557,6 +1557,11 @@ bootstrap.css (line 1929)
 
 li.google .config-notif, li.ads .config-notif, li.flickr .config-notif, li.youtube .config-notif, li.soundcloud .config-notif, li.instagram .config-notif  {
     display: none ! important; 
+}
+
+.tab-content .search-header select {
+	margin-top:5px! important;
+	width: auto! important;
 }
 
 
