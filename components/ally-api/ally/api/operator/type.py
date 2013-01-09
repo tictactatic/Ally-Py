@@ -38,6 +38,19 @@ class TypeContainer(TypeClass):
 
         self.container = container
 
+    def parents(self):
+        '''
+        Provides a list of container types for the inherited container classes.
+
+        @return: list[TypeContainer]
+            The inherited type containers in the inherited order.
+        '''
+        parents = []
+        for parent in self.clazz.__bases__:
+            parentType = typeFor(parent)
+            if isinstance(parentType, self.__class__): parents.append(parentType)
+        return parents
+
     def childTypes(self):
         '''
         Provides the child properties types.
