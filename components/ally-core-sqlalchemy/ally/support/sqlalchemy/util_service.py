@@ -72,7 +72,6 @@ def buildQuery(sqlQuery, query, mapped, only=None, exclude=None):
     ordered, unordered = [], []
     mapper = mappingFor(mapped)
     assert isinstance(mapper, Mapper)
-
     columns = {cp.key.lower(): getattr(mapped, cp.key)
                   for cp in mapper.iterate_properties if isinstance(cp, ColumnProperty)}
     columns = {criteria:columns.get(criteria.lower()) for criteria in namesForQuery(clazz)}
