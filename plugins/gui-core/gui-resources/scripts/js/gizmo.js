@@ -262,6 +262,8 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
                     {
                         self.triggerHandler('update', self.changeset).clearChangeset();
                     }));
+                } else {
+                    ret.resolve();
                 }
             }
             else
@@ -399,7 +401,7 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
                     }
                 }
             }
-			this._new = false;
+			this._new = this.href? false : true;
             data._parsed = true;
         },
         _parseHash: function(data)
@@ -611,7 +613,7 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
 
         return newly;
     };
-
+    var uniqueCollectionCount = 0;
     Collection.prototype =
     {
         _list: [],
@@ -620,6 +622,7 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
         count: function(){ return this._list.length; },
         _construct: function()
         {
+            this._clientId = uniqueCollectionCount++;
             if( !this.model ) this.model = Model;
             this._list = [];
             this._events = {};
