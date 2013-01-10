@@ -1565,7 +1565,7 @@ li.google .config-notif, li.ads .config-notif, li.flickr .config-notif  {
 .blogtype-content {
 	padding: 5px 45px;
 	border-top: 1px solid #e5e5e5;
-	display: none;
+	--display: none;
 }
 .blogtype-list label.radio {
 	float: left;
@@ -2203,7 +2203,7 @@ a.collaborator-name-large  {
 .blogtype-content {
 	padding: 5px 45px;
 	border-top: 1px solid #e5e5e5;
-	display: none;
+	--display: none;
 }
 .blogtype-list label.radio {
 	float: left;
