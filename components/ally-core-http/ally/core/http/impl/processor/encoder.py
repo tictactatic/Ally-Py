@@ -165,7 +165,7 @@ class CreateEncoderPathHandler(CreateEncoderHandler):
         if data.accessiblePath is None: return
         assert isinstance(data.accessiblePath, Path), 'Invalid path %s' % data.accessiblePath
 
-        #TODO: Make sure when placing the accessible paths that there isnt already an accessible path
+        #TODO: Make sure when placing the accessible paths that there isn't already an accessible path
         # that already returns the inherited model see the example for MetaData and ImageData in relation
         # with MetaInfo and ImageInfo
         accessible = list(data.accessiblePath.findGetAllAccessible())
@@ -181,9 +181,10 @@ class CreateEncoderPathHandler(CreateEncoderHandler):
                     accessible.extend(accessiblePaths)
 
         if accessible:
-            accessible = [(pathLongName(acc), acc) for acc in accessible]
-            accessible.sort(key=firstOf)
-            data.accessible = OrderedDict(accessible)
+            data.accessible = OrderedDict()
+            for acc in accessible:
+                pathName = pathLongName(acc)
+                if pathName not in data.accessible: data.accessible[pathName] = acc
 
     def processFilter(self, encode, data, value, normalizer):
         '''
