@@ -221,8 +221,12 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
             if( this._clientHash ) // handle insert
             {
                 //console.log('insert');
-                var href = arguments[0] || this.href;
-                return dataAdapter(href).insert(this.feed()).done(function(data)
+                var href = arguments[0] || this.href,
+                    feed = this.feed();
+
+                if(this.insertExcludes) for(var i=0; i<this.insertExcludes.length; i++) delete feed[this.insertExcludes[i]]; 
+                
+                return dataAdapter(href).insert(feed).done(function(data)
                 {
                     self._changed = false;
                     self._parse(data);
@@ -236,8 +240,10 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
             if( this._changed ) {// if changed do an update on the server and return
                 //console.log('update');
                 if(!$.isEmptyObject(this.changeset)) {
+                    var feed = arguments[1] ? this.feed() : this.feed('json', false, this.changeset);
+                    if(this.insertExcludes) for(var i=0; i<this.insertExcludes.length; i++) delete feed[this.insertExcludes[i]];
                     ret = (this.href && dataAdapter(this.href)
-                            .update(arguments[1] ? this.feed() : this.feed('json', false, this.changeset))
+                            .update(feed)
                             .done(function()
                     {
                         self.triggerHandler('update', self.changeset).clearChangeset();
