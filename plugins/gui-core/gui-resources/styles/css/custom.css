@@ -938,6 +938,14 @@ section.main-section {
 						width: 36px;
 						height: 36px;
 						}
+					figure.avatar-small > img   {
+						width: 22px;
+						height: 22px;
+						}
+					figure.avatar-medium > img   {
+						width: 32px;
+						height: 32px;
+						}
                 .collaborators-feed .search-result-list {
                     top:62px;
                	 	}
