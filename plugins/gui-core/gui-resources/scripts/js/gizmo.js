@@ -116,7 +116,7 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
                     } 
                     else 
                     {
-                        var options = $.extend(true, {}, predefinedOptions, self.options, userOptions, {data: data});
+                        var options = $.extend(true, {}, predefinedOptions, self.options, userOptions, (Object.keys(data).length ? {data: data} : null));
                         a = $.ajax(self.href(source), options);
                     }
                     self.reset();
@@ -192,6 +192,7 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
         feed: function(format, deep, fromData)
         {
             var ret = {},
+                deep = typeof format == 'boolean' ? format : deep,
                 feedData = fromData ? fromData : this.data;
             for( var i in feedData )
                 if(feedData[i] instanceof Model) {
@@ -233,8 +234,12 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
             {
                 //console.log('insert: ',this.feed());
                 self._setToUrl();
-                var href = arguments[0] || this.href;
-                return dataAdapter(href).insert(this.feed()).done(function(data)
+                var href = arguments[0] || this.href,
+                    feed = this.feed();
+
+                if(this.insertExcludes) for(var i=0; i<this.insertExcludes.length; i++) delete feed[this.insertExcludes[i]]; 
+                
+                return dataAdapter(href).insert(feed).done(function(data)
                 {
                     self._changed = false;
                     self._parse(data);
@@ -249,8 +254,10 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
             if( this._changed ) {// if changed do an update on the server and return
                 //console.log('update');
                 if(!$.isEmptyObject(this.changeset)) {
+                    var feed = arguments[1] ? this.feed() : this.feed('json', false, this.changeset);
+                    if(this.insertExcludes) for(var i=0; i<this.insertExcludes.length; i++) delete feed[this.insertExcludes[i]];
                     ret = (this.href && dataAdapter(this.href)
-                            .update(arguments[1] ? this.feed() : this.feed('json', false, this.changeset))
+                            .update(feed)
                             .done(function()
                     {
                         self.triggerHandler('update', self.changeset).clearChangeset();
@@ -890,6 +897,29 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
             }
             return this;
         },
+        /*!
+         * used to place events on this model,
+         * scope of the call method is sent as obj argument
+         */
+        one: function(evt, handler, obj)
+        {
+            if(obj === undefined) {
+                $(this).off(evt, handler);
+                $(this).one(evt, handler);
+            }
+            else {          
+                var newhandler = function(){
+                    handler.apply(obj, arguments);
+                };
+                $(this).off(evt, newhandler );
+                $(this).one(evt, newhandler );
+            }
+            var arrEvt = evt.split(" ");
+            for(var i = 0, count = arrEvt.length; i < count; i++ ){
+                this._events[arrEvt[i]] = true;
+            }
+            return this;
+        },
 		/*!
          * used to place events on this model,
          * scope of the call method is sent as obj argument
@@ -1016,8 +1046,9 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
                     var other = one[evnt], sel = null, dat = {}, fn;
                     if(typeof other === 'string') {
                         fn  = other;
-						//console.log($.type(self[fn]), ', ', this.getEvent(evnt), ', ',selector, ', ',fn);
+						//console.log(this.el, $.type(self[fn]), ', ', this.getEvent(evnt), ', ',selector, ', ',fn);
                         if($.isFunction(self[fn])) {
+                            //console.log(this.el, evnt, selector);
                             $(this.el).on(this.getEvent(evnt), selector, self[fn].bind(self));
                         }
                     }
@@ -1028,7 +1059,7 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
         {
             $(this.el).off(this.getNamespace());
 			return this;
-        },		
+        },	
         getEvent: function(evnt){
             return evnt + this.getNamespace();
         },

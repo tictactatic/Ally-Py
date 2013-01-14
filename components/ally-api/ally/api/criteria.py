@@ -58,7 +58,6 @@ class AsEqualOrdered(AsEqual, AsOrdered):
     '''
     Provides the equal search and also the ordering.
     '''
-
 # --------------------------------------------------------------------
 
 @criteria(main='value')
