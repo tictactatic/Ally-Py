@@ -299,7 +299,6 @@ def synchronizeURIToDir(path, dirPath):
                 zipFile.extract(zipInfo.filename, tmpDir.name)
                 move(join(tmpDir.name, normOSPath(zipInfo.filename)), dest)
                 if zipInfo.filename.endswith('.exe'): os.chmod(dest, stat(dest).st_mode | S_IEXEC)
-
         return
 
     path = normpath(path)
@@ -315,6 +314,7 @@ def synchronizeURIToDir(path, dirPath):
             destDir = dirname(dest)
             if not exists(destDir): makedirs(destDir)
             copy(src, dest)
+            if file.endswith('.exe'): os.chmod(dest, stat(dest).st_mode | S_IEXEC)
 
 class KeepOpen:
     '''
