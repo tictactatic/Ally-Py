@@ -31,7 +31,11 @@ define('jquery/param',['jquery'], function($) {
 			add( prefix, obj );
 		}
 	}
-	var r20 = /%20/g;
+	var r20 = /%20/g,
+		rbracket = /\[\]$/,
+		rCRLF = /\r?\n/g,
+		rinput = /^(?:color|date|datetime|datetime-local|email|hidden|month|number|password|range|search|tel|text|time|url|week)$/i,
+		rselectTextarea = /^(?:select|textarea)/i;
 	$.extend
 	({
 		param: function( a, traditional ) {
