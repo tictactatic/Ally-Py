@@ -195,10 +195,22 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
                 deep = typeof format == 'boolean' ? format : deep,
                 feedData = fromData ? fromData : this.data;
             for( var i in feedData )
-                ret[i] = feedData[i] instanceof Model ?
-                        (deep ? feedData[i].feed(deep) : feedData[i].relationHash() || feedData[i].hash()) :
-                        feedData[i];
+                if(feedData[i] instanceof Model) {
+                    ret[i] = deep ? feedData[i].feed(deep) : feedData[i].relationHash() || feedData[i].hash();
+                
+                } else if( typeof feedData[i] === 'function' ) {
+                   // TODO: maybe return the defaults
+                } 
+                else {
+                    
+                    ret[i] = feedData[i];    
+                }
             return ret;
+        },
+        _setToUrl: function(){
+            if(!this.href && this.url) {
+                this.href = this.url.get();
+            }
         },
         /*!
          * data sync call
@@ -220,7 +232,8 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
             }
             if( this._clientHash ) // handle insert
             {
-                //console.log('insert');
+                //console.log('insert: ',this.feed());
+                self._setToUrl();
                 var href = arguments[0] || this.href,
                     feed = this.feed();
 
@@ -230,6 +243,7 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
                 {
                     self._changed = false;
                     self._parse(data);
+
                     self._uniq && self._uniq.replace(self._clientHash, self.hash(), self);
                     self._clientHash = null;
                     self.triggerHandler('insert')
@@ -248,6 +262,8 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
                     {
                         self.triggerHandler('update', self.changeset).clearChangeset();
                     }));
+                } else {
+                    ret.resolve();
                 }
             }
             else
@@ -385,7 +401,7 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
                     }
                 }
             }
-			this._new = false;
+			this._new = this.href? false : true;
             data._parsed = true;
         },
         _parseHash: function(data)
@@ -597,7 +613,7 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
 
         return newly;
     };
-
+    var uniqueCollectionCount = 0;
     Collection.prototype =
     {
         _list: [],
@@ -606,6 +622,7 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
         count: function(){ return this._list.length; },
         _construct: function()
         {
+            this._clientId = uniqueCollectionCount++;
             if( !this.model ) this.model = Model;
             this._list = [];
             this._events = {};
@@ -690,15 +707,18 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
                 ret[i] = this._list[i].feed(format, deep);
             return ret;
         },
+        _setToUrl: function(){
+            if(!this.href && this.url) {
+                this.setHref( this.url.get() );
+            }
+        },
         /*!
          * @param options
          */
         sync: function()
         {
             var self = this;
-            if(!self.href && self.url) {
-                self.setHref( self.url.get() );
-            }
+            self._setToUrl();
             return (this.href &&
                 this.syncAdapter.request.call(this.syncAdapter, this.href).read(arguments[0]).done(function(data)
                 {					
@@ -838,6 +858,7 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
             if( !(model instanceof Model) ) model = this.modelDataBuild(new this.model(model));
             this._list.push(model);
             model.hash();
+            this._setToUrl();
             var x = model.sync(this.href);
             return x;
         },
@@ -853,6 +874,29 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
             }
 			return this;
 		},
+        /*!
+         * used to place events on this model,
+         * scope of the call method is sent as obj argument
+         */
+        one: function(evt, handler, obj)
+        {
+            if(obj === undefined) {
+                $(this).off(evt, handler);
+                $(this).one(evt, handler);
+            }
+            else {          
+                var newhandler = function(){
+                    handler.apply(obj, arguments);
+                };
+                $(this).off(evt, newhandler );
+                $(this).one(evt, newhandler );
+            }
+            var arrEvt = evt.split(" ");
+            for(var i = 0, count = arrEvt.length; i < count; i++ ){
+                this._events[arrEvt[i]] = true;
+            }
+            return this;
+        },
         /*!
          * used to place events on this model,
          * scope of the call method is sent as obj argument
