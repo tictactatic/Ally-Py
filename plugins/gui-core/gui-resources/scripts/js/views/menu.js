@@ -63,7 +63,20 @@ function($, superdesk, Gizmo, AuthApp)
                     });
             });
             
-            $.superdesk.applyLayout('layouts/dashboard');
+            $.superdesk.applyLayout('layouts/dashboard', {}, function()
+            {
+                superdesk.getActions('modules.dashboard.*')
+                .done(function(apps)
+                {
+                    $(apps).each(function()
+                    {
+                        require([config.api_url + this.ScriptPath], function(app)
+                        { 
+                            app && app.init && app.init( $($.superdesk.layoutPlaceholder) ); 
+                        }); 
+                    });
+                });
+            });
         },
         /*!
          * Deferred callback
