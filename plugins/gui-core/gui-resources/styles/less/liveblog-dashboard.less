@@ -15,17 +15,29 @@
 	.btn {
 		margin:3px 0;
 	}
+	ul.dashboard-tabs {
+		margin:0;
+		margin-top:4px;
+		border:0;
+		float:left;
+		.active a {
+			background:#f8f8f8 !important;
+		}
+	}
 }
 
 .dashboard-content {
 	background-color: #f8f8f8;
-	padding: 5px 20px;
+	padding: 20px !important;
 	top: 85px;
 	left: 0;
 	right: 0;
 	bottom:0;
 	position: absolute;
-	padding: 20px;
+	display: block !important;
+	box-sizing:border-box;
+	-moz-box-sizing:border-box;
+	overflow:auto;
 	.active-blogs {
 		margin:0;
 		list-style-type:none;
@@ -39,12 +51,17 @@
 			margin:0 25px 25px 0;
 			position:relative;
 			.rounded-corners(4px);
-			.active-blogs-title a {
-				color: #08c;
-				font-size:16px;
-				&:hover {
-					text-decoration:underline;
-				}
+			.active-blogs-title {
+				max-height:38px;
+				overflow:hidden;
+				text-overflow:ellipsis;
+				a {
+					color: #08c;
+					font-size:16px;
+					&:hover {
+						text-decoration:underline;
+					}
+				}	 
 			}
 			.active-blogs-info {
 				margin:0;
@@ -129,19 +146,23 @@
 
 	.archive-blogs-header {
 		height:46px;
-		margin-top: -28px;
 		.searchbox {
 			margin:10px 0;
+			background-color:#fff;
 		}	
 		.archive-sort {
 			width:110px !important;
 			float:right;
 			margin:10px 0;
 		}
+		a.btn {
+			margin: 9px 0 0 5px;
+			padding: 3px 10px;
+		}
 	}
 
 	.archive-blogs {
-		margin:0;
+		margin: 10px 0 0;
 		list-style-type:none;
 		li {
 			border-top: 1px solid #ddd;
@@ -152,12 +173,15 @@
 				float:left;
 				width:500px;
 				overflow:hidden;
-				text-overflow:ellipsis;
-				white-space:nowrap;
 				a {
 					color:#08c;
 					font-size:14px;
 					line-height:18px;
+					max-width:400px;
+					text-overflow:ellipsis;
+					white-space:nowrap;
+					overflow:hidden;
+					display:inline-block;
 				}				
 				.archive-blogs-notification {
 					color:#9b9b9b;
@@ -171,13 +195,39 @@
 			}
 			.archive-blogs-date {
 				color:#9b9b9b;
+				margin-right: 40px;
 			}
 			&:last-child {
 				border-bottom: 1px solid #ddd;
 			}
+			&.no-results-msg {
+				display:none;
+				.archive-blogs-title a {
+					color:#646464 !important;
+					&:hover {
+						text-decoration:none !important;
+					}
+				}
+			}
 		}
 		li:hover {
 			background: #fff;
+		}
+		&.no-results {
+			li { 
+				&.no-results-msg {
+					display:block;
+					&:hover {
+						background:none;
+					}
+				}
+			}
+		}
+	}
+	.pagination {
+		a {
+			padding: 0 10px;
+			line-height: 28px;
 		}
 	}
 }
