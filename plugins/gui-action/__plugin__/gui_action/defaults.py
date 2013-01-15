@@ -23,6 +23,15 @@ def modulesAction():
     return Action('modules')
 
 @ioc.entity   
+def modulesDashboardAction():
+    '''
+    Register default action name: modules.dashboard
+    This node should contain actions to be used inside the dashboard of the application 
+    as main modules (whole page for edit/add/etc.)
+    '''
+    return Action('dashboard', Parent=modulesAction())
+
+@ioc.entity   
 def menuAction():
     '''
     Register default action name: modules
@@ -37,3 +46,4 @@ def registerActions():
     '''
     actionManagerService().add(menuAction())
     actionManagerService().add(modulesAction())
+    actionManagerService().add(modulesDashboardAction())
