@@ -690,6 +690,15 @@ define('jqueryui/texteditor', ['jquery','jqueryui/widget', 'jqueryui/ext', 'jque
                             $self.prepend(placeholder.html(placeholderText)).data('has-content', false); 
                         else 
                             $self.data('has-content', true);
+                    })
+                    .on('placeholder.texteditor', function(){
+                        var $self = $(this),
+                            placeholderText = $self.attr('placeholder');
+                        
+                        if( $self.text() === '' ) 
+                            $self.prepend(placeholder.html(placeholderText)).data('has-content', false); 
+                        else 
+                            $self.data('has-content', true);
                     });
                 }
             },
