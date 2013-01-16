@@ -6,9 +6,9 @@
 	</ul>
 	<a href="#" class="btn btn-info pull-right"><i class="icon-white icon-plus-sign"></i> Create Live blog</a>
 </div>
-<div class="dashboard-content tab-content">
+<div class="tab-content">
 
-	<div class="tab-pane active" id="active_blogs">
+	<div class="dashboard-content tab-pane active" id="active_blogs">
 		<ul class="active-blogs clearfix">
 
 			<li class="clearfix">
@@ -74,7 +74,7 @@
 		</ul>
 	</div>
 
-	<div class="tab-pane" id="archive_blogs">
+	<div class="dashboard-content tab-pane" id="archive_blogs">
 		<div class="archive-blogs-header">
 			<input class="span3 searchbox" size="16" type="text" name="search" placeholder="Search by Title" style="float:left !important;">
 			<a href="#" class="btn pull-left">Go!</a>
@@ -87,6 +87,7 @@
 				<option>Last update</option>
 			</select>
 		</div>
+		<div class="searchphrase">Displaynig results for: <span>"Arsenal"</span></div>
 		<ul class="archive-blogs clearfix">
 			
 			<li class="no-results-msg" >
@@ -94,25 +95,42 @@
 			</li>
 
 			<li>
-				<span class="archive-blogs-title"><a href="#">Newtown school shooting: funeral to be helds for victims</a><span class="archive-blogs-notification">196</span></span>
+				<span class="archive-blogs-title"><a href="#">Newtown school shooting: funeral to be helds for victims</a></span>
+				<span class="archive-blogs-date">14.12.2012.</span>
 			</li>
 			<li>
-				<span class="archive-blogs-title"><a href="#">Reading VS Arsenal Live!</a><span class="archive-blogs-notification">48</span></span>
+				<span class="archive-blogs-title"><a href="#">Reading VS Arsenal Live!</a></span>
+				<span class="archive-blogs-date">14.12.2012.</span>
 			</li>
 			<li>
-				<span class="archive-blogs-title"><a href="#">Liverpool VS Totenham Live</a><span class="archive-blogs-notification">56</span></span>
+				<span class="archive-blogs-title"><a href="#">Liverpool VS Totenham Live</a></span>
+				<span class="archive-blogs-date">14.12.2012.</span>
 			</li>
 			<li>
-				<span class="archive-blogs-title"><a href="#">US Elections live coverage</a><span class="archive-blogs-notification">763</span></span>
+				<span class="archive-blogs-title"><a href="#">US Elections live coverage</a></span>
+				<span class="archive-blogs-date">14.12.2012.</span>
 			</li>
+			<!--
+				<li>
+					<span class="archive-blogs-title"><a href="#">US Elections live coverage</a><span class="archive-blogs-notification">763</span></span>
+					<span class="archive-blogs-date">14.12.2012.</span>
+					<span class="archive-blogs-date">14.12.2012.</span>
+				</li>
+			-->
 		</ul>
 
-		<ul class="pagination">
+		<ul class="pagination" style="float:left;">
 			<li> <a href="#" data-pagination="first" title="First">⇤</a> </li>
 			<li> <a href="#" data-pagination="prev" title="Previous">←</a> </li> 
 			<li class="active"> <a href="#" data-pagination="currentpages" title="Page 1" data-offset="0">1</a> </li>	
 			<li> <a href="#" data-pagination="next" title="Next">→</a> </li>
 			<li> <a href="#" data-pagination="last" title="Last">⇥</a> </li>
+		</ul>
+
+		<ul class="pagination ipp" style="margin-left:20px;float:left;">
+			<li class="disabled"> <a href="#" data-ipp="25">25</a> </li>
+			<li class=""> <a href="#" data-ipp="50">50</a> </li>
+			<li class=""> <a href="#" data-ipp="100">100</a> </li>
 		</ul>
 	</div>
 </div>
