@@ -8394,7 +8394,6 @@ li.submenu.selected.half .parent {
   right: 0;
   bottom: 0;
   position: absolute;
-  display: block !important;
   box-sizing: border-box;
   -moz-box-sizing: border-box;
   overflow: auto;
@@ -8555,7 +8554,7 @@ li.submenu.selected.half .parent {
 .dashboard-content .archive-blogs li .archive-blogs-title {
   display: block;
   float: left;
-  width: 500px;
+  width: 450px;
   overflow: hidden;
 }
 .dashboard-content .archive-blogs li .archive-blogs-title a {
@@ -8605,4 +8604,13 @@ li.submenu.selected.half .parent {
 .dashboard-content .pagination a {
   padding: 0 10px;
   line-height: 28px;
+}
+.dashboard-content .pagination.ipp:after {
+  content: "items per page";
+  float: left;
+  line-height: 28px;
+  margin: 0 8px;
+}
+.dashboard-content .searchphrase span {
+  font-style: italic;
 }
