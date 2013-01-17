@@ -21,6 +21,7 @@ import abc
 import json
 import logging
 import os
+from urllib.parse import urljoin
 
 
 # --------------------------------------------------------------------
@@ -90,7 +91,7 @@ class HTTPDelivery(IDelivery):
         @see IDelivery.getURI
         '''
         assert isinstance(repoFilePath, str), 'Invalid repository file path value %s' % repoFilePath
-        return self.serverURI + repoFilePath
+        return urljoin(self.serverURI.rstrip('/') + repoFilePath.lstrip('/'))
 
 
 @injected
