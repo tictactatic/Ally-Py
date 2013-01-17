@@ -91,7 +91,7 @@ class HTTPDelivery(IDelivery):
         @see IDelivery.getURI
         '''
         assert isinstance(repoFilePath, str), 'Invalid repository file path value %s' % repoFilePath
-        return urljoin(self.serverURI.rstrip('/') + repoFilePath.lstrip('/'))
+        return urljoin(self.serverURI.rstrip('/') , repoFilePath.lstrip('/'))
 
 
 @injected
