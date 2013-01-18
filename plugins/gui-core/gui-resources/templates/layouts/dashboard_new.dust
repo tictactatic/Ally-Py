@@ -9,6 +9,16 @@
 <div class="tab-content">
 
 	<div class="dashboard-content tab-pane active" id="active_blogs">
+		<div class="btn-group pull-right open">
+        	<a class="btn" href="#"><i class="icon-settings"></i></a>
+        	<a class="btn dropdown-toggle" data-toggle="dropdown" href="#"><span class="caret"></span></a>
+        		<ul class="dropdown-menu">
+                    <li><a id="grid_view" href="#"><i class="icon-th"></i> Grid view</a></li>
+            		<li><a id="list_view" href="#"><i class="icon-th-list"></i> List view</a></li>
+          		</ul>
+      	</div>
+
+
 		<ul class="active-blogs clearfix">
 
 			<li class="clearfix">
