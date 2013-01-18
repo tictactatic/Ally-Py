@@ -72,7 +72,6 @@ var superdesk =
 	    {
 	        console.log(this);
 	    });*/
-		console.log(data);
 	    return $(this.layoutPlaceholder).tmpl(tmpl, data, callback);
 	},
 	/*!
