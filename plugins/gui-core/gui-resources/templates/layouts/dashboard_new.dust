@@ -1,3 +1,4 @@
+
 <div class="content-topnav" style="margin-top:40px;">
 	
 	<ul class="nav nav-tabs dashboard-tabs" id="myTab">
@@ -9,7 +10,8 @@
 <div class="tab-content">
 
 	<div class="dashboard-content tab-pane active" id="active_blogs">
-		<div class="btn-group pull-right open">
+
+      	<div class="btn-group pull-left">
         	<a class="btn" href="#"><i class="icon-settings"></i></a>
         	<a class="btn dropdown-toggle" data-toggle="dropdown" href="#"><span class="caret"></span></a>
         		<ul class="dropdown-menu">
@@ -18,8 +20,18 @@
           		</ul>
       	</div>
 
+      	<script type="text/javascript">
+      		$(document).ready(function(){
+      			$("#grid_view").click(function(){
+      					$(".active-blogs").removeClass("list-active-blogs");
+      			});
+      			$("#list_view").click(function(){
+      					$(".active-blogs").addClass("list-active-blogs");
+      			});
+      		});
+      	</script>
 
-		<ul class="active-blogs clearfix">
+		<ul class="active-blogs clearfix list-active-blogs">
 
 			<li class="clearfix">
 				<div class="active-blogs-title"><a href="">Reading VS Arsenal - Live</a></div>
