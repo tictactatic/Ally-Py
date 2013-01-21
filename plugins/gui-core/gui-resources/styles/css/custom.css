@@ -2489,9 +2489,6 @@ a.collaborator-name-large  {
 	background: url(../../images/collapse-open.png) no-repeat 26px 50%;
 }
 
-.modal-body {
-	min-height: 390px;
-}
 .fullwidth-input {
 	width: 520px;
 }
