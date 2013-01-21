@@ -15,18 +15,33 @@
 	.btn {
 		margin:3px 0;
 	}
+	ul.dashboard-tabs {
+		margin:0;
+		margin-top:4px;
+		border:0;
+		float:left;
+		.active a {
+			background:#f8f8f8 !important;
+		}
+	}
 }
 
 .dashboard-content {
 	background-color: #f8f8f8;
-	padding: 5px 20px;
+	padding: 20px !important;
 	top: 85px;
 	left: 0;
 	right: 0;
 	bottom:0;
 	position: absolute;
-	padding: 20px;
+	box-sizing:border-box;
+	-moz-box-sizing:border-box;
+	overflow:auto;
+	.btn-group {
+		margin-bottom:15px;
+	}
 	.active-blogs {
+		clear:both;
 		margin:0;
 		list-style-type:none;
 		li {
@@ -39,12 +54,17 @@
 			margin:0 25px 25px 0;
 			position:relative;
 			.rounded-corners(4px);
-			.active-blogs-title a {
-				color: #08c;
-				font-size:16px;
-				&:hover {
-					text-decoration:underline;
-				}
+			.active-blogs-title {
+				max-height:38px;
+				overflow:hidden;
+				text-overflow:ellipsis;
+				a {
+					color: #08c;
+					font-size:16px;
+					&:hover {
+						text-decoration:underline;
+					}
+				}	 
 			}
 			.active-blogs-info {
 				margin:0;
@@ -124,24 +144,99 @@
 				border: 1px solid #e5e5e5;
 				.box-shadow(0px,1px,2px,0px,#ddd);
 			}
+		}
+		&.list-active-blogs {
+			li {
+				width:100%;
+				height:auto;
+				padding:5px;
+				margin:0;
+				box-sizing:border-box;
+				-o-box-sizing:border-box;
+				-moz-box-sizing:border-box;
+				float:none;
+				border:0;
+				border-top: 1px solid #ddd;
+				border-radius:0px;
+				-moz-border-radius:0px;
+				-webkit-border-radius:0px;
+				background:none;
+				.active-blogs-title {
+					float:left;
+					margin-right:20px;
+					a {
+						display:block;
+						width:250px;
+						overflow:hidden;
+						text-overflow:ellipsis;
+						white-space:nowrap;
+						font-size: 14px;
+						line-height:18px;
+					}
+				}
+				.active-blogs-info {
+					padding:3px 0;
+					float:right;
+					margin-left:30px;
+					li {
+						float:right;
+						margin:0;
+						padding:0 5px;
+						border:0 !important;
+						&:after {
+							content:",";
+						}
+						&:first-child {
+							&:after {
+								content:"";
+							}
+							padding-right:0;
+							margin-right:0;
+						}
+					}
+				}
+				.active-blogs-text {
+					overflow:hiiden;
+					text-overflow:ellipsis;
+					white-space:nowrap;
+					height:auto;
+					line-height:18px;
+					color:#484848;
+				}
+				.active-blogs-notification {
+					display:none;
+				}
+				&:hover {
+					background:#fff;
+					border-width:1px 0 0;
+					.box-shadow(0px,0px,0px,0px);
+				}
+				&:last-child {
+					border-bottom: 1px solid #ddd;
+				}
+			}
 		}		
 	}
 
 	.archive-blogs-header {
 		height:46px;
-		margin-top: -28px;
 		.searchbox {
 			margin:10px 0;
+			background-color:#fff;
 		}	
 		.archive-sort {
 			width:110px !important;
 			float:right;
 			margin:10px 0;
 		}
+		a.btn {
+			margin: 9px 0 0 5px;
+			padding: 3px 10px;
+		}
 	}
 
 	.archive-blogs {
-		margin:0;
+		margin: 10px 0 0;
 		list-style-type:none;
 		li {
 			border-top: 1px solid #ddd;
@@ -150,14 +245,17 @@
 			.archive-blogs-title {
 				display:block;
 				float:left;
-				width:500px;
+				width:450px;
 				overflow:hidden;
-				text-overflow:ellipsis;
-				white-space:nowrap;
 				a {
 					color:#08c;
 					font-size:14px;
 					line-height:18px;
+					max-width:400px;
+					text-overflow:ellipsis;
+					white-space:nowrap;
+					overflow:hidden;
+					display:inline-block;
 				}				
 				.archive-blogs-notification {
 					color:#9b9b9b;
@@ -171,13 +269,51 @@
 			}
 			.archive-blogs-date {
 				color:#9b9b9b;
+				margin-right: 40px;
 			}
 			&:last-child {
 				border-bottom: 1px solid #ddd;
+			}
+			&.no-results-msg {
+				display:none;
+				.archive-blogs-title a {
+					color:#646464 !important;
+					&:hover {
+						text-decoration:none !important;
+					}
+				}
 			}
 		}
 		li:hover {
 			background: #fff;
 		}
+		&.no-results {
+			li { 
+				&.no-results-msg {
+					display:block;
+					&:hover {
+						background:none;
+					}
+				}
+			}
+		}
 	}
+	.pagination {
+		a {
+			padding: 0 10px;
+			line-height: 28px;
+		}
+		&.ipp:after {
+			content: "items per page";
+			float: left;
+			line-height: 28px;
+			margin: 0 8px;
+		}
+	}
+
+	.searchphrase {
+		span {
+			font-style:italic;
+		}
+	} 
 }
