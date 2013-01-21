@@ -1458,6 +1458,21 @@ legend {
 	display:inline-block;
 }
 
+.table-buttons-control .tool-box-right {
+	display: block !important;
+	visibility: hidden;
+}
+
+
+.table-buttons-control tbody tr:hover td {
+	background: #f8f8f8 !important;
+}
+	.table-buttons-control tr:hover .tool-box-right {
+		visibility: visible !important;
+	}
+
+
+
 
 element.style {
     display: block;
