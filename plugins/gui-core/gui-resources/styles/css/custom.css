@@ -938,6 +938,9 @@ section.main-section {
 						width: 36px;
 						height: 36px;
 						}
+					.post-list > li > figure > img {
+						padding:1px;
+					}
 					figure.avatar-small > img   {
 						width: 22px;
 						height: 22px;
@@ -973,7 +976,7 @@ section.main-section {
 	margin-left:50px;
 	}
 	.post-list .result-content {
-		margin-right:30px;
+		margin-right:35px;
 		}
 	.with-avatar .result-content h3, .with-avatar .result-content .result-text  {
 		display:inline;
@@ -1552,27 +1555,43 @@ bootstrap.css (line 1929)
 	text-indent:100%;
 	white-space:nowrap;
 	overflow:hidden;
+	opacity: 0.25;
+	-moz-opacity:0.25;
+	filter: alpha(opacity=25);
 	}
 	.close.image:hover {
 		background-position:0 -20px;
+		opacity: 0.7;
+		-moz-opacity:0.7;
+		filter: alpha(opacity=70);
 		}
 
 .unpublish.image {
-	margin-right: 20px;
-	margin-top: -2px;
+	margin-right: 7px;
+	margin-top: 1px;
 	float: right;
-	background: white url(../../images/unpublish.png) no-repeat 3px 5px;
-	padding: 2px 5px 2px 20px;
-	color: #878787;
-	border-radius: 3px;
-	-moz-border-radius:3px;
-	-webkit-border-radius:3px;
+	width:15px !important;
+	height: 15px;
+	opacity: 0.3;
+	-moz-opacity:0.3;
+	filter: alpha(opacity=30);
 }
 
 .unpublish.image:hover {
-	background-color: #EFEFEF;
-	text-decoration: none;
+	opacity: 0.5;
+	-moz-opacity:0.5;
 }
+.post-list > li.advertisement a.unpublish.image {
+	width:auto;
+	display:inline;
+}
+.post-list > li.advertisement a.close.image {
+	width:auto; 
+	display:inline;
+}
+
+
+
 
 .ui-draggable-dragging {
     max-width:500px;
