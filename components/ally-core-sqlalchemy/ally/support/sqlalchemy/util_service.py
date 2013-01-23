@@ -14,13 +14,14 @@ from ally.api.criteria import AsLike, AsOrdered, AsBoolean, AsEqual, AsDate, \
 from ally.api.type import typeFor
 from ally.exception import InputError, Ref
 from ally.internationalization import _
-from ally.support.api.util_service import namesForQuery
+from ally.support.api.util_service import namesForQuery, namesForModel
 from ally.support.sqlalchemy.mapper import mappingFor
 from itertools import chain
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm.mapper import Mapper
-from sqlalchemy.orm.properties import ColumnProperty
 from ally.api.operator.type import TypeCriteriaEntry
+from ally.support.sqlalchemy.descriptor import PropertyAttribute
+from sqlalchemy.sql.expression import _Case
 
 # --------------------------------------------------------------------
 
@@ -72,8 +73,13 @@ def buildQuery(sqlQuery, query, mapped, only=None, exclude=None):
     ordered, unordered = [], []
     mapper = mappingFor(mapped)
     assert isinstance(mapper, Mapper)
-    columns = {cp.key.lower(): getattr(mapped, cp.key)
-                  for cp in mapper.iterate_properties if isinstance(cp, ColumnProperty)}
+#    columns = {cp.key.lower(): getattr(mapped, cp.key)
+#                  for cp in mapper.iterate_properties if isinstance(cp, ColumnProperty)}
+    columns = {}
+    for name in namesForModel(mapped):
+        cp, name = getattr(mapped, name), name.lower()
+        if name not in columns and isinstance(cp, (PropertyAttribute, _Case)): columns[name] = cp
+
     columns = {criteria:columns.get(criteria.lower()) for criteria in namesForQuery(clazz)}
 
     if only:
