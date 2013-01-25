@@ -95,7 +95,6 @@
 
 		</ul>
 	</div>
-
 	<div class="dashboard-content tab-pane" id="archive_blogs">
 		<div class="archive-blogs-header">
 			<input class="span3 searchbox" size="16" type="text" name="search" placeholder="Search by Title" style="float:left !important;">
