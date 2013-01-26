@@ -17,7 +17,7 @@ from gui.action.api.action import IActionManagerService, Action
 # --------------------------------------------------------------------
 
 @injected
-@setup(IActionManagerService)
+@setup(IActionManagerService, name='actionManager')
 class ActionManagerService(IActionManagerService):
     '''
     @see: IActionManagerService
@@ -31,7 +31,7 @@ class ActionManagerService(IActionManagerService):
         '''
         @see: IActionManagerService.add
         '''
-        assert isinstance(action, Action), 'Invalid parameter action: %s' % action
+        assert isinstance(action, Action), 'Invalid action %s' % action
         self._actions[action.Path] = action
         return action.Path
         

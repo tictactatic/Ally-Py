@@ -41,8 +41,9 @@ def deploy(source, destination, systemName=None, machineName=None):
             if not isdir(srcDir):
                 try: getZipFilePath(srcDir)
                 except IOError:
-                    if systemRequired and machineRequired:
-                        raise IOError('Cannot locate required dependency \'%s\' for system %s with architecture %s'
-                                      % (srcDir, systemName, machineName))
-                    else: continue
+                    continue
+#                    if systemRequired and machineRequired:
+#                        raise IOError('Cannot locate required dependency \'%s\' for system %s with architecture %s'
+#                                      % (srcDir, systemName, machineName))
+#                    else: continue
             synchronizeURIToDir(srcDir, destination)

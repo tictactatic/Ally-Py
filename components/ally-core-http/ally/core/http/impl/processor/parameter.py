@@ -14,13 +14,13 @@ from ally.api.operator.container import Criteria, Query
 from ally.api.operator.type import TypeQuery, TypeCriteriaEntry, TypeCriteria
 from ally.api.type import Input, Type, Iter, typeFor
 from ally.container.ioc import injected
-from ally.core.spec.codes import ILLEGAL_PARAM, Code
+from ally.core.spec.codes import ILLEGAL_PARAM
+from ally.core.spec.resources import Invoker, Path, Node, INodeInvokerListener, \
+    Normalizer, Converter
 from ally.core.spec.transform.render import Object, List
 from ally.core.spec.transform.support import obtainOnDict, setterOnDict, \
     getterChain, getterOnObj, setterOnObj, setterWithGetter, obtainOnObj, \
     getterOnDict, getterOnObjIfIn, SAMPLE
-from ally.core.spec.resources import Invoker, Path, Node, INodeInvokerListener, \
-    Normalizer, Converter
 from ally.design.context import Context, requires, defines
 from ally.design.processor import HandlerProcessorProceed
 from collections import deque, Iterable, OrderedDict
@@ -52,7 +52,8 @@ class Response(Context):
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    code = defines(Code)
+    code = defines(int)
+    isSuccess = defines(bool)
     text = defines(str)
     errorMessage = defines(str)
     errorDetails = defines(Object)
@@ -105,7 +106,7 @@ class ParameterHandler(HandlerProcessorProceed, INodeInvokerListener):
         '''
         assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(response, Response), 'Invalid response %s' % response
-        if Response.code in response and not response.code.isSuccess: return # Skip in case the response is in error
+        if response.isSuccess is False: return  # Skip in case the response is in error
 
         assert isinstance(request.path, Path), 'Invalid request %s has no resource path' % request
         assert isinstance(request.path.node, Node), 'Invalid resource path %s has no node' % request.path
@@ -132,7 +133,8 @@ class ParameterHandler(HandlerProcessorProceed, INodeInvokerListener):
                     request.path.node.addNodeListener(self)
                     self._cacheEncode[invoker] = encode
 
-                response.code, response.text = ILLEGAL_PARAM, 'Illegal parameter'
+                response.code, response.isSuccess = ILLEGAL_PARAM
+                response.text = 'Illegal parameter'
                 context = dict(normalizer=request.normalizerParameters, converter=request.converterParameters)
                 sample = encode(value=SAMPLE, **context)
 

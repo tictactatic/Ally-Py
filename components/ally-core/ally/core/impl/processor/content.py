@@ -12,7 +12,7 @@ Provides a processor that provides the request content as an invoking argument.
 from ally.api.model import Content
 from ally.api.type import Input
 from ally.container.ioc import injected
-from ally.core.spec.codes import Code, BAD_CONTENT
+from ally.core.spec.codes import BAD_CONTENT
 from ally.core.spec.resources import Invoker
 from ally.design.context import Context, requires, optional, asData, defines
 from ally.design.processor import HandlerProcessorProceed
@@ -58,7 +58,8 @@ class Response(Context):
     The response context.
     '''
     # ---------------------------------------------------------------- Defines
-    code = defines(Code)
+    code = defines(int)
+    isSuccess = defines(bool)
     text = defines(str)
 
 # --------------------------------------------------------------------
@@ -82,7 +83,7 @@ class ContentHandler(HandlerProcessorProceed):
         assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(response, Response), 'Invalid response %s' % response
 
-        if Response.code in response and not response.code.isSuccess: return # Skip in case the response is in error
+        if response.isSuccess is False: return  # Skip in case the response is in error
         assert isinstance(request.invoker, Invoker), 'Invalid request invoker %s' % request.invoker
 
         for inp in request.invoker.inputs:
@@ -90,7 +91,8 @@ class ContentHandler(HandlerProcessorProceed):
 
             if inp.type.isOf(Content):
                 if requestCnt is None:
-                    response.code, response.text = BAD_CONTENT, 'Required a request content follow up'
+                    response.code, response.isSuccess = BAD_CONTENT
+                    response.text = 'Required a request content follow up'
                     return
                 assert isinstance(requestCnt, RequestContent), 'Invalid request content %s' % requestCnt
                 assert isinstance(requestCnt.source, IInputStream), 'Invalid request content source %s' % requestCnt.source

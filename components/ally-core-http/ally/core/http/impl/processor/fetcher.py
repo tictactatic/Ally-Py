@@ -13,7 +13,6 @@ from ally.api.operator.type import TypeModelProperty, TypeModel
 from ally.api.type import Input, typeFor, TypeClass, Type
 from ally.container.ioc import injected
 from ally.core.http.spec.transform.support_model import DataModel, IFetcher
-from ally.core.spec.codes import Code
 from ally.core.spec.resources import Path, Node, Invoker, INodeInvokerListener
 from ally.design.context import Context, requires, optional
 from ally.design.processor import HandlerProcessorProceed
@@ -43,7 +42,7 @@ class Response(Context):
     encoderData = requires(dict)
     encoderDataModel = requires(DataModel)
     # ---------------------------------------------------------------- Optional
-    code = optional(Code)
+    isSuccess = optional(bool)
 
 # --------------------------------------------------------------------
 
@@ -70,7 +69,7 @@ class FetcherHandler(HandlerProcessorProceed, INodeInvokerListener):
         assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(response, Response), 'Invalid response %s' % response
 
-        if Response.code in response and not response.code.isSuccess: return # Skip in case the response is in error
+        if response.isSuccess is False: return  # Skip in case the response is in error
         if Response.encoderDataModel not in response: return
         invokerMain = request.invoker
         assert isinstance(invokerMain, Invoker), 'Invalid invoker %s' % invokerMain

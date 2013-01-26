@@ -15,6 +15,7 @@ from ..plugin.registry import cdmGUI
 from .gui_core import getGuiPath, lib_folder_format, publishLib
 from ally.container import ioc
 from ally.support.util_io import openURI
+from distribution.container import app
 from io import BytesIO
 import logging
 
@@ -51,7 +52,7 @@ def server_url():
 
 # --------------------------------------------------------------------
 
-@ioc.start
+@app.populate
 def publish():
     publishLib('core')
 

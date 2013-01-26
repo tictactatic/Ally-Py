@@ -17,6 +17,11 @@ from ally.core.impl.processor.render.text import RenderTextHandler
 from ally.core.impl.processor.render.xml import RenderXMLHandler
 from ally.design.processor import Handler, Assembly
 import codecs
+import logging
+
+# --------------------------------------------------------------------
+
+log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 # Creating the encoding processors
@@ -87,15 +92,6 @@ def renderXML() -> Handler:
     b = RenderXMLHandler(); yield b
     b.contentTypes = content_types_xml()
 
-@ioc.entity
-def renderYAML() -> Handler:
-    import yaml
-    def rendererYAML(obj, charSet, out): yaml.dump(obj, out, default_flow_style=False)
-
-    b = RenderTextHandler(); yield b
-    b.contentTypes = content_types_yaml()
-    b.rendererTextObject = rendererYAML
-
 # --------------------------------------------------------------------
 # Creating the parsers
 
@@ -114,27 +110,43 @@ def parseXML() -> Handler:
     b = ParseXMLHandler(); yield b
     b.contentTypes = set(content_types_xml())
 
-@ioc.entity
-def parseYAML() -> Handler:
-    import yaml
-    def parserYAML(content, charSet): return yaml.load(codecs.getreader(charSet)(content))
-
-    b = ParseTextHandler(); yield b
-    b.contentTypes = set(content_types_yaml())
-    b.parser = parserYAML
-    b.parserName = 'yaml'
-
 # --------------------------------------------------------------------
-
-@ioc.before(renderingAssembly)
-def updateRenderingAssembly():
-    renderingAssembly().add(renderJSON())
-    renderingAssembly().add(renderXML())
-    try: renderingAssembly().add(renderYAML())
-    except ImportError: pass
 
 @ioc.before(parsingAssembly)
 def updateParsingAssembly():
     parsingAssembly().add(parseJSON())
     parsingAssembly().add(parseXML())
-    parsingAssembly().add(parseYAML())
+
+try: import yaml
+except ImportError: log.info('No YAML library available, no yaml available for output or input')
+else:
+    
+    # ----------------------------------------------------------------
+    
+    @ioc.entity
+    def renderYAML() -> Handler:
+        def rendererYAML(obj, charSet, out): yaml.dump(obj, out, default_flow_style=False)
+    
+        b = RenderTextHandler(); yield b
+        b.contentTypes = content_types_yaml()
+        b.rendererTextObject = rendererYAML
+    
+    @ioc.before(renderingAssembly)
+    def updateRenderingAssembly():
+        renderingAssembly().add(renderJSON())
+        renderingAssembly().add(renderXML())
+        renderingAssembly().add(renderYAML())
+
+
+    @ioc.entity
+    def parseYAML() -> Handler:
+        def parserYAML(content, charSet): return yaml.load(codecs.getreader(charSet)(content))
+    
+        b = ParseTextHandler(); yield b
+        b.contentTypes = set(content_types_yaml())
+        b.parser = parserYAML
+        b.parserName = 'yaml'
+        
+    @ioc.before(parsingAssembly)
+    def updateParsingAssemblyWithYAML():
+        parsingAssembly().add(parseYAML())

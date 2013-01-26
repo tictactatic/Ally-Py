@@ -58,7 +58,7 @@ def publishLib(name):
     '''
     assert isinstance(name, str), 'Invalid library name: %s' % name
     if not publish_gui_resources(): return  # No publishing is allowed
-    log.info('published library %s = %s', lib_folder_format() % name, getGuiPath())
+    assert log.debug('Published library \'%s\' to \'%s\'', lib_folder_format() % name, getGuiPath()) or True
     cdmGUI().publishFromDir(lib_folder_format() % name, getGuiPath())
 
 def getPublishedLib(name):
@@ -75,10 +75,10 @@ def publishGui(name):
     '''
     assert isinstance(name, str), 'Invalid name: %s' % name
     if not publish_gui_resources(): return  # No publishing is allowed
-    log.info('published gui %s = %s', gui_folder_format() % name, getGuiPath())
+    assert log.debug('Published GUI \'%s\' to \'%s\'', gui_folder_format() % name, getGuiPath()) or True
     cdmGUI().publishFromDir(gui_folder_format() % name, getGuiPath())
 
-def getPublishedGui(name):
+def publishedURI(name):
     '''
     Get CDM a published GUI path
     

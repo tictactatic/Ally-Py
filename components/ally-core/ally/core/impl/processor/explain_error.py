@@ -10,7 +10,6 @@ Provides support for explaining the errors in the content of the request.
 '''
 
 from ally.container.ioc import injected
-from ally.core.spec.codes import Code
 from ally.core.spec.transform.render import Object, Value, renderObject
 from ally.design.context import Context, requires, defines, optional
 from ally.design.processor import HandlerProcessorProceed
@@ -29,7 +28,8 @@ class Response(Context):
     The response context.
     '''
     # ---------------------------------------------------------------- Optional
-    code = optional(Code)
+    code = optional(int)
+    isSuccess = optional(bool)
     text = optional(str)
     errorMessage = optional(str, doc='''
     @rtype: object
@@ -69,8 +69,8 @@ class ExplainErrorHandler(HandlerProcessorProceed):
         assert isinstance(response, Response), 'Invalid response %s' % response
         assert isinstance(responseCnt, ResponseContent), 'Invalid response content %s' % responseCnt
 
-        if Response.code in response and not response.code.isSuccess and Response.renderFactory in response:
-            errors = [Value('code', str(response.code.code))]
+        if response.isSuccess is False and Response.renderFactory in response:
+            errors = [Value('code', str(response.code))]
             if Response.errorMessage in response:
                 errors.append(Value('message', response.errorMessage))
             elif Response.text in response:

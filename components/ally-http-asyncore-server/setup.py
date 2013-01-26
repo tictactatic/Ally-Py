@@ -19,7 +19,7 @@ setup(
     name='ally_http_asyncore_server',
     version='1.0',
     packages=find_packages(),
-    install_requires=['ally_core_http >= 1.0'],
+    install_requires=['ally_http >= 1.0'],
     platforms=['all'],
     test_suite='test',
     zip_safe=True,
@@ -30,6 +30,6 @@ setup(
     description='Ally framework - Provides asyncore HTTP support for the framework',
     long_description='It provides asyncore HTTP server support',
     license='GPL v3',
-    keywords='Ally REST framework',
+    keywords='Ally HTTP framework',
     url='http://www.sourcefabric.org/en/superdesk/', # project home page
 )

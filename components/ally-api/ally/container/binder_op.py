@@ -156,7 +156,7 @@ def bindValidations(proxy, mappings=None):
     assert isinstance(proxy, typ.clazz), 'Invalid proxy %s for service %s' % (proxy, typ.clazz)
     registerProxyBinder(proxy)
 
-    for call in typ.service.calls:
+    for call in typ.service.calls.values():
         assert isinstance(call, Call)
         if call.method in (INSERT, UPDATE):
             positions = {}

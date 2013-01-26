@@ -15,7 +15,7 @@ from ally.api.operator.type import TypeExtension, TypeProperty, \
 from ally.api.type import Type, Iter, Boolean, Integer, Number, Percentage, \
     String, Time, Date, DateTime, TypeNone, typeFor
 from ally.container.ioc import injected
-from ally.core.spec.codes import Code, BAD_CONTENT
+from ally.core.spec.codes import BAD_CONTENT
 from ally.core.spec.resources import Invoker, Normalizer, Converter
 from ally.core.spec.transform.exploit import IResolve, handleExploitError
 from ally.core.spec.transform.render import IRender
@@ -48,7 +48,8 @@ class Response(Context):
     converter = requires(Converter)
     normalizer = requires(Normalizer)
     # ---------------------------------------------------------------- Defined
-    code = defines(Code)
+    code = defines(int)
+    isSuccess = defines(bool)
     text = defines(str)
     encoder = defines(Callable, doc='''
     @rtype: Callable
@@ -95,13 +96,14 @@ class CreateEncoderHandler(HandlerProcessorProceed):
         assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(response, Response), 'Invalid response %s' % response
 
-        if Response.code in response and not response.code.isSuccess: return # Skip in case the response is in error
-        if Response.encoder in response: return # There is already an encoder no need to create another one
+        if response.isSuccess is False: return  # Skip in case the response is in error
+        if Response.encoder in response: return  # There is already an encoder no need to create another one
         assert isinstance(request.invoker, Invoker), 'Invalid request invoker %s' % request.invoker
 
         response.encoder = self.encoderFor(request.invoker.output)
         if response.encoder is None:
-            response.code, response.text = BAD_CONTENT, 'Cannot encode response object'
+            response.code, response.isSuccess = BAD_CONTENT
+            response.text = 'Cannot encode response object'
             return
 
         response.encoderData = dict(converterId=response.converterId, converter=response.converter,
@@ -182,10 +184,10 @@ class CreateEncoderHandler(HandlerProcessorProceed):
         assert isinstance(ofType, TypeModel), 'Invalid type model %s' % ofType
 
         typesProps = list(ofType.childTypes())
-        typesProps.remove(ofType.childTypeId())
+        if ofType.hasId(): typesProps.remove(ofType.childTypeId())
         typesProps.sort(key=lambda typeProp: typeProp.property)
         typesProps.sort(key=self.sortTypePropertyKey)
-        typesProps.insert(0, ofType.childTypeId())
+        if ofType.hasId(): typesProps.insert(0, ofType.childTypeId())
 
         exploit = exploit or EncodeObject(ofType.container.name, getter)
         assert isinstance(exploit, EncodeObject), 'Invalid encode object %s' % exploit
@@ -414,6 +416,7 @@ class EncodePrimitive:
 
         if self.getter: value = self.getter(value)
         if value is None: return
+        assert self.typeValue.isValid(value), 'Invalid value \'%s\' for type %s' % (value, self.typeValue) 
         render.value(normalizer.normalize(name), converter.asString(value, self.typeValue))
 
 class EncodePrimitiveCollection(EncodePrimitive):

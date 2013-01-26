@@ -137,7 +137,7 @@ class Bean(metaclass=BeanMetaClass):
         if not isinstance(attribute, Attribute): return False
         assert isinstance(attribute, Attribute)
         owned = self.__attributes__.get(attribute.name)
-        if owned is None: return
+        if owned is None: return False
 
         try: return isinstance(owned.descriptor.__get__(self), attribute.types)
         except AttributeError: return False

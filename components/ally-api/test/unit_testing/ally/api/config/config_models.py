@@ -126,16 +126,6 @@ class TestConfigure(unittest.TestCase):
         q.name.orderAsc()
         self.assertTrue(q.name.ascending == True)
 
-    # ----------------------------------------------------------------
-
-    def testFailedModel(self):
-        a = APIModel()
-
-        self.assertRaises(ValueError, setattr, a, 'X', 'nu')
-        self.assertRaises(ValueError, setattr, a, 'X', (100, 3))
-        self.assertRaises(ValueError, setattr, a, 'Y', 1000.0)
-        self.assertRaises(ValueError, setattr, a, 'Entity', 1000)
-
 # --------------------------------------------------------------------
 
 if __name__ == '__main__': unittest.main()

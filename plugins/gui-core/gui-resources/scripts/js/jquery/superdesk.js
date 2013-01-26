@@ -79,11 +79,25 @@ var superdesk =
 	 */
 	cache: {actions: {}, scripts: {}, test: {}},
 	ACTIONS_PATH_SEP: '.',
+	clearActions: function(path)
+	{
+	    if( !path ){ superdesk.cache.actions = {}; return; }
+	    
+	    var results = [], searchPath = path; 
+        if( path.lastIndexOf('*') === path.length-1 )
+            searchPath = path.substr(0, path.length-1);
+
+        for( var i in superdesk.cache.actions )
+            if( superdesk.cache.actions[i].Path.indexOf(searchPath) === 0 )
+                delete superdesk.cache.actions[i];
+	},
+	actionsUrl: 'GUI/Action',
+	actionsUseAuth: true,
 	/*!
 	 * @param string path 
 	 * @returns $.Deferred()
 	 */
-	getActions: function(path)
+	getActions: function(path, url)
 	{
 	    var dfd = $.Deferred(),
 	    searchCache = function()
@@ -101,25 +115,28 @@ var superdesk =
 	    var cachedResults = searchCache();
 	    if( cachedResults.length === 0 )
 		{
-			new $.rest('GUI/Action?path='+path)
+	        var restObj = superdesk.actionsUseAuth ? $.restAuth : $.rest;
+			var rest = new restObj((url || superdesk.actionsUrl)+'?path='+path)
 				.done(function(actions)
 				{ 
 				    for(var i in actions)
                         superdesk.cache.actions[actions[i].Path] = actions[i];
 					dfd.resolve(searchCache());
 				});
+			$(rest).on('failed', function(){ dfd.reject(); });
 			return dfd;
 		}
 		return dfd.resolve(cachedResults);
 	},
 	
-	getAction: function(path)
+	getAction: function(path, url)
 	{
 	    var dfd = $.Deferred();
         if( !superdesk.cache.actions[path] )
         {
-            var searchPath = path.substr(0, path.lastIndexOf(superdesk.ACTIONS_PATH_SEP)); 
-            new $.rest('GUI/Action?path='+searchPath+'.*')
+            var searchPath = path.substr(0, path.lastIndexOf(superdesk.ACTIONS_PATH_SEP)),
+                restObj = superdesk.actionsUseAuth ? $.restAuth : $.rest; 
+            new restObj((url || superdesk.actionsUrl)+'?path='+searchPath+'.*')
                 .done(function(actions)
                 { 
                     for(var i in actions)

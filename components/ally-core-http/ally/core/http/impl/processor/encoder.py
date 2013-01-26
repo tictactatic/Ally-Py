@@ -13,8 +13,7 @@ from ally.api.operator.container import Model
 from ally.api.operator.type import TypeModel, TypeModelProperty
 from ally.api.type import Type, TypeReference
 from ally.container.ioc import injected
-from ally.core.http.spec.codes import INVALID_HEADER_VALUE
-from ally.core.http.spec.server import IEncoderPath, IDecoderHeader
+from ally.core.http.spec.server import IEncoderPath
 from ally.core.http.spec.transform.support_model import DataModel, NO_MODEL_PATH, \
     IFetcher
 from ally.core.impl.processor import encoder
@@ -24,8 +23,11 @@ from ally.core.spec.resources import Path, Normalizer, Invoker
 from ally.core.spec.transform.exploit import handleExploitError
 from ally.core.spec.transform.render import IRender
 from ally.design.context import requires, defines
-from ally.support.core.util_resources import pathLongName
-from ally.support.util import lastCheck, firstOf
+from ally.http.spec.codes import INVALID_HEADER_VALUE
+from ally.http.spec.server import IDecoderHeader
+from ally.support.core.util_resources import pathLongName, findGetModel, \
+    findGetAllAccessible
+from ally.support.util import lastCheck
 from collections import deque, OrderedDict
 
 # --------------------------------------------------------------------
@@ -140,7 +142,7 @@ class CreateEncoderPathHandler(CreateEncoderHandler):
         data = DataModel()
         if path:
             assert isinstance(path, Path), 'Invalid request path %s' % path
-            data.path = path.findGetModel(encode.modelType)
+            data.path = findGetModel(path, encode.modelType)
             data.modelPaths[encode.modelType] = data.path
             if inCollection: data.accessiblePath = data.path
             else: data.accessiblePath = path
@@ -149,7 +151,8 @@ class CreateEncoderPathHandler(CreateEncoderHandler):
         for nameProp, encodeProp in encode.properties.items():
             if isinstance(encodeProp, EncodeModel):
                 assert isinstance(encodeProp, EncodeModel)
-                data.datas[nameProp] = self.createDataModel(encodeProp, path.findGetModel(encodeProp.modelType), False, False)
+                data.datas[nameProp] = self.createDataModel(encodeProp, findGetModel(path, encodeProp.modelType),
+                                                            False, False)
 
         return data
 
@@ -168,14 +171,14 @@ class CreateEncoderPathHandler(CreateEncoderHandler):
         #TODO: Make sure when placing the accessible paths that there isn't already an accessible path
         # that already returns the inherited model see the example for MetaData and ImageData in relation
         # with MetaInfo and ImageInfo
-        accessible = list(data.accessiblePath.findGetAllAccessible())
+        accessible = list(findGetAllAccessible(data.accessiblePath))
         # These paths will get updated in the encode model when the data model path is updated
         # because they are extended from the base path.
         assert isinstance(encode.modelType, TypeModel)
         for parentType in encode.modelType.parents():
-            parentPath = data.accessiblePath.findGetModel(parentType)
+            parentPath = findGetModel(data.accessiblePath, parentType)
             if parentPath:
-                accessiblePaths = parentPath.findGetAllAccessible()
+                accessiblePaths = findGetAllAccessible(parentPath)
                 if accessiblePaths:
                     data.modelPaths[parentType] = parentPath
                     accessible.extend(accessiblePaths)
@@ -398,7 +401,7 @@ class EncodeModel(EncodeObject):
                     return dataModel.fetchEncode(value=valueModel, name=name, dataModel=dataModel.fetchData, **data)
                 attrs = {normalizer.normalize(self.encoder.nameXFilter): self.encoder.valueDenied}
 
-        data.update(value=value)
+        data.update(value=value)  # Here we actually also update the accessible paths.
         if DataModel.modelPaths in dataModel:
             # We update the model paths with the currently encoded model
             self._updateModelPaths(dataModel.modelPaths, value)

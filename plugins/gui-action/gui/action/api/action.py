@@ -1,7 +1,7 @@
 '''
 Created on Feb 27, 2012
 
-@package ally 
+@package: gui actions 
 @copyright 2011 Sourcefabric o.p.s.
 @license http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Mihai Balaceanu
@@ -9,9 +9,9 @@ Created on Feb 27, 2012
 Action manager interface and action model 
 '''
 
-from gui.api import modelGui
 from ally.api.config import service, call, INSERT
-from ally.api.type import Iter
+from ally.api.type import Iter, Reference
+from gui.api.domain_gui import modelGui
 import re
 
 # --------------------------------------------------------------------
@@ -21,35 +21,23 @@ class Action:
     '''
     The object used to create and group actions 
     '''
-    Path = str
-    # path to register in 
-    Label = str
-    # display label
-    ScriptPath = str
-    # ui script path
-    Href = str
-    # href to use for ui controls
+    Path = str  # path to register in 
+    Label = str  # display label
+    Script = Reference  # UI script path
+    NavBar = str  # href to use for ui controls
     ChildrenCount = int
 
-    def __init__(self, Path=None, Label=None, Parent=None, ScriptPath=None, Href=None):
+    def __init__(self, Path=None, Label=None, Parent=None, Script=None, NavBar=None):
         self.Path = ''
         self.ChildrenCount = 0
-        if Path:
-            self.Path = re.compile('[^\w\-\.]', re.ASCII).sub('', Path)
+        if Path: self.Path = re.compile('[^\w\-\.]', re.ASCII).sub('', Path)
         if Parent:
             assert isinstance(Parent, Action), 'Invalid Parent object: %s' % Parent
             self.Path = Parent.Path + '.' + self.Path
-            Parent.incrementKids(self)
-        if Label:
-            self.Label = Label
-        if ScriptPath:
-            self.ScriptPath = ScriptPath
-        if Href:
-            self.Href = Href;
-
-    def incrementKids(self, action):
-        if not isinstance(action, Action): return
-        self.ChildrenCount += 1
+            Parent.ChildrenCount += 1
+        if Label: self.Label = Label
+        if Script: self.Script = Script
+        if NavBar: self.NavBar = NavBar
 
 # --------------------------------------------------------------------
 

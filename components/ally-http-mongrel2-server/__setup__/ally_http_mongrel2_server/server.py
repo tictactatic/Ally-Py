@@ -1,7 +1,7 @@
 '''
 Created on Nov 23, 2011
 
-@package: ally core http
+@package: ally http
 @copyright: 2012 Sourcefabric o.p.s.
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
@@ -9,16 +9,19 @@ Created on Nov 23, 2011
 Runs the Mongrel2 web server.
 '''
 
-from ..ally_core_http import server_host, server_port, server_type, server_version
-from ..ally_core_http.processor import pathAssemblies
-from ally.container import ioc, support
+from ..ally_http import server_host, server_port, server_type, server_version
+from ..ally_http.server import pathAssemblies
+from ally.container import ioc
 from threading import Thread
 
 # --------------------------------------------------------------------
 
 @ioc.config     
 def workspace_path():
-    '''The workspace path where the uploads can be located'''
+    '''
+    The workspace path where the uploads can be located, this is basically the mongrel2 workspace path this should not
+    include the relative, for example "mongrel2/tmp"
+    '''
     return 'workspace'
 
 @ioc.config
@@ -58,22 +61,11 @@ ioc.doc(server_port, '''
     to alter the Mongrel2 configurations.
 ''')
 
-try: from ..cdm.processor import server_provide_content
-except ImportError: pass  # No CDM processor to stop from delivering content.
-else:
-    ioc.doc(server_provide_content, '''
-    !!!Attention, if the mongrel2 server is selected this option will always be "false"
-    ''')
-    
-    @ioc.before(server_provide_content, auto=False)
-    def server_provide_content_force():
-        if server_type() == 'mongrel2': support.force(server_provide_content, False)
-
 # --------------------------------------------------------------------
 
 @ioc.entity
 def requestHandler():
-    from ally.core.http.server.server_mongrel2 import RequestHandler
+    from ally.http.server.server_mongrel2 import RequestHandler
     b = RequestHandler(); yield b
     b.pathAssemblies = pathAssemblies()
     b.serverVersion = server_version()
@@ -83,6 +75,6 @@ def requestHandler():
 @ioc.start
 def runServer():
     if server_type() == 'mongrel2':
-        from ally.core.http.server import server_mongrel2
+        from ally.http.server import server_mongrel2
         args = (workspace_path(), requestHandler(), send_ident(), send_spec(), recv_ident(), recv_spec())
         Thread(target=server_mongrel2.run, args=args).start()

@@ -9,9 +9,21 @@ Created on Jan 4, 2012
 Provides utility methods based on the API specifications.
 '''
 
-from ally.core.impl.node import NodePath
+from ally.api.config import GET, INSERT, UPDATE, DELETE
+from ally.api.operator.container import Service, Call
+from ally.api.operator.type import TypeModel, TypeModelProperty, TypeService
+from ally.api.type import typeFor, Input
+from ally.core.impl.invoker import InvokerRestructuring, InvokerCall
+from ally.core.impl.node import NodePath, NodeProperty, MatchProperty
 from ally.core.spec.resources import Match, Node, Path, ConverterPath, \
-    IResourcesRegister
+    IResourcesRegister, Invoker, PathExtended
+from ally.support.util import immut
+from collections import deque, Iterable
+
+# --------------------------------------------------------------------
+
+METHOD_NODE_ATTRIBUTE = immut({GET: 'get', INSERT: 'insert', UPDATE: 'update', DELETE: 'delete'})
+# Mapping of method and node attribute where the invoker is kept for that method.
 
 # --------------------------------------------------------------------
 
@@ -32,15 +44,13 @@ def pushMatch(matches, match):
             matches.extend(match)
         elif isinstance(match, Match):
             matches.append(match)
-        elif match is not True:
-            raise AssertionError('Invalid match %s') % match
+        elif match is not True: raise Exception('Invalid match %s') % match
         return True
     return False
 
-def matchesForNode(node):
+def pathForNode(node):
     '''
-    Provides all the matches that lead to the provided node. The node needs to be in a tree node to have valid matches
-    for it, this matches can be used to construct a Path.
+    Provides the path that lead to the provided node. The node needs to be in a tree node to have a valid path.
     
     @param node: Node
         The node to provide the matches for.
@@ -48,42 +58,172 @@ def matchesForNode(node):
         The list of matches that lead to the node.
     '''
     assert isinstance(node, Node), 'Invalid node %s' % node
-    matches = []
-    while node is not None:
-        pushMatch(matches, node.newMatch())
-        node = node.parent
-    matches.reverse() # We need to reverse the matches since they have been made from the child up.
-    return matches
+    k, matches = node, []
+    while k is not None:
+        pushMatch(matches, k.newMatch())
+        k = k.parent
+    matches.reverse()  # We need to reverse the matches since they have been made from the child up.
+    return Path(matches, node)
 
-def toPaths(matches, converterPath):
+# --------------------------------------------------------------------
+
+def iterateNodes(node):
     '''
-    Converts the matches into paths elements.
+    Iterates all the nodes that can be obtained from the provided node.
     
-    @param matches: list[Match|string]|tuple(Match|string)
-        The list of matches or string that represent the path.
-    @param converterPath: ConverterPath
-        The converter path to use in constructing the paths elements.
-    @return: list[string]
-        A list of strings representing the paths elements, or None if the path elements cannot be obtained.
-    @raise AssertionError:
-        If the path cannot be represented, check first the 'isValid' method.
+    @param node: Node
+        The root node to provide the paths from.
+    @return: Iterator(Node)
+        An iterator yielding all the nodes from the provided node.
     '''
-    assert isinstance(matches, (list, tuple)), 'Invalid matches %s' % matches
+    assert isinstance(node, Node), 'Invalid root node %s' % node
+    nodes = deque()
+    nodes.append(node)
+    while nodes:
+        node = nodes.popleft()
+        yield node
+        nodes.extend(node.children)
+        
+def iteratePaths(node):
+    '''
+    Iterates all the paths that can be obtained from the provided node.
+    
+    @param node: Node
+        The root node to provide the paths from.
+    @return: Iterator(Path)
+        An iterator yielding all the paths from the provided node.
+    '''
+    for node in iterateNodes(node): yield pathForNode(node)
+
+def findPath(node, paths, converterPath):
+    '''
+    Finds the resource node for the provided request path.
+    
+    @param node: Node
+        The root node to search from.
+    @param converterPath: ConverterPath
+        The converter path used in handling the path elements.
+    @param paths: deque[string]|Iterable[string]
+        A deque of string path elements identifying a resource to be searched for, this list will be consumed 
+        of every path element that was successfully identified.
+    @return: Path
+        The path leading to the node that provides the resource if the Path has no node it means that the paths
+        have been recognized only to certain point.
+    '''
+    assert isinstance(node, Node), 'Invalid root node %s' % node
     assert isinstance(converterPath, ConverterPath), 'Invalid converter path %s' % converterPath
+    if not isinstance(paths, deque):
+        assert isinstance(paths, Iterable), 'Invalid iterable paths %s' % paths
+        paths = deque(paths)
+    assert isinstance(paths, deque), 'Invalid paths %s' % paths
+
+    if len(paths) == 0: return Path([], node)
+
+    matches = []
+    found = pushMatch(matches, node.tryMatch(converterPath, paths))
+    while found and len(paths) > 0:
+        found = False
+        for child in node.children:
+            assert isinstance(child, Node)
+            match = child.tryMatch(converterPath, paths)
+            if pushMatch(matches, match):
+                node = child
+                found = True
+                break
+
+    if len(paths) == 0: return Path(matches, node)
+
+    return Path(matches)
+
+def findGetModel(fromPath, typeModel):
+    '''
+    Finds the path for the first Node that provides a get for the name. The search is made based
+    on the from path. First the from path Node and is children's are searched for the get method if 
+    not found it will go to the Nodes parent and make the search there, so forth and so on.
+    
+    @param fromPath: Path
+        The path to make the search based on.
+    @param typeModel: TypeModel
+        The type model to search the get for.
+    @return: PathExtended|None
+        The extended path pointing to the desired get method, attention some updates might be necessary on 
+        the path to be available. None if the path could not be found.
+    '''
+    assert isinstance(fromPath, Path), 'Invalid from path %s' % fromPath
+    assert isinstance(fromPath.node, Node), 'Invalid from path Node %s' % fromPath.node
+    assert isinstance(typeModel, TypeModel), 'Invalid model type %s' % typeModel
+
+    matchNodes = deque()
+    for index in range(len(fromPath.matches), 0, -1):
+        matchNodes.clear()
+        path = _findGetModel(typeModel, fromPath, fromPath.matches[index - 1].node, index, True, matchNodes,
+                             fromPath.matches[index].node if index < len(fromPath.matches) else None)
+        if path: return path
+    
+def findGetAllAccessible(pathOrNode):
+    '''
+    Finds all GET paths that can be directly accessed without the need of any path update based on the
+    provided from path, basically all paths that can be directly related to the provided path without any
+    additional information.
+
+    @param pathOrNode: Path|Node
+        The path or node to make the search based on, if None will provide the available paths for the root.
+    @return: list[Path]|list[PathExtended]
+        A list of Path from the provided from path that are accessible, empty list if none found.
+        If the input parameter is a path then the returned paths are extended paths of the provided path.
+    '''
+    if isinstance(pathOrNode, Path):
+        assert isinstance(pathOrNode, Path)
+        assert isinstance(pathOrNode.node, Node), 'Invalid path Node %s' % pathOrNode.node
+        node, path = pathOrNode.node, pathOrNode
+    else:
+        assert isinstance(pathOrNode, Node), 'Invalid path or node %s' % pathOrNode
+        node, path = pathOrNode, None
+    assert isinstance(node, Node), 'Invalid node %s' % node
+    
     paths = []
-    for k in range(0, len(matches)):
-        match = matches[k]
-        if isinstance(match, Match):
-            assert isinstance(match, Match)
-            path = match.toPath(converterPath, k == 0, k == len(matches) - 1)
-            if path is not None:
-                if isinstance(path, list):
-                    paths.extend(path)
-                paths.append(path)
-        elif isinstance(match, str):  paths.append(match)
-        else: raise AssertionError('Invalid match %s' % match)
+    for child in node.children:
+        assert isinstance(child, Node)
+        if isinstance(child, NodePath):
+            matches = []
+            pushMatch(matches, child.newMatch())
+            if path is None: extended = Path(matches, child)
+            else: extended = PathExtended(path, matches, child)
+            if child.get: paths.append(extended)
+            paths.extend(findGetAllAccessible(extended))
     return paths
 
+def findNodesFor(node, typeService, name):
+    '''
+    Finds all the nodes in the root node for the provided service type and call name.
+    
+    @param node: Node
+        The root node to start the find in.
+    @param typeService: TypeService
+        The service type to find the paths for.
+    @param name: string
+        The call name to find the paths for.
+    @return: list[Node]
+        The nodes of the service type and call name.
+    ''' 
+    assert isinstance(node, Node), 'Invalid node %s' % node
+    assert isinstance(typeService, TypeService), 'Invalid type service %s' % typeService
+    assert isinstance(name, str), 'Invalid call name %s' % name
+    assert isinstance(typeService.service, Service)
+    call = typeService.service.calls.get(name)
+    assert isinstance(call, Call), 'Invalid call name \'%s\' for service %s' % (name, typeService)
+    
+    nodes, attr = [], METHOD_NODE_ATTRIBUTE[call.method]
+    for node in iterateNodes(node):
+        invoker = getattr(node, attr)
+        if not invoker: continue
+        invoker = invokerCallOf(invoker)
+        if not invoker: continue
+        assert isinstance(invoker, InvokerCall)
+        assert isinstance(invoker.call, Call)
+        if typeService == typeFor(invoker.implementation) and invoker.call.name == name: nodes.append(node)
+    return nodes
+    
 # --------------------------------------------------------------------
 
 def nodeLongName(node):
@@ -101,7 +241,7 @@ def nodeLongName(node):
     while node and isinstance(node, NodePath):
         names.append(node.name)
         node = node.parent
-    names.reverse() # We need to reverse since we started from the child to parent
+    names.reverse()  # We need to reverse since we started from the child to parent
     return ''.join(names)
 
 def pathLongName(path):
@@ -116,17 +256,48 @@ def pathLongName(path):
     assert isinstance(path, Path), 'Invalid path %s' % path
     return nodeLongName(path.node)
 
-def pathForNode(node):
+# --------------------------------------------------------------------
+
+def invokerCallOf(invoker):
     '''
-    Provides the path that leads to the provided node. The node needs to be in a tree node to have a valid path
-    for it.
+    Provides the invoke call of the invoker if one is available.
     
-    @param node: Node
-        The node to provide the matches for.
-    @return: Path
-        The path that leads to the node.
+    @param invoker: Invoker
+        The invoker to provide the call for.
+    @return: InvokerCall|None
+        The call of the invoker or None if is not available.
     '''
-    return Path(matchesForNode(node), node)
+    assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
+    while isinstance(invoker, InvokerRestructuring):
+        assert isinstance(invoker, InvokerRestructuring)
+        invoker = invoker.invoker
+    if isinstance(invoker, InvokerCall): return invoker
+
+def propertyTypesOf(path, invoker):
+    '''
+    Provides the list of property types that are associated with the provided path and invoker.
+    Basically it extracts the property types that belong to the invoker and they appear into the path.
+    
+    @param path: Path
+        The path to provide the property types for.
+    @param invoker: Invoker
+        The invoker to have the property types associated with the path.
+    @return: list[TypePropertyModel]
+        The list of model property types that are associated with the invoker.
+    '''
+    assert isinstance(path, Path), 'Invalid path %s' % path
+    assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
+    types = []
+    for match in path.matches:
+        if isinstance(match, MatchProperty):
+            assert isinstance(match, MatchProperty)
+            assert isinstance(match.node, NodeProperty)
+            for inp in invoker.inputs:
+                assert isinstance(inp, Input), 'Invalid input %s' % inp
+                if isinstance(inp.type, TypeModelProperty) and inp.type in match.node.typesProperties:
+                    types.append(inp.type)
+                    break
+    return types
 
 # --------------------------------------------------------------------
 
@@ -159,3 +330,121 @@ class ResourcesRegisterDelegate(IResourcesRegister):
         '''
         self.main.register(implementation)
         for register in self.others: register.register(implementation)
+
+class ReplacerMarkCount:
+    '''
+    Provides the callable support for replacing the invalid matches with markers that are based on a counter, so every
+    invalid match will be counted and be replaced with the counter.
+    '''
+    __slots__ = ('_start', '_index', '_pattern', 'replaced')
+    
+    def __init__(self, start=1, pattern='{%s}'):
+        '''
+        Construct the mark replacer.
+        
+        @param start: integer
+            The value from which to start the markers.
+        @param pattern: string
+            The pattern to be used for constructing the invalid match path.
+        '''
+        assert isinstance(start, int), 'Invalid start %s' % start
+        assert isinstance(pattern, str), 'Invalid pattern %s' % pattern
+        self._start = start
+        self._index = start
+        self._pattern = pattern
+        self.replaced = {}
+        
+    def reset(self):
+        '''
+        Resets all data.
+        '''
+        self._index = self._start
+        self.replaced.clear()
+        
+    def __call__(self, match, converterPath):
+        assert isinstance(match, Match), 'Invalid match %s' % match
+        path = self._pattern % self._index
+        self.replaced[path] = match
+        self._index += 1
+        return path
+
+class ReplacerWithMarkers:
+    '''
+    Provides the replacer based on property types dictionary with markers.
+    '''
+    __slots__ = ('_count', '_markers')
+    
+    def __init__(self):
+        '''
+        Construct the type based replacer.
+        '''
+        self._count = 0
+        self._markers = ()
+        
+    def register(self, markers):
+        '''
+        Register a replacing process. Attention the replacer has to be properly consumed before a new registration.
+        
+        @param markers: list[string]|tuple(string)
+            The markers list, needs to have one entry for each invalid match in the proper order.
+        @return: self
+            The filter for chaining purposes.
+        '''
+        assert isinstance(markers, (list, tuple)), 'Invalid markers %s' % markers
+        assert len(self._markers) == self._count, 'The markers %s are not consumed' % (self._markers[self._count:],)
+        self._markers = markers
+        self._count = 0
+        return self
+    
+    def __call__(self, match, converterPath):
+        '''
+        Process the markers for invalid matches.
+        '''
+        assert len(self._markers) > self._count, 'No more markers for match %s' % match
+        mark = self._markers[self._count]
+        self._count += 1
+        return mark
+
+# --------------------------------------------------------------------
+
+def _findGetModel(modelType, fromPath, node, index, inPath, matchNodes, exclude=None):
+    '''
+    FOR INTERNAL USE ONLY!
+    Provides the recursive find of a get model based on the path.
+    '''
+    assert isinstance(modelType, TypeModel), 'Invalid model type %s' % modelType
+    assert isinstance(fromPath, Path), 'Invalid from path %s' % fromPath
+    assert isinstance(node, Node), 'Invalid node %s' % node
+    assert isinstance(matchNodes, deque), 'Invalid match nodes %s' % matchNodes
+    assert exclude is None or  isinstance(exclude, Node), 'Invalid exclude node %s' % exclude
+
+    added = False
+    if isinstance(node, NodePath):
+        assert isinstance(node, NodePath)
+        if not inPath:
+            matchNodes.append(node)
+            added = True
+
+        if node.name == modelType.container.name:
+            for nodeId in node.children:
+                if isinstance(nodeId, NodeProperty):
+                    assert isinstance(nodeId, NodeProperty)
+                    if nodeId.get is None: continue
+                    assert isinstance(nodeId.get, Invoker)
+                    if not nodeId.get.output.isOf(modelType): continue
+
+                    for typ in nodeId.typesProperties:
+                        assert isinstance(typ, TypeModelProperty)
+                        if typ.parent != modelType: continue
+
+                        matches = []
+                        for matchNode in matchNodes: pushMatch(matches, matchNode.newMatch())
+                        pushMatch(matches, nodeId.newMatch())
+                        return PathExtended(fromPath, matches, nodeId, index)
+
+    for child in node.children:
+        if child == exclude: continue
+        path = _findGetModel(modelType, fromPath, child, index, False, matchNodes)
+        if path: return path
+
+    if added: matchNodes.pop()

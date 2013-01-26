@@ -11,22 +11,18 @@ single thread at one time.
 '''
 
 from ..support.util_sys import callerLocals
-from ._impl.aop_container import AOPModules
-from ._impl.entity_handler import Initializer
-from ._impl.ioc_setup import SetupEntity, SetupSource, SetupConfig, \
-    SetupFunction, SetupEvent, Context, SetupReplace, SetupStart, SetupError, \
-    register, ConfigError, Assembly, SetupReplaceConfig, setupsOf
+from ._impl._entity import Initializer
+from ._impl._setup import SetupEntity, SetupSource, SetupConfig, SetupFunction, \
+    SetupEvent, SetupEventReplace, SetupSourceReplace, SetupStart, register, \
+    SetupConfigReplace, setupsOf
+from .error import SetupError
 from functools import partial, update_wrapper
 from inspect import isclass, ismodule, getfullargspec, isfunction, cleandoc
-import importlib
 import logging
 
 # --------------------------------------------------------------------
 
 log = logging.getLogger(__name__)
-
-SetupError = SetupError
-ConfigError = ConfigError
 
 # --------------------------------------------------------------------
 
@@ -54,9 +50,12 @@ def entity(*args):
     assert len(args) == 1, 'Expected only one argument that is the decorator function, got %s arguments' % len(args)
     function = args[0]
     hasType, type = _process(function)
-    if hasType and not isclass(type):
-        raise SetupError('Expected a class as the return annotation for function %s' % function)
-    return update_wrapper(register(SetupEntity(function, type=type), callerLocals()), function)
+    if hasType:
+        if not isclass(type):
+            raise SetupError('Expected a class as the return annotation for function %s' % function)
+        else: types = (type,)
+    else: types = ()
+    return update_wrapper(register(SetupEntity(function, types=types), callerLocals()), function)
 
 def config(*args):
     '''
@@ -65,15 +64,18 @@ def config(*args):
     if no annotation is present than this setup function is not known by return type. This creates problems whenever
     the configuration will be set externally because no validation or transformation is not possible.
     '''
-    if not args: return partial(config)
+    if not args: return config
     assert len(args) == 1, 'Expected only one argument that is the decorator function, got %s arguments' % len(args)
     function = args[0]
     hasType, type = _process(function)
-    if hasType and not isclass(type):
-        raise SetupError('Expected a class as the return annotation for function %s' % function)
+    if hasType:
+        if not isclass(type):
+            raise SetupError('Expected a class as the return annotation for function %s' % function)
+        else: types = (type,)
+    else: types = ()
     if not function.__name__.islower():
         raise SetupError('Invalid name %r for configuration, needs to be lower case only' % function.__name__)
-    return update_wrapper(register(SetupConfig(function, type=type), callerLocals()), function)
+    return update_wrapper(register(SetupConfig(function, types=types), callerLocals()), function)
 
 def doc(setup, doc):
     '''
@@ -84,10 +86,10 @@ def doc(setup, doc):
     @param doc: string
         The documentation to update with, automatically the provided documentation will start on a new line.
     '''
-    assert isinstance(setup, (SetupConfig, SetupReplaceConfig)), 'Invalid configuration setup %s' % setup
+    assert isinstance(setup, (SetupConfig, SetupConfigReplace)), 'Invalid configuration setup %s' % setup
     assert isinstance(doc, str), 'Invalid documentation %s' % doc
     
-    if isinstance(setup, SetupReplaceConfig): setup = setup.target
+    if isinstance(setup, SetupConfigReplace): setup = setup.target
     if setup.documentation is not None: setup.documentation += '\n%s' % cleandoc(doc)
 
 def before(*setups, auto=True):
@@ -142,70 +144,41 @@ def replace(setup):
     '''
     assert isinstance(setup, SetupFunction), 'Invalid setup function %s' % setup
     def decorator(function):
-        _process(function)
+        hasType, type = _process(function)
         if isinstance(setup, SetupConfig):
-            return update_wrapper(register(SetupReplaceConfig(function, setup), callerLocals()), function)
-        return update_wrapper(register(SetupReplace(function, setup), callerLocals()), function)
+            if hasType: raise SetupError('No return type expected for function %s, when replacing a configuration' % function)
+            return update_wrapper(register(SetupConfigReplace(function, setup), callerLocals()), function)
+        
+        if isinstance(setup, SetupEvent):
+            if hasType: raise SetupError('No return type expected for function %s, when replacing an event' % function)
+            return update_wrapper(register(SetupEventReplace(function, setup), callerLocals()), function)
+        
+        if hasType:
+            if not isclass(type):
+                raise SetupError('Expected a class as the return annotation for function %s' % function)
+            else: types = (type,)
+        else: types = ()
+
+        return update_wrapper(register(SetupSourceReplace(function, setup, types), callerLocals()), function)
 
     return decorator
 
-def start(*args):
+def start(*args, priority=0):
     '''
     Decorator for setup functions that need to be called at IoC start.
+    
+    @param priority: integer
+        Provides the priority, a higher value means the start function will be called earlier.
     '''
-    if not args: return start
+    if not args: return partial(start, priority=priority)
     assert len(args) == 1, 'Expected only one argument that is the decorator function, got %s arguments' % len(args)
+    assert isinstance(priority, int), 'Invalid priority %s' % priority
     function = args[0]
     hasType, _type = _process(function)
     if hasType: raise SetupError('No return type expected for function %s' % function)
-    return update_wrapper(register(SetupStart(function), callerLocals()), function)
+    return update_wrapper(register(SetupStart(function, priority), callerLocals()), function)
 
 # --------------------------------------------------------------------
-
-def open(*modules, config=None):
-    '''
-    Load and assemble the setup modules and keeps them opened for retrieving and processing values. Call the close
-    function after finalization. Automatically activates the assembly.
-    
-    @param modules: arguments(path|AOPModules|module) 
-        The modules that compose the setup.
-    @param config: dictionary|None
-        The configurations dictionary. This is the top level configurations the values provided here will override any
-        other configuration.
-    @return: object
-        The assembly object.
-    '''
-    context = Context()
-    for module in modules:
-        if isinstance(module, str): module = importlib.import_module(module)
-
-        if ismodule(module): context.addSetupModule(module)
-        elif isinstance(module, AOPModules):
-            assert isinstance(module, AOPModules)
-            for m in module.load().asList(): context.addSetupModule(m)
-        else: raise SetupError('Cannot use module %s' % module)
-
-    return activate(context.assemble(config))
-
-def activate(assembly):
-    '''
-    Activates the provided assembly.
-    
-    @param assembly: Assembly
-        The assembly to activate.
-    @return: Assembly
-        The same assembly for chaining purposes.
-    '''
-    assert isinstance(assembly, Assembly), 'Invalid assembly %s' % assembly
-    Assembly.stack.append(assembly)
-    return assembly
-
-def deactivate():
-    '''
-    Deactivate the ongoing assembly.
-    '''
-    assert Assembly.stack, 'No assembly available for deactivation'
-    Assembly.stack.pop()
 
 def initialize(entity):
     '''
@@ -216,13 +189,13 @@ def initialize(entity):
     '''
     if entity is not None: Initializer.initialize(entity)
 
-def getEntity(identifier, module=None):
+def entityOf(identifier, module=None):
     '''
     Provides the setup function from the provided module (if not specified it will consider the calling module) based on the
     identifier. The identifier can be either a name (string form) or a returned type (class form).
     
     @param identifier: string|class
-        The setup function identifier, wither the setup name or the setup returned type.
+        The setup function identifier, either the setup name or the setup returned type.
     @param module: module
         The module where to search the setup function.
     @return: function
@@ -252,11 +225,11 @@ def getEntity(identifier, module=None):
         
         for setup in setups:
             assert isinstance(setup, SetupSource)
-            if setup.type == identifier or (setup.type and issubclass(setup.type, identifier)): found.append(setup)
+            if setup.isOf(identifier): found.append(setup)
             
     if not found: raise SetupError('No setup entity as found for "%s"' % identifier)
-    if len(found) > 1: raise SetupError('To many setup entities found (%s) for "%s"' % 
-                                        (', '.join(str(setup) for setup in found), identifier))
+    if len(found) > 1: raise SetupError('To many setup entities found:\n%s\nfor: %s' % 
+                                        ('\n'.join(str(setup) for setup in found), identifier))
     return found[0]
 
 # --------------------------------------------------------------------

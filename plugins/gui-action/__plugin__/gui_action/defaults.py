@@ -7,11 +7,20 @@ Created on Feb 23, 2012
 @author: Mihai Balaceanu
 '''
 
-from .service import actionManagerService
+from .service import addAction
 from ally.container import ioc
+from distribution.container import app
 from gui.action.api.action import Action
 
 # --------------------------------------------------------------------
+
+@ioc.entity   
+def menuAction():
+    '''
+    Register default action name: menu
+    This node should contain actions to be used to generate the top navigation menu 
+    '''
+    return Action('menu')
 
 @ioc.entity   
 def modulesAction():
@@ -22,7 +31,7 @@ def modulesAction():
     '''
     return Action('modules')
 
-@ioc.entity   
+# --------------------------------------------------------------------
 def modulesDashboardAction():
     '''
     Register default action name: modules.dashboard
@@ -32,18 +41,12 @@ def modulesDashboardAction():
     return Action('dashboard', Parent=modulesAction())
 
 @ioc.entity   
-def menuAction():
-    '''
-    Register default action name: modules
-    This node should contain actions to be used to generate the top navigation menu 
-    '''
-    return Action('menu')
 
-@ioc.start
+@app.deploy
 def registerActions():
     '''
     Register defined actions on the manager
     '''
-    actionManagerService().add(menuAction())
-    actionManagerService().add(modulesAction())
+    addAction(menuAction())
+    addAction(modulesAction())
     actionManagerService().add(modulesDashboardAction())

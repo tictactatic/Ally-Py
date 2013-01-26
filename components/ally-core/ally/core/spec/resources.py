@@ -10,10 +10,12 @@ Module containing specifications for the resources tree.
 '''
 
 from ally.api.type import Type, Input
+from ally.exception import DevelError
+from ally.support.util import firstLastCheck
 from datetime import date, datetime, time
 from re import match
-import abc
 from weakref import WeakSet
+import abc
 
 # --------------------------------------------------------------------
 
@@ -22,55 +24,23 @@ class Path:
     Provides the path container.
     The path is basically a immutable collection of matches. 
     '''
-    __slots__ = ('resourcesLocator', 'matches', 'node')
+    __slots__ = ('matches', 'node')
 
-    def __init__(self, resourcesLocator, matches, node=None):
+    def __init__(self, matches, node=None):
         '''
         Initializes the path.
 
-        @param resourcesLocator: IResourcesLocator
-            The resource locator that generated the path.
         @param matches: list[Match]
             The list of matches that represent the path.
         @param node: Node
             The node represented by the path, if None it means that the path is incomplete.
         '''
-        assert isinstance(resourcesLocator, IResourcesLocator), 'Invalid resources locator %s' % resourcesLocator
         assert isinstance(matches, list), 'Invalid matches list %s' % matches
         assert node is None or isinstance(node, Node), 'Invalid node % can be None' % node
         if __debug__:
             for match in matches: assert isinstance(match, Match), 'Invalid match %s' % match
-        self.resourcesLocator = resourcesLocator
         self.matches = matches
         self.node = node
-
-    def findGetModel(self, typeModel):
-        '''
-        @see: IResourcesLocator.findGetModel
-        
-        Finds the path for the first Node that provides a get resource for the type model. The search is made based
-        on this path. First this path Node and is children's are searched for the get method if not found it will
-        go to the Nodes parent and make the search there, so forth and so on.
-        
-        @param typeModel: TypeModel
-            The type model to search the get for.
-        @return: PathExtended|None
-            The extended path pointing to the desired get method, attention some updates might be necessary on 
-            the path to be available. None if the path could not be found.
-        '''
-        return self.resourcesLocator.findGetModel(self, typeModel)
-
-    def findGetAllAccessible(self):
-        '''
-        @see: IResourcesLocator.findGetAllAccessible
-        
-        Finds all GET paths that can be directly accessed without the need of any path update based on this path,
-        basically all paths that can be directly related to this path without any additional information.
-        
-        @return: list[PathExtended]
-            A list of PathExtended from the provided from path that are accessible, empty list if none found.
-        '''
-        return self.resourcesLocator.findGetAllAccessible(self)
 
     def toArguments(self, invoker):
         '''
@@ -124,30 +94,34 @@ class Path:
                 valid &= match.isValid()
             return valid
         return False
-
-    def toPaths(self, converterPath):
+    
+    def toPaths(self, converterPath, invalid=None):
         '''
         Converts the matches into path elements.
         
         @param converterPath: ConverterPath
             The converter path to use in constructing the paths elements.
+        @param invalid: callable(Match, ConverterPath)|None
+            The invalid match handling, if a callable is provided then the callable will be used to get a valid 
+            string representation for the invalid match, the callable has to take to parameters, first one is the 
+            invalid match and the second one is the converter path to be used. If the invalid is None then an exception 
+            will be raised in case of invalid matches.
         @return: list[string]
             A list of strings representing the paths elements, or None if the path elements cannot be obtained.
-        @raise AssertionError:
-            If the path cannot be represented, check first the 'isValid' method.
         '''
         assert isinstance(converterPath, ConverterPath), 'Invalid converter path %s' % converterPath
+        assert invalid is None or callable(invalid), 'Invalid callable for invalid %s' % invalid
         paths = []
-        for k in range(0, len(self.matches)):
-            match = self.matches[k]
+        for isFirst, isLast, match in firstLastCheck(self.matches):
             assert isinstance(match, Match)
-            path = match.toPath(converterPath, k == 0, k == len(self.matches) - 1)
+            if match.isValid(): path = match.toPath(converterPath, isFirst, isLast)
+            elif invalid: path = invalid(match, converterPath)
+            else: raise DevelError('Invalid match %s' % match)
             if path is not None:
-                if isinstance(path, list):
-                    paths.extend(path)
+                if isinstance(path, list): paths.extend(path)
                 paths.append(path)
         return paths
-
+   
     def clone(self):
         '''
         Clones the path and all match content, any action on the cloned path will node affect the original path.
@@ -155,7 +129,7 @@ class Path:
         @return: Path
             The cloned path.
         '''
-        return Path(self.resourcesLocator, [match.clone() for match in self.matches], self.node)
+        return Path([match.clone() for match in self.matches], self.node)
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
@@ -199,7 +173,7 @@ class PathExtended(Path):
         self.matchesOwned = matches
         all = parent.matches[:index]
         all.extend(matches)
-        super().__init__(parent.resourcesLocator, all, node)
+        super().__init__(all, node)
 
     def clone(self):
         '''
@@ -278,7 +252,7 @@ class Converter:
             return datetime.strptime(strValue, '%Y-%m-%d').date()
         if objType.isOf(time):
             return time.strptime(strValue, '%H:%M:%S').time()
-        raise AssertionError('Invalid object type %s for converter' % objType)
+        raise Exception('Invalid object type %s for converter' % objType)
 
 class ConverterPath(Normalizer, Converter):
     '''
@@ -498,8 +472,6 @@ class Match(metaclass=abc.ABCMeta):
             to make a different path representation.
         @return: string | list
             A string or list of strings representing the path element.
-        @raise AssertionError:
-            If the path cannot be represented, check first the 'isValid' method.
         '''
 
     @abc.abstractmethod
@@ -786,53 +758,4 @@ class IResourcesRegister(metaclass=abc.ABCMeta):
     
         @param implementation: object
             The implementation for and API service.
-        '''
-
-class IResourcesLocator(metaclass=abc.ABCMeta):
-    '''
-    Provides the specifications for the resources locator. This the abilities to find resources.
-    '''
-
-    @abc.abstractmethod
-    def findPath(self, converterPath, paths):
-        '''
-        Finds the resource node for the provided request path.
-        
-        @param converterPath: ConverterPath
-            The converter path used in handling the path elements.
-        @param paths: deque[string]|Iterable[string]
-            A deque of string path elements identifying a resource to be searched for, this list will be consumed 
-            of every path element that was successfully identified.
-        @return: Path
-            The path leading to the node that provides the resource if the Path has no node it means that the paths
-            have been recognized only to certain point.
-        '''
-
-    @abc.abstractmethod
-    def findGetModel(self, fromPath, typeModel):
-        '''
-        Finds the path for the first Node that provides a get for the name. The search is made based
-        on the from path. First the from path Node and is children's are searched for the get method if 
-        not found it will go to the Nodes parent and make the search there, so forth and so on.
-        
-        @param fromPath: Path
-            The path to make the search based on.
-        @param typeModel: TypeModel
-            The type model to search the get for.
-        @return: PathExtended|None
-            The extended path pointing to the desired get method, attention some updates might be necessary on 
-            the path to be available. None if the path could not be found.
-        '''
-
-    @abc.abstractmethod
-    def findGetAllAccessible(self, fromPath=None):
-        '''
-        Finds all GET paths that can be directly accessed without the need of any path update based on the
-        provided from path, basically all paths that can be directly related to the provided path without any
-        additional information.
-        
-        @param fromPath: Path|None
-            The path to make the search based on, if None will provide the available paths for the root.
-        @return: list[Path]
-            A list of Path from the provided from path that are accessible, empty list if none found.
         '''

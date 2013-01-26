@@ -202,8 +202,10 @@ def writeGenerator(generator, fileObj):
 
     @param generator: Iterable
         The generator to get the content to be writen.
-    @param fileObj: a file like object with a 'write' method
+    @param fileObj: IOutputStream, a file like object with a 'write' method
         The file object to have the generator write data from.
+    @return: IOutputStream
+        The same file object.
     '''
     assert isinstance(generator, Iterable), 'Invalid generator %s' % generator
     assert isinstance(fileObj, IOutputStream), 'Invalid file object %s' % fileObj
@@ -211,6 +213,7 @@ def writeGenerator(generator, fileObj):
 
     for bytes in generator: fileObj.write(bytes)
     fileObj.close()
+    return fileObj
 
 def convertToBytes(iterable, charSet, encodingError):
     '''

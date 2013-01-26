@@ -1,7 +1,7 @@
 '''
 Created on Nov 23, 2011
 
-@package: ally core http
+@package: ally http
 @copyright: 2012 Sourcefabric o.p.s.
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
@@ -9,11 +9,10 @@ Created on Nov 23, 2011
 Runs the asyncore py web server.
 '''
 
-from ..ally_core_http import server_type, server_version, server_host, \
-    server_port
-from ..ally_core_http.processor import pathAssemblies
+from ..ally_http import server_type, server_version, server_host, server_port
+from ..ally_http.server import pathAssemblies
 from ally.container import ioc
-from ally.core.http.server import server_asyncore
+from ally.http.server import server_asyncore
 from threading import Thread
 
 # --------------------------------------------------------------------

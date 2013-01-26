@@ -1,7 +1,7 @@
 '''
 Created on Nov 7, 2012
 
-@package: ally core http
+@package: ally http
 @copyright: 2011 Sourcefabric o.p.s.
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
@@ -9,15 +9,12 @@ Created on Nov 7, 2012
 Special module that is used in preparing the application deploy.
 '''
 
-from ..ally_core.prepare import OptionsCore, prepareCoreOptions, prepareCoreActions
+from ..ally_utilities.prepare import OptionsCore, prepareCoreOptions, \
+    prepareCoreActions
 from ally.container import ioc
 from argparse import ArgumentParser
 from inspect import isclass
-
-# --------------------------------------------------------------------
-
-try: import application
-except ImportError: raise
+import application
 
 # --------------------------------------------------------------------
 

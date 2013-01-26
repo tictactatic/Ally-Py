@@ -113,11 +113,11 @@ class Digester(ContentHandler):
         @see: ContentHandler.startElement
         '''
         if not self.acceptAttributes and len(attributes) > 0:
-            raise DigesterError('No attributes accepted for path %r at line %s and column %s' %
+            raise DigesterError('No attributes accepted for path %r at line %s and column %s' % 
                                 (self.currentPath(), self.getLineNumber(), self.getColumnNumber()))
         node = self._pushName(name)
         if not self.acceptUnknownTags and not node:
-            raise DigesterError('Unknown path element %r in %r at line %s and column %s' %
+            raise DigesterError('Unknown path element %r in %r at line %s and column %s' % 
                                 (name, self.currentPath(), self.getLineNumber(), self.getColumnNumber()))
 
         self._processBegin(node, name, attributes)
@@ -188,7 +188,7 @@ class Digester(ContentHandler):
                 del self._nodes[-(k + 1):]
                 break
         else:
-            raise DigesterError('Unexpected end element %r at line %s and column %s' %
+            raise DigesterError('Unexpected end element %r at line %s and column %s' % 
                                 (name, self.getLineNumber(), self.getColumnNumber()))
 
         return [node for node in reversed(nodes) if isinstance(node, Node)]
@@ -355,11 +355,13 @@ class Node:
         node = self
         while xpaths:
             xpath = xpaths.popleft()
-            for path, child in self.childrens.items():
+            for path, child in node.childrens.items():
                 if path == xpath:
                     node = child
                     break
-            else: node = self.childrens[xpath] = Node(xpath)
+            else:
+                child = node.childrens[xpath] = Node(xpath)
+                node = child
         return node
 
 class RuleRoot(Node):
