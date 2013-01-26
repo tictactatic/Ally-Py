@@ -32,6 +32,8 @@ def modulesAction():
     return Action('modules')
 
 # --------------------------------------------------------------------
+
+@ioc.entity
 def modulesDashboardAction():
     '''
     Register default action name: modules.dashboard
@@ -40,8 +42,6 @@ def modulesDashboardAction():
     '''
     return Action('dashboard', Parent=modulesAction())
 
-@ioc.entity   
-
 @app.deploy
 def registerActions():
     '''
@@ -49,4 +49,4 @@ def registerActions():
     '''
     addAction(menuAction())
     addAction(modulesAction())
-    actionManagerService().add(modulesDashboardAction())
+    addAction(modulesDashboardAction())
