@@ -7,18 +7,18 @@ Created on May 31, 2011
 @author: Gabriel Nistor
 
 Provides the exceptions that are used in communicating issues in the API.
-The internal errors (the ones that are made by the implementation and not data) are AssertionError.
+The internal errors (the ones that are made by the implementation and not data) are Exception.
 '''
 
+from .api.operator.container import Model
 from .api.operator.type import TypeModelProperty, TypeModel
 from .api.type import typeFor
-from .api.operator.container import Model
 
 # --------------------------------------------------------------------
 
 class DevelError(Exception):
     '''
-    Wraps exceptions that are related to wrong development usage from the client.
+    Wraps exceptions that are related to wrong development usage.
     '''
 
     def __init__(self, message):
@@ -94,8 +94,7 @@ class Ref:
                 assert isinstance(typ, TypeModel)
                 self.model = typ.container.name
                 self.property = None
-            else:
-                raise AssertionError('Invalid reference %s, cannot extract any type' % ref)
+            else: raise Exception('Invalid reference %s, cannot extract any type' % ref)
         else:
             self.model = model.name if model else None
             self.property = property

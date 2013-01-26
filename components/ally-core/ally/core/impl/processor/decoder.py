@@ -13,7 +13,6 @@ from ally.api.operator.container import Model
 from ally.api.operator.type import TypeModelProperty, TypeModel
 from ally.api.type import Type, List, Input
 from ally.container.ioc import injected
-from ally.core.spec.codes import Code
 from ally.core.spec.resources import Invoker, Normalizer, Converter
 from ally.core.spec.transform.exploit import handleExploitError
 from ally.core.spec.transform.support import setterOnObj, obtainOnDict, \
@@ -57,7 +56,7 @@ class Response(Context):
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    code = defines(Code)
+    isSuccess = defines(bool)
     text = defines(str)
 
 # --------------------------------------------------------------------
@@ -85,7 +84,7 @@ class CreateDecoderHandler(HandlerProcessorProceed):
         assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(response, Response), 'Invalid response %s' % response
 
-        if Response.code in response and not response.code.isSuccess: return # Skip in case the response is in error
+        if response.isSuccess is False: return # Skip in case the response is in error
         if Request.decoder in request: return # There is already a decoder no need to create another one
         assert isinstance(request.invoker, Invoker), 'Invalid request invoker %s' % request.invoker
 

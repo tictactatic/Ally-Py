@@ -11,6 +11,7 @@ Module containing the support for a chained processors execution of context type
 
 from ally.design.context import Context, Attribute, DEFINED, OPTIONAL, \
     ContextMetaClass, REQUIRED
+from ally.support.util_sys import locationStack
 from collections import Iterable, deque
 from inspect import isclass, isfunction, getfullargspec, ismethod
 import abc
@@ -270,7 +271,8 @@ class Chain:
         '''
         assert isinstance(processing, Processing), 'Invalid processing %s' % processing
         assert self._keyargs is not None, 'Cannot branch if no process is called'
-        self._calls = deque(processing.calls)
+        self._calls.clear()
+        self._calls.extend(processing.calls)
         self._proceed = True
         return self
     
@@ -491,6 +493,17 @@ class Assembly:
         try: index = self._processors.index(self._processorFrom(replaced))
         except ValueError: raise AssemblyError('Invalid replaced processor %s' % replaced)
         self._processors[index] = self._processorFrom(replacer)
+        
+    def remove(self, processor):
+        '''
+        Removes from the assembly the provided processor.
+        
+        @param processor: Processor|Handler
+            The processor to be removed from the assembly.
+        '''
+        try: index = self._processors.index(self._processorFrom(processor))
+        except ValueError: raise AssemblyError('Invalid processor %s to be removed' % processor)
+        del self._processors[index]
 
     def create(self, *flags, **contexts):
         '''
@@ -699,7 +712,7 @@ class Assembly:
             that are required to be before the indexed processor.
         '''
         assert isinstance(processors, Iterable), 'Invalid processors %s' % processors
-
+        
         definers, _optional, requires = self._indexAttributes(processors)
         assert isinstance(definers, dict), 'Invalid definers %s' % definers
         assert isinstance(requires, dict), 'Invalid requires %s' % requires
@@ -722,11 +735,14 @@ class Assembly:
                     isOtherSmaller = True
                     if definesRequired:
                         # The other index defines stuff for index we need to check if doesn't apply reversed
+                        args = []
+                        args.append(', '.join('\'%s.%s\'' % attr for attr in definesRequired))
+                        args.append(', '.join('\'%s.%s\'' % attr for attr in otherDefinesRequired))
+                        args.append(location(processors[index]))
+                        args.append(location(processors[indexOther]))
                         raise AssemblyError('First processor defines attributes %s required by the second processor'
                         ', but also the second processor defines attributes %s required by the first processor:'
-                        '\nFirst processor at:%s\nSecond processor at:%s' % 
-                        (['%s.%s' % attr for attr in definesRequired], ['%s.%s' % attr for attr in otherDefinesRequired],
-                        location(processors[index]), location(processors[indexOther])))
+                        '\nFirst processor at:%s\nSecond processor at:%s' % tuple(args))
 
                 elif definesRequired: isSmaller = True
 
@@ -922,7 +938,7 @@ class AssemblyAttribute:
     '''
     Contains the data for an attribute assembly.
     '''
-    __slots__ = ('status', 'defined', 'required', 'doc')
+    __slots__ = ('status', 'defined', 'required', 'attributes', 'doc')
 
     def __init__(self):
         '''
@@ -931,6 +947,7 @@ class AssemblyAttribute:
         self.status = 0
         self.defined = set()
         self.required = set()
+        self.attributes = []
         self.doc = None
 
     def create(self):
@@ -965,17 +982,30 @@ class AssemblyAttribute:
             if not self.required: self.required.update(attribute.types)
             else:
                 if self.required.isdisjoint(attribute.types):
-                    raise AssemblyError('The required assembly types %s are not compatible with the required types %s '
-                                        'of attribute %s' % ([typ.__name__ for typ in self.required],
-                                                             [typ.__name__ for typ in attribute.types], attribute))
-                    self.required.intersection_update(attribute.types)
+                    args = []
+                    args.append(', '.join('\'%s\'' % typ.__name__ for typ in self.required))
+                    args.append(', '.join('\'%s\'' % typ.__name__ for typ in attribute.types))
+                    args.append(attribute)
+                    args.append(locationStack(attribute.clazz))
+                    argss = ('%s\n, of attribute %s' % (locationStack(attr.clazz), attr) for attr in self.attributes)
+                    args.append(''.join(argss))
+                    raise AssemblyError('The required assembly types %s are not compatible with the required types %s of '
+                                        'attribute %s, from:%s\nCurrent assembly is based on attributes:%s' % tuple(args))
+                self.required.intersection_update(attribute.types)
 
         if self.required and self.defined and self.required != self.defined and self.defined.issuperset(self.required):
-                raise AssemblyError('The defined attributes types %s are not compatible with the required types %s' % 
-                ([typ.__name__ for typ in self.defined], [typ.__name__ for typ in self.required]))
+                args = []
+                args.append(', '.join('\'%s\'' % typ.__name__ for typ in self.defined))
+                args.append(', '.join('\'%s\'' % typ.__name__ for typ in self.required))
+                argss = ['%s\n, of attribute %s' % (locationStack(attr.clazz), attr) for attr in self.attributes]
+                argss.append('%s\n, of attribute %s' % (locationStack(attribute.clazz), attribute))
+                args.append(''.join(argss))
+                raise AssemblyError('The defined attributes types %s are not compatible with the required types %s'
+                                    '\nCurrent assembly is based on attributes:%s' % tuple(args))
 
         self.status |= attribute.status
-
+        self.attributes.append(attribute)
+        
         docs = []
         if self.doc is not None: docs.append(self.doc)
         if attribute.doc is not None: docs.append(attribute.doc)

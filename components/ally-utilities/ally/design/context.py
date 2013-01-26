@@ -225,13 +225,39 @@ def asData(context, *classes):
         The context classes to construct the data based on.
     '''
     assert isinstance(context, Context), 'Invalid context %s' % context
+    assert classes, 'At least a context class is required'
 
-    data = {}
+    common = set(context.__attributes__)
     for clazz in classes:
         assert isinstance(clazz, ContextMetaClass), 'Invalid context class %s' % clazz
-
-        for name in clazz.__attributes__:
-            attribute = context.__attributes__.get(name)
-            if attribute in context: data[name] = attribute.__get__(context)
+        common.intersection_update(clazz.__attributes__)
+        
+    data = {}
+    for name in common:
+        attribute = context.__attributes__.get(name)
+        if attribute in context: data[name] = attribute.__get__(context)
 
     return data
+
+def copy(src, dest, *classes):
+    '''
+    Copies the data from the source context to the destination context based on the provided context classes.
+    
+    @param context: object
+        The context object to get the data from.
+    @param classes: arguments[ContextMetaClass]
+        The context classes to construct the data based on.
+    '''
+    assert isinstance(src, Context), 'Invalid source context %s' % src
+    assert isinstance(dest, Context), 'Invalid destination context %s' % dest
+
+    common = set(src.__attributes__)
+    common.intersection_update(dest.__attributes__)
+    for clazz in classes:
+        assert isinstance(clazz, ContextMetaClass), 'Invalid context class %s' % clazz
+        common.intersection_update(clazz.__attributes__)
+        
+    for name in common:
+        attrSrc = src.__attributes__[name]
+        if attrSrc in src: dest.__attributes__[name].__set__(dest, attrSrc.__get__(src))
+

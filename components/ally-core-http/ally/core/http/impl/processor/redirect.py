@@ -12,13 +12,13 @@ Provides the content location redirect based on references.
 from ally.api.operator.type import TypeModelProperty
 from ally.api.type import TypeReference
 from ally.container.ioc import injected
-from ally.core.http.spec.server import IEncoderPath, IEncoderHeader
-from ally.core.spec.codes import REDIRECT, Code
+from ally.core.http.spec.server import IEncoderPath
+from ally.core.spec.codes import REDIRECT
 from ally.core.spec.resources import Invoker
 from ally.design.context import Context, requires, defines
 from ally.design.processor import Handler, Assembly, NO_VALIDATION, Processing, \
-    Chain, Processor
-from functools import partial
+    Chain, Function
+from ally.http.spec.server import IEncoderHeader
 import logging
 
 # --------------------------------------------------------------------
@@ -43,7 +43,8 @@ class Response(Context):
     encoderPath = requires(IEncoderPath)
     obj = requires(object)
     # ---------------------------------------------------------------- Defined
-    code = defines(Code)
+    code = defines(int)
+    isSuccess = defines(bool)
     text = defines(str)
 
 # --------------------------------------------------------------------
@@ -65,40 +66,37 @@ class RedirectHandler(Handler):
 
         redirectProcessing = self.redirectAssembly.create(NO_VALIDATION, request=Request, response=Response)
         assert isinstance(redirectProcessing, Processing), 'Invalid processing %s' % redirectProcessing
+        super().__init__(Function(redirectProcessing.contexts, self.process))
+        
+        self._redirectProcessing = redirectProcessing
 
-        super().__init__(Processor(redirectProcessing.contexts, partial(self.process, redirectProcessing),
-                                   'process', self.process.__code__.co_filename, self.process.__code__.co_firstlineno))
-
-    def process(self, redirectProcessing, chain, request, response, **keyargs):
+    def process(self, chain, request, response, **keyargs):
         '''
         Process the redirect.
         
-        @param redirectProcessing: Processing
-            The processing that provides the redirecting chain.
-            
         The rest of the parameters are contexts.
         '''
-        assert isinstance(redirectProcessing, Processing), 'Invalid redirect processing %s' % redirectProcessing
         assert isinstance(chain, Chain), 'Invalid processors chain %s' % chain
         assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(response, Response), 'Invalid response %s' % response
 
-        if Response.code not in response or response.code.isSuccess: # Skip in case the response is in error
+        if response.isSuccess is not False:  # Skip in case the response is in error
             assert isinstance(request.invoker, Invoker), 'Invalid request invoker %s' % request.invoker
 
             typ = request.invoker.output
             if isinstance(typ, TypeModelProperty): typ = typ.type
             if isinstance(typ, TypeReference):
-                redirectChain = Chain(redirectProcessing)
+                redirectChain = Chain(self._redirectProcessing)
                 redirectChain.process(request=request, response=response, **keyargs).doAll()
-                if Response.code not in response or response.code.isSuccess:
+                if response.isSuccess is not False:
                     assert isinstance(response.encoderHeader, IEncoderHeader), \
                     'Invalid header encoder %s' % response.encoderHeader
                     assert isinstance(response.encoderPath, IEncoderPath), \
                     'Invalid encoder path %s' % response.encoderPath
 
                     response.encoderHeader.encode(self.nameLocation, response.encoderPath.encode(response.obj))
-                    response.code, response.text = REDIRECT, 'Redirect'
+                    response.code, response.isSuccess = REDIRECT
+                    response.text = 'Redirect'
                     return
 
         chain.proceed()

@@ -11,7 +11,7 @@ method for instance where we just want to deliver some response headers.
 '''
 
 from ally.container.ioc import injected
-from ally.core.spec.codes import RESOURCE_FOUND, Code
+from ally.core.spec.codes import RESOURCE_FOUND
 from ally.design.processor import HandlerProcessor, Chain
 from ally.design.context import Context, requires, defines
 
@@ -22,14 +22,15 @@ class Request(Context):
     The request context.
     '''
     # ---------------------------------------------------------------- Required
-    method = requires(int)
+    methodName = requires(str)
 
 class Response(Context):
     '''
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    code = defines(Code)
+    code = defines(int)
+    isSuccess = defines(bool)
     text = defines(str)
 
 # --------------------------------------------------------------------
@@ -40,11 +41,11 @@ class DeliverOkHandler(HandlerProcessor):
     Handler that just sends an ok status.
     '''
 
-    forMethod = int
+    forMethod = str
     # The method to respond with Ok for.
 
     def __init__(self):
-        assert isinstance(self.forMethod, int), 'Invalid for method %s' % self.forMethod
+        assert isinstance(self.forMethod, str), 'Invalid for method %s' % self.forMethod
         super().__init__()
 
     def process(self, chain, request:Request, response:Response, **keyargs):
@@ -57,8 +58,9 @@ class DeliverOkHandler(HandlerProcessor):
         assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(response, Response), 'Invalid response %s' % response
 
-        if request.method == self.forMethod:
-            response.code, response.text = RESOURCE_FOUND, 'Ok'
+        if request.methodName == self.forMethod:
+            response.code, response.isSuccess = RESOURCE_FOUND
+            response.text = 'Ok'
             return
 
         chain.proceed()

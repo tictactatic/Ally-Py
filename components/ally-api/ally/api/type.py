@@ -526,7 +526,5 @@ def typeFor(obj):
         try: return obj._ally_type
         except AttributeError: pass
 
-        try:
-            return _classType.get(obj)
-        except TypeError:
-            return None
+        try: return _classType.get(obj)
+        except TypeError: return None

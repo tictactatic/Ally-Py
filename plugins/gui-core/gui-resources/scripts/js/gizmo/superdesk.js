@@ -2,7 +2,7 @@ define(['gizmo', 'jquery', 'jquery/superdesk'], function(giz, $, superdesk)
 {
     var AuthApp, ErrorApp;
     // delete login on trigger logout from other apps
-    require([config.lib_js_urn + 'views/auth'], function(a)
+    require([config.cjs('views/auth.js')], function(a)
     {
         AuthApp = a;
         $(AuthApp).on('logout', function()
@@ -54,7 +54,7 @@ define(['gizmo', 'jquery', 'jquery/superdesk'], function(giz, $, superdesk)
         options: 
         { 
             // get login token from local storage
-            headers: { 'Authorization': localStorage.getItem('superdesk.login.session') },
+            headers: { 'Authorization': localStorage.getItem('superdesk.login.session') || 1 },
             // failuire function for non authenticated requests
             fail: function(resp)
             { 

@@ -10,13 +10,12 @@ Provides the GMT support transformation.
 '''
 
 from ally.container.ioc import injected
-from ally.core.http.spec.codes import INVALID_HEADER_VALUE
-from ally.core.http.spec.server import IDecoderHeader
-from ally.core.spec.codes import Code
 from ally.core.spec.resources import Converter
 from ally.core.spec.transform.render import Object, List
 from ally.design.context import Context, requires, defines
 from ally.design.processor import HandlerProcessorProceed
+from ally.http.spec.codes import INVALID_HEADER_VALUE
+from ally.http.spec.server import IDecoderHeader
 from datetime import datetime, date, tzinfo
 from pytz import timezone, common_timezones
 from pytz.exceptions import UnknownTimeZoneError
@@ -38,7 +37,8 @@ class Response(Context):
     # ---------------------------------------------------------------- Required
     converter = requires(Converter)
     # ---------------------------------------------------------------- Defined
-    code = defines(Code)
+    code = defines(int)
+    isSuccess = defines(bool)
     text = defines(str)
     errorMessage = defines(str)
     errorDetails = defines(Object)
@@ -87,7 +87,8 @@ class TimeZoneHandler(HandlerProcessorProceed):
             try: timeZone = timezone(timeZone)
             except UnknownTimeZoneError:
                 failed = True
-                response.code, response.text = INVALID_HEADER_VALUE, 'Unknown time zone'
+                response.code, response.isSuccess = INVALID_HEADER_VALUE
+                response.text = 'Unknown time zone'
                 response.errorMessage = 'Invalid time zone \'%s\'' % timeZone
 
         timeZoneContent = request.decoderHeader.retrieve(self.nameContentTimeZone)
@@ -95,7 +96,8 @@ class TimeZoneHandler(HandlerProcessorProceed):
             try: timeZoneContent = timezone(timeZoneContent)
             except UnknownTimeZoneError:
                 failed = True
-                response.code, response.text = INVALID_HEADER_VALUE, 'Unknown content time zone'
+                response.code, response.isSuccess = INVALID_HEADER_VALUE
+                response.text = 'Unknown content time zone'
                 response.errorMessage = 'Invalid content time zone \'%s\'' % timeZoneContent
 
         if failed:

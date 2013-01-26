@@ -10,15 +10,9 @@ Provides the AOP (aspect oriented programming) support.
 '''
 
 from ..support.util_sys import searchModules, packageModules, isPackage
-from ._impl.aop_container import AOPModules
+from ._impl._aop import AOPModules
+from .error import AOPError
 from inspect import ismodule
-
-# --------------------------------------------------------------------
-
-class AOPError(Exception):
-    '''
-    Exception thrown when there is a AOP problem.
-    '''
 
 # --------------------------------------------------------------------
 

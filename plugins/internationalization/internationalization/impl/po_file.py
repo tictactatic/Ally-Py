@@ -26,7 +26,7 @@ import codecs
 # --------------------------------------------------------------------
 
 @injected
-@setup(IPOFileService)
+@setup(IPOFileService, name='poFileService')
 class POFileService(IPOFileService):
     '''
     Implementation for @see: IPOFileService

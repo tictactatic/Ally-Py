@@ -27,7 +27,7 @@ from sys import getdefaultencoding
 # --------------------------------------------------------------------
 
 @injected
-@setup(IJSONLocaleFileService)
+@setup(IJSONLocaleFileService, name='jsonFileService')
 class JSONFileService(IJSONLocaleFileService):
     '''
     Implementation for @see: IJSONLocaleFileService

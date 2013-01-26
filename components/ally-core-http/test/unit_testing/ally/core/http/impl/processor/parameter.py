@@ -80,9 +80,7 @@ class TestParameter(unittest.TestCase):
         ioc.initialize(decoder)
 
         service = typeFor(IService).service
-        for call in service.calls:
-            if call.name == 'get': break
-        invoker = InvokerCall(Service(), call)
+        invoker = InvokerCall(Service(), service.calls['get'])
 
         resolve = decoder.decodeInvoker(invoker)
         context = dict(converter=ConverterPath(), normalizer=ConverterPath())
@@ -135,9 +133,7 @@ class TestParameter(unittest.TestCase):
         self.assertFalse(resolve(path='name.ascending', value='False', target=args, **context))
         self.assertFalse(resolve(path='qa.name.priority', value='1', target=args, **context))
 
-        for call in service.calls:
-            if call.name == 'insert': break
-        invoker = InvokerCall(Service(), call)
+        invoker = InvokerCall(Service(), service.calls['insert'])
 
         resolve = decoder.decodeInvoker(invoker)
 
@@ -149,9 +145,7 @@ class TestParameter(unittest.TestCase):
         ioc.initialize(encoder)
 
         service = typeFor(IService).service
-        for call in service.calls:
-            if call.name == 'get': break
-        invoker = InvokerCall(Service(), call)
+        invoker = InvokerCall(Service(), service.calls['get'])
 
         resolve = encoder.encodeInvoker(invoker)
         context = dict(converter=ConverterPath(), normalizer=ConverterPath())
@@ -193,9 +187,7 @@ class TestParameter(unittest.TestCase):
 
         self.assertTrue(len(resolve(value=SAMPLE, **context)) > 10)
 
-        for call in service.calls:
-            if call.name == 'insert': break
-        invoker = InvokerCall(Service(), call)
+        invoker = InvokerCall(Service(), service.calls['insert'])
 
         resolve = encoder.encodeInvoker(invoker)
 

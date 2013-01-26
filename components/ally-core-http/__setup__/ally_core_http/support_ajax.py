@@ -12,11 +12,10 @@ Provides the javascript setup required by browser for ajax.
 from ..ally_core.processor import assemblyResources
 from ..ally_core_http.processor import uri, updateAssemblyResourcesForHTTP
 from ally.container import ioc
-from ally.core.http.impl.processor.headers.set_fixed import \
-    HeaderSetEncodeHandler
 from ally.core.http.spec.server import METHOD_OPTIONS
 from ally.core.impl.processor.deliver_ok import DeliverOkHandler
 from ally.design.processor import Handler
+from ally.http.impl.processor.headers.set_fixed import HeaderSetEncodeHandler
 
 # --------------------------------------------------------------------
 
@@ -30,8 +29,8 @@ def headers_ajax() -> dict:
     '''The ajax specific headers required by browser for cross domain calls'''
     return {
             'Access-Control-Allow-Origin':['*'],
-            'Access-Control-Allow-Headers':['X-Filter', 'X-HTTP-Method-Override', 'X-Format-DateTime'],
-            }
+            'Access-Control-Allow-Headers':['X-Filter', 'X-HTTP-Method-Override', 'X-Format-DateTime', 'Authorization'],
+            }#TODO: remove Authorization header since that needs to be provided by the security gateway
 
 # --------------------------------------------------------------------
 

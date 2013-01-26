@@ -10,7 +10,7 @@ Provides the requested method validation handler.
 '''
 
 from ally.api.config import GET, INSERT, UPDATE, DELETE
-from ally.core.spec.codes import METHOD_NOT_AVAILABLE, Code
+from ally.core.spec.codes import METHOD_NOT_AVAILABLE
 from ally.core.spec.resources import Path, Node, Invoker
 from ally.design.context import Context, requires, defines
 from ally.design.processor import HandlerProcessorProceed
@@ -35,7 +35,8 @@ class Response(Context):
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    code = defines(Code)
+    code = defines(int)
+    isSuccess = defines(bool)
     text = defines(str)
     allows = defines(int, doc='''
     @rtype: integer
@@ -63,38 +64,43 @@ class MethodInvokerHandler(HandlerProcessorProceed):
         '''
         assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(response, Response), 'Invalid response %s' % response
-        if Response.code in response and not response.code.isSuccess: return # Skip in case the response is in error
+        if response.isSuccess is False: return  # Skip in case the response is in error
 
         assert isinstance(request.path, Path), 'Invalid request path %s' % request.path
         node = request.path.node
         assert isinstance(node, Node), 'Invalid request path node %s' % node
 
-        if request.method == GET: # Retrieving
+        if request.method == GET:  # Retrieving
             request.invoker = node.get
             if request.invoker is None:
-                response.code, response.text = METHOD_NOT_AVAILABLE, 'Path not available for GET'
+                response.code, response.isSuccess = METHOD_NOT_AVAILABLE
+                response.text = 'Path not available for GET'
                 response.allows = self.allowedFor(node)
                 return
-        elif request.method == INSERT: # Inserting
+        elif request.method == INSERT:  # Inserting
             request.invoker = node.insert
             if request.invoker is None:
-                response.code, response.text = METHOD_NOT_AVAILABLE, 'Path not available for POST'
+                response.code, response.isSuccess = METHOD_NOT_AVAILABLE
+                response.text = 'Path not available for POST'
                 response.allows = self.allowedFor(node)
                 return
-        elif request.method == UPDATE: # Updating
+        elif request.method == UPDATE:  # Updating
             request.invoker = node.update
             if request.invoker is None:
-                response.code, response.text = METHOD_NOT_AVAILABLE, 'Path not available for PUT'
+                response.code, response.isSuccess = METHOD_NOT_AVAILABLE
+                response.text = 'Path not available for PUT'
                 response.allows = self.allowedFor(node)
                 return
-        elif request.method == DELETE: # Deleting
+        elif request.method == DELETE:  # Deleting
             request.invoker = node.delete
             if request.invoker is None:
-                response.code, response.text = METHOD_NOT_AVAILABLE, 'Path not available for DELETE'
+                response.code, response.isSuccess = METHOD_NOT_AVAILABLE
+                response.text = 'Path not available for DELETE'
                 response.allows = self.allowedFor(node)
                 return
         else:
-            response.code, response.text = METHOD_NOT_AVAILABLE, 'Path not available for method'
+            response.code, response.isSuccess = METHOD_NOT_AVAILABLE
+            response.text = 'Path not available for method'
             response.allows = self.allowedFor(node)
             return
 

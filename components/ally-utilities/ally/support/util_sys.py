@@ -10,7 +10,8 @@ Provides utility functions for handling system packages/modules/classes.
 '''
 
 from collections import deque
-from inspect import isclass, ismodule, stack
+from inspect import isclass, ismodule, stack, isfunction, getsourcelines, \
+    getsourcefile
 from os.path import dirname, relpath
 from pkgutil import iter_modules, get_importer, iter_importers, \
     iter_importer_modules
@@ -81,6 +82,26 @@ def exceptionModuleName(e):
     if m is not None:
         return m.__name__
     return None
+
+def locationStack(located):
+    '''
+    Provides a stack message for the provided located element, the stack will look as being part of a exception. This is 
+    used whenever you want to indicate where the problem occurred even if the data is post processed and the actual stack
+    will not reflect the actual method.
+    
+    @param located: function|class
+        The function or class to construct the stack message based on.
+    @return: string
+        The stack message.
+    '''
+    if isclass(located):
+        try: _src, line = getsourcelines(located)
+        except IOError: return '\n  Generated class "%s.%s"' % (located.__module__, located.__name__)
+        return '\n  File "%s", line %i' % (getsourcefile(located), line)
+    else:
+        assert isfunction(located), 'Invalid function or class %s' % located
+        return '\n  File "%s", line %i, in %s' % (located.__code__.co_filename, located.__code__.co_firstlineno,
+                                                  located.__name__)
 
 def isPackage(module):
     '''

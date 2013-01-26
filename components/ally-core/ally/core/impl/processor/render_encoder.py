@@ -10,7 +10,6 @@ Renders the response encoder.
 '''
 
 from ally.container.ioc import injected
-from ally.core.spec.codes import Code
 from ally.core.spec.transform.exploit import Resolve
 from ally.core.spec.transform.render import IRender
 from ally.design.context import defines, Context, requires, optional
@@ -35,7 +34,7 @@ class Response(Context):
     encoderData = requires(dict)
     obj = requires(object)
     # ---------------------------------------------------------------- Optional
-    code = optional(Code)
+    isSuccess = optional(bool)
 
 class ResponseContent(Context):
     '''
@@ -75,7 +74,7 @@ class RenderEncoderHandler(HandlerProcessorProceed):
         assert isinstance(response, Response), 'Invalid response %s' % response
         assert isinstance(responseCnt, ResponseContent), 'Invalid response content %s' % responseCnt
 
-        if Response.code in response and not response.code.isSuccess: return  # Skip in case the response is in error
+        if response.isSuccess is False: return  # Skip in case the response is in error
         if Response.encoder not in response: return  # Skip in case there is no encoder to render
         assert callable(response.renderFactory), 'Invalid response renderer factory %s' % response.renderFactory
 

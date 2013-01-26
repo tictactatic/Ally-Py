@@ -10,6 +10,7 @@ Contains sql alchemy database setup.
 '''
 
 from ally.container import ioc
+from ally.container.error import ConfigError
 from sqlalchemy.engine import create_engine
 from sqlalchemy.engine.base import Engine
 from sqlalchemy.orm.session import sessionmaker
@@ -28,13 +29,10 @@ def database_url():
         "sqlite:///{database}.db"
         "mysql+mysqlconnector://{user}:{password}@localhost/{database}"
     '''
-    raise ioc.ConfigError('A database URL is required')
+    raise ConfigError('A database URL is required')
 
 @ioc.config
 def alchemy_pool_recycle(): '''The time to recycle pooled connection'''; return 3600
-
-@ioc.config
-def alchemy_create_tables(): '''Flag indicating that the table should be auto created'''; return True
 
 @ioc.entity
 def alchemySessionCreator(): return sessionmaker(bind=alchemyEngine())
@@ -48,9 +46,7 @@ def metas(): return []
 
 # ---------------------------------
 
-@ioc.start
 def createTables():
-    if alchemy_create_tables():
-        for meta in metas():
-            log.info('Create tables for meta %s', meta)
-            meta.create_all(alchemyEngine())
+    for meta in metas():
+        log.info('Create tables for meta %s', meta)
+        meta.create_all(alchemyEngine())

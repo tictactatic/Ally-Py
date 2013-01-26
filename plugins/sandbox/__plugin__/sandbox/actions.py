@@ -10,7 +10,7 @@ Created on Jun 18, 2012
 from ally.container import ioc
 from ally.internationalization import NC_
 from gui.action.api.action import Action
-from ..gui_action.service import actionManagerService
+from ..gui_action.service import addAction
 from ..gui_action import defaults
 from ..gui_core.gui_core import getPublishedGui
 
@@ -31,6 +31,6 @@ def modulesAction():
 
 @ioc.start
 def registerActions():
-    actionManagerService().add(menuAction())
-    actionManagerService().add(subMenuAction())
-    actionManagerService().add(modulesAction())
+    addAction(menuAction())
+    addAction(subMenuAction())
+    addAction(modulesAction())

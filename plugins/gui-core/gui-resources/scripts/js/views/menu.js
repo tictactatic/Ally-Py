@@ -1,7 +1,7 @@
 define
 ([
     'jquery','jquery/superdesk', 'gizmo/superdesk', 
-    config.lib_js_urn + 'views/auth',
+    config.cjs('views/auth.js'),
     'dust/core','jquery/tmpl','jquery/rest', 'bootstrap',  
     'tmpl!layouts/dashboard',
     'tmpl!navbar'
@@ -10,6 +10,8 @@ function($, superdesk, Gizmo, AuthApp)
 {
     var MenuView = Gizmo.View.extend
     ({
+        events: { "[data-logged-in]": { 'click' : 'loginHandler' } },
+        
         getMenu: function(cb)
         {
             this.displayMenu = [];
@@ -19,9 +21,13 @@ function($, superdesk, Gizmo, AuthApp)
                 self = this;
             dfd.done(cb); // attach callback to deferred
             
+            if( localStorage.getItem('superdesk.login.selfHref') )
+                superdesk.actionsUrl = localStorage.getItem('superdesk.login.selfHref')+'/Action';
+            
             superdesk.getActions('menu.*')
             .done(function(menu)
             {
+                self.displayMenu = [];
                 $(menu).each(function()
                 {
                     var Subs = null;
@@ -40,19 +46,30 @@ function($, superdesk, Gizmo, AuthApp)
                     }));
                 });
                 dfd.resolve(self);
-            });
+            }).
+            // we still resolve it so we can display something
+            fail(function(){ dfd.resolve(self); });
             return this;
         },
         init: function()
         {
             var self = this;
+            this.rnd = Math.random();
             this.setElement($('#navbar-top'));
             this.displayMenu = [];
-            this.getMenu(this.render);
+            //this.getMenu(this.render, 'init');
             
-            this.el.on('refresh-menu', function(){ self.getMenu(self.render); });
+            this.el.on('refresh-menu', function(){ self.getMenu(self.render, 'refresh'); });
             
-            $(AuthApp).on('authenticated', function(){ self.getMenu(self.render); });
+            $(AuthApp)
+            .off('authenticated.menu')
+            .on('authenticated.menu', function()
+            { 
+                superdesk.clearActions();
+                superdesk.actionsUseAuth = true;
+                superdesk.actionsUrl = localStorage.getItem('superdesk.login.selfHref')+'/Action';
+                self.getMenu(self.render, 'authenticated'); 
+            });
             $(AuthApp).on('authlock', function()
             { 
                 $('[data-username-display="true"]', self.el).text(_('Login'))
@@ -87,7 +104,7 @@ function($, superdesk, Gizmo, AuthApp)
             var self = view,
                 navData = {superdesk: {menu: self.displayMenu}};
             superdesk.login && $.extend(navData, {user: superdesk.login});
-            
+
             self.el
             .html('')
             .tmpl('navbar', navData, function()
@@ -103,7 +120,7 @@ function($, superdesk, Gizmo, AuthApp)
                     {
                         $(subs).each(function()
                         { 
-                            require([config.api_url + this.ScriptPath], function(submenuApp)
+                            require([this.Script.href], function(submenuApp)
                             { 
                                 submenuApp && submenuApp.init && submenuApp.init(submenuElement, self.el); 
                             }); 
@@ -122,7 +139,7 @@ function($, superdesk, Gizmo, AuthApp)
                 
                 var callback = function()
                 { 
-                    require([config.api_url + $(self).attr('script-path')], function(x){ x && x.init && x.init(); });
+                    require([$(self).attr('script-path')], function(x){ x && x.init && x.init(); });
                 };
                   
                 var href = $(self).attr('href').replace(/^\/+|\/+$/g, '');
@@ -160,6 +177,13 @@ function($, superdesk, Gizmo, AuthApp)
                 $(AuthApp).trigger('logout');
                 var gm = self.getMenu(self.render);
             });
+        },
+        /*!
+         * login control
+         */
+        loginHandler: function(evt)
+        {
+            if( $(evt.currentTarget).attr('data-logged-in') == 'false' ) AuthApp.require.call();
         }
         
     });

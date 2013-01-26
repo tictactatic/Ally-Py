@@ -14,11 +14,8 @@ from ally.api.operator.type import TypeService, TypeModel, TypeModelProperty
 from ally.api.type import Input, typeFor
 from ally.container.ioc import injected
 from ally.core.impl.invoker import InvokerCall
-from ally.core.impl.node import NodePath, NodeProperty
-from ally.core.spec.resources import Node, Path, ConverterPath, IAssembler, \
-    IResourcesRegister, IResourcesLocator, PathExtended, InvokerInfo, Invoker
-from ally.support.core.util_resources import pushMatch
-from collections import deque, Iterable
+from ally.core.spec.resources import Node, IAssembler, IResourcesRegister, \
+    InvokerInfo, Invoker
 import logging
 
 # --------------------------------------------------------------------
@@ -28,7 +25,7 @@ log = logging.getLogger(__name__)
 # --------------------------------------------------------------------
 
 @injected
-class ResourcesManager(IResourcesRegister, IResourcesLocator):
+class ResourcesRegister(IResourcesRegister):
     '''
     @see: IResourcesRegister, IResourcesLocator implementations.
     '''
@@ -62,7 +59,7 @@ class ResourcesManager(IResourcesRegister, IResourcesLocator):
 
         log.info('Assembling node structure for service %s', service)
         invokers = []
-        for call in service.calls:
+        for call in service.calls.values():
             assert isinstance(call, Call), 'Invalid call %s' % call
             if __debug__:
                 unknown = set(call.hints.keys()).difference(self._hintsCall.keys())
@@ -97,112 +94,3 @@ class ResourcesManager(IResourcesRegister, IResourcesLocator):
             assert isinstance(info, InvokerInfo)
             log.warning('Could not resolve in the node structure the call at:\nFile "%s", line %i, in %s', \
                         info.file, info.line, info.name)
-
-    def findPath(self, converterPath, paths):
-        '''
-        @see: IResourcesLocator.findPath
-        '''
-        assert isinstance(converterPath, ConverterPath), 'Invalid converter path %s' % converterPath
-        if not isinstance(paths, deque):
-            assert isinstance(paths, Iterable), 'Invalid iterable paths %s' % paths
-            paths = deque(paths)
-        assert isinstance(paths, deque), 'Invalid paths %s' % paths
-
-        if len(paths) == 0: return Path(self, [], self.root)
-
-        node = self.root
-        matches = []
-        found = pushMatch(matches, node.tryMatch(converterPath, paths))
-        while found and len(paths) > 0:
-            found = False
-            for child in node.children:
-                assert isinstance(child, Node)
-                match = child.tryMatch(converterPath, paths)
-                if pushMatch(matches, match):
-                    node = child
-                    found = True
-                    break
-
-        if len(paths) == 0: return Path(self, matches, node)
-
-        return Path(self, matches)
-
-    def findGetModel(self, fromPath, typeModel):
-        '''
-        @see: IResourcesLocator.findGetModel
-        '''
-        assert isinstance(fromPath, Path), 'Invalid from path %s' % fromPath
-        assert isinstance(fromPath.node, Node), 'Invalid from path Node %s' % fromPath.node
-        assert isinstance(typeModel, TypeModel), 'Invalid model type %s' % typeModel
-
-        matchNodes = deque()
-        for index in range(len(fromPath.matches), 0, -1):
-            matchNodes.clear()
-            path = self._findGetModel(typeModel, fromPath, fromPath.matches[index - 1].node, index, True, matchNodes,
-                                      fromPath.matches[index].node if index < len(fromPath.matches) else None)
-            if path: return path
-
-    def findGetAllAccessible(self, fromPath=None):
-        '''
-        @see: IResourcesLocator.findGetAllAccessible
-        '''
-        if fromPath is None: node = self.root
-        else:
-            assert isinstance(fromPath, Path), 'Invalid from path %s' % fromPath
-            node = fromPath.node
-        assert isinstance(node, Node), 'Invalid node %s' % fromPath.node
-
-        paths = []
-        for child in node.children:
-            assert isinstance(child, Node)
-            if isinstance(child, NodePath):
-                matches = []
-                pushMatch(matches, child.newMatch())
-                if fromPath is None: extended = Path(self, matches, child)
-                else: extended = PathExtended(fromPath, matches, child)
-                if child.get: paths.append(extended)
-                paths.extend(self.findGetAllAccessible(extended))
-        return paths
-
-    # ----------------------------------------------------------------
-
-    def _findGetModel(self, modelType, fromPath, node, index, inPath, matchNodes, exclude=None):
-        '''
-        Provides the recursive find of a get model based on the path.
-        '''
-        assert isinstance(modelType, TypeModel), 'Invalid model type %s' % modelType
-        assert isinstance(fromPath, Path), 'Invalid from path %s' % fromPath
-        assert isinstance(node, Node), 'Invalid node %s' % node
-        assert isinstance(matchNodes, deque), 'Invalid match nodes %s' % matchNodes
-        assert exclude is None or  isinstance(exclude, Node), 'Invalid exclude node %s' % exclude
-
-        added = False
-        if isinstance(node, NodePath):
-            assert isinstance(node, NodePath)
-            if not inPath:
-                matchNodes.append(node)
-                added = True
-
-            if node.name == modelType.container.name:
-                for nodeId in node.children:
-                    if isinstance(nodeId, NodeProperty):
-                        assert isinstance(nodeId, NodeProperty)
-                        if nodeId.get is None: continue
-                        assert isinstance(nodeId.get, Invoker)
-                        if not nodeId.get.output.isOf(modelType): continue
-
-                        for typ in nodeId.typesProperties:
-                            assert isinstance(typ, TypeModelProperty)
-                            if typ.parent != modelType: continue
-
-                            matches = []
-                            for matchNode in matchNodes: pushMatch(matches, matchNode.newMatch())
-                            pushMatch(matches, nodeId.newMatch())
-                            return PathExtended(fromPath, matches, nodeId, index)
-
-        for child in node.children:
-            if child == exclude: continue
-            path = self._findGetModel(modelType, fromPath, child, index, False, matchNodes)
-            if path: return path
-
-        if added: matchNodes.pop()

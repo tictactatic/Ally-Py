@@ -9,29 +9,26 @@ Created on Nov 24, 2011
 Provides the configurations for the processors used in handling the request.
 '''
 
-from . import server_pattern_rest
 from ..ally_core.encoder_decoder import parsingAssembly
 from ..ally_core.processor import argumentsBuild, argumentsPrepare, \
     assemblyResources, updateAssemblyResources, createEncoder, renderEncoder, \
     explainError, methodInvoker, invoking, parser, default_characterset
-from ..ally_core.resources import resourcesLocator
+from ..ally_core.resources import resourcesRoot
+from ..ally_http.processor import header, contentTypeDecode, contentLengthDecode, \
+    contentTypeEncode, contentLengthEncode
+from ..ally_http.server import pathAssemblies
 from ally.container import ioc
 from ally.core.http.impl.processor.encoder import CreateEncoderPathHandler
 from ally.core.http.impl.processor.fetcher import FetcherHandler
-from ally.core.http.impl.processor.header import HeaderHandler
 from ally.core.http.impl.processor.headers.accept import AcceptDecodeHandler
 from ally.core.http.impl.processor.headers.allow import AllowEncodeHandler
 from ally.core.http.impl.processor.headers.content_disposition import \
     ContentDispositionDecodeHandler
 from ally.core.http.impl.processor.headers.content_language import \
     ContentLanguageDecodeHandler, ContentLanguageEncodeHandler
-from ally.core.http.impl.processor.headers.content_length import \
-    ContentLengthDecodeHandler, ContentLengthEncodeHandler
-from ally.core.http.impl.processor.headers.content_type import \
-    ContentTypeDecodeHandler, ContentTypeEncodeHandler
-from ally.core.http.impl.processor.headers.override_method import \
-    MethodOverrideDecodeHandler
-from ally.core.http.impl.processor.internal_error import InternalErrorHandler
+from ally.core.http.impl.processor.internal_error import \
+    InternalDevelErrorHandler
+from ally.core.http.impl.processor.method import MethodHandler
 from ally.core.http.impl.processor.parameter import ParameterHandler
 from ally.core.http.impl.processor.parsing_multipart import \
     ParsingMultiPartHandler
@@ -42,6 +39,11 @@ from ally.design.processor import Handler, Assembly
 
 # --------------------------------------------------------------------
 # Creating the processors used in handling the request
+
+@ioc.config
+def server_pattern_rest():
+    ''' The pattern used for matching the REST resources paths in HTTP URL's'''
+    return '^resources(/|(?=\\.)|$)'
 
 @ioc.config
 def read_from_params():
@@ -61,26 +63,14 @@ def allow_method_override():
 @ioc.entity
 def converterPath() -> ConverterPath: return ConverterPath()
 
-@ioc.entity
-def internalError(): return InternalErrorHandler()
-
-@ioc.entity
-def header() -> Handler:
-    b = HeaderHandler()
-    b.useParameters = read_from_params()
-    return b
-
 # --------------------------------------------------------------------
 # Header decoders
 
 @ioc.entity
-def contentTypeDecode() -> Handler: return ContentTypeDecodeHandler()
+def internalDevelError() -> Handler: return InternalDevelErrorHandler()
 
 @ioc.entity
 def contentDispositionDecode() -> Handler: return ContentDispositionDecodeHandler()
-
-@ioc.entity
-def contentLengthDecode() -> Handler: return ContentLengthDecodeHandler()
 
 @ioc.entity
 def contentLanguageDecode() -> Handler: return ContentLanguageDecodeHandler()
@@ -89,16 +79,10 @@ def contentLanguageDecode() -> Handler: return ContentLanguageDecodeHandler()
 def acceptDecode() -> Handler: return AcceptDecodeHandler()
 
 @ioc.entity
-def methodOverrideDecode() -> Handler: return MethodOverrideDecodeHandler()
+def method() -> Handler: return MethodHandler()
 
 # --------------------------------------------------------------------
 # Header encoders
-
-@ioc.entity
-def contentTypeEncode() -> Handler: return ContentTypeEncodeHandler()
-
-@ioc.entity
-def contentLengthEncode() -> Handler: return ContentLengthEncodeHandler()
 
 @ioc.entity
 def contentLanguageEncode() -> Handler: return ContentLanguageEncodeHandler()
@@ -111,7 +95,7 @@ def allowEncode() -> Handler: return AllowEncodeHandler()
 @ioc.entity
 def uri() -> Handler:
     b = URIHandler()
-    b.resourcesLocator = resourcesLocator()
+    b.resourcesRoot = resourcesRoot()
     b.converterPath = converterPath()
     return b
 
@@ -154,15 +138,15 @@ def assemblyRedirect() -> Assembly:
     '''
     return Assembly()
 
-@ioc.entity
-def pathAssemblies():
-    return [(server_pattern_rest(), assemblyResources())]
-
 # --------------------------------------------------------------------
+
+@ioc.before(pathAssemblies)
+def updatePathAssembliesForResources():
+    pathAssemblies().append((server_pattern_rest(), assemblyResources()))
 
 @ioc.after(updateAssemblyResources)
 def updateAssemblyResourcesForHTTP():
-    assemblyResources().add(internalError(), before=argumentsPrepare())
+    assemblyResources().add(internalDevelError(), before=argumentsPrepare())
     assemblyResources().add(header(), uri(), before=methodInvoker())
 
     assemblyResources().add(redirect(), contentTypeDecode(), contentLengthDecode(), contentLanguageDecode(),
@@ -173,7 +157,7 @@ def updateAssemblyResourcesForHTTP():
     assemblyResources().add(contentTypeEncode(), contentLanguageEncode(), allowEncode(), after=renderEncoder())
     assemblyResources().add(contentLengthEncode(), after=explainError())
 
-    if allow_method_override(): assemblyResources().add(methodOverrideDecode(), before=uri())
+    if allow_method_override(): assemblyResources().add(method(), before=uri())
 
 @ioc.before(assemblyMultiPartPopulate)
 def updateAssemblyMultiPartPopulate():

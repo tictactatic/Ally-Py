@@ -27,22 +27,25 @@ requirejs.config
 	}
 });
 require(['concat'], function(){
-	require([config.cjs('views/menu.js'), 'jquery', 'jquery/superdesk', 'jquery/i18n', 'jqueryui/ext'], 
-	function(MenuView, $, superdesk)
+	require
+	([
+	  config.cjs('views/menu.js'), 
+	  config.cjs('views/auth.js'), 
+	  'jquery', 'jquery/superdesk', 'jquery/i18n', 'jqueryui/ext'
+	], 
+	function(MenuView, AuthApp, $, superdesk)
 	{
-		var makeMenu = function()
+		var menuView = new MenuView, 
+		makeMenu = function()
 		{ 
-		    var menuView = new MenuView;
+		    menuView.getMenu(menuView.render);
 		}, 
 		authLock = function()
 		{
 			var args = arguments,
 				self = this;
-			require([config.core()+'scripts/js/views/auth'], function(AuthApp)
-			{
-				AuthApp.success = makeMenu;
-				AuthApp.require.apply(self, arguments); 
-			});
+			AuthApp.success = makeMenu;
+			AuthApp.require.apply(self, arguments); 
 		},
 		r = $.rest.prototype.doRequest;
 		$.rest.prototype.doRequest = function()
@@ -56,12 +59,29 @@ require(['concat'], function(){
 		$.rest.prototype.config.apiUrl = config.api_url;
 		$.restAuth.prototype.config.apiUrl = config.api_url;
 
-		if( localStorage.getItem('superdesk.login.id') )
+		function checkAndResetLocalStorage()
+		{
+		    var sl = 'superdesk.login.';
+		    if( !localStorage.getItem(sl+'id') || !localStorage.getItem(sl+'selfHref') || !localStorage.getItem(sl+'name') )
+		    {
+		        localStorage.removeItem(sl+'id');
+		        localStorage.removeItem(sl+'selfHref');
+		        localStorage.removeItem(sl+'name');
+		        return false;
+		    }
+		    return true;
+		}
+		// user already logged in
+		// set authorization token, set some internal data, reset actions url
+		if( checkAndResetLocalStorage() )
 		{
 			$.restAuth.prototype.requestOptions.headers.Authorization = localStorage.getItem('superdesk.login.session');
-			superdesk.login = {Id: localStorage.getItem('superdesk.login.id'), Name: localStorage.getItem('superdesk.login.name'), EMail: localStorage.getItem('superdesk.login.email')}
+			superdesk.actionsUseAuth = true;
+			superdesk.actionsUrl = localStorage.getItem('superdesk.login.selfHref')+'/Action';
+			superdesk.login = {Id: localStorage.getItem('superdesk.login.id'), Name: localStorage.getItem('superdesk.login.name'), EMail: localStorage.getItem('superdesk.login.email')};
 		}
 
 		$.superdesk.navigation.init(makeMenu);
+		
 	});
 });

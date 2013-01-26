@@ -138,7 +138,9 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
                 remove: function(userOptions){ return reqFnc({}, self.removeOptions, userOptions); }
             };
         },
+        // override this to change the source in any way
         href: function(source){ return source; },
+        // override this to make some reset before requests
         reset: $.noop,
         // bunch of options for each type of operation
         options: {},

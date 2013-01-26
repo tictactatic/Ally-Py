@@ -1,7 +1,7 @@
 '''
 Created on Nov 7, 2012
 
-@package: ally core
+@package: ally http
 @copyright: 2011 Sourcefabric o.p.s.
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
@@ -10,24 +10,19 @@ Special module that is used in deploying the application.
 '''
  
 from .prepare import OptionsMongrel2
-from __setup__.ally_core_http import server_port, server_type
+from __setup__.ally_http import server_port, server_type
 from __setup__.ally_http_mongrel2_server.server import send_spec, send_ident, \
     recv_spec, recv_ident
-from ally.container import aop, ioc, support
-from ally.container._impl.ioc_setup import Assembly
+from ally.container import aop, ioc, support, context
 from ally.container.config import load, save
 from ally.support.util_io import openURI, ReplaceInFile, pipe
 from ally.support.util_sys import pythonPath
 from os import path, makedirs, renames
 from uuid import uuid4
+import application
 import codecs
 import sys
 import traceback
-
-# --------------------------------------------------------------------
-
-try: import application
-except ImportError: raise
 
 # --------------------------------------------------------------------
 
@@ -53,8 +48,7 @@ def config():
         sys.exit(1)
         
     try:
-        assembly = application.assembly = ioc.open(aop.modulesIn('__setup__.**'), config=config)
-        assert isinstance(assembly, Assembly), 'Invalid assembly %s' % assembly
+        context.open(aop.modulesIn('__setup__.**'), config=config)
     
         updateConfig = False
         if server_type() != 'mongrel2':
@@ -77,11 +71,9 @@ def config():
         
             if updateConfig:
                 if path.isfile(configFile): renames(configFile, configFile + '.bak')
-                for config in assembly.configurations: assembly.processForName(config)
-                # Forcing the processing of all configurations
-                with open(configFile, 'w') as f: save(assembly.trimmedConfigurations(), f)
+                with open(configFile, 'w') as f: save(context.configurations(force=True), f)
                 print('Updated the "%s" configuration file' % configFile)
-        finally: ioc.deactivate()
+        finally: context.deactivate()
     except SystemExit: raise
     except:
         print('-' * 150, file=sys.stderr)

@@ -9,7 +9,8 @@ Created on Jun 9, 2011
 Provides implementations that provide general behavior or functionality.
 '''
 
-from collections import Iterator
+from collections import Iterator, namedtuple
+from inspect import isclass
 import sys
 
 # --------------------------------------------------------------------
@@ -58,6 +59,21 @@ class MetaClassUnextendable(type):
 
 # --------------------------------------------------------------------
 
+def tupleify(*names):
+    '''
+    Creates a tuple based on a provided class. This method is just to be able to cover up the "namedtuple" from collections
+    in order to allow type hinting to work.
+    
+    @param names: arguments[string]
+        The field names in the proper order @see: namedtuple
+    '''
+    def decorator(clazz):
+        assert isclass(clazz), 'Invalid class %s' % clazz
+        return namedtuple(clazz.__name__, names)
+    return decorator
+
+# --------------------------------------------------------------------
+
 class immut(dict):
     '''The immutable dictionary class'''
 
@@ -98,8 +114,11 @@ def lastCheck(iterator):
     with False if the element is not the last element in the provided iterator and True if is the last one. On the last
     position of the tuple it will return the actual value provided by the iterator.
     
-    @param iterator: Iterator
+    @param iterator: Iterator(object)
         The iterator to wrap for the last element check.
+    @return: Iterator(tuple(boolean, object))
+        A tuple containing as the first value a boolean with False if the element is not the last element in the
+        provided iterator and True if is the last one
     '''
     if not isinstance(iterator, Iterator): iterator = iter(iterator)
 
@@ -113,3 +132,32 @@ def lastCheck(iterator):
             if stop: raise
             stop = True
             yield True, item
+            
+def firstLastCheck(iterator):
+    '''
+    Checks the first and last element from the provided iterator. It will return a tuple containing as the 
+    first value a boolean with False if the element is not the first in the iterator and True if is the first one, on the
+    second position a boolean with False if the element is not the last element in the provided iterator and True if is
+    the last one. On the last position of the tuple it will return the actual value provided by the iterator.
+    
+    @param iterator: Iterator(object)
+        The iterator to wrap for the last element check.
+    @return: Iterator(tuple(boolean, boolean, object))
+        A tuple containing as the first value  a boolean with False if the element is not the first in the iterator
+        and True if is the first one, on the second position a boolean with False if the element is not the last element
+        in the provided iterator and True if is the last one. On the last position of the tuple it will return the
+        actual value provided by the iterator.
+    '''
+    if not isinstance(iterator, Iterator): iterator = iter(iterator)
+
+    item, stop, isFirst = next(iterator), False, True
+    while True:
+        try:
+            itemNext = next(iterator)
+            yield isFirst, False, item
+            item = itemNext
+        except StopIteration:
+            if stop: raise
+            stop = True
+            yield isFirst, True, item
+        isFirst = False

@@ -9,8 +9,8 @@ Created on Dec 15, 2011
 Provides the IoC auto wiring.
 '''
 
-from ._impl.entity_handler import Wiring, WireError, WireEntity, WireConfig
-from ._impl.ioc_setup import normalizeConfigType
+from ._impl._entity import Wiring, WireError, WireEntity, WireConfig
+from ._impl._setup import normalizeConfigType
 from ally.support.util_sys import callerLocals
 from inspect import isclass
 
