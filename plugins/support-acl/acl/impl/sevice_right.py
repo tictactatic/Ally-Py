@@ -95,19 +95,18 @@ class RightService(RightBase):
                         assert isinstance(cacheInvoker, CacheInvoker)
                         path = pathForNode(cacheInvoker.node)
                         assert isinstance(path, Path)
-                        # We need to check if the returned node has in the path all the required filter types.
-                        for resourceType in filters:
-                            found = False
+                        # We need to check if the returned node has at least one filter in the path.
+                        # TODO: check implementation, since this was done in a hurry
+                        available = []
+                        for resourceType, filter in filters.items():
                             for match in path.matches:
                                 if isinstance(match, MatchProperty):
                                     assert isinstance(match, MatchProperty)
                                     assert isinstance(match.node, NodeProperty)
                                     if resourceType in match.node.typesProperties:
-                                        found = True
+                                        available.append(filter)
                                         break
-                            if not found: break
-                        else:
-                            yield indexedMethod, path, cacheInvoker.invoker, filters.values()
+                        yield indexedMethod, path, cacheInvoker.invoker, available
     
     def __init__(self, name, description, **keyargs):
         '''
