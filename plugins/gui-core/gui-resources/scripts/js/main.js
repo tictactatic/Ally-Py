@@ -33,8 +33,16 @@ require(['concat'], function(){
 	  config.cjs('views/auth.js'), 
 	  'jquery', 'jquery/superdesk', 'jquery/i18n', 'jqueryui/ext'
 	], 
-	function(MenuView, AuthApp, $, superdesk)
+	function(MenuView, authView, $, superdesk)
 	{
+	    var menuView = new MenuView;
+	    $(authView).on('login logout', function(){ menuView.refresh(); });
+	    authView.render();
+	    $(superdesk.layoutPlaceholder).html(authView.el);
+
+	    
+	    return;
+	    
 		var menuView = new MenuView, 
 		makeMenu = function()
 		{ 
