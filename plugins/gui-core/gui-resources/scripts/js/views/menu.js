@@ -24,6 +24,21 @@ function($, superdesk, Gizmo, AuthApp)
             if( localStorage.getItem('superdesk.login.selfHref') )
                 superdesk.actionsUrl = localStorage.getItem('superdesk.login.selfHref')+'/Action';
             
+            $.superdesk.applyLayout('layouts/dashboard', {}, function()
+            {
+                superdesk.getActions('modules.dashboard.*')
+                .done(function(apps)
+                {
+                    $(apps).each(function()
+                    {
+                        require([this.Script.href], function(app)
+                        { 
+                            app && app.init && app.init( $($.superdesk.layoutPlaceholder) ); 
+                        }); 
+                    });
+                });
+            });
+
             superdesk.getActions('menu.*')
             .done(function(menu)
             {
@@ -80,20 +95,7 @@ function($, superdesk, Gizmo, AuthApp)
                     });
             });
             
-            $.superdesk.applyLayout('layouts/dashboard', {}, function()
-            {
-                superdesk.getActions('modules.dashboard.*')
-                .done(function(apps)
-                {
-                    $(apps).each(function()
-                    {
-                        require([config.api_url + this.ScriptPath], function(app)
-                        { 
-                            app && app.init && app.init( $($.superdesk.layoutPlaceholder) ); 
-                        }); 
-                    });
-                });
-            });
+
         },
         /*!
          * Deferred callback
