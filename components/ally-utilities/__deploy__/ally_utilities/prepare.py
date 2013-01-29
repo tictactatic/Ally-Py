@@ -24,6 +24,7 @@ class OptionsCore:
     def __init__(self):
         super().__init__()
         self._start = True  # Flag indicating that the application should be started
+        self._test = False  # Flag indicating that the application unit tests should be executed
         self._writeConfigurations = False  # Indicates that the configurations should be written
         
         self.configurationPath = 'application.properties'
@@ -32,6 +33,12 @@ class OptionsCore:
         '''Setter for the start'''
         self._start = value
         self._writeConfigurations = self._writeConfigurations and not value
+        
+    def setTest(self, value):
+        '''Setter for the test'''
+        self._test = value
+        self._start = self._start and not value
+        self._writeConfigurations = self._writeConfigurations and not value
     
     def setWriteConfigurations(self, value):
         '''Setter for the configuration writing'''
@@ -39,6 +46,7 @@ class OptionsCore:
         self._start = self._start and not value
     
     start = property(lambda self: self._start, setStart)
+    test = property(lambda self: self._test, setTest)
     writeConfigurations = property(lambda self: self._writeConfigurations, setWriteConfigurations)
 
 # --------------------------------------------------------------------
@@ -54,6 +62,8 @@ def prepareCoreActions():
     assert isinstance(application.parser, ArgumentParser), 'Invalid application parser %s' % application.parser
     application.parser.add_argument('-dump', dest='writeConfigurations', action='store_true',
                                     help='Provide this option in order to write all the configuration files and exit')
+    application.parser.add_argument('-test', dest='test', action='store_true',
+                                    help='Provide this option in order to run the unit tests in the application distribution')
 
 @ioc.after(prepareCoreActions)
 def prepareCorePreferences():

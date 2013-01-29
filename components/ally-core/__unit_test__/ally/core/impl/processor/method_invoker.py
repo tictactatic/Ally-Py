@@ -16,46 +16,34 @@ if True:
 
 # --------------------------------------------------------------------
 
-from ally.core.impl.node import NodeRoot
 from ally.api.config import GET
 from ally.container import ioc
+from ally.core.impl.node import NodeRoot
 from ally.core.impl.processor.method_invoker import MethodInvokerHandler, \
     Request, Response
-from ally.core.spec.resources import Path, IResourcesLocator
+from ally.core.spec.resources import Path
 from ally.design.processor import Chain
 import unittest
-
-# --------------------------------------------------------------------
-
-class DummyResourceLocator(IResourcesLocator):
-
-    def findGetAllAccessible(self, fromPath=None): return []
-
-    def findGetModel(self, fromPath, typeModel): return None
-
-    def findPath(self, converterPath, paths): return None
 
 # --------------------------------------------------------------------
 
 class TestMethodInvoker(unittest.TestCase):
 
     def testMethodInvoker(self):
-        resourcesLocator = DummyResourceLocator()
-
         handler = MethodInvokerHandler()
         ioc.initialize(handler)
 
         request, response = Request(), Response()
 
         node = NodeRoot()
-        request.method, request.path = GET, Path(resourcesLocator, [], node)
+        request.method, request.path = GET, Path([], node)
 
         def callProcess(chain, **keyargs): handler.process(**keyargs)
         chain = Chain([callProcess])
         chain.process(request=request, response=response).doAll()
 
         self.assertEqual(response.allows, 0)
-        self.assertTrue(not response.code.isSuccess)
+        self.assertTrue(response.isSuccess is False)
 
 # --------------------------------------------------------------------
 
