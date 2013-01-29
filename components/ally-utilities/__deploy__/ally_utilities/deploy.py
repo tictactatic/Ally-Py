@@ -19,6 +19,7 @@ import application
 import os
 import sys
 import traceback
+import unittest
 
 # --------------------------------------------------------------------
 
@@ -71,7 +72,21 @@ def deploy():
         print('A problem occurred while deploying', file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
         print('-' * 150, file=sys.stderr)
-        
+
+@ioc.start
+def test():
+    assert isinstance(application.options, OptionsCore), 'Invalid application options %s' % application.options
+    if not application.options.test: return
+    classes = aop.classesIn('__unit_test__.**.*').asList()
+    classes = [clazz for clazz in classes if issubclass(clazz, unittest.TestCase)]
+    if not classes:
+        print('-' * 71, file=sys.stderr)
+        print('No unit test available', file=sys.stderr)
+        sys.exit(1)
+    testLoader, runner, tests = unittest.TestLoader(), unittest.TextTestRunner(stream=sys.stdout), unittest.TestSuite()
+    for clazz in classes: tests.addTest(testLoader.loadTestsFromTestCase(clazz))
+    runner.run(tests)
+    
 @ioc.start
 def dump():
     assert isinstance(application.options, OptionsCore), 'Invalid application options %s' % application.options

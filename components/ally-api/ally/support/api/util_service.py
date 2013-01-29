@@ -70,7 +70,7 @@ def namesForModel(model):
 
 # --------------------------------------------------------------------
 
-def copy(src, dest, exclude=[]):
+def copy(src, dest, exclude=()):
     '''
     Copies the container properties from the object source to object destination, attention only the common properties from
     source and destination will be transfered, the rest of properties will be ignored.

@@ -127,7 +127,7 @@ class TestHTTPDelivery(unittest.TestCase):
         # test publish from a string
         try:
             path = join('testdir5', 'somecontent.txt')
-            cdm.publishContent(path, 'test')
+            cdm.publishContent(path, BytesIO(b'test'))
             dstFilePath = join(d.getRepositoryPath(), path)
             self.assertTrue(isfile(dstFilePath))
         finally:
@@ -253,5 +253,5 @@ class TestHTTPDelivery(unittest.TestCase):
             remove(dstLinkPath)
 
 if __name__ == "__main__":
-    #import sys;sys.argv = ['', 'Test.testName']
+    # import sys;sys.argv = ['', 'Test.testName']
     unittest.main()
