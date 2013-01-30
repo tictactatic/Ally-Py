@@ -1,12 +1,13 @@
 define
 ([
-    'jquery', 'jquery/superdesk', 'gizmo/superdesk', 'utils/sha512',
-    config.cjs('models/AuthToken.js'),
-    config.cjs('models/AuthLogin.js'),
+    'jquery', 'jquery/superdesk', 'gizmo/superdesk', 
+    'gizmo/superdesk/action', 'utils/sha512',
+    'gizmo/superdesk/models/auth-token',
+    'gizmo/superdesk/models/auth-login',
     'jquery/tmpl', 'jquery/rest', 'bootstrap',
     'tmpl!auth', 'tmpl!auth-page' 
 ],
-function($, superdesk, gizmo, jsSHA, AuthToken, AuthLogin)
+function($, superdesk, gizmo, Action, jsSHA, AuthToken, AuthLogin)
 {
     var 
     /*!
@@ -14,43 +15,46 @@ function($, superdesk, gizmo, jsSHA, AuthToken, AuthLogin)
      */
     AuthLoginApp = function(username, password, loginToken)
     {
-        var 
-            shaUser = new jsSHA(username, "ASCII"),
+        var shaUser = new jsSHA(username, "ASCII"),
             shaPassword = new jsSHA(password, "ASCII"),         
             shaStep1 = new jsSHA(shaPassword.getHash("SHA-512", "HEX"), "ASCII"),
             shaStep2 = new jsSHA(loginToken, "ASCII"),          
-            authLogin = new $.rest('Security/Authentication/Login').xfilter('User.Name,User.Id,User.EMail');
+            authLogin = new $.rest('Security/Authentication/Login').xfilter('User.Name,User.Id,User.EMail'),
             
             HashedToken = shaStep1.getHMAC(username, "ASCII", "SHA-512", "HEX");            
             HashedToken = shaStep2.getHMAC(HashedToken, "ASCII", "SHA-512", "HEX");
-            authLogin.resetData().insert
-            ({
-                UserName: username,
-                Token: loginToken, 
-                HashedToken: HashedToken
-            })
-            .done(function(data)
-            {
-                var user = data.User;
-                
-                // h4xx to set login href.. used in menu to get actions path
-                localStorage.setItem('superdesk.login.selfHref', (data.User.href.indexOf('my/') === -1 ? data.User.href.replace('resources/','resources/my/') : data.User.href) );
-                // /h4axx
-                
-                localStorage.setItem('superdesk.login.session', data.Session);
-                localStorage.setItem('superdesk.login.id', user.Id);
-                localStorage.setItem('superdesk.login.name', user.Name);
-                localStorage.setItem('superdesk.login.email', user.EMail);
-                $.restAuth.prototype.requestOptions.headers.Authorization = localStorage.getItem('superdesk.login.session');
-                superdesk.login = {Id: localStorage.getItem('superdesk.login.id'), Name: localStorage.getItem('superdesk.login.name'), EMail: localStorage.getItem('superdesk.login.email')}
-                $(authLogin).trigger('success');
+            
+        authLogin.resetData().insert
+        ({
+            UserName: username,
+            Token: loginToken, 
+            HashedToken: HashedToken
+        })
+        .done(function(data)
+        {
+            var user = data.User;
+            
+            // h4xx to set login href.. used in menu to get actions path
+            localStorage.setItem('superdesk.login.selfHref', (data.User.href.indexOf('my/') === -1 ? data.User.href.replace('resources/','resources/my/') : data.User.href) );
+            // /h4axx
+            
+            localStorage.setItem('superdesk.login.session', data.Session);
+            localStorage.setItem('superdesk.login.id', user.Id);
+            localStorage.setItem('superdesk.login.name', user.Name);
+            localStorage.setItem('superdesk.login.email', user.EMail);
+            $.restAuth.prototype.requestOptions.headers.Authorization = localStorage.getItem('superdesk.login.session');
+            
+            superdesk.login = {Id: localStorage.getItem('superdesk.login.id'), Name: localStorage.getItem('superdesk.login.name'), EMail: localStorage.getItem('superdesk.login.email')}
+            
+            $(authLogin).trigger('success');
         });
         return $(authLogin);
     },
     AuthTokenApp = function(username, password) 
     {
         // new token model
-        var authToken = new AuthToken;
+        var authToken = new AuthToken,
+            self = this;
         authToken.set({ userName: username }).sync()
         .done(function(data)
         {
@@ -61,32 +65,34 @@ function($, superdesk, gizmo, jsSHA, AuthToken, AuthLogin)
             {
                 var user = data.User;
                 
-                    // h4xx to set login href.. used in menu to get actions path
                 localStorage.setItem('superdesk.login.selfHref', (data.User.href.indexOf('my/') === -1 ? data.User.href.replace('resources/','resources/my/') : data.User.href) );
-                // /h4axx
                 
                 localStorage.setItem('superdesk.login.session', data.Session);
                 localStorage.setItem('superdesk.login.id', user.Id);
                 localStorage.setItem('superdesk.login.name', user.Name);
                 localStorage.setItem('superdesk.login.email', user.EMail);
+                
                 $.restAuth.prototype.requestOptions.headers.Authorization = localStorage.getItem('superdesk.login.session');
+                
+                $.extend(true, Action.actions.syncAdapter.options.headers, {'Authorization': localStorage.getItem('superdesk.login.session')});
+                
                 superdesk.login = {Id: localStorage.getItem('superdesk.login.id'), Name: localStorage.getItem('superdesk.login.name'), EMail: localStorage.getItem('superdesk.login.email')}
                 $(authLogin).trigger('success');
             });
             authLogin.on('failed', function()
             {
-                $(authToken).trigger('failed', 'authToken');
+                $(self).triggerHandler('failed', 'authToken');
             })
             .on('success', function()
             {
-                $(authToken).trigger('success');
+                $(self).triggerHandler('success');
             });
         });
-        return authToken;
+        return self;
     },
     
-    AuthApp = gizmo.View.extend( 
-    {
+    AuthApp = gizmo.View.extend
+    ({
         success: $.noop,
         showed: false,
         require: function()
@@ -151,7 +157,7 @@ function($, superdesk, gizmo, jsSHA, AuthToken, AuthLogin)
                 self = this;
         
             // make new authentication process
-            AuthTokenApp(username.val(), password.val()) 
+            $(AuthTokenApp(username.val(), password.val())) 
             .on('failed', function(evt, type)
             { 
                 password.val('');
@@ -168,6 +174,12 @@ function($, superdesk, gizmo, jsSHA, AuthToken, AuthLogin)
         render: function()
         {
             var self = this;
+            if( localStorage.getItem('superdesk.login.session') )
+            {
+                superdesk.login = {Id: localStorage.getItem('superdesk.login.id'), Name: localStorage.getItem('superdesk.login.name'), EMail: localStorage.getItem('superdesk.login.email')}
+                $(self).triggerHandler('login');
+                return true;
+            }
             $.tmpl('auth-page', {}, function(e, o){ self.el.html(o); });
         }
     });

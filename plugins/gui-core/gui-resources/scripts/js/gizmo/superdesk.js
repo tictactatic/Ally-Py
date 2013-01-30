@@ -201,6 +201,7 @@ define(['gizmo', 'jquery', 'jquery/superdesk'], function(giz, $, superdesk)
         Sync: newSync, AuthSync: authSync,
 		View: giz.View,
 		Url: Url,
-		Register: giz.Register
+		Register: giz.Register,
+		Superdesk: {}
     };
 });

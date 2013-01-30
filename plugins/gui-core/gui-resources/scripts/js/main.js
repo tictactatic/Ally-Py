@@ -40,6 +40,7 @@ require(['concat'], function(){
 	    authView.render();
 	    $(superdesk.layoutPlaceholder).html(authView.el);
 
+	    $.superdesk.navigation.init($.noop);
 	    
 	    return;
 	    

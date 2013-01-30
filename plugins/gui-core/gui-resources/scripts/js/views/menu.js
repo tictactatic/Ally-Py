@@ -1,62 +1,54 @@
 define
 ([
     'jquery','jquery/superdesk', 'gizmo/superdesk', 
+    'gizmo/superdesk/action',
     config.cjs('views/auth.js'),
     'dust/core','jquery/tmpl','jquery/rest', 'bootstrap',  
     'tmpl!layouts/dashboard',
     'tmpl!navbar'
 ], 
-function($, superdesk, Gizmo, AuthApp)
+function($, superdesk, Gizmo, Action, AuthApp)
 {
     var MenuView = Gizmo.View.extend
     ({
         events: { "[data-logged-in]": { 'click' : 'loginHandler' } },
         
+        /*!
+         * gets menu and renders
+         */
+        refresh: function()
+        {
+            this.getMenu(this.render);
+        },
+        
         getMenu: function(cb)
         {
-            this.displayMenu = [];
-            this.submenus = {};
-            
             var dfd = new $.Deferred,
                 self = this;
-            dfd.done(cb); // attach callback to deferred
+                dfd.done(cb); 
+        
+            this.displayMenu = [];
+            this.submenus = {};
+                
+            // TODO should not be here
+            $.superdesk.applyLayout('layouts/dashboard', {}, function(){ Action.initApps('modules.dashboard.*', $($.superdesk.layoutPlaceholder)); });
             
-            if( localStorage.getItem('superdesk.login.selfHref') )
-                superdesk.actionsUrl = localStorage.getItem('superdesk.login.selfHref')+'/Action';
-            
-            $.superdesk.applyLayout('layouts/dashboard', {}, function()
-            {
-                superdesk.getActions('modules.dashboard.*')
-                .done(function(apps)
-                {
-                    $(apps).each(function()
-                    {
-                        require([this.Script.href], function(app)
-                        { 
-                            app && app.init && app.init( $($.superdesk.layoutPlaceholder) ); 
-                        }); 
-                    });
-                });
-            });
-
-            superdesk.getActions('menu.*')
-            .done(function(menu)
+            Action.getMore('menu.*').done(function(menu)
             {
                 self.displayMenu = [];
                 $(menu).each(function()
                 {
                     var Subs = null;
-                    if(this.ChildrenCount > 0)
+                    if(this.get('ChildrenCount') > 0)
                     {
-                        var Subs = 'data-submenu='+this.Path,
-                            Subz = '[data-submenu="'+this.Path+'"]';
-                        
-                        self.submenus[this.Path] = this.Path + '.*';
+                        var Subs = 'data-submenu='+this.get('Path'),
+                            Subz = '[data-submenu="'+this.get('Path')+'"]';
+                        self.submenus[this.get('Path')] = this.get('Path') + '.*';
                     }
-                    self.displayMenu.push($.extend({}, this, 
+                    self.displayMenu.push($.extend({}, this.feed(), 
                     { 
-                        Path: this.Path.split('.'), 
-                        Name: this.Path.replace('.', '-'),
+                        Path: this.get('Path').split('.'), 
+                        Name: this.get('Path').replace('.', '-'),
                         Subs: Subs
                     }));
                 });
@@ -64,6 +56,7 @@ function($, superdesk, Gizmo, AuthApp)
             }).
             // we still resolve it so we can display something
             fail(function(){ dfd.resolve(self); });
+            
             return this;
         },
         init: function()
@@ -72,30 +65,8 @@ function($, superdesk, Gizmo, AuthApp)
             this.rnd = Math.random();
             this.setElement($('#navbar-top'));
             this.displayMenu = [];
-            //this.getMenu(this.render, 'init');
             
             this.el.on('refresh-menu', function(){ self.getMenu(self.render, 'refresh'); });
-            
-            $(AuthApp)
-            .off('authenticated.menu')
-            .on('authenticated.menu', function()
-            { 
-                superdesk.clearActions();
-                superdesk.actionsUseAuth = true;
-                superdesk.actionsUrl = localStorage.getItem('superdesk.login.selfHref')+'/Action';
-                self.getMenu(self.render, 'authenticated'); 
-            });
-            $(AuthApp).on('authlock', function()
-            { 
-                $('[data-username-display="true"]', self.el).text(_('Login'))
-                    .on('click', function(evt)
-                    {
-                        $('#navbar-logout', self.el).trigger('click');
-                        return false;
-                    });
-            });
-            
-
         },
         /*!
          * Deferred callback
@@ -117,12 +88,16 @@ function($, superdesk, Gizmo, AuthApp)
                 self.el.find('[data-submenu]').each(function()
                 {
                     var submenuElement = this;
-                    superdesk.getActions( self.submenus[$(this).attr('data-submenu')] )
+                    Action.initApps(self.submenus[$(this).attr('data-submenu')], submenuElement, self.el);
+                    
+                    return true;
+                    
+                    Action.getMore( self.submenus[$(this).attr('data-submenu')] )
                     .done(function(subs)
                     {
                         $(subs).each(function()
                         { 
-                            require([this.Script.href], function(submenuApp)
+                            require([this.get('Script').href], function(submenuApp)
                             { 
                                 submenuApp && submenuApp.init && submenuApp.init(submenuElement, self.el); 
                             }); 
