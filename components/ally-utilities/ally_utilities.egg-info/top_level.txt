@@ -1,4 +1,5 @@
-test
 __setup__
+__deploy__
+__unit_test__
 package_extender
 ally

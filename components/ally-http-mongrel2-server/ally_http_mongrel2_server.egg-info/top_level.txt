@@ -1,5 +1,5 @@
 __setup__
 __deploy__
-ally
 resources
+ally
 __plugin__
