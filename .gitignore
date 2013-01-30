@@ -4,9 +4,10 @@
 
 /plugins/internationalization/test/internationalization/core/impl/repo/
 /distribution/workspace/
+/distribution/components
+/distribution/plugins
 
 *.pyc
-*.egg
 *.properties
 *.properties.bak
 
