@@ -1566,22 +1566,21 @@ bootstrap.css (line 1929)
 		filter: alpha(opacity=70);
 		}
 
-		.unpublish.image {
-			margin-right: 20px;
-			margin-top: -2px;
-			float: right;
-			background: white url(../../images/image-unpublish.png) no-repeat 3px 5px;
-			padding: 2px 5px 2px 20px;
-			color: #878787;
-			border-radius: 3px;
-			-moz-border-radius:3px;
-			-webkit-border-radius:3px;
-		}
+.unpublish.image {
+	margin-top: -2px;
+	float: right;
+	background: white url(../../images/image-unpublish.png) no-repeat 3px 5px;
+	padding: 2px 0px 2px 14px;
+	color: #878787;
+	border-radius: 3px;
+	-moz-border-radius:3px;
+	-webkit-border-radius:3px;
+}
 
-		.unpublish.image:hover {
-			background-color: #EFEFEF;
-			text-decoration: none;
-		}
+.unpublish.image:hover {
+	background-color: #EFEFEF;
+	text-decoration: none;
+}
 .post-list > li.advertisement a.unpublish.image {
 	width:auto;
 	display:inline;
