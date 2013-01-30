@@ -6,7 +6,8 @@
 /distribution/workspace/
 
 *.pyc
-*.egg
+/distribution/components/*.egg
+/distribution/plugins/*.egg
 *.properties
 *.properties.bak
 
