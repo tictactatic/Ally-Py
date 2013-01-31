@@ -125,12 +125,13 @@ function($, superdesk, gizmo, Action, jsSHA, AuthToken, AuthLogin)
                         password = $(this).find('#password'),
                         alertmsg = $(this).find('.alert');
                     
-                    AuthTokenApp(username.val(), password.val())
+                    $(AuthTokenApp(username.val(), password.val()))
                         .on('failed', function(evt, type)
                         { 
                             password.val('');
                             username.focus();
                             alertmsg.removeClass('hide');
+                            $(self).triggerHandler('login-failed');
                         })
                         .on('success', function(evt)
                         { 
@@ -138,6 +139,7 @@ function($, superdesk, gizmo, Action, jsSHA, AuthToken, AuthLogin)
                             $(dialog).dialog('close'); 
                             AuthApp.showed = false; 
                             $(AuthApp).trigger('authenticated');
+                            $(self).triggerHandler('login');
                         });
                     event.preventDefault();
                     
@@ -147,8 +149,28 @@ function($, superdesk, gizmo, Action, jsSHA, AuthToken, AuthLogin)
         },
         events:
         {
-            'form': { 'submit': 'login' }
+            'form': { 'submit': 'login' },
+            '.login-popup': { 'submit': 'login' }
         },
+        /*!
+         * login state
+         */
+        _loggedIn: false,
+        /*!
+         * set login if storage item exitsts
+         */
+        init: function()
+        {
+            if( localStorage.getItem('superdesk.login.session') )
+            {
+                this._loggedIn = true;
+                // rev compat
+                superdesk.login = {Id: localStorage.getItem('superdesk.login.id'), Name: localStorage.getItem('superdesk.login.name'), EMail: localStorage.getItem('superdesk.login.email')}
+            }
+        },
+        /*!
+         * perform authentication
+         */
         login: function(event)
         {
             var username = $(this.el).find('#username'), 
@@ -167,20 +189,76 @@ function($, superdesk, gizmo, Action, jsSHA, AuthToken, AuthLogin)
             })
             .on('success', function(evt)
             { 
+                $(AuthApp).trigger('authenticated');
                 $(self).triggerHandler('login');
             });
             event.preventDefault();
         },
+        /*!
+         * render the login page
+         */
         render: function()
         {
             var self = this;
-            if( localStorage.getItem('superdesk.login.session') )
+            if( self._loggedIn ) 
             {
-                superdesk.login = {Id: localStorage.getItem('superdesk.login.id'), Name: localStorage.getItem('superdesk.login.name'), EMail: localStorage.getItem('superdesk.login.email')}
                 $(self).triggerHandler('login');
-                return true;
+                return true;   
             }
             $.tmpl('auth-page', {}, function(e, o){ self.el.html(o); });
+        },
+        renderPopup: function()
+        {
+            var dialog = $(this.el).find('.login-popup'),
+                self = this,
+                data = this.loginExpired ? {'expired': true} : {}; // rest
+            if( dialog.is(':visible') ) return;
+            
+            $.tmpl('auth', data, function(e, o)
+            { 
+                var dialog = $(o).eq(0).dialog
+                ({ 
+                    draggable: false,
+                    resizable: false,
+                    modal: true,
+                    width: "40.1709%",
+                    buttons: 
+                    [
+                         { text: "Login", click: function(){ $(form).trigger('submit'); }, class: "btn btn-primary"},
+                         { text: "Close", click: function(){ $(this).dialog('close'); }, class: "btn"}
+                    ],
+                    close: function(){ $(this).remove(); AuthApp.showed = false; }
+                }),
+                form = dialog.find('form');
+                
+                form.off('submit.superdesk')
+                .on('submit.superdesk', function(event)
+                {
+                    var username = $(this).find('#username'), 
+                        password = $(this).find('#password'),
+                        alertmsg = $(this).find('.alert');
+                    
+                    $(AuthTokenApp(username.val(), password.val()))
+                        .on('failed', function(evt, type)
+                        { 
+                            password.val('');
+                            username.focus();
+                            alertmsg.removeClass('hide');
+                            $(self).triggerHandler('login-failed');
+                        })
+                        .on('success', function(evt)
+                        { 
+                            AuthApp.success && AuthApp.success(); 
+                            $(dialog).dialog('close'); 
+                            AuthApp.showed = false; 
+                            $(AuthApp).trigger('authenticated');
+                            $(self).triggerHandler('login');
+                        });
+                    event.preventDefault();
+                    
+                });
+                
+            });
         }
     });
     
