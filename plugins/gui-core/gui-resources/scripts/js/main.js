@@ -35,62 +35,13 @@ require(['concat'], function(){
 	], 
 	function(MenuView, authView, $, superdesk)
 	{
-	    var menuView = new MenuView;
-	    $(authView).on('login logout', function(){ menuView.refresh(); });
+        // initialize menu before auth because we have some events bound to auth there
+        new MenuView({ el: $('#navbar-top') });
+	    // display authentication now
 	    authView.render();
+	    // apply layout
 	    $(superdesk.layoutPlaceholder).html(authView.el);
-
+	    // initialize navigation
 	    $.superdesk.navigation.init($.noop);
-	    
-	    return;
-	    
-		var menuView = new MenuView, 
-		makeMenu = function()
-		{ 
-		    menuView.getMenu(menuView.render);
-		}, 
-		authLock = function()
-		{
-			var args = arguments,
-				self = this;
-			AuthApp.success = makeMenu;
-			AuthApp.require.apply(self, arguments); 
-		},
-		r = $.rest.prototype.doRequest;
-		$.rest.prototype.doRequest = function()
-		{
-			var ajax = r.apply(this, arguments),
-				self = this;
-			ajax.fail(function(resp){ (resp.status == 404 || resp.status == 401) && authLock.apply(self, arguments); });
-			return ajax;
-		};
-
-		$.rest.prototype.config.apiUrl = config.api_url;
-		$.restAuth.prototype.config.apiUrl = config.api_url;
-
-		function checkAndResetLocalStorage()
-		{
-		    var sl = 'superdesk.login.';
-		    if( !localStorage.getItem(sl+'id') || !localStorage.getItem(sl+'selfHref') || !localStorage.getItem(sl+'name') )
-		    {
-		        localStorage.removeItem(sl+'id');
-		        localStorage.removeItem(sl+'selfHref');
-		        localStorage.removeItem(sl+'name');
-		        return false;
-		    }
-		    return true;
-		}
-		// user already logged in
-		// set authorization token, set some internal data, reset actions url
-		if( checkAndResetLocalStorage() )
-		{
-			$.restAuth.prototype.requestOptions.headers.Authorization = localStorage.getItem('superdesk.login.session');
-			superdesk.actionsUseAuth = true;
-			superdesk.actionsUrl = localStorage.getItem('superdesk.login.selfHref')+'/Action';
-			superdesk.login = {Id: localStorage.getItem('superdesk.login.id'), Name: localStorage.getItem('superdesk.login.name'), EMail: localStorage.getItem('superdesk.login.email')};
-		}
-
-		$.superdesk.navigation.init(makeMenu);
-		
 	});
 });

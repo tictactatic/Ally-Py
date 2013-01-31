@@ -31,35 +31,16 @@ define(['gizmo', 'jquery', 'jquery/superdesk'], function(giz, $, superdesk)
         reset: syncReset
     }),
     
-    // display auth view
-    authLock = function()
-    {
-        var args = arguments,
-            self = this;
-
-        // reset headers on success
-        AuthApp.success = function()
-        { 
-            self.options.headers.Authorization = localStorage.getItem('superdesk.login.session');
-        };
-        $(AuthApp).trigger('authlock');
-        if( localStorage.getItem('superdesk.login.session') != null )
-            self.loginExpired = true;
-        //Anonymous
-        AuthApp.require.apply(self, arguments); 
-    },
-    
     authSync = $.extend({}, newSync, 
     {
         options: 
         { 
             // get login token from local storage
-            headers: { 'Authorization': localStorage.getItem('superdesk.login.session') || 1 },
-            // failuire function for non authenticated requests
+            headers: { 'Authorization': localStorage.getItem('superdesk.login.session') },
+            // failure function for erroneous requests
             fail: function(resp)
             { 
-                // TODO 404? shouldn't be covered by auth
-                (resp.status == 401) && authLock.apply(authSync, arguments);
+                (resp.status == 401) && AuthApp.renderPopup(); 
                 (resp.status == 404) && ErrorApp.require.apply(this, arguments);
             } 
         },

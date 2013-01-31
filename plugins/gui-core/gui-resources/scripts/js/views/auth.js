@@ -167,15 +167,19 @@ function($, superdesk, gizmo, Action, jsSHA, AuthToken, AuthLogin)
                 // rev compat
                 superdesk.login = {Id: localStorage.getItem('superdesk.login.id'), Name: localStorage.getItem('superdesk.login.name'), EMail: localStorage.getItem('superdesk.login.email')}
             }
+            
+            var self = this;
+            $(document).on('submit', '.login-popup', function(evt){ self.login(evt, $('.login-popup')); });
         },
         /*!
          * perform authentication
          */
-        login: function(event)
+        login: function(event, el)
         {
-            var username = $(this.el).find('#username'), 
-                password = $(this.el).find('#password'),
-                alertmsg = $(this.el).find('.alert'),
+            var el = el || this.el,
+                username = $(el).find('#username'), 
+                password = $(el).find('#password'),
+                alertmsg = $(el).find('.alert'),
                 self = this;
         
             // make new authentication process
@@ -185,15 +189,37 @@ function($, superdesk, gizmo, Action, jsSHA, AuthToken, AuthLogin)
                 password.val('');
                 username.focus();
                 alertmsg.removeClass('hide');
+                self._loggedIn = false;
                 $(self).triggerHandler('login-failed');
             })
             .on('success', function(evt)
             { 
+                $(this.el).find('.login-popup'),
                 $(AuthApp).trigger('authenticated');
+                self._loggedIn = true;
                 $(self).triggerHandler('login');
             });
             event.preventDefault();
         },
+        
+        /*!
+         * remove authentication
+         */
+        logout: function()
+        {
+            localStorage.removeItem('superdesk.login.selfHref');
+            localStorage.removeItem('superdesk.login.session');
+            localStorage.removeItem('superdesk.login.id');
+            localStorage.removeItem('superdesk.login.name');
+            localStorage.removeItem('superdesk.login.email');
+            
+            delete $.restAuth.prototype.requestOptions.headers.Authorization;
+            delete Action.actions.syncAdapter.options.headers.Authorization;
+            delete superdesk.login;
+            
+            $(this).triggerHandler('logout');
+        },
+        
         /*!
          * render the login page
          */
@@ -207,16 +233,21 @@ function($, superdesk, gizmo, Action, jsSHA, AuthToken, AuthLogin)
             }
             $.tmpl('auth-page', {}, function(e, o){ self.el.html(o); });
         },
+        _dialog: null,
+        /*!
+         * render and show login dialog
+         */
         renderPopup: function()
         {
-            var dialog = $(this.el).find('.login-popup'),
-                self = this,
+            var self = this,
                 data = this.loginExpired ? {'expired': true} : {}; // rest
-            if( dialog.is(':visible') ) return;
-            
-            $.tmpl('auth', data, function(e, o)
+            // return if dialog showing
+            if( $(this._dialog).is(':visible') ) return;
+            // render template
+            (!this._dialog || !this._dialog.length) && $.tmpl('auth', data, function(e, o)
             { 
-                var dialog = $(o).eq(0).dialog
+                self._dialog = $(o);
+                self._dialog.dialog
                 ({ 
                     draggable: false,
                     resizable: false,
@@ -224,41 +255,12 @@ function($, superdesk, gizmo, Action, jsSHA, AuthToken, AuthLogin)
                     width: "40.1709%",
                     buttons: 
                     [
-                         { text: "Login", click: function(){ $(form).trigger('submit'); }, class: "btn btn-primary"},
+                         { text: "Login", click: function(){ $(this).find('form:eq(0)').trigger('submit'); }, class: "btn btn-primary"},
                          { text: "Close", click: function(){ $(this).dialog('close'); }, class: "btn"}
-                    ],
-                    close: function(){ $(this).remove(); AuthApp.showed = false; }
-                }),
-                form = dialog.find('form');
-                
-                form.off('submit.superdesk')
-                .on('submit.superdesk', function(event)
-                {
-                    var username = $(this).find('#username'), 
-                        password = $(this).find('#password'),
-                        alertmsg = $(this).find('.alert');
-                    
-                    $(AuthTokenApp(username.val(), password.val()))
-                        .on('failed', function(evt, type)
-                        { 
-                            password.val('');
-                            username.focus();
-                            alertmsg.removeClass('hide');
-                            $(self).triggerHandler('login-failed');
-                        })
-                        .on('success', function(evt)
-                        { 
-                            AuthApp.success && AuthApp.success(); 
-                            $(dialog).dialog('close'); 
-                            AuthApp.showed = false; 
-                            $(AuthApp).trigger('authenticated');
-                            $(self).triggerHandler('login');
-                        });
-                    event.preventDefault();
-                    
+                    ]
                 });
-                
             });
+            this._dialog.length && this._dialog.dialog('open');
         }
     });
     

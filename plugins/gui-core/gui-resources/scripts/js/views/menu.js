@@ -33,26 +33,32 @@ function($, superdesk, Gizmo, Action, AuthApp)
             // TODO should not be here
             $.superdesk.applyLayout('layouts/dashboard', {}, function(){ Action.initApps('modules.dashboard.*', $($.superdesk.layoutPlaceholder)); });
             
-            Action.getMore('menu.*').done(function(menu)
+            Action.getMore('menu.*').done(function(mainMenus)
             {
                 self.displayMenu = [];
-                $(menu).each(function()
+                Action.getMore('menu.*.*').done(function(subMenus)
                 {
-                    var Subs = null;
-                    //if(this.get('ChildrenCount') > 0)
-                    //{
-                        var Subs = 'data-submenu='+this.get('Path'),
-                            Subz = '[data-submenu="'+this.get('Path')+'"]';
-                        self.submenus[this.get('Path')] = this.get('Path') + '.*';
-                    //}
-                    self.displayMenu.push($.extend({}, this.feed(), 
-                    { 
-                        Path: this.get('Path').split('.'), 
-                        Name: this.get('Path').replace('.', '-'),
-                        Subs: Subs
-                    }));
+                    $(mainMenus).each(function()
+                    {
+                        hasSubs = false;
+                        for( var i=0; i<subMenus.length; i++ )
+                            if( subMenus[i].get('Path').indexOf(this.get('Path')) === 0 ) hasSubs = true;
+                        if( hasSubs )
+                        {
+                            var Subs = 'data-submenu='+this.get('Path'),
+                                Subz = '[data-submenu="'+this.get('Path')+'"]';
+                            self.submenus[this.get('Path')] = this.get('Path') + '.*';
+                        }
+                        
+                        self.displayMenu.push($.extend({}, this.feed(), 
+                        { 
+                            Path: this.get('Path').split('.'), 
+                            Name: this.get('Path').replace('.', '-'),
+                            Subs: Subs
+                        }));
+                    });
+                    dfd.resolve(self);
                 });
-                dfd.resolve(self);
             }).
             // we still resolve it so we can display something
             fail(function(){ dfd.resolve(self); });
@@ -62,9 +68,10 @@ function($, superdesk, Gizmo, Action, AuthApp)
         init: function()
         {
             var self = this;
-            this.rnd = Math.random();
-            this.setElement($('#navbar-top'));
             this.displayMenu = [];
+            
+            $(AuthApp).on('login', function(){ $(this._dialog).dialog('close'); });
+            $(AuthApp).on('login logout', function(){ self.refresh(); });
             
             this.el.on('refresh-menu', function(){ self.getMenu(self.render, 'refresh'); });
         },
@@ -77,7 +84,7 @@ function($, superdesk, Gizmo, Action, AuthApp)
             var self = view,
                 navData = {superdesk: {menu: self.displayMenu}};
             superdesk.login && $.extend(navData, {user: superdesk.login});
-            
+
             self.el
             .html('')
             .tmpl('navbar', navData, function()
@@ -142,17 +149,8 @@ function($, superdesk, Gizmo, Action, AuthApp)
             .off('click.superdesk')
             .on('click.superdesk', function()
             {
-                if(!localStorage.getItem('superdesk.login.session'))
-                {
-                    AuthApp.require.call();
-                    return;
-                }
-                delete superdesk.login;
-                localStorage.removeItem('superdesk.login.name');
-                localStorage.removeItem('superdesk.login.id');
-                delete $.restAuth.prototype.requestOptions.headers.Authorization;
-                $(AuthApp).trigger('logout');
-                var gm = self.getMenu(self.render);
+                AuthApp.logout();
+                self.refresh();
             });
         },
         /*!
@@ -160,7 +158,7 @@ function($, superdesk, Gizmo, Action, AuthApp)
          */
         loginHandler: function(evt)
         {
-            if( $(evt.currentTarget).attr('data-logged-in') == 'false' ) AuthApp.require.call();
+            if( $(evt.currentTarget).attr('data-logged-in') == 'false' ) AuthApp.renderPopup();
         }
         
     });
