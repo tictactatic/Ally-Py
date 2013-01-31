@@ -39,12 +39,12 @@ function($, superdesk, Gizmo, Action, AuthApp)
                 $(menu).each(function()
                 {
                     var Subs = null;
-                    if(this.get('ChildrenCount') > 0)
-                    {
+                    //if(this.get('ChildrenCount') > 0)
+                    //{
                         var Subs = 'data-submenu='+this.get('Path'),
                             Subz = '[data-submenu="'+this.get('Path')+'"]';
                         self.submenus[this.get('Path')] = this.get('Path') + '.*';
-                    }
+                    //}
                     self.displayMenu.push($.extend({}, this.feed(), 
                     { 
                         Path: this.get('Path').split('.'), 
@@ -77,7 +77,7 @@ function($, superdesk, Gizmo, Action, AuthApp)
             var self = view,
                 navData = {superdesk: {menu: self.displayMenu}};
             superdesk.login && $.extend(navData, {user: superdesk.login});
-
+            
             self.el
             .html('')
             .tmpl('navbar', navData, function()
