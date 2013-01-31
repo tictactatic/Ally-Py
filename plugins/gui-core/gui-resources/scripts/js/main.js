@@ -37,11 +37,9 @@ require(['concat'], function(){
 	{
         // initialize menu before auth because we have some events bound to auth there
         new MenuView({ el: $('#navbar-top') });
-	    // display authentication now
-	    authView.render();
+	    // initialize navigation authentication display
+        $.superdesk.navigation.init(function(){ authView.render() });
 	    // apply layout
 	    $(superdesk.layoutPlaceholder).html(authView.el);
-	    // initialize navigation
-	    $.superdesk.navigation.init($.noop);
 	});
 });
