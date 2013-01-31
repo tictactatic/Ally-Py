@@ -17,7 +17,6 @@ from ..ally_http.server import pathAssemblies
 from ally.container import ioc
 from ally.container.error import ConfigError
 from ally.design.processor import Handler, Assembly
-from security.core.http.impl.processor.security import SecurityHandler
 import logging
 
 # --------------------------------------------------------------------
@@ -93,6 +92,11 @@ def assemblySecurity() -> Assembly:
 
 @ioc.entity
 def security() -> Handler:
+    #TODO: remove this ugly patch, the problem it seems is that the security root package 'security' is used also by a plugin
+    # if loaded from eggs because the components are loaded before the plugins it creates problems for the loader, this problem
+    # will go away when the service-security becomes service-gateway. As a general root, never ever have components use the
+    # same package root as the plugins.
+    from security.core.http.impl.processor.security import SecurityHandler
     b = SecurityHandler()
     b.requestAssembly = assemblyRequest()
     b.accessHeaders = access_headers()

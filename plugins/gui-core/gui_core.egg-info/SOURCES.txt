@@ -14,6 +14,8 @@ gui-resources/scripts/js/__init__.py
 gui-resources/scripts/js/dust/__init__.py
 gui-resources/scripts/js/dust/helpers/__init__.py
 gui-resources/scripts/js/gizmo/__init__.py
+gui-resources/scripts/js/gizmo/superdesk/__init__.py
+gui-resources/scripts/js/gizmo/superdesk/models/__init__.py
 gui-resources/scripts/js/gizmo/views/__init__.py
 gui-resources/scripts/js/history/__init__.py
 gui-resources/scripts/js/jquery/__init__.py
