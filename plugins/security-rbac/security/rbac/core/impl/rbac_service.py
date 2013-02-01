@@ -158,7 +158,7 @@ class RbacServiceAlchemy(SessionSupport, IRbacService):
         # get child roleNode
         childNode = self.session().query(RoleNode).filter(RoleNode.role == roleId).first()
         treeWidth = childNode.right - childNode.left + 1
-        id = childNode.Id
+        id = childNode.id
 
         # get the number of duplicates for parent
         sql = self.session().query(RoleNode).filter(RoleNode.role == toRoleId)
