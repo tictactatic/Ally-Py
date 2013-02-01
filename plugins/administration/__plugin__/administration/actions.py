@@ -46,13 +46,13 @@ def rightRequestsInspection():
 
 # --------------------------------------------------------------------
 
-@app.deploy
-def registerActions():
-    addAction(menuAction())
-    addAction(modulesAction())
-    addAction(modulesListAction())
+#@app.deploy
+#def registerActions():
+#    addAction(menuAction())
+#    addAction(modulesAction())
+#    addAction(modulesListAction())
 
-@acl.setup
-def registerAcl():
-    rightRequestsInspection().addActions(menuAction(), modulesAction(), modulesListAction())\
-    .allGet(IComponentService, IPluginService, IRequestService)
+#@acl.setup
+#def registerAcl():
+#    rightRequestsInspection().addActions(menuAction(), modulesAction(), modulesListAction())\
+#    .allGet(IComponentService, IPluginService, IRequestService)
