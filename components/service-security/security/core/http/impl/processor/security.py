@@ -53,7 +53,7 @@ class RequestContent(Context):
     '''
     # ---------------------------------------------------------------- Required
     source = requires(IInputStream)
-    
+
 class Response(Context):
     '''
     The response context.
@@ -73,7 +73,7 @@ class ResponseContent(Context):
     length = defines(int)
     type = defines(str)
     charSet = defines(str)
-    
+
 # --------------------------------------------------------------------
 
 @injected
@@ -85,10 +85,10 @@ class SecurityHandler(Handler):
 
     requestAssembly = Assembly
     # The assembly of processors used for handling the requests.
-    
+
     nameAuthorization = 'Authorization'
     # The header name for the session identifier.
-    
+
     accessHeaders = dict
     # The headers used in getting the access data.
     accessUriRoot = str
@@ -113,12 +113,12 @@ class SecurityHandler(Handler):
         assert isinstance(self.accessResponseEncoding, str), \
         'Invalid access response encoding %s' % self.accessResponseEncoding
         assert isinstance(self.cleanupTimeout, int), 'Invalid cleanup time out %s' % self.cleanupTimeout
-        
+
         requestProcessing = self.requestAssembly.create(NO_VALIDATION, request=Request, requestCnt=RequestContent,
                                                         response=Response, responseCnt=ResponseContent)
         assert isinstance(requestProcessing, Processing), 'Invalid processing %s' % requestProcessing
         super().__init__(Function(requestProcessing.contexts, self.process))
-        
+
         self._requestProcessing = requestProcessing
         self._cache = Cache()
 
@@ -131,7 +131,7 @@ class SecurityHandler(Handler):
         scheduleRunner = Thread(name='Cleanup access/sessions thread', target=schedule.run)
         scheduleRunner.daemon = True
         scheduleRunner.start()
-        
+
         self._contentType = 'text/json'
         self._charSet = 'utf-8'
         self._unauthorizedAccess = b'{"code":"401","message":"Unauthorized access"}'
@@ -142,10 +142,10 @@ class SecurityHandler(Handler):
     def process(self, chain, request, requestCnt, response, responseCnt):
         '''
         Process the redirect.
-        
+
         @param requestProcessing: Processing
             The processing that provides the request handling chain.
-            
+
         The rest of the parameters are contexts.
         '''
         assert isinstance(chain, Chain), 'Invalid processors chain %s' % chain
@@ -154,13 +154,13 @@ class SecurityHandler(Handler):
         assert isinstance(response, Response), 'Invalid response %s' % response
         assert isinstance(responseCnt, ResponseContent), 'Invalid response content %s' % responseCnt
         if response.isSuccess is False: return  # Skip in case the response is in error
-        
+
         assert isinstance(request.decoderHeader, IDecoderHeader), 'Invalid decoder header %s' % request.decoderHeader
-        
+
         if request.methodName == METHOD_OPTIONS:
             chain.branch(self._requestProcessing)
             return
-        
+
         authentication = request.decoderHeader.retrieve(self.nameAuthorization)
         if not authentication:
             response.code, response.isSuccess = 401, False
@@ -170,7 +170,7 @@ class SecurityHandler(Handler):
             responseCnt.type, responseCnt.charSet = self._contentType, self._charSet
             chain.proceed()
             return
-        
+
         cacheAuth = self._cache.authentications.get(authentication)
         if not cacheAuth:
             accesses = self._access(authentication, request)
@@ -183,9 +183,9 @@ class SecurityHandler(Handler):
                 chain.proceed()
                 return
             cacheAuth = self._cache.authentications[authentication] = self._cacheAccess(accesses, authentication)
-        
+
         forward, found = False, False
-        
+
         assert isinstance(cacheAuth, CacheAuthentication)
         cacheAuth.lastAccess = datetime.now()
         cacheMethod = cacheAuth.methods.get(request.methodName)
@@ -199,7 +199,7 @@ class SecurityHandler(Handler):
                     for k, resource in enumerate(match.groups()):
                         try: cacheFilter = cachePattern.filters[k]
                         except IndexError:
-                            raise Exception('Invalid filter at position %s in pattern %s' % 
+                            raise Exception('Invalid filter at position %s in pattern %s' %
                                             (k, cachePattern.pattern.pattern))
                         assert isinstance(cacheFilter, CacheFilter)
                         value = cacheFilter.accesses.get(resource)
@@ -210,33 +210,33 @@ class SecurityHandler(Handler):
                         elif not value: break
                     else: forward = True
                     break
-        
+
         if not forward:
             if found:
-                response.code, response.isSuccess = 403, False 
+                response.code, response.isSuccess = 403, False
                 response.text = 'Forbidden access'
                 responseCnt.source = BytesIO(self._forbiddenAccess)
                 responseCnt.length = len(self._forbiddenAccess)
             else:
-                response.code, response.isSuccess = PATH_NOT_FOUND 
+                response.code, response.isSuccess = PATH_NOT_FOUND
                 response.text = 'Not Found'
                 responseCnt.source = BytesIO(self._notFound)
                 responseCnt.length = len(self._notFound)
             responseCnt.type, responseCnt.charSet = self._contentType, self._charSet
             chain.proceed()
             return
-        
+
         chain.branch(self._requestProcessing)
-        
+
     # ----------------------------------------------------------------
-    
+
     def _cacheAccess(self, accesses, authentication):
         '''
         Creates the cache for the provided access response.
         '''
         assert isinstance(accesses, dict), 'Invalid accesses %s' % accesses
         assert isinstance(authentication, str), 'Invalid authentication %s' % authentication
-        
+
         accesses = accesses['AccessList']  # Get the access object list
         cacheAuth = CacheAuthentication()
         for access in accesses:  # Get the access object
@@ -244,27 +244,27 @@ class SecurityHandler(Handler):
             pattern = re.compile(access['Pattern'])  # Get the pattern
             filters = access.get('Filter')  # Get the filters is available
             if filters is not None: filters = [CacheFilter(uri=uri) for uri in filters['Filter']]
-                    
+
             for method in access['Methods']['Methods']:  # Get the methods
                 cacheMethod = cacheAuth.methods.get(method)
                 if not cacheMethod: cacheMethod = cacheAuth.methods[method] = CacheMethod()
                 cacheMethod.patterns.append(CachePattern(pattern=pattern, filters=filters))
-                
+
         return cacheAuth
-    
+
     def _access(self, authentication, request):
         '''
         Retrieve the access for the authentication.
         '''
         assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(authentication, str), 'Invalid authentication %s' % authentication
-        
+
         req, reqCnt = self._requestProcessing.contexts['request'](), self._requestProcessing.contexts['requestCnt']()
         rsp, rspCnt = self._requestProcessing.contexts['response'](), self._requestProcessing.contexts['responseCnt']()
         assert isinstance(req, RequestHTTP)
         assert isinstance(rsp, ResponseHTTP)
         assert isinstance(rspCnt, ResponseContentHTTP)
-        
+
         req.methodName = METHOD_GET
         req.scheme = request.scheme
         req.headers = self.accessHeaders
@@ -276,27 +276,28 @@ class SecurityHandler(Handler):
         requestChain.process(request=req, requestCnt=reqCnt, response=rsp, responseCnt=rspCnt).doAll()
         if not rsp.isSuccess: return
         if rspCnt.source is None:
-            raise Exception('Problems with security access, the URI \'%s\' has a response %s %s, but no content' % 
+            raise Exception('Problems with security access, the URI \'%s\' has a response %s %s, but no content' %
                             (self.accessUriRoot + self.accessUri, rsp.code, rsp.text))
         if isinstance(rspCnt.source, IInputStream):
             source = rspCnt.source
         else:
-            source = writeGenerator(rspCnt.source, BytesIO())
+            source = BytesIO()
+            for bytes in rspCnt.source: source.write(bytes)
             source.seek(0)
         return json.load(codecs.getreader(self.accessResponseEncoding)(source))
-    
+
     def _isAllowed(self, request, uri):
         '''
         Retrieve the access for the authentication.
         '''
         assert isinstance(request, Request), 'Invalid request %s' % request
-        
+
         req, reqCnt = self._requestProcessing.contexts['request'](), self._requestProcessing.contexts['requestCnt']()
         rsp, rspCnt = self._requestProcessing.contexts['response'](), self._requestProcessing.contexts['responseCnt']()
         assert isinstance(req, RequestHTTP)
         assert isinstance(rsp, ResponseHTTP)
         assert isinstance(rspCnt, ResponseContentHTTP)
-        
+
         req.methodName = METHOD_GET
         req.scheme = request.scheme
         req.headers = self.accessHeaders
@@ -307,16 +308,17 @@ class SecurityHandler(Handler):
         requestChain.process(request=req, requestCnt=reqCnt, response=rsp, responseCnt=rspCnt).doAll()
         if not rsp.isSuccess: return
         if rspCnt.source is None:
-            raise Exception('Problems with security filter access, the URI \'%s\' has a response %s %s, but no content' % 
+            raise Exception('Problems with security filter access, the URI \'%s\' has a response %s %s, but no content' %
                             (self.accessUriRoot + uri, rsp.code, rsp.text))
         if isinstance(rspCnt.source, IInputStream):
             source = rspCnt.source
         else:
-            source = writeGenerator(rspCnt.source, BytesIO())
+            source = BytesIO()
+            for bytes in rspCnt.source: source.write(bytes)
             source.seek(0)
         allowed = json.load(codecs.getreader(self.accessResponseEncoding)(source))
         return allowed['HasAccess'] == 'True'
-    
+
     def _cleanInactiveAccesses(self):
         '''
         Called in order to clean the inactive access sessions.
@@ -325,7 +327,7 @@ class SecurityHandler(Handler):
         for authentication, cacheAuth in self._cache.authentications.items():
             assert isinstance(cacheAuth, CacheAuthentication)
             if current > cacheAuth.lastAccess: expired.append(authentication)
-        
+
         assert log.debug('Clearing %s sessions at %s' % (len(expired), datetime.now())) or True
         for authentication in expired: self._cache.authentications.pop(authentication, None)
 
@@ -335,58 +337,58 @@ class Cache(Bean):
     '''
     The cache object.
     '''
-    
+
     authentications = dict; authentications = Attribute(authentications, factory=dict, doc='''
     @rtype: dictionary{string, CacheAuthentication}
-    The cached authentication indexed by authentication code. 
+    The cached authentication indexed by authentication code.
     ''')
-    
+
 class CacheAuthentication(Bean):
     '''
     The authentication cache object.
     '''
-    
+
     methods = dict; methods = Attribute(methods, factory=dict, doc='''
     @rtype: dictionary{string, CacheMethod}
-    The cached method indexed by method name. 
+    The cached method indexed by method name.
     ''')
     lastAccess = datetime; lastAccess = Attribute(lastAccess, doc='''
     @rtype: datetime
     The last time this cached authentication was used.
     ''')
-    
+
 class CacheMethod(Bean):
     '''
     The method cache object.
     '''
-    
+
     patterns = list; patterns = Attribute(patterns, factory=list, doc='''
     @rtype: list[CachePattern]
-    The cached patterns. 
+    The cached patterns.
     ''')
-    
+
 class CachePattern(Bean):
     '''
     The pattern cache object.
     '''
-    
+
     pattern = object; pattern = Attribute(pattern, doc='''
     @rtype: object
-    The compiled regex pattern. 
+    The compiled regex pattern.
     ''')
     filters = list; filters = Attribute(filters, factory=list, doc='''
     @rtype: list[CacheFilter]
     The cached filters.
     ''')
-    
+
 class CacheFilter(Bean):
     '''
     The filter cache object.
     '''
-    
+
     uri = str; uri = Attribute(uri, doc='''
     @rtype: string
-    The uri pattern to call the filter. 
+    The uri pattern to call the filter.
     ''')
     accesses = dict; accesses = Attribute(accesses, factory=dict, doc='''
     @rtype: dictionary{string: boolean}
