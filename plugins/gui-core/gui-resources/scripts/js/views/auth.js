@@ -50,103 +50,52 @@ function($, superdesk, gizmo, Action, jsSHA, AuthToken, AuthLogin)
         });
         return $(authLogin);
     },
-    AuthTokenApp = function(username, password) 
+    AuthTokenApp = 
     {
-        // new token model
-        var authToken = new AuthToken,
-            self = this;
-        authToken.set({ userName: username }).sync()
-        .done(function(data)
+        get: function(username, password) 
         {
-            // attempt login after we got token
-            authLogin = new AuthLogin;
-            authLogin.authenticate(username, password, data.Token)
+            // new token model
+            var authToken = new AuthToken,
+                self = this;
+            authToken.set({ userName: username }).sync()
             .done(function(data)
             {
-                var user = data.User;
-                
-                localStorage.setItem('superdesk.login.selfHref', (data.User.href.indexOf('my/') === -1 ? data.User.href.replace('resources/','resources/my/') : data.User.href) );
-                
-                localStorage.setItem('superdesk.login.session', data.Session);
-                localStorage.setItem('superdesk.login.id', user.Id);
-                localStorage.setItem('superdesk.login.name', user.Name);
-                localStorage.setItem('superdesk.login.email', user.EMail);
-                
-                $.restAuth.prototype.requestOptions.headers.Authorization = localStorage.getItem('superdesk.login.session');
-                
-                $.extend(true, Action.actions.syncAdapter.options.headers, {'Authorization': localStorage.getItem('superdesk.login.session')});
-                
-                superdesk.login = {Id: localStorage.getItem('superdesk.login.id'), Name: localStorage.getItem('superdesk.login.name'), EMail: localStorage.getItem('superdesk.login.email')}
-                $(authLogin).trigger('success');
+                // attempt login after we got token
+                authLogin = new AuthLogin;
+                authLogin.authenticate(username, password, data.Token)
+                .done(function(data)
+                {
+                    var user = data.User;
+                    
+                    localStorage.setItem('superdesk.login.selfHref', (data.User.href.indexOf('my/') === -1 ? data.User.href.replace('resources/','resources/my/') : data.User.href) );
+                    
+                    localStorage.setItem('superdesk.login.session', data.Session);
+                    localStorage.setItem('superdesk.login.id', user.Id);
+                    localStorage.setItem('superdesk.login.name', user.Name);
+                    localStorage.setItem('superdesk.login.email', user.EMail);
+                    
+                    $.restAuth.prototype.requestOptions.headers.Authorization = localStorage.getItem('superdesk.login.session');
+                    
+                    $.extend(true, Action.actions.syncAdapter.options.headers, {'Authorization': localStorage.getItem('superdesk.login.session')});
+                    
+                    superdesk.login = {Id: localStorage.getItem('superdesk.login.id'), Name: localStorage.getItem('superdesk.login.name'), EMail: localStorage.getItem('superdesk.login.email')}
+                    $(authLogin).trigger('success');
+                });
+                authLogin.on('failed', function()
+                {
+                    $(self).triggerHandler('failed', 'authToken');
+                })
+                .on('success', function()
+                {
+                    $(self).triggerHandler('success');
+                });
             });
-            authLogin.on('failed', function()
-            {
-                $(self).triggerHandler('failed', 'authToken');
-            })
-            .on('success', function()
-            {
-                $(self).triggerHandler('success');
-            });
-        });
-        return self;
+            return self;
+        }
     },
     
     AuthApp = gizmo.View.extend
     ({
-        success: $.noop,
-        showed: false,
-        require: function()
-        {
-            if(AuthApp.showed) return;
-            var self = this,
-                data = this.loginExpired ? {'expired': true} : {}; // rest
-            AuthApp.showed = true;  
-            $.tmpl('auth', data, function(e, o)
-            { 
-                var dialog = $(o).eq(0).dialog
-                    ({ 
-                        draggable: false,
-                        resizable: false,
-                        modal: true,
-                        width: "40.1709%",
-                        buttons: 
-                        [
-                             { text: "Login", click: function(){ $(form).trigger('submit'); }, class: "btn btn-primary"},
-                             { text: "Close", click: function(){ $(this).dialog('close'); }, class: "btn"}
-                        ],
-                        close: function(){ $(this).remove(); AuthApp.showed = false; }
-                    }),
-                    form = dialog.find('form');
-                
-                form.off('submit.superdesk')
-                .on('submit.superdesk', function(event)
-                {
-                    var username = $(this).find('#username'), 
-                        password = $(this).find('#password'),
-                        alertmsg = $(this).find('.alert');
-                    
-                    $(AuthTokenApp(username.val(), password.val()))
-                        .on('failed', function(evt, type)
-                        { 
-                            password.val('');
-                            username.focus();
-                            alertmsg.removeClass('hide');
-                            $(self).triggerHandler('login-failed');
-                        })
-                        .on('success', function(evt)
-                        { 
-                            AuthApp.success && AuthApp.success(); 
-                            $(dialog).dialog('close'); 
-                            AuthApp.showed = false; 
-                            $(AuthApp).trigger('authenticated');
-                            $(self).triggerHandler('login');
-                        });
-                    event.preventDefault();
-                    
-                });
-                
-            });
-        },
         events:
         {
             'form': { 'submit': 'login' },
@@ -157,7 +106,7 @@ function($, superdesk, gizmo, Action, jsSHA, AuthToken, AuthLogin)
          */
         _loggedIn: false,
         /*!
-         * set login if storage item exitsts
+         * set login if storage item exists
          */
         init: function()
         {
@@ -170,6 +119,26 @@ function($, superdesk, gizmo, Action, jsSHA, AuthToken, AuthLogin)
             
             var self = this;
             $(document).on('submit', '.login-popup', function(evt){ self.login(evt, $('.login-popup')); });
+            
+            $(AuthTokenApp)
+            .on('failed', function(evt, type)
+            { 
+                password.val('');
+                username.focus();
+                // show error message
+                alertmsg.removeClass('hide');
+                self._loggedIn = false;
+                // trigger login-failed event
+                $(self).triggerHandler('login-failed');
+            })
+            .on('success', function(evt)
+            { 
+                // close auth dialog if any 
+                $(self._dialog).dialog('close');
+                self._loggedIn = true;
+                // trigger login event
+                $(self).triggerHandler('login');
+            });
         },
         /*!
          * perform authentication
@@ -181,42 +150,29 @@ function($, superdesk, gizmo, Action, jsSHA, AuthToken, AuthLogin)
                 password = $(el).find('#password'),
                 alertmsg = $(el).find('.alert'),
                 self = this;
-        
             // make new authentication process
-            $(AuthTokenApp(username.val(), password.val())) 
-            .on('failed', function(evt, type)
-            { 
-                password.val('');
-                username.focus();
-                alertmsg.removeClass('hide');
-                self._loggedIn = false;
-                $(self).triggerHandler('login-failed');
-            })
-            .on('success', function(evt)
-            { 
-                $(this.el).find('.login-popup'),
-                $(AuthApp).trigger('authenticated');
-                self._loggedIn = true;
-                $(self).triggerHandler('login');
-            });
+            AuthTokenApp.get(username.val(), password.val()); 
             event.preventDefault();
         },
-        
         /*!
          * remove authentication
          */
         logout: function()
         {
+            // delete local storage items
             localStorage.removeItem('superdesk.login.selfHref');
             localStorage.removeItem('superdesk.login.session');
             localStorage.removeItem('superdesk.login.id');
             localStorage.removeItem('superdesk.login.name');
             localStorage.removeItem('superdesk.login.email');
             
+            // TODO these souldn't be here 
             delete $.restAuth.prototype.requestOptions.headers.Authorization;
             delete Action.actions.syncAdapter.options.headers.Authorization;
             delete superdesk.login;
+            // ---
             
+            // trigger logout handler
             $(this).triggerHandler('logout');
         },
         
@@ -231,16 +187,22 @@ function($, superdesk, gizmo, Action, jsSHA, AuthToken, AuthLogin)
                 $(self).triggerHandler('login');
                 return true;   
             }
+            // display authentication page
             $.tmpl('auth-page', {}, function(e, o){ self.el.html(o); });
         },
+        /*!
+         * login popup element
+         */
         _dialog: null,
         /*!
          * render and show login dialog
          */
-        renderPopup: function()
+        renderPopup: function(msg)
         {
             var self = this,
                 data = this.loginExpired ? {'expired': true} : {}; // rest
+            if( msg ) data.error = msg;
+
             // return if dialog showing
             if( $(this._dialog).is(':visible') ) return;
             // render template

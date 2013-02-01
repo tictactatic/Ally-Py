@@ -11,7 +11,11 @@ function($, superdesk, Gizmo, Action, AuthApp)
 {
     var MenuView = Gizmo.View.extend
     ({
-        events: { "[data-logged-in]": { 'click' : 'loginHandler' } },
+        events: 
+        { 
+            "[data-logged-in]": { 'click' : 'loginHandler' },
+            "#navbar-logout": { 'click' : 'logoutHandler' }
+        },
         
         /*!
          * gets menu and renders
@@ -65,13 +69,15 @@ function($, superdesk, Gizmo, Action, AuthApp)
             
             return this;
         },
+        /*!
+         * 
+         */
         init: function()
         {
             var self = this;
             this.displayMenu = [];
-            
-            $(AuthApp).on('login', function(){ $(this._dialog).dialog('close'); });
-            $(AuthApp).on('login logout', function(){ self.refresh(); });
+            // refresh menu on login/logout
+            $(AuthApp).on('login logout', function(evt){ self.refresh(); });
             
             this.el.on('refresh-menu', function(){ self.getMenu(self.render, 'refresh'); });
         },
@@ -144,14 +150,6 @@ function($, superdesk, Gizmo, Action, AuthApp)
                     if( $(this).attr('href').replace(/^\/+|\/+$/g, '') == superdesk.navigation.getStartPathname()) 
                         $(this).trigger('click'); 
                 });
-            
-            $('#navbar-logout', self.el) // TODO param.
-            .off('click.superdesk')
-            .on('click.superdesk', function()
-            {
-                AuthApp.logout();
-                self.refresh();
-            });
         },
         /*!
          * login control
@@ -159,7 +157,15 @@ function($, superdesk, Gizmo, Action, AuthApp)
         loginHandler: function(evt)
         {
             if( $(evt.currentTarget).attr('data-logged-in') == 'false' ) AuthApp.renderPopup();
+        },
+        /*!
+         * 
+         */
+        logoutHandler: function(evt)
+        {
+            AuthApp.logout();
         }
+        
         
     });
     

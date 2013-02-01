@@ -17,9 +17,11 @@ function( gizmo, $, Actions )
                 searchCache = function()
                 {
                     var results = [], searchPath = path; 
-                    if( path.lastIndexOf('*') === path.length-1 ) searchPath = path.substr(0, path.length-1);
+                    //if( path.lastIndexOf('*') === path.length-1 ) searchPath = path.substr(0, path.length-1);
+                    searchPath = searchPath.split('*').join('%').replace(/([.?*+^$[\]\\(){}|-])/g, "\\$1").replace(/%/g,'[\\w\\d\\-_]+');
+                    searchPath = new RegExp(searchPath+'$');
                     for( var i in cache ) // match path plz
-                        if( cache[i].get('Path').search(searchPath.split('*').join('%').replace(/([.?*+^$[\]\\(){}|-])/g, "\\$1").replace(/%/g,'(\\w|\\d)+')) === 0 )
+                        if( cache[i].get('Path').search(searchPath) === 0 )
                             results.push(cache[i]);
                     return results;    
                 },

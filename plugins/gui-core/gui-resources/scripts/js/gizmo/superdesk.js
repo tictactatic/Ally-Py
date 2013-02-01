@@ -40,7 +40,7 @@ define(['gizmo', 'jquery', 'jquery/superdesk'], function(giz, $, superdesk)
             // failure function for erroneous requests
             fail: function(resp)
             { 
-                (resp.status == 401) && AuthApp.renderPopup(); 
+                (resp.status == 401) && AuthApp.renderPopup(resp.statusText); 
                 (resp.status == 404) && ErrorApp.require.apply(this, arguments);
             } 
         },

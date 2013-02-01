@@ -13,7 +13,7 @@
               		<input type="password" id="password" class="input-large" />
 				</div>
 			</div>
-			<div class="control-group">
+			<!-- div class="control-group">
             	<label for="optionsCheckbox" class="control-label">&nbsp;</label>
             	<div class="controls">
               		<label class="checkbox">
@@ -21,12 +21,18 @@
                 		_("Remember login")
               		</label>
             	</div>
-          	</div>
+          	</div-->
+          	<div class="control-group">
+				<div class="controls">
+					<input type="submit" class="btn" value="_('Login')" />
+				</div>
+			</div>
+			
           	<p class="alert alert-error hide" style="margin-bottom:0">_('Login failed!')</p>
           	{?expired}
-          		<p class="alert alert-warning" data-is="expired-warn" style="margin-bottom:0">_('Login session expired!')</p>
+          	<p class="alert alert-warning" data-is="expired-warn" style="margin-bottom:0">_('Login session expired!')</p>
           	{/expired}
-			<input type="submit" style="visibility:hidden;height:0;border:0;margin:0;padding:0" />
+			
 		</fieldset>
 	</form>
 </div>
