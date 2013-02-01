@@ -10,11 +10,12 @@ Provide the internal error representation. This is usually when the server fails
 '''
 
 from ally.container.ioc import injected
+from ally.design.context import defines
 from ally.design.processor import Chain
 from ally.exception import DevelError
 from ally.http.impl.processor.internal_error import InternalErrorHandler, \
     ResponseContent, Response
-from ally.http.spec.codes import INVALID_REQUEST
+from ally.http.spec.codes import INTERNAL_ERROR
 import logging
 import sys
 
@@ -24,19 +25,29 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
+class ResponseDevel(Response):
+    '''
+    The devel response context.
+    '''
+    # ---------------------------------------------------------------- Defined
+    text = defines(str)
+    errorMessage = defines(str)
+
+# --------------------------------------------------------------------
+
 @injected
 class InternalDevelErrorHandler(InternalErrorHandler):
     '''
     Extension for @see: InternalErrorHandler that better handles the DevelError.
     '''
             
-    def handleError(self, chain, response, responseCnt):
+    def handleError(self, chain, response:ResponseDevel, responseCnt:ResponseContent):
         '''
         Handle the error.
         @see: InternalErrorHandler.handleError
         '''
         assert isinstance(chain, Chain), 'Invalid processors chain %s' % chain
-        assert isinstance(response, Response), 'Invalid response %s' % response
+        assert isinstance(response, ResponseDevel), 'Invalid response %s' % response
         assert isinstance(responseCnt, ResponseContent), 'Invalid response content %s' % responseCnt
         
         # If there is an explanation for the error occurred, we do not need to make another one
@@ -45,7 +56,7 @@ class InternalDevelErrorHandler(InternalErrorHandler):
         exc = sys.exc_info()[1]
         if isinstance(exc, DevelError):
             log.warn('Development error occurred while processing the chain', exc_info=True)
-            response.code, response.isSuccess = INVALID_REQUEST
+            response.code, response.status, response.isSuccess = INTERNAL_ERROR
             response.text, response.errorMessage = 'Development error', str(exc)
             chain.proceed()
             # We try to process now the chain (where it left of) with the exception set.

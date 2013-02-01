@@ -11,30 +11,37 @@ Runs the basic web server.
 
 from . import server_type, server_version, server_host, server_port
 from ally.container import ioc
+from ally.design.processor import Assembly
 from ally.http.server import server_basic
-from ally.http.server.wsgi import RequestHandler
 from threading import Thread
 
 # --------------------------------------------------------------------
 
 @ioc.entity
-def pathAssemblies():
+def assemblyServer() -> Assembly:
     '''
-    The path assemblies to be processed, add to this list tuples containing in the first position the pattern to be matched
-    with the request path and on the second position the Assembly object to be used for requests that match the pattern.
+    The assembly used in processing the server requests.
     '''
-    return []
+    return Assembly()
+
+#TODO: add not found processors.
+# --------------------------------------------------------------------
 
 @ioc.entity
-def requestHandlerWSGI():
-    b = RequestHandler(); yield b
-    b.pathAssemblies = pathAssemblies()
+def serverBasicRequestHandler(): return server_basic.RequestHandler
+
+@ioc.entity
+def serverBasic():
+    b = server_basic.BasicServer()
     b.serverVersion = server_version()
+    b.serverHost = server_host()
+    b.serverPort = server_port()
+    b.requestHandlerFactory = serverBasicRequestHandler()
+    b.assembly = assemblyServer()
+    return b
 
 # --------------------------------------------------------------------
 
 @ioc.start
 def runServer():
-    if server_type() == 'basic':
-        args = pathAssemblies(), server_version(), server_host(), server_port()
-        Thread(name='HTTP server thread', target=server_basic.run, args=args).start()
+    if server_type() == 'basic': Thread(name='HTTP server thread', target=server_basic.run, args=(serverBasic(),)).start()

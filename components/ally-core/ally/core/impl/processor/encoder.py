@@ -15,16 +15,16 @@ from ally.api.operator.type import TypeExtension, TypeProperty, \
 from ally.api.type import Type, Iter, Boolean, Integer, Number, Percentage, \
     String, Time, Date, DateTime, TypeNone, typeFor
 from ally.container.ioc import injected
-from ally.core.spec.codes import BAD_CONTENT
 from ally.core.spec.resources import Invoker, Normalizer, Converter
 from ally.core.spec.transform.exploit import IResolve, handleExploitError
 from ally.core.spec.transform.render import IRender
 from ally.core.spec.transform.support import getterOnObjIfIn
-from ally.design.context import defines, Context, requires
+from ally.design.context import defines, Context, requires, optional
 from ally.design.processor import HandlerProcessorProceed
 from collections import Callable, Iterable, OrderedDict
 from weakref import WeakKeyDictionary
 import logging
+from ally.exception import DevelError
 
 # --------------------------------------------------------------------
 
@@ -47,10 +47,9 @@ class Response(Context):
     converterId = requires(Converter)
     converter = requires(Converter)
     normalizer = requires(Normalizer)
+    # ---------------------------------------------------------------- Optional
+    isSuccess = optional(bool)
     # ---------------------------------------------------------------- Defined
-    code = defines(int)
-    isSuccess = defines(bool)
-    text = defines(str)
     encoder = defines(Callable, doc='''
     @rtype: Callable
     The encoder to be used for encoding the response object for content rendering.
@@ -101,10 +100,7 @@ class CreateEncoderHandler(HandlerProcessorProceed):
         assert isinstance(request.invoker, Invoker), 'Invalid request invoker %s' % request.invoker
 
         response.encoder = self.encoderFor(request.invoker.output)
-        if response.encoder is None:
-            response.code, response.isSuccess = BAD_CONTENT
-            response.text = 'Cannot encode response object'
-            return
+        if response.encoder is None: raise DevelError('Cannot encode response object \'%s\'' % request.invoker.output)
 
         response.encoderData = dict(converterId=response.converterId, converter=response.converter,
                                     normalizer=response.normalizer)

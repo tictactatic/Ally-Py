@@ -12,11 +12,14 @@ Provides the configurations for the processors used in handling the request.
 from ally.container import ioc
 from ally.design.processor import Handler
 from ally.http.impl.processor.header import HeaderHandler
+from ally.http.impl.processor.headers.allow import AllowEncodeHandler
 from ally.http.impl.processor.headers.content_length import \
     ContentLengthDecodeHandler, ContentLengthEncodeHandler
 from ally.http.impl.processor.headers.content_type import \
     ContentTypeDecodeHandler, ContentTypeEncodeHandler
 from ally.http.impl.processor.internal_error import InternalErrorHandler
+from ally.http.impl.processor.method_override import MethodOverrideHandler
+from ally.http.impl.processor.path_encoder import EncoderPathHandler
 
 # --------------------------------------------------------------------
 # Creating the processors used in handling the request
@@ -46,7 +49,6 @@ def contentTypeDecode() -> Handler: return ContentTypeDecodeHandler()
 @ioc.entity
 def contentLengthDecode() -> Handler: return ContentLengthDecodeHandler()
 
-
 # --------------------------------------------------------------------
 # Header encoders
 
@@ -55,3 +57,15 @@ def contentTypeEncode() -> Handler: return ContentTypeEncodeHandler()
 
 @ioc.entity
 def contentLengthEncode() -> Handler: return ContentLengthEncodeHandler()
+
+# --------------------------------------------------------------------
+# General HTTP handlers
+
+@ioc.entity
+def methodOverride() -> Handler: return MethodOverrideHandler()
+
+@ioc.entity
+def encoderPath() -> Handler: return EncoderPathHandler()
+
+@ioc.entity
+def allowEncode() -> Handler: return AllowEncodeHandler()

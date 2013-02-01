@@ -14,7 +14,7 @@ from ally.api.operator.container import Criteria, Query
 from ally.api.operator.type import TypeQuery, TypeCriteriaEntry, TypeCriteria
 from ally.api.type import Input, Type, Iter, typeFor
 from ally.container.ioc import injected
-from ally.core.spec.codes import ILLEGAL_PARAM
+from ally.core.http.spec.codes import PARAMETER_ILLEGAL
 from ally.core.spec.resources import Invoker, Path, Node, INodeInvokerListener, \
     Normalizer, Converter
 from ally.core.spec.transform.render import Object, List
@@ -52,9 +52,9 @@ class Response(Context):
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    code = defines(int)
+    code = defines(str)
+    status = defines(int)
     isSuccess = defines(bool)
-    text = defines(str)
     errorMessage = defines(str)
     errorDetails = defines(Object)
 
@@ -133,8 +133,7 @@ class ParameterHandler(HandlerProcessorProceed, INodeInvokerListener):
                     request.path.node.addNodeListener(self)
                     self._cacheEncode[invoker] = encode
 
-                response.code, response.isSuccess = ILLEGAL_PARAM
-                response.text = 'Illegal parameter'
+                response.code, response.status, response.isSuccess = PARAMETER_ILLEGAL
                 context = dict(normalizer=request.normalizerParameters, converter=request.converterParameters)
                 sample = encode(value=SAMPLE, **context)
 

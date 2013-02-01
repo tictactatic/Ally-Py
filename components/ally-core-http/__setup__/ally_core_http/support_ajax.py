@@ -9,13 +9,12 @@ Created on Nov 24, 2011
 Provides the javascript setup required by browser for ajax.
 '''
 
-from ..ally_core.processor import assemblyResources
-from ..ally_core_http.processor import uri, updateAssemblyResourcesForHTTP
+from .processor import header, updateAssemblyResources, assemblyResources
 from ally.container import ioc
-from ally.core.http.spec.server import METHOD_OPTIONS
-from ally.core.impl.processor.deliver_ok import DeliverOkHandler
 from ally.design.processor import Handler
+from ally.http.impl.processor.deliver_ok import DeliverOkHandler
 from ally.http.impl.processor.headers.set_fixed import HeaderSetEncodeHandler
+from ally.http.spec.server import HTTP_OPTIONS
 
 # --------------------------------------------------------------------
 
@@ -30,7 +29,7 @@ def headers_ajax() -> dict:
     return {
             'Access-Control-Allow-Origin':['*'],
             'Access-Control-Allow-Headers':['X-Filter', 'X-HTTP-Method-Override', 'X-Format-DateTime', 'Authorization'],
-            }#TODO: remove Authorization header since that needs to be provided by the security gateway
+            }  # TODO: remove Authorization header since that needs to be provided by the security gateway
 
 # --------------------------------------------------------------------
 
@@ -43,12 +42,11 @@ def headerSetAjax() -> Handler:
 @ioc.entity
 def deliverOkHandler() -> Handler:
     b = DeliverOkHandler()
-    b.forMethod = METHOD_OPTIONS
+    b.forMethod = HTTP_OPTIONS
     return b
 
 # --------------------------------------------------------------------
 
-@ioc.after(updateAssemblyResourcesForHTTP)
+@ioc.after(updateAssemblyResources)
 def updateAssemblyResourcesForHTTPAjax():
-    if ajax_cross_domain():
-        assemblyResources().add(headerSetAjax(), deliverOkHandler(), before=uri())
+    if ajax_cross_domain(): assemblyResources().add(headerSetAjax(), deliverOkHandler(), after=header())

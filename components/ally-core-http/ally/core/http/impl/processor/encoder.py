@@ -13,7 +13,6 @@ from ally.api.operator.container import Model
 from ally.api.operator.type import TypeModel, TypeModelProperty
 from ally.api.type import Type, TypeReference
 from ally.container.ioc import injected
-from ally.core.http.spec.server import IEncoderPath
 from ally.core.http.spec.transform.support_model import DataModel, NO_MODEL_PATH, \
     IFetcher
 from ally.core.impl.processor import encoder
@@ -23,8 +22,8 @@ from ally.core.spec.resources import Path, Normalizer, Invoker
 from ally.core.spec.transform.exploit import handleExploitError
 from ally.core.spec.transform.render import IRender
 from ally.design.context import requires, defines
-from ally.http.spec.codes import INVALID_HEADER_VALUE
-from ally.http.spec.server import IDecoderHeader
+from ally.http.spec.codes import HEADER_ERROR
+from ally.http.spec.server import IDecoderHeader, IEncoderPath
 from ally.support.core.util_resources import pathLongName, findGetModel, \
     findGetAllAccessible
 from ally.support.util import lastCheck
@@ -46,6 +45,9 @@ class Response(encoder.Response):
     # ---------------------------------------------------------------- Required
     encoderPath = requires(IEncoderPath)
     # ---------------------------------------------------------------- Defined
+    code = defines(str)
+    status = defines(int)
+    text = defines(str)
     errorMessage = defines(str)
     encoderDataModel = defines(DataModel, doc='''
     @rtype: DataModel
@@ -128,8 +130,8 @@ class CreateEncoderPathHandler(CreateEncoderHandler):
 
         error = self.processFilter(encodeModel, data, value, response.normalizer)
         if error:
+            response.code, response.status, response.isSuccess = HEADER_ERROR
             response.text, response.errorMessage = error
-            response.code = INVALID_HEADER_VALUE
             return
         self.processFilterDefault(encodeModel, data, showAll)
 
@@ -168,7 +170,7 @@ class CreateEncoderPathHandler(CreateEncoderHandler):
         if data.accessiblePath is None: return
         assert isinstance(data.accessiblePath, Path), 'Invalid path %s' % data.accessiblePath
 
-        #TODO: Make sure when placing the accessible paths that there isn't already an accessible path
+        # TODO: Make sure when placing the accessible paths that there isn't already an accessible path
         # that already returns the inherited model see the example for MetaData and ImageData in relation
         # with MetaInfo and ImageInfo
         accessible = list(findGetAllAccessible(data.accessiblePath))

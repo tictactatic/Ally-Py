@@ -17,7 +17,7 @@ setup(
     name='distribution_manager',
     version='1.0',
     packages=find_packages(),
-    install_requires=['ally_utilities >= 1.0'],
+    install_requires=['ally >= 1.0'],
     platforms=['all'],
     zip_safe=True,
 

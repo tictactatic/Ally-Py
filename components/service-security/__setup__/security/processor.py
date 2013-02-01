@@ -87,7 +87,7 @@ def assemblyRequest() -> Assembly:
 @ioc.entity
 def assemblySecurity() -> Assembly:
     '''
-    The assembly containing the security handlers..
+    The assembly containing the security handlers.
     '''
     return Assembly()
 

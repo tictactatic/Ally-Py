@@ -12,9 +12,8 @@ Provides the invoking handler.
 from ally.api.config import GET, INSERT, UPDATE, DELETE
 from ally.api.operator.type import TypeModelProperty
 from ally.api.type import Input
-from ally.core.spec.codes import DELETED_SUCCESS, CANNOT_DELETE, UPDATE_SUCCESS, \
-    CANNOT_UPDATE, INSERT_SUCCESS, CANNOT_INSERT, BAD_CONTENT, METHOD_NOT_AVAILABLE, \
-    INCOMPLETE_ARGUMENTS, INPUT_ERROR
+from ally.core.spec.codes import INPUT_ERROR, INSERT_ERROR, INSERT_SUCCESS, \
+    UPDATE_SUCCESS, UPDATE_ERROR, DELETE_SUCCESS, DELETE_ERROR
 from ally.core.spec.resources import Path, Invoker
 from ally.core.spec.transform.render import Object, List, Value
 from ally.design.context import Context, defines, requires
@@ -34,7 +33,6 @@ class Request(Context):
     The request context.
     '''
     # ---------------------------------------------------------------- Required
-    method = requires(int)
     path = requires(Path)
     invoker = requires(Invoker)
     arguments = requires(dict)
@@ -44,9 +42,8 @@ class Response(Context):
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    code = defines(int)
+    code = defines(str)
     isSuccess = defines(bool)
-    text = defines(str)
     errorMessage = defines(str)
     errorDetails = defines(Object)
     obj = defines(object, doc='''
@@ -91,13 +88,9 @@ class InvokingHandler(HandlerProcessorProceed):
         assert isinstance(request.path, Path), 'Invalid request path %s' % request.path
         assert isinstance(request.invoker, Invoker), 'Invalid invoker %s' % request.invoker
 
-        callBack = self.invokeCallBack.get(request.method)
-        if callBack is None:
-            response.code, response.isSuccess = METHOD_NOT_AVAILABLE
-            response.text = 'Cannot process method'
-            response.errorMessage = 'Method cannot be processed for invoker \'%s\', something is wrong in the setups'
-            response.errorMessage %= request.invoker.name
-            return
+        callBack = self.invokeCallBack.get(request.invoker.method)
+        assert callBack is not None, \
+        'Method cannot be processed for invoker \'%s\', something is wrong in the setups' % request.invoker.name
 
         arguments = deque()
         for inp in request.invoker.inputs:
@@ -105,28 +98,16 @@ class InvokingHandler(HandlerProcessorProceed):
             if inp.name in request.arguments: arguments.append(request.arguments[inp.name])
             elif inp.hasDefault: arguments.append(inp.default)
             else:
-                response.code, response.isSuccess = INCOMPLETE_ARGUMENTS
-                response.text = 'Missing argument value'
-                response.errorMessage = 'No value for mandatory input \'%s\' for invoker \'%s\''
-                response.errorMessage %= (inp.name, request.invoker.name)
-                log.info('No value for mandatory input %s for invoker %s', inp, request.invoker)
-                return
+                raise DevelError('No value for mandatory input \'%s\' for invoker \'%s\'' % (inp.name, request.invoker.name))
         try:
             value = request.invoker.invoke(*arguments)
             assert log.debug('Successful on calling invoker \'%s\' with values %s', request.invoker,
                              tuple(arguments)) or True
 
             callBack(request.invoker, value, response)
-        except DevelError as e:
-            assert isinstance(e, DevelError)
-            response.code, response.isSuccess = BAD_CONTENT
-            response.text = 'Invoking problem'
-            response.errorMessage = e.message
-            log.warn('Problems with the invoked content: %s', e.message, exc_info=True)
         except InputError as e:
             assert isinstance(e, InputError)
             response.code, response.isSuccess = INPUT_ERROR
-            response.text = 'Input error'
             response.errorDetails = self.processInputError(e)
             assert log.debug('User input exception: %s', e, exc_info=True) or True
 
@@ -211,14 +192,12 @@ class InvokingHandler(HandlerProcessorProceed):
             if value is not None:
                 response.obj = value
             else:
-                response.code, response.isSuccess = CANNOT_INSERT
-                response.text = 'Cannot insert'
+                response.code, response.isSuccess = INSERT_ERROR
                 assert log.debug('Cannot insert resource') or True
                 return
         else:
             response.obj = value
         response.code, response.isSuccess = INSERT_SUCCESS
-        response.text = 'Successfully created'
 
     def afterUpdate(self, invoker, value, response):
         '''
@@ -239,21 +218,17 @@ class InvokingHandler(HandlerProcessorProceed):
 
         if invoker.output.isOf(None):
             response.code, response.isSuccess = UPDATE_SUCCESS
-            response.text = 'Successfully updated'
             assert log.debug('Successful updated resource') or True
         elif invoker.output.isOf(bool):
             if value == True:
                 response.code, response.isSuccess = UPDATE_SUCCESS
-                response.text = 'Successfully updated'
                 assert log.debug('Successful updated resource') or True
             else:
-                response.code, response.isSuccess = CANNOT_UPDATE
-                response.text = 'Cannot update'
+                response.code, response.isSuccess = UPDATE_ERROR
                 assert log.debug('Cannot update resource') or True
         else:
             # If an entity is returned than we will render that.
             response.code, response.isSuccess = UPDATE_SUCCESS
-            response.text = 'Successfully updated'
             response.obj = value
 
     def afterDelete(self, invoker, value, response):
@@ -275,15 +250,12 @@ class InvokingHandler(HandlerProcessorProceed):
 
         if invoker.output.isOf(bool):
             if value == True:
-                response.code, response.isSuccess = DELETED_SUCCESS
-                response.text = 'Successfully deleted'
+                response.code, response.isSuccess = DELETE_SUCCESS
                 assert log.debug('Successfully deleted resource') or True
             else:
-                response.code, response.isSuccess = CANNOT_DELETE
-                response.text = 'Cannot delete'
+                response.code, response.isSuccess = DELETE_ERROR
                 assert log.debug('Cannot deleted resource') or True
         else:
             # If an entity is returned than we will render that.
-            response.code, response.isSuccess = DELETED_SUCCESS
-            response.text = 'Successfully deleted'
+            response.code, response.isSuccess = DELETE_SUCCESS
             response.obj = value

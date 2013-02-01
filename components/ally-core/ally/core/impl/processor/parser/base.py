@@ -10,7 +10,7 @@ Provides the text base parser processor handler.
 '''
 
 from ally.container.ioc import injected
-from ally.core.spec.codes import BAD_CONTENT
+from ally.core.spec.codes import CONTENT_BAD, CONTENT_ILLEGAL
 from ally.core.spec.transform.render import Value, List, Object
 from ally.design.context import Context, requires, defines
 from ally.design.processor import HandlerProcessor, Chain
@@ -48,9 +48,8 @@ class Response(Context):
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    code = defines(int)
+    code = defines(str)
     isSuccess = defines(bool)
-    text = defines(str)
     errorMessage = defines(str)
     errorDetails = defines(Object)
 
@@ -89,12 +88,10 @@ class ParseBaseHandler(HandlerProcessor):
             try:
                 error = self.parse(request.decoder, request.decoderData, requestCnt.source, requestCnt.charSet)
                 if error:
-                    response.code, response.isSuccess = BAD_CONTENT
-                    response.text = 'Illegal content'
+                    response.code, response.isSuccess = CONTENT_BAD
                     response.errorMessage = error
             except InputError as e:
-                response.code, response.isSuccess = BAD_CONTENT
-                response.text = 'Bad content'
+                response.code, response.isSuccess = CONTENT_ILLEGAL
                 response.errorDetails = self.processInputError(e)
             return  # We need to stop the chain if we have been able to provide the parsing
         else:

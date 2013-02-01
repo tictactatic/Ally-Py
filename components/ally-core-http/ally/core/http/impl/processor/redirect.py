@@ -12,13 +12,12 @@ Provides the content location redirect based on references.
 from ally.api.operator.type import TypeModelProperty
 from ally.api.type import TypeReference
 from ally.container.ioc import injected
-from ally.core.http.spec.server import IEncoderPath
-from ally.core.spec.codes import REDIRECT
+from ally.core.http.spec.codes import REDIRECT
 from ally.core.spec.resources import Invoker
 from ally.design.context import Context, requires, defines
 from ally.design.processor import Handler, Assembly, NO_VALIDATION, Processing, \
     Chain, Function
-from ally.http.spec.server import IEncoderHeader
+from ally.http.spec.server import IEncoderHeader, IEncoderPath
 import logging
 
 # --------------------------------------------------------------------
@@ -43,9 +42,9 @@ class Response(Context):
     encoderPath = requires(IEncoderPath)
     obj = requires(object)
     # ---------------------------------------------------------------- Defined
-    code = defines(int)
+    code = defines(str)
+    status = defines(int)
     isSuccess = defines(bool)
-    text = defines(str)
 
 # --------------------------------------------------------------------
 
@@ -66,7 +65,7 @@ class RedirectHandler(Handler):
 
         redirectProcessing = self.redirectAssembly.create(NO_VALIDATION, request=Request, response=Response)
         assert isinstance(redirectProcessing, Processing), 'Invalid processing %s' % redirectProcessing
-        super().__init__(Function(redirectProcessing.contexts, self.process))
+        super().__init__(Function(dict(redirectProcessing.contexts), self.process))
         
         self._redirectProcessing = redirectProcessing
 
@@ -86,8 +85,7 @@ class RedirectHandler(Handler):
             typ = request.invoker.output
             if isinstance(typ, TypeModelProperty): typ = typ.type
             if isinstance(typ, TypeReference):
-                redirectChain = Chain(self._redirectProcessing)
-                redirectChain.process(request=request, response=response, **keyargs).doAll()
+                Chain(self._redirectProcessing).process(request=request, response=response, **keyargs).doAll()
                 if response.isSuccess is not False:
                     assert isinstance(response.encoderHeader, IEncoderHeader), \
                     'Invalid header encoder %s' % response.encoderHeader
@@ -95,8 +93,7 @@ class RedirectHandler(Handler):
                     'Invalid encoder path %s' % response.encoderPath
 
                     response.encoderHeader.encode(self.nameLocation, response.encoderPath.encode(response.obj))
-                    response.code, response.isSuccess = REDIRECT
-                    response.text = 'Redirect'
+                    response.code, response.status, response.isSuccess = REDIRECT
                     return
 
         chain.proceed()

@@ -15,16 +15,16 @@ from collections import Iterable
 import abc
 
 # --------------------------------------------------------------------
+
+# HTTP scheme/protocol.
+HTTP = 'http'
+
 # HTTP methods.
-
-METHOD_GET = 'GET'
-METHOD_DELETE = 'DELETE'
-METHOD_POST = 'POST'
-METHOD_PUT = 'PUT'
-METHOD_OPTIONS = 'OPTIONS'
-METHOD_UNKNOWN = 'UNKNOWN'
-
-METHODS = frozenset((METHOD_GET, METHOD_DELETE, METHOD_POST, METHOD_PUT, METHOD_OPTIONS))
+HTTP_GET = 'GET'
+HTTP_DELETE = 'DELETE'
+HTTP_POST = 'POST'
+HTTP_PUT = 'PUT'
+HTTP_OPTIONS = 'OPTIONS'
 
 # --------------------------------------------------------------------
 
@@ -37,13 +37,9 @@ class RequestHTTP(Context):
     @rtype: string
     The scheme URI protocol name to be used for the response.
     ''')
-    methodName = defines(str, doc='''
+    method = defines(str, doc='''
     @rtype: string
-    The HTTP method name of the request.
-    ''')
-    uriRoot = defines(str, doc='''
-    @rtype: string
-    The root URI to be considered for constructing a request path, basically the relative path root.
+    The method name of the request.
     ''')
     uri = defines(str, doc='''
     @rtype: string
@@ -73,21 +69,21 @@ class ResponseHTTP(Context):
     Context for HTTP response data. 
     '''
     # ---------------------------------------------------------------- Required
-    code = requires(int, doc='''
+    status = requires(int, doc='''
     @rtype: integer
-    The HTTP response code.
-    ''')
-    isSuccess = requires(bool, doc='''
-    @rtype: boolean
-    True if the response is a success, False otherwise.
+    The response status code.
     ''')
     # ---------------------------------------------------------------- Optional
+    code = optional(str, doc='''
+    @rtype: string
+    The response code message.
+    ''')
     text = optional(str, doc='''
-    @rtype: str
+    @rtype: string
     The response text message (a short message).
     ''')
     headers = optional(dict, doc='''
-    @rtype: dictionary{String, string}
+    @rtype: dictionary{string, string}
     The response headers.
     ''')
 
@@ -151,4 +147,25 @@ class IEncoderHeader(metaclass=abc.ABCMeta):
         @param value: arguments[tuple(string, tuple(string, string))|string]
             Tuples containing as first value found in the header and as the second value a tuple with the
             values attribute.
+        '''
+        
+# --------------------------------------------------------------------
+
+class IEncoderPath(metaclass=abc.ABCMeta):
+    '''
+    Provides the path encoding.
+    '''
+
+    @abc.abstractmethod
+    def encode(self, path, parameters=None):
+        '''
+        Encodes the provided path to a full request path.
+        
+        @param path: object
+            The path to be encoded, the type depends on the implementation.
+        @param parameters: Iterable(tuple(string, string))
+            A iterable of tuples containing on the first position the parameter string name and on the second the string
+            parameter value as to be represented in the request path.
+        @return: string
+            The full compiled request path.
         '''

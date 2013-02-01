@@ -23,11 +23,13 @@ else:
     pytz = pytz  # Just to avoid the import warning
     # ----------------------------------------------------------------
 
-    from ..ally_core.processor import assemblyResources, conversion
-    from ..ally_core_http.processor import updateAssemblyResourcesForHTTP
+    from ..ally_core.processor import conversion
+    from ..ally_core_http.processor import assemblyResources, \
+        updateAssemblyResources
     from ally.container import ioc
     from ally.core.http.impl.processor.time_zone import TimeZoneHandler
     from ally.design.processor import Handler
+    
     
     # --------------------------------------------------------------------
     
@@ -56,6 +58,6 @@ else:
     
     # --------------------------------------------------------------------
     
-    @ioc.after(updateAssemblyResourcesForHTTP)
+    @ioc.after(updateAssemblyResources)
     def updateAssemblyResourcesForTimeZone():
         assemblyResources().add(timeZone(), after=conversion())

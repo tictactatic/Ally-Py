@@ -9,8 +9,9 @@ Created on Jul 15, 2011
 Special package that is targeted by the IoC for processing plugins.
 '''
 
+from ..cdm import contentDeliveryManager
 from ..gui_core import publish_gui_resources
-from ..plugin.registry import cdmGUI
+from ally.cdm.spec import ICDM
 from ally.container import ioc
 from ally.support.util_sys import callerGlobals
 import logging
@@ -32,6 +33,15 @@ def lib_folder_format():
 def gui_folder_format():
     '''Describes where the gui files are published '''
     return 'lib/%s'
+
+# --------------------------------------------------------------------
+
+@ioc.entity
+def cdmGUI() -> ICDM:
+    '''
+    The content delivery manager (CDM) for the plugin's static resources
+    '''
+    return contentDeliveryManager()
 
 # --------------------------------------------------------------------
 

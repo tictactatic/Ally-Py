@@ -9,13 +9,13 @@ Created on Jan 9, 2012
 Contains the services setup for internationalization.
 '''
 
-from ..cdm.local_cdm import contentDeliveryManager
+from ..cdm import contentDeliveryManager
 from ..plugin.registry import addService
 from .db_internationalization import bindInternationalizationSession, \
     bindInternationalizationValidations
+from ally.cdm.spec import ICDM
+from ally.cdm.support import ExtendPathCDM
 from ally.container import support, ioc
-from cdm.spec import ICDM
-from cdm.support import ExtendPathCDM
 from internationalization.scanner import Scanner
 
 # --------------------------------------------------------------------

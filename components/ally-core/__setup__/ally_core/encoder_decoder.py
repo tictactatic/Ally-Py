@@ -28,7 +28,10 @@ log = logging.getLogger(__name__)
 
 @ioc.config
 def content_types_json() -> dict:
-    '''The JSON content types'''
+    '''
+    The JSON content types, a map that contains as a key the recognized mime type and as a value the normalize mime type,
+    if none then the same key mimie type will be used for response
+    '''
     return {
             'text/json':None,
             'application/json':None,
@@ -38,7 +41,10 @@ def content_types_json() -> dict:
 
 @ioc.config
 def content_types_xml() -> dict:
-    '''The XML content types'''
+    '''
+    The XML content types, a map that contains as a key the recognized mime type and as a value the normalize mime type,
+    if none then the same key mimie type will be used for response
+    '''
     return {
             'text/xml':None,
             'text/plain':'text/xml',
@@ -48,7 +54,10 @@ def content_types_xml() -> dict:
 
 @ioc.config
 def content_types_yaml() -> dict:
-    '''The YAML content types'''
+    '''
+    The YAML content types, a map that contains as a key the recognized mime type and as a value the normalize mime type,
+    if none then the same key mimie type will be used for response.
+    '''
     return {
             'text/yaml':None,
             'application/yaml':None,

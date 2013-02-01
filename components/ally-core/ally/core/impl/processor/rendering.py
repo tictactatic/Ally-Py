@@ -10,7 +10,7 @@ Provides the rendering processing.
 '''
 
 from ally.container.ioc import injected
-from ally.core.spec.codes import UNKNOWN_ENCODING
+from ally.core.spec.codes import ENCODING_UNKNOWN
 from ally.design.context import Context, defines, optional
 from ally.design.processor import Assembly, Handler, Processing, NO_VALIDATION, \
     Chain, Function
@@ -33,7 +33,7 @@ class Response(Context):
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    code = defines(int)
+    code = defines(str)
     isSuccess = defines(bool)
     text = defines(str)
 
@@ -77,7 +77,7 @@ class RenderingHandler(Handler):
         renderingProcessing = self.renderingAssembly.create(NO_VALIDATION, request=Request,
                                                             response=Response, responseCnt=ResponseContent)
         assert isinstance(renderingProcessing, Processing), 'Invalid processing %s' % renderingProcessing
-        super().__init__(Function(renderingProcessing.contexts, self.process))
+        super().__init__(Function(dict(renderingProcessing.contexts), self.process))
 
         self._renderingProcessing = renderingProcessing
 
@@ -112,7 +112,7 @@ class RenderingHandler(Handler):
             renderChain.process(request=request, response=response, responseCnt=responseCnt, **keyargs)
             if renderChain.doAll().isConsumed():
                 if response.isSuccess is not False:
-                    response.code, response.isSuccess = UNKNOWN_ENCODING
+                    response.code, response.isSuccess = ENCODING_UNKNOWN
                     response.text = 'Content type \'%s\' not supported for rendering' % responseCnt.type
             else: resolved = True
 

@@ -28,7 +28,7 @@ class Response(Context):
     The response context.
     '''
     # ---------------------------------------------------------------- Optional
-    code = optional(int)
+    code = optional(str)
     isSuccess = optional(bool)
     text = optional(str)
     errorMessage = optional(str, doc='''
@@ -70,7 +70,7 @@ class ExplainErrorHandler(HandlerProcessorProceed):
         assert isinstance(responseCnt, ResponseContent), 'Invalid response content %s' % responseCnt
 
         if response.isSuccess is False and Response.renderFactory in response:
-            errors = [Value('code', str(response.code))]
+            errors = [Value('code', response.code)]
             if Response.errorMessage in response:
                 errors.append(Value('message', response.errorMessage))
             elif Response.text in response:

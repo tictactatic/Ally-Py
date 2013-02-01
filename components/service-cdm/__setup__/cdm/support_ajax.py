@@ -1,7 +1,7 @@
 '''
 Created on Nov 24, 2011
 
-@package: support cdm
+@package: service CDM
 @copyright: 2012 Sourcefabric o.p.s.
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
@@ -35,5 +35,4 @@ def headerSetEncodeCdm() -> Handler:
 
 @ioc.after(updateAssemblyContent)
 def updateAssemblyContentAjax():
-    if ajax_cross_domain():
-        assemblyContent().add(headerSetEncodeCdm(), deliverOkHandler(), before=contentDelivery())
+    if ajax_cross_domain(): assemblyContent().add(headerSetEncodeCdm(), deliverOkHandler(), before=contentDelivery())

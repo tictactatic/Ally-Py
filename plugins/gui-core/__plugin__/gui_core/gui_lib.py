@@ -10,9 +10,8 @@ Contains the GUI configuration setup for the node presenter plugin.
 '''
 
 from ..gui_core import publish_gui_resources
-from ..gui_core.gui_core import getPublishedLib, gui_folder_format
-from ..plugin.registry import cdmGUI
-from .gui_core import getGuiPath, lib_folder_format, publishLib
+from .gui_core import cdmGUI, getGuiPath, lib_folder_format, publishLib, \
+    getPublishedLib, gui_folder_format
 from ally.container import ioc
 from ally.support.util_io import openURI
 from distribution.container import app

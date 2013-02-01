@@ -11,17 +11,14 @@ Provides the URI request path handler.
 
 from ally.api.type import Scheme
 from ally.container.ioc import injected
-from ally.core.http.spec.codes import MISSING_HEADER
-from ally.core.http.spec.server import IEncoderPath
-from ally.core.spec.codes import RESOURCE_NOT_FOUND, RESOURCE_FOUND
 from ally.core.spec.resources import ConverterPath, Path, Converter, Normalizer, \
     Node
 from ally.design.context import Context, requires, defines, optional
 from ally.design.processor import HandlerProcessorProceed
-from ally.http.spec.server import IDecoderHeader
+from ally.http.spec.codes import PATH_FOUND, PATH_NOT_FOUND
+from ally.http.spec.server import IEncoderPath
 from ally.support.core.util_resources import findPath
-from collections import deque
-from urllib.parse import urlencode, urlunsplit, urlsplit, quote, unquote
+from urllib.parse import quote, unquote
 import logging
 
 # --------------------------------------------------------------------
@@ -35,10 +32,7 @@ class Request(Context):
     The request context.
     '''
     # ---------------------------------------------------------------- Required
-    scheme = requires(str)
-    uriRoot = requires(str)
     uri = requires(str)
-    decoderHeader = requires(IDecoderHeader)
     # ---------------------------------------------------------------- Optional
     argumentsOfType = optional(dict)
     # ---------------------------------------------------------------- Defined
@@ -63,17 +57,19 @@ class Response(Context):
     '''
     The response context.
     '''
+    # ---------------------------------------------------------------- Required
+    encoderPath = requires(IEncoderPath, doc='''
+    @rtype: IEncoderPath
+    The path encoder used for encoding resource paths that will be rendered in the response.
+    ''')
     # ---------------------------------------------------------------- Defined
-    code = defines(int)
+    code = defines(str)
+    status = defines(int)
     isSuccess = defines(bool)
     text = defines(str)
     converterId = defines(Converter, doc='''
     @rtype: Converter
     The converter to use for model id's.
-    ''')
-    encoderPath = defines(IEncoderPath, doc='''
-    @rtype: IEncoderPath
-    The path encoder used for encoding paths that will be rendered in the response.
     ''')
 
 class ResponseContent(Context):
@@ -97,15 +93,16 @@ class URIHandler(HandlerProcessorProceed):
 
     resourcesRoot = Node
     # The resources node that will be used for finding the resource path.
+    resourcesRootURI = None
+    # The prefix to append to the resources Path encodings.
     converterPath = ConverterPath
     # The converter path used for handling the URL path.
-    headerHost = 'Host'
-    # The header in which the host is provided.
 
     def __init__(self):
         assert isinstance(self.resourcesRoot, Node), 'Invalid resources node %s' % self.resourcesRoot
+        assert self.resourcesRootURI is None or isinstance(self.resourcesRootURI, str), \
+        'Invalid root URI %s' % self.resourcesRootURI
         assert isinstance(self.converterPath, ConverterPath), 'Invalid ConverterPath object %s' % self.converterPath
-        assert isinstance(self.headerHost, str), 'Invalid string %s' % self.headerHost
         super().__init__()
 
     def process(self, request:Request, response:Response, responseCnt:ResponseContent, **keyargs):
@@ -119,6 +116,8 @@ class URIHandler(HandlerProcessorProceed):
         assert isinstance(responseCnt, ResponseContent), 'Invalid response content %s' % responseCnt
         assert isinstance(request.uri, str), 'Invalid request URI %s' % request.uri
         if response.isSuccess is False: return  # Skip in case the response is in error
+        
+        assert isinstance(response.encoderPath, IEncoderPath), 'Invalid encoder path %s' % response.encoderPath
 
         paths = request.uri.split('/')
         i = paths[-1].rfind('.') if len(paths) > 0 else -1
@@ -133,8 +132,7 @@ class URIHandler(HandlerProcessorProceed):
         assert isinstance(request.path, Path), 'Invalid path %s' % request.path
         if not request.path.node:
             # we stop the chain processing
-            response.code, response.isSuccess = RESOURCE_NOT_FOUND
-            response.text = 'Cannot find resources for path'
+            response.code, response.status, response.isSuccess = PATH_NOT_FOUND
             assert log.debug('No resource found for URI %s', request.uri) or True
             return
         assert log.debug('Found resource for URI %s', request.uri) or True
@@ -145,18 +143,9 @@ class URIHandler(HandlerProcessorProceed):
 
         if Request.argumentsOfType in request: request.argumentsOfType[Scheme] = request.scheme
 
-        assert isinstance(request.decoderHeader, IDecoderHeader), \
-        'Invalid request decoder header %s' % request.decoderHeader
-        assert isinstance(request.uriRoot, str), 'Invalid request root URI %s' % request.uriRoot
-        host = request.decoderHeader.retrieve(self.headerHost)
-        if host is None:
-            response.code, response.isSuccess = MISSING_HEADER
-            response.text = 'Missing the %s header' % self.headerHost
-            assert log.debug('No host header available for URI %s', request.uri) or True
-            return
-        response.encoderPath = EncoderPathURI(request.scheme, host, request.uriRoot, self.converterPath, extension)
+        response.encoderPath = EncoderPathURI(response.encoderPath, self.converterPath, self.resourcesRootURI, extension)
 
-        response.code, response.isSuccess = RESOURCE_FOUND
+        response.code, response.status, response.isSuccess = PATH_FOUND
         response.converterId = self.converterPath
         if extension: responseCnt.type = extension
 
@@ -167,58 +156,52 @@ class EncoderPathURI(IEncoderPath):
     Provides encoding for the URI paths generated by the URI processor.
     '''
 
-    __slots__ = ('scheme', 'host', 'root', 'converterPath', 'extension')
+    __slots__ = ('_wrapped', '_converterPath', '_rootURI', '_extension')
 
-    def __init__(self, scheme, host, root, converterPath, extension):
+    def __init__(self, wrapped, converterPath, rootURI=None, extension=None):
         '''
-        @param scheme: string
-            The encoded path scheme.
-        @param host: string
-            The host string.
-        @param root: string
+        Construct the Path encoder.
+
+        @param wrapped: IEncoderPath|None
+            The wrapped encoder that provides string based path encodings.
+        @param converterPath: ConverterPath
+            The converter path to be used on Path objects to get the URI.
+        @param rootURI: string|None
             The root URI to be considered for constructing a request path, basically the relative path root. None if the path
             is not relative.
-        @param converterPath: ConverterPath
-            The converter path to be used on Path objects to get the URL.
-        @param extension: string
+        @param extension: string|None
             The extension to use on the encoded paths.
         '''
-        assert isinstance(scheme, str), 'Invalid scheme %s' % scheme
-        assert isinstance(host, str), 'Invalid host %s' % host
-        assert isinstance(root, str), 'Invalid root URI %s' % root
+        assert isinstance(wrapped, IEncoderPath), 'Invalid wrapped encoder %s' % wrapped
         assert isinstance(converterPath, ConverterPath), 'Invalid converter path %s' % converterPath
+        assert rootURI is None or isinstance(rootURI, str), 'Invalid root URI %s' % rootURI
         assert extension is None or isinstance(extension, str), 'Invalid extension %s' % extension
-        self.scheme = scheme
-        self.host = host
-        self.root = root
-        self.converterPath = converterPath
-        self.extension = extension
+        
+        self._wrapped = wrapped
+        self._converterPath = converterPath
+        self._rootURI = rootURI
+        self._extension = extension
 
     def encode(self, path, parameters=None):
         '''
         @see: EncoderPath.encode
         '''
-        assert isinstance(path, (Path, str)), 'Invalid path %s' % path
         if isinstance(path, Path):
             assert isinstance(path, Path)
 
-            url = deque()
-            url.append(self.root)
-            url.append('/'.join(path.toPaths(self.converterPath)))
-            if self.extension:
-                url.append('.')
-                url.append(self.extension)
+            uri = []
+            paths = path.toPaths(self._converterPath)
+            uri.append('/'.join(paths))
+            if self._extension:
+                uri.append('.')
+                uri.append(self._extension)
             elif path.node.isGroup:
-                url.append('/')
-
-            query = urlencode(parameters) if parameters else ''
-            return urlunsplit((self.scheme, self.host, quote(''.join(url)), query, ''))
-        else:
-            assert isinstance(path, str), 'Invalid path %s' % path
-            if not path.strip().startswith('/'):
-                # TODO: improve the relative path detection
-                # This is an absolute path so we will return it as it is.
-                return quote(path)
-            # The path is relative to this server so we will convert it in an absolute path
-            url = urlsplit(path)
-            return urlunsplit((self.scheme, self.host, quote(url.path), url.query, url.fragment))
+                uri.append('/')
+            elif paths[-1].count('.') > 0:
+                uri.append('/')  # Added just in case the last entry has a dot in it and not to be consfused as a extension
+            
+            uri = quote(''.join(uri))
+            if self._rootURI: uri = self._rootURI % uri
+            
+            return self._wrapped.encode(uri, parameters)
+        return self._wrapped.encode(path, parameters)

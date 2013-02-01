@@ -14,7 +14,7 @@ from ally.api.operator.type import TypeModel
 from ally.api.type import Type, Percentage, Number, Date, DateTime, Time, \
     Boolean, List, Locale as TypeLocale
 from ally.container.ioc import injected
-from ally.core.http.spec.codes import INVALID_FORMATING
+from ally.core.http.spec.codes import FORMATING_ERROR
 from ally.core.spec.resources import Converter, Normalizer
 from ally.design.context import Context, defines, requires, optional
 from ally.design.processor import HandlerProcessorProceed
@@ -72,7 +72,8 @@ class ResponseDecode(Context):
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    code = defines(int)
+    code = defines(str)
+    status = defines(int)
     isSuccess = defines(bool)
     text = defines(str)
     errorMessage = defines(str)
@@ -158,7 +159,7 @@ class BabelConversionDecodeHandler(HandlerProcessorProceed):
         except FormatError as e:
             assert isinstance(e, FormatError)
             if response.isSuccess is False: return  # Skip in case the response is in error
-            response.code, response.isSuccess = INVALID_FORMATING
+            response.code, response.status, response.isSuccess = FORMATING_ERROR
             response.text = 'Bad request content formatting'
             response.errorMessage = 'Bad request content formatting, %s' % e.message
             return
@@ -202,7 +203,7 @@ class BabelConversionDecodeHandler(HandlerProcessorProceed):
         except FormatError as e:
             assert isinstance(e, FormatError)
             if response.isSuccess is False: return  # Skip in case the response is in error
-            response.code, response.isSuccess = INVALID_FORMATING
+            response.code, response.status, response.isSuccess = FORMATING_ERROR
             response.text = 'Bad content formatting for response'
             response.errorMessage = 'Bad content formatting for response, %s' % e.message
             return

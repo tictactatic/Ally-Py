@@ -6,11 +6,11 @@ package: ally core http
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
 
-Provides the multi part form-data conversion to url encoded content.
+Provides the multipart form-data conversion to url encoded content.
 '''
 
 from ally.container.ioc import injected
-from ally.core.spec.codes import BAD_CONTENT
+from ally.core.http.spec.codes import MUTLIPART_ERROR
 from ally.design.context import Context, requires, defines
 from ally.design.processor import HandlerProcessor, Chain
 from ally.support.util_io import IInputStream
@@ -46,9 +46,9 @@ class Response(Context):
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    code = defines(int)
+    code = defines(str)
+    status = defines(int)
     isSuccess = defines(bool)
-    text = defines(str)
     errorMessage = defines(str)
 
 # --------------------------------------------------------------------
@@ -108,9 +108,8 @@ class ParseFormDataHandler(HandlerProcessor):
         content, parameters = requestCnt, deque()
         while True:
             if content.disposition != self.contentDisposition:
-                response.code, response.isSuccess = BAD_CONTENT
-                response.text = 'Invalid multi part form data'
-                response.errorMessage = 'Invalid multi part form data content disposition \'%s\'' % content.disposition
+                response.code, response.status, response.isSuccess = MUTLIPART_ERROR
+                response.errorMessage = 'Invalid multipart form data content disposition \'%s\'' % content.disposition
                 return
 
             name = content.dispositionAttr.pop(self.attrContentDispositionFile, None)
@@ -120,8 +119,7 @@ class ParseFormDataHandler(HandlerProcessor):
 
             name = content.dispositionAttr.pop(self.attrContentDispositionName, None)
             if not name:
-                response.code, response.isSuccess = BAD_CONTENT
-                response.text = 'No name in content disposition'
+                response.code, response.status, response.isSuccess = MUTLIPART_ERROR
                 response.errorMessage = 'Missing the content disposition header attribute name'
                 return
 

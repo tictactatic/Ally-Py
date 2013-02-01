@@ -9,8 +9,8 @@ Created on Nov 7, 2012
 Special module that is used in deploying the application.
 '''
  
-from ..ally_utilities.deploy import dumpAssembly
-from ..ally_utilities.prepare import OptionsCore
+from ..ally.deploy import dumpAssembly
+from ..ally.prepare import OptionsCore
 from __setup__.ally_core_plugin.deploy_plugin import configurations_file_path, \
     loadPlugins
 from ally.container import ioc, aop, context

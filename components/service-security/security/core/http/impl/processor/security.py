@@ -142,11 +142,6 @@ class SecurityHandler(Handler):
     def process(self, chain, request, requestCnt, response, responseCnt):
         '''
         Process the redirect.
-        
-        @param requestProcessing: Processing
-            The processing that provides the request handling chain.
-            
-        The rest of the parameters are contexts.
         '''
         assert isinstance(chain, Chain), 'Invalid processors chain %s' % chain
         assert isinstance(request, Request), 'Invalid request %s' % request

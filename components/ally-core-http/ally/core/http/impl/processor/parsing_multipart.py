@@ -11,14 +11,13 @@ Provides the multipart content parsing based on RFC1341.
 '''
 
 from ally.container.ioc import injected
+from ally.core.http.spec.codes import MUTLIPART_NO_BOUNDARY
 from ally.core.impl.processor.parsing import ParsingHandler, Request, \
     RequestContent, Response
-from ally.core.spec.codes import BAD_CONTENT
 from ally.design.context import requires, defines, Context
 from ally.design.processor import Chain, Assembly, Processing, \
     NO_MISSING_VALIDATION
 from ally.exception import DevelError
-from ally.http.spec.codes import INVALID_HEADER_VALUE
 from ally.support.util_io import IInputStream, IClosable
 from collections import Callable
 from io import BytesIO
@@ -71,6 +70,13 @@ class RequestContentMultiPart(RequestContent):
     The reference to the previous content, this will be available only after the fetch method has been used.
     ''')
 
+class ResponseMultiPart(Response):
+    '''
+    The response context.
+    '''
+    # ---------------------------------------------------------------- Defined
+    status = defines(int)
+    
 # --------------------------------------------------------------------
 
 @injected
@@ -126,10 +132,10 @@ class ParsingMultiPartHandler(ParsingHandler, DataMultiPart):
         assert isinstance(self.populateAssembly, Assembly), 'Invalid populate assembly %s' % self.populateAssembly
         DataMultiPart.__init__(self)
         populateProcessing = self.populateAssembly.create(NO_MISSING_VALIDATION, request=RequestPopulate,
-                                                          requestCnt=RequestContentMultiPart, response=Response)
+                                                          requestCnt=RequestContentMultiPart, response=ResponseMultiPart)
         assert isinstance(populateProcessing, Processing), 'Invalid processing %s' % populateProcessing
-        ParsingHandler.__init__(self, requestCnt=populateProcessing.contexts['requestCnt'])
-        self.populateProcessing = populateProcessing
+        ParsingHandler.__init__(self, requestCnt=populateProcessing.ctx.requestCnt)
+        self._populateProcessing = populateProcessing
 
         self._reMultipart = re.compile(self.regexMultipart)
 
@@ -140,7 +146,7 @@ class ParsingMultiPartHandler(ParsingHandler, DataMultiPart):
         assert isinstance(chain, Chain), 'Invalid processors chain %s' % chain
         assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(requestCnt, RequestContentMultiPart), 'Invalid request content %s' % requestCnt
-        assert isinstance(response, Response), 'Invalid response %s' % response
+        assert isinstance(response, ResponseMultiPart), 'Invalid response %s' % response
 
         chain.proceed()
 
@@ -151,16 +157,14 @@ class ParsingMultiPartHandler(ParsingHandler, DataMultiPart):
             assert log.debug('Content type %s is multi part', requestCnt.type) or True
             boundary = requestCnt.typeAttr.pop(self.attrBoundary, None)
             if not boundary:
-                response.code, response.isSuccess = INVALID_HEADER_VALUE
-                response.text = 'Multi part boundary expected'
+                response.code, response.status, response.isSuccess = MUTLIPART_NO_BOUNDARY
                 return
 
             assert isinstance(requestCnt.source, IInputStream), 'Invalid request content source %s' % requestCnt.source
             stream = StreamMultiPart(self, requestCnt.source, boundary)
-            requestCnt = NextContent(requestCnt, response, self.populateProcessing, self, stream)()
+            requestCnt = NextContent(requestCnt, response, self._populateProcessing, self, stream)()
             if requestCnt is None:
-                response.code, response.isSuccess = BAD_CONTENT
-                response.text = 'No boundary found in multi part content'
+                response.code, response.status, response.isSuccess = MUTLIPART_NO_BOUNDARY
                 return
 
         if Request.decoder not in request:
@@ -351,7 +355,7 @@ class NextContent:
         
         @param requestCnt: RequestContentMultiPart
             The current request content.
-        @param response: Response
+        @param response: ResponseMultiPart
             The response context.
         @param processing: Processing
             The processing used for populating the next request content.
@@ -363,7 +367,7 @@ class NextContent:
             The next content.
         '''
         assert isinstance(requestCnt, RequestContentMultiPart), 'Invalid request content %s' % requestCnt
-        assert isinstance(response, Response), 'Invalid response %s' % response
+        assert isinstance(response, ResponseMultiPart), 'Invalid response %s' % response
         assert isinstance(processing, Processing), 'Invalid processing %s' % processing
         assert isinstance(data, DataMultiPart), 'Invalid data %s' % data
         assert isinstance(stream, StreamMultiPart), 'Invalid stream %s' % stream
@@ -393,8 +397,8 @@ class NextContent:
                     if stream._flag & FLAG_MARK_START: break
                     if stream._flag & FLAG_END: return
 
-            req = processing.contexts['request']()
-            self._nextCnt = reqCnt = processing.contexts['requestCnt']()
+            req = processing.ctx.request()
+            self._nextCnt = reqCnt = processing.ctx.requestCnt()
             assert isinstance(req, RequestPopulate), 'Invalid request %s' % req
             assert isinstance(reqCnt, RequestContentMultiPart), 'Invalid request content %s' % reqCnt
 

@@ -37,7 +37,7 @@ class HeaderSetEncodeHandler(HandlerProcessorProceed):
     '''
 
     headers = dict
-    # The static header values to set on the response.
+    # The static header values to set on the response is of type dictionary{string, list[string]}
 
     def __init__(self):
         assert isinstance(self.headers, dict), 'Invalid header dictionary %s' % self.header
@@ -57,4 +57,4 @@ class HeaderSetEncodeHandler(HandlerProcessorProceed):
         assert isinstance(response.encoderHeader, IEncoderHeader), \
         'Invalid header encoder %s' % response.encoderHeader
 
-        for name, value in self.headers.items(): response.encoderHeader.encode(name, ','.join(value))
+        for name, value in self.headers.items(): response.encoderHeader.encode(name, *value)

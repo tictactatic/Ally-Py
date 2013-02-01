@@ -31,10 +31,9 @@ class Response(Context):
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    code = defines(int)
+    code = defines(str)
+    status = defines(int)
     isSuccess = defines(bool)
-    text = defines(str)
-    errorMessage = defines(str)
     headers = defines(dict)
 
 class ResponseContent(Context):
@@ -88,8 +87,7 @@ class InternalErrorHandler(HandlerProcessor):
                         log.exception('Exception occurred while processing the chain')
                         error = StringIO()
                         traceback.print_exc(file=error)
-                        response.code, response.isSuccess = INTERNAL_ERROR
-                        response.text = 'Cannot render response, please consult the server logs'
+                        response.code, response.status, response.isSuccess = INTERNAL_ERROR
                         response.headers = self.errorHeaders
                         responseCnt.source = convertToBytes(self.errorResponse(error), 'utf8', 'backslashreplace')
                     else:
@@ -112,10 +110,9 @@ class InternalErrorHandler(HandlerProcessor):
         log.exception('Exception occurred while processing the chain')
         error = StringIO()
         traceback.print_exc(file=error)
-        response.code, response.isSuccess = INTERNAL_ERROR
-        response.text = 'Upps, please consult the server logs'
+        response.code, response.status, response.isSuccess = INTERNAL_ERROR
         response.headers = self.errorHeaders
-        responseCnt.source = convertToBytes(self.errorResponse(error), 'utf8', 'backslashreplace')
+        responseCnt.source = convertToBytes(self.errorResponse(error), 'utf-8', 'backslashreplace')
 
     def errorResponse(self, error):
         '''

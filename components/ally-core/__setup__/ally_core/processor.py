@@ -18,13 +18,12 @@ from ally.core.impl.processor.decoder import CreateDecoderHandler
 from ally.core.impl.processor.encoder import CreateEncoderHandler
 from ally.core.impl.processor.explain_error import ExplainErrorHandler
 from ally.core.impl.processor.invoking import InvokingHandler
-from ally.core.impl.processor.method_invoker import MethodInvokerHandler
 from ally.core.impl.processor.parsing import ParsingHandler
 from ally.core.impl.processor.render_encoder import RenderEncoderHandler
 from ally.core.impl.processor.rendering import RenderingHandler
 from ally.core.impl.processor.text_conversion import ConversionSetHandler
 from ally.core.spec.resources import Normalizer, Converter
-from ally.design.processor import Handler, Assembly
+from ally.design.processor import Handler
 
 # --------------------------------------------------------------------
 # Creating the processors used in handling the request
@@ -66,9 +65,6 @@ def converter() -> Converter: return Converter()
 
 @ioc.entity
 def argumentsPrepare() -> Handler: return ArgumentsPrepareHandler()
-
-@ioc.entity
-def methodInvoker() -> Handler: return MethodInvokerHandler()
 
 @ioc.entity
 def renderer() -> Handler:
@@ -116,19 +112,3 @@ def renderEncoder() -> Handler:
 @ioc.entity
 def explainError(): return ExplainErrorHandler()
 
-# --------------------------------------------------------------------
-
-@ioc.entity
-def assemblyResources() -> Assembly:
-    '''
-    The assembly containing the handlers that will be used in processing a REST request.
-    '''
-    return Assembly()
-
-# --------------------------------------------------------------------
-
-@ioc.before(assemblyResources)
-def updateAssemblyResources():
-    assemblyResources().add(argumentsPrepare(), methodInvoker(), renderer(), conversion(), createDecoder(),
-                            createEncoder(), parser(), content(), argumentsBuild(), invoking(), renderEncoder(),
-                            explainError())

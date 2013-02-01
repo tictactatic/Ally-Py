@@ -9,7 +9,7 @@ Created on Nov 7, 2012
 Update the default logging.
 '''
 
-from ..ally_utilities.logging import info_for
+from ..ally.logging import info_for
 from ally.container import ioc
 
 # --------------------------------------------------------------------

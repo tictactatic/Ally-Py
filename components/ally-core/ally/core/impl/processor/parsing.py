@@ -10,7 +10,7 @@ Provides the parsing chain processors.
 '''
 
 from ally.container.ioc import injected
-from ally.core.spec.codes import UNKNOWN_ENCODING
+from ally.core.spec.codes import ENCODING_UNKNOWN
 from ally.design.context import Context, defines, requires
 from ally.design.processor import Assembly, Handler, Processing, \
     NO_MISSING_VALIDATION, Chain, Function
@@ -39,7 +39,7 @@ class Response(Context):
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    code = defines(int)
+    code = defines(str)
     isSuccess = defines(bool)
     text = defines(str)
 
@@ -71,7 +71,7 @@ class ParsingHandler(Handler):
         parsingProcessing = self.parsingAssembly.create(NO_MISSING_VALIDATION, request=request, requestCnt=requestCnt,
                                                         response=response, responseCnt=responseCnt)
         assert isinstance(parsingProcessing, Processing), 'Invalid processing %s' % parsingProcessing
-        super().__init__(Function(parsingProcessing.contexts, self.process))
+        super().__init__(Function(dict(parsingProcessing.contexts), self.process))
 
         self._parsingProcessing = parsingProcessing
 
@@ -90,7 +90,7 @@ class ParsingHandler(Handler):
 
         if self.processParsing(request=request, requestCnt=requestCnt, response=response, **keyargs):
             # We process the chain without the request content anymore
-            chain.update(requestCnt=None)
+            chain.arg.requestCnt = None
 
     def processParsing(self, request, requestCnt, response, responseCnt, **keyargs):
         '''
@@ -115,5 +115,5 @@ class ParsingHandler(Handler):
         chain.process(request=request, requestCnt=requestCnt, response=response, responseCnt=responseCnt, **keyargs)
         if not chain.doAll().isConsumed(): return True
         if response.isSuccess is not False:
-            response.code, response.isSuccess = UNKNOWN_ENCODING
+            response.code, response.isSuccess = ENCODING_UNKNOWN
             response.text = 'Content type \'%s\' not supported for parsing' % requestCnt.type
