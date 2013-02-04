@@ -164,7 +164,7 @@ class LocalFileSystemCDM(ICDM):
         @see ICDM.publishContent
         '''
         assert isinstance(path, str), 'Invalid content path %s' % path
-        #assert isinstance(content, ) or , 'Invalid binary content for path %s' % path
+        # assert isinstance(content, ) or , 'Invalid binary content for path %s' % path
         path, dstFilePath = self._validatePath(path)
         dstDir = dirname(dstFilePath)
         if not isdir(dstDir):
@@ -265,9 +265,9 @@ class LocalFileSystemCDM(ICDM):
         Return true if the destination file exists and was newer than
         the source file.
         '''
-        return (isfile(srcFilePath) or isdir(srcFilePath)) \
-            and (isfile(dstFilePath) or isdir(dstFilePath)) \
-            and os.stat(srcFilePath).st_mtime < os.stat(dstFilePath).st_mtime
+        return ((isfile(srcFilePath) and isfile(dstFilePath)) or \
+                (isdir(srcFilePath) and isdir(dstFilePath))) \
+                and os.stat(srcFilePath).st_mtime < os.stat(dstFilePath).st_mtime
 
     def _copyZipDir(self, zipFilePath, inDirPath, path):
         '''
@@ -285,16 +285,15 @@ class LocalFileSystemCDM(ICDM):
         # make sure the ZIP file path is normalized and uses the ZIP separator
         inDirPath = normZipPath(inDirPath)
         zipFile = ZipFile(zipFilePath)
-        if isdir(path):
-            if self._isSyncFile(zipFilePath, path):
-                return
-            rmtree(path)
         entries = [ent for ent in zipFile.namelist() if ent.startswith(inDirPath)]
         tmpDir = TemporaryDirectory()
         zipFile.extractall(tmpDir.name, entries)
         tmpDirPath = join(tmpDir.name, normOSPath(inDirPath))
-        os.makedirs(path)
+        if not isdir(path): os.makedirs(path)
         for entry in os.listdir(tmpDirPath):
+            dstPath = join(path, entry)
+            if isfile(dstPath): os.remove(dstPath)
+            elif isdir(dstPath): rmtree(dstPath)
             move(join(tmpDirPath, entry), path)
 
 
