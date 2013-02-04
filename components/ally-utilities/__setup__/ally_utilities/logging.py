@@ -39,3 +39,8 @@ def info_for():
 def warning_for():
     '''The list of packages or module patterns to provide warnings for'''
     return ['ally']
+
+@ioc.config
+def log_file():
+    ''' The name of the log file '''
+    return 'app.log'

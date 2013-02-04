@@ -8,10 +8,10 @@ Created on Nov 7, 2012
 
 Special module that is used in deploying the application.
 '''
- 
+
 from .prepare import OptionsCore
 from __setup__.ally_utilities.logging import format, debug_for, info_for, \
-    warning_for
+    warning_for, log_file
 from ally.container import ioc, aop, context
 from ally.container.config import load, save
 from ally.container.error import SetupError, ConfigError
@@ -20,6 +20,8 @@ import os
 import sys
 import traceback
 import unittest
+from logging import FileHandler
+from os.path import join
 
 # --------------------------------------------------------------------
 
@@ -31,7 +33,7 @@ def dumpAssembly():
     if os.path.isfile(configFile):
         with open(configFile, 'r') as f: config = load(f)
     else: config = {}
-    
+
     return context.open(aop.modulesIn('__setup__.**'), config=config, active=False)
 
 # --------------------------------------------------------------------
@@ -48,15 +50,18 @@ def deploy():
         with open(application.options.configurationPath, 'r') as f: config = load(f)
 
         context.open(aop.modulesIn('__setup__.ally_utilities.**'), config=config)
-        
+
         import logging
-        logging.basicConfig(format=format())
+        if log_file():
+            logging.basicConfig(format=format(), filename=join(config['workspace_path'], log_file()))
+        else:
+            logging.basicConfig(format=format())
         for name in warning_for(): logging.getLogger(name).setLevel(logging.WARN)
         for name in info_for(): logging.getLogger(name).setLevel(logging.INFO)
         for name in debug_for(): logging.getLogger(name).setLevel(logging.DEBUG)
-        
+
         context.deactivate()
-        
+
         context.open(aop.modulesIn('__setup__.**'), config=config)
         try: context.processStart()
         finally: context.deactivate()
@@ -86,7 +91,7 @@ def test():
     testLoader, runner, tests = unittest.TestLoader(), unittest.TextTestRunner(stream=sys.stdout), unittest.TestSuite()
     for clazz in classes: tests.addTest(testLoader.loadTestsFromTestCase(clazz))
     runner.run(tests)
-    
+
 @ioc.start
 def dump():
     assert isinstance(application.options, OptionsCore), 'Invalid application options %s' % application.options
