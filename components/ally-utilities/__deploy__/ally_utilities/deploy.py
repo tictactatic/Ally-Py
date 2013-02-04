@@ -20,6 +20,7 @@ import os
 import sys
 import traceback
 import unittest
+from logging import FileHandler
 
 # --------------------------------------------------------------------
 
@@ -50,10 +51,8 @@ def deploy():
         context.open(aop.modulesIn('__setup__.ally_utilities.**'), config=config)
 
         import logging
-        if log_file():
-            logging.basicConfig(format=format(), filename=log_file())
-        else:
-            logging.basicConfig(format=format())
+        logging.basicConfig(format=format())
+        if log_file(): logging.getLogger().addHandler(FileHandler(log_file()))
         for name in warning_for(): logging.getLogger(name).setLevel(logging.WARN)
         for name in info_for(): logging.getLogger(name).setLevel(logging.INFO)
         for name in debug_for(): logging.getLogger(name).setLevel(logging.DEBUG)
