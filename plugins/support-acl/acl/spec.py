@@ -27,7 +27,7 @@ class Filter:
         
         @param priority: integer
             The priority of the filter, this is used whenever there are more then one filter in the same context in order to
-            establish which one will be used.
+            establish which one will be used. A higher value means a higher priority.
         @param authenticated: TypeProperty
             The property type of the authenticated resource specific for the action taker.
         @param resource: TypeProperty
