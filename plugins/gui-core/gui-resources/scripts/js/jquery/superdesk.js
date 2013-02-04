@@ -291,6 +291,10 @@ var superdesk =
                 History.pushState( {href: ''}, $(document).prop('title'), this._base );
                 !triggered && History.Adapter.trigger( window, 'statechange' );
             }
+        },
+        home: function()
+        {
+            this._repository[''].call();
         }
 	},
 	/*!

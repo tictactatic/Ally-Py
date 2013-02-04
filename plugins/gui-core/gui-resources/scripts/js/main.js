@@ -35,9 +35,13 @@ require(['concat'], function(){
 	], 
 	function(MenuView, authView, $, superdesk, Action)
 	{
-	    $(authView).on('logout login', function(){ Action.clearCache(); })
+	    $(authView).on('logout login', function(){ Action.clearCache(); });
         // initialize menu before auth because we have some events bound to auth there
-        new MenuView({ el: $('#navbar-top') });
+        var menu = new MenuView({ el: $('#navbar-top') });
+	    $(menu).on('path-clear', function()
+	    {
+	        $.superdesk.applyLayout('layouts/dashboard', {}, function(){ Action.initApps('modules.dashboard.*', $($.superdesk.layoutPlaceholder)); });
+	    });
 	    // initialize navigation authentication display
         $.superdesk.navigation.init(function(){ authView.render(); });
 	    // apply layout

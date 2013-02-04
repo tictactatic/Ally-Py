@@ -7,14 +7,20 @@ define
     'tmpl!layouts/dashboard',
     'tmpl!navbar'
 ], 
-function($, superdesk, Gizmo, Action, AuthApp)
+function($, superdesk, Gizmo, Action, authView)
 {
     var MenuView = Gizmo.View.extend
     ({
         events: 
         { 
             "[data-logged-in]": { 'click' : 'loginHandler' },
-            "#navbar-logout": { 'click' : 'logoutHandler' }
+            "#navbar-logout": { 'click' : 'logoutHandler' },
+            '.brand': { 'click': 'home' }
+        },
+        
+        home: function()
+        {
+            $.superdesk.navigation.home();
         },
         
         /*!
@@ -34,9 +40,6 @@ function($, superdesk, Gizmo, Action, AuthApp)
             this.displayMenu = [];
             this.submenus = {};
                 
-            // TODO should not be here
-            $.superdesk.applyLayout('layouts/dashboard', {}, function(){ Action.initApps('modules.dashboard.*', $($.superdesk.layoutPlaceholder)); });
-            
             // get first level of registered menus
             Action.getMore('menu.*').done(function(mainMenus)
             {
@@ -81,7 +84,7 @@ function($, superdesk, Gizmo, Action, AuthApp)
             var self = this;
             this.displayMenu = [];
             // refresh menu on login/logout
-            $(AuthApp).on('login logout', function(evt){ self.refresh(); });
+            $(authView).on('login logout', function(evt){ self.refresh(); });
             
             this.el.on('refresh-menu', function(){ self.getMenu(self.render, 'refresh'); });
         },
@@ -147,27 +150,36 @@ function($, superdesk, Gizmo, Action, AuthApp)
             
             /*!
              * redirect to current page on reload
+             * or trigger an event to notify the path is clear
              */
+            var navHasInit = false;
             if( superdesk.navigation.getStartPathname() != '')
+            {
                 self.el.find('li > a[href]').each(function()
                 {
-                    if( $(this).attr('href').replace(/^\/+|\/+$/g, '') == superdesk.navigation.getStartPathname()) 
-                        $(this).trigger('click'); 
+                    if( $(this).attr('href').replace(/^\/+|\/+$/g, '') == superdesk.navigation.getStartPathname())
+                    {
+                        navHasInit = true;
+                        $(this).trigger('click');
+                    }
                 });
+                !navHasInit && $(self).trigger('path-clear'); 
+            }
+            else $(self).trigger('path-clear');
         },
         /*!
          * login control
          */
         loginHandler: function(evt)
         {
-            if( $(evt.currentTarget).attr('data-logged-in') == 'false' ) AuthApp.renderPopup();
+            if( $(evt.currentTarget).attr('data-logged-in') == 'false' ) authView.renderPopup();
         },
         /*!
          * 
          */
         logoutHandler: function(evt)
         {
-            AuthApp.logout();
+            authView.logout();
         }
         
         
