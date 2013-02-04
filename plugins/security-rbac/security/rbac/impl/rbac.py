@@ -19,7 +19,7 @@ from security.meta.right import RightMapped
 from security.rbac.api.rbac import IRoleService, QRole
 from security.rbac.core.spec import IRbacService
 from security.rbac.meta.rbac import RoleMapped
-from security.rbac.meta.rbac_intern import RbacRight
+from security.rbac.meta.rbac_intern import RbacRight, RbacRole
 from sql_alchemy.impl.entity import EntityServiceAlchemy
 
 # --------------------------------------------------------------------
@@ -75,12 +75,25 @@ class RoleServiceAlchemy(EntityServiceAlchemy, IRoleService):
         '''
         @see: IRoleService.assignRole
         '''
-        self.rbacService.assignRole(roleId, toRoleId)
         
+        sql = self.session().query(RbacRole).filter(RbacRole.rbac == roleId).filter(RbacRole.role == toRoleId)
+        if sql.count() > 0: return
+
+        if self.rbacService.assignRole(roleId, toRoleId):
+            self.session().add(RbacRole(rbac=roleId, role=toRoleId))
+
     def unassignRole(self, toRoleId, roleId):
         '''
         @see: IRoleService.unassignRole
         '''
+
+        sql = self.session().query(RbacRole).filter(RbacRole.rbac == roleId).filter(RbacRole.role == toRoleId)
+        if sql.count() != 1: return False
+
+        sql = self.session().query(RbacRole).filter(RbacRole.rbac == roleId).filter(RbacRole.role == toRoleId)
+        sql.delete()
+        self.session().commit()
+
         return self.rbacService.unassignRole(roleId, toRoleId)
     
     def assignRight(self, roleId, rightId):

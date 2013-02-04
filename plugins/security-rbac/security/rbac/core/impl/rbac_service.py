@@ -179,7 +179,8 @@ class RbacServiceAlchemy(SessionSupport, IRbacService):
                 sql.update({RoleNode.right: RoleNode.right + gap}, False)
 
                 self.session().flush()
-                # TODO: check the impact of removing: self.session().commit()
+                # TODO: check the impact of removing: result: not working
+                self.session().commit()
 
                 # get child roleNode
                 childNode = self.session().query(RoleNode).get(id)
@@ -205,7 +206,8 @@ class RbacServiceAlchemy(SessionSupport, IRbacService):
             sql.update({RoleNode.right: RoleNode.right + gap}, False)
 
             self.session().flush()
-            # TODO: check the impact of removing: self.session().commit()
+            # TODO: check the impact of removing: result: not working
+            self.session().commit()
 
             # get child roleNode
             sql = self.session().query(RoleNode).get(id)
