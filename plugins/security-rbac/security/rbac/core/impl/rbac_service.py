@@ -45,7 +45,8 @@ class RbacServiceAlchemy(SessionSupport, IRbacService):
         subq = sql or self.session().query(RightMapped)
         subq = subq.join(RbacRight, RbacRight.right == RightMapped.Id)
         subq = subq.join(child, child.role == RbacRight.rbac)
-        subq = subq.join(parent, and_(child.left >= parent.left, child.right <= parent.right, parent.role == rbacId))
+        subq = subq.join(parent, and_(child.left >= parent.left, child.right <= parent.right))
+        subq = subq.join(RbacRole, and_(RbacRole.role == parent.role, RbacRole.rbac == rbacId))
 
         sql = sql or self.session().query(RightMapped)
         sql = sql.join(RbacRight, and_(RbacRight.right == RightMapped.Id, RbacRight.rbac == rbacId))
@@ -63,7 +64,8 @@ class RbacServiceAlchemy(SessionSupport, IRbacService):
 
         sql = sql or self.session().query(RoleMapped)
         sql = sql.join(child, child.role == RoleMapped.Id)
-        sql = sql.join(parent, and_(child.left >= parent.left, child.right <= parent.right, parent.role == rbacId))
+        sql = sql.join(parent, and_(child.left >= parent.left, child.right <= parent.right))
+        sql = sql.join(RbacRole, and_(RbacRole.role == parent.role, RbacRole.rbac == rbacId))
 
         return sql
 

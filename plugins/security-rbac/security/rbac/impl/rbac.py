@@ -75,25 +75,12 @@ class RoleServiceAlchemy(EntityServiceAlchemy, IRoleService):
         '''
         @see: IRoleService.assignRole
         '''
-        
-        sql = self.session().query(RbacRole).filter(RbacRole.rbac == roleId).filter(RbacRole.role == toRoleId)
-        if sql.count() > 0: return
-
-        if self.rbacService.assignRole(roleId, toRoleId):
-            self.session().add(RbacRole(rbac=roleId, role=toRoleId))
+        self.rbacService.assignRole(roleId, toRoleId)
 
     def unassignRole(self, toRoleId, roleId):
         '''
         @see: IRoleService.unassignRole
         '''
-
-        sql = self.session().query(RbacRole).filter(RbacRole.rbac == roleId).filter(RbacRole.role == toRoleId)
-        if sql.count() != 1: return False
-
-        sql = self.session().query(RbacRole).filter(RbacRole.rbac == roleId).filter(RbacRole.role == toRoleId)
-        sql.delete()
-        self.session().commit()
-
         return self.rbacService.unassignRole(roleId, toRoleId)
     
     def assignRight(self, roleId, rightId):
