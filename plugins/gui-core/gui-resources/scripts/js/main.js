@@ -31,10 +31,11 @@ require(['concat'], function(){
 	([
 	  config.cjs('views/menu.js'), 
 	  config.cjs('views/auth.js'), 
-	  'jquery', 'jquery/superdesk', 'jquery/i18n', 'jqueryui/ext'
+	  'jquery', 'jquery/superdesk', 'gizmo/superdesk/action', 'jquery/i18n', 'jqueryui/ext'
 	], 
-	function(MenuView, authView, $, superdesk)
+	function(MenuView, authView, $, superdesk, Action)
 	{
+	    $(authView).on('logout login', function(){ Action.clearCache(); })
         // initialize menu before auth because we have some events bound to auth there
         new MenuView({ el: $('#navbar-top') });
 	    // initialize navigation authentication display

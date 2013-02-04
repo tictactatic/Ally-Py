@@ -37,13 +37,16 @@ function($, superdesk, Gizmo, Action, AuthApp)
             // TODO should not be here
             $.superdesk.applyLayout('layouts/dashboard', {}, function(){ Action.initApps('modules.dashboard.*', $($.superdesk.layoutPlaceholder)); });
             
+            // get first level of registered menus
             Action.getMore('menu.*').done(function(mainMenus)
             {
                 self.displayMenu = [];
+                // get submenu level
                 Action.getMore('menu.*.*').done(function(subMenus)
                 {
                     $(mainMenus).each(function()
                     {
+                        // check if main menus have submenus
                         hasSubs = false;
                         for( var i=0; i<subMenus.length; i++ )
                             if( subMenus[i].get('Path').indexOf(this.get('Path')) === 0 ) hasSubs = true;
@@ -54,6 +57,7 @@ function($, superdesk, Gizmo, Action, AuthApp)
                             self.submenus[this.get('Path')] = this.get('Path') + '.*';
                         }
                         
+                        // set menu data
                         self.displayMenu.push($.extend({}, this.feed(), 
                         { 
                             Path: this.get('Path').split('.'), 

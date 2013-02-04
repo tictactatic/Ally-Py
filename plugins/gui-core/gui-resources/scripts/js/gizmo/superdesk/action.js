@@ -7,6 +7,13 @@ function( gizmo, $, Actions )
     {
         actions: actions,
         /*!
+         * 
+         */
+        clearCache: function()
+        {
+            cache = {};
+        },
+        /*!
          * @param string path 
          * @returns $.Deferred()
          */
