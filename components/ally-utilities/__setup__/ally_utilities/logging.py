@@ -43,4 +43,4 @@ def warning_for():
 @ioc.config
 def log_file():
     ''' The name of the log file '''
-    return 'app.log'
+    return 'workspace/app.log'

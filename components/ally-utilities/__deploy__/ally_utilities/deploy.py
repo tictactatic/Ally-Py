@@ -20,8 +20,6 @@ import os
 import sys
 import traceback
 import unittest
-from logging import FileHandler
-from os.path import join
 
 # --------------------------------------------------------------------
 
@@ -53,7 +51,7 @@ def deploy():
 
         import logging
         if log_file():
-            logging.basicConfig(format=format(), filename=join(config['workspace_path'], log_file()))
+            logging.basicConfig(format=format(), filename=log_file())
         else:
             logging.basicConfig(format=format())
         for name in warning_for(): logging.getLogger(name).setLevel(logging.WARN)
