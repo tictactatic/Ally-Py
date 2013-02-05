@@ -66,7 +66,6 @@ function($, superdesk, gizmo, Action, jsSHA, AuthToken, AuthLogin)
                 .done(function(data)
                 {
                     var user = data.User;
-                    
                     localStorage.setItem('superdesk.login.selfHref', (data.User.href.indexOf('my/') === -1 ? data.User.href.replace('resources/','resources/my/') : data.User.href) );
                     
                     localStorage.setItem('superdesk.login.session', data.Session);
@@ -80,6 +79,10 @@ function($, superdesk, gizmo, Action, jsSHA, AuthToken, AuthLogin)
                     
                     superdesk.login = {Id: localStorage.getItem('superdesk.login.id'), Name: localStorage.getItem('superdesk.login.name'), EMail: localStorage.getItem('superdesk.login.email')}
                     $(authLogin).trigger('success');
+                }).fail(function(data){
+                    //if ( data.status == 400) {
+                        $(self).triggerHandler('dashfailed', 'authToken');
+                    //}
                 });
                 authLogin.on('failed', function()
                 {
@@ -122,7 +125,7 @@ function($, superdesk, gizmo, Action, jsSHA, AuthToken, AuthLogin)
             
             $(AuthTokenApp)
             .on('failed', function(evt, type)
-            { 
+            {
                 password.val('');
                 username.focus();
                 // show error message
@@ -130,6 +133,9 @@ function($, superdesk, gizmo, Action, jsSHA, AuthToken, AuthLogin)
                 self._loggedIn = false;
                 // trigger login-failed event
                 $(self).triggerHandler('login-failed');
+            })
+            .on('dashfailed', function(evt, type, el){
+                 self.alertmsg.removeClass('hide')
             })
             .on('success', function(evt)
             { 
@@ -150,6 +156,7 @@ function($, superdesk, gizmo, Action, jsSHA, AuthToken, AuthLogin)
                 password = $(el).find('#password'),
                 alertmsg = $(el).find('.alert'),
                 self = this;
+            this.alertmsg = alertmsg;
             // make new authentication process
             AuthTokenApp.get(username.val(), password.val()); 
             event.preventDefault();
