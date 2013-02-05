@@ -18,9 +18,10 @@ function($, superdesk, Gizmo, Action, authView)
             '.brand': { 'click': 'home' }
         },
         
-        home: function()
+        home: function(evt)
         {
             $.superdesk.navigation.home();
+            evt.preventDefault();
         },
         
         /*!
@@ -160,6 +161,7 @@ function($, superdesk, Gizmo, Action, authView)
                     if( $(this).attr('href').replace(/^\/+|\/+$/g, '') == superdesk.navigation.getStartPathname())
                     {
                         navHasInit = true;
+                        superdesk.navigation.consumeStartPathname();
                         $(this).trigger('click');
                     }
                 });

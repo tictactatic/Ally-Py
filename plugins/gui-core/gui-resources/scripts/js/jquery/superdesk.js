@@ -225,6 +225,7 @@ var superdesk =
 	    _base: '',
 	    _startPathname: '',
 	    _titlePrefix: '',
+	    _homeTitle: '',
 	    getBase: function()
 	    {
 	        return this._base;
@@ -251,7 +252,6 @@ var superdesk =
                 History.replaceState({href: href}, 
                         title ? this._titlePrefix + title : null, 
                         this._base + (!config.server_tech ? '?'+href : href));
-                callback.call();
                 return callback;
             }
             this._repository[href] = callback;
@@ -288,13 +288,14 @@ var superdesk =
             {
                 this._repository[''] = callback;
                 this._base = this._base;
+                this._homeTitle = $(document).prop('title');
                 History.pushState( {href: ''}, $(document).prop('title'), this._base );
                 !triggered && History.Adapter.trigger( window, 'statechange' );
             }
         },
         home: function()
         {
-            this._repository[''].call();
+            History.replaceState( {href: ''}, this._homeTitle, this._base );
         }
 	},
 	/*!
