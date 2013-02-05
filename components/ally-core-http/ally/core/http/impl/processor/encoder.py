@@ -129,7 +129,7 @@ class CreateEncoderPathHandler(CreateEncoderHandler):
         error = self.processFilter(encodeModel, data, value, response.normalizer)
         if error:
             response.text, response.errorMessage = error
-            response.code = INVALID_HEADER_VALUE
+            response.code, response.isSuccess = INVALID_HEADER_VALUE
             return
         self.processFilterDefault(encodeModel, data, showAll)
 
