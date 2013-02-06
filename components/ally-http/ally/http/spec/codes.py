@@ -40,10 +40,10 @@ class CodeHTTP:
 # --------------------------------------------------------------------
 # Response codes.
 
-PATH_NOT_FOUND = CodeHTTP('Invalid path', 404, False)  # HTTP code 404 Not Found
-PATH_FOUND = CodeHTTP('Path found', 200, True)  # HTTP code 200 OK
+PATH_NOT_FOUND = CodeHTTP('Not found', 404, False)  # HTTP code 404 Not Found
+PATH_FOUND = CodeHTTP('OK', 200, True)  # HTTP code 200 OK
 
-METHOD_NOT_AVAILABLE = CodeHTTP('Method not available', 501, False)  # HTTP code 501 Unsupported method
+METHOD_NOT_AVAILABLE = CodeHTTP('Method not allowed', 405, False)  # HTTP code 405 Method Not Allowed
 
 HEADER_ERROR = CodeHTTP('Invalid header', 400, False)  # HTTP code 400 Bad Request
 

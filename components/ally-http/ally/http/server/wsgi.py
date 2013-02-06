@@ -50,10 +50,11 @@ class RequestHandler:
                                                   request=RequestHTTP, requestCnt=RequestContentHTTP,
                                                   response=ResponseHTTP, responseCnt=ResponseContentHTTP)
 
-        log.info('Assembly report for server:\n%s', report)
+        log.info('Assembly report for wsgi:\n%s', report)
         self.processing = processing
         
         self.defaultHeaders = {'Server':self.serverVersion, 'Content-Type':'text'}
+        self.headerPrefixLen = len(self.headerPrefix)
 
     def __call__(self, context, respond):
         '''
@@ -64,41 +65,37 @@ class RequestHandler:
         
         proc = self.processing
         assert isinstance(proc, Processing), 'Invalid processing %s' % proc
-        req, reqCnt = proc.contexts['request'](), proc.contexts['requestCnt']()
-        rsp, rspCnt = proc.contexts['response'](), proc.contexts['responseCnt']()
+        
+        request, requestCnt = proc.ctx.request(), proc.ctx.requestCnt()
+        assert isinstance(request, RequestHTTP), 'Invalid request %s' % request
+        assert isinstance(requestCnt, RequestContentHTTP), 'Invalid request content %s' % requestCnt
 
-        assert isinstance(req, RequestHTTP), 'Invalid request %s' % req
-        assert isinstance(reqCnt, RequestContentHTTP), 'Invalid request content %s' % reqCnt
-        assert isinstance(rsp, ResponseHTTP), 'Invalid response %s' % rsp
-        assert isinstance(rspCnt, ResponseContentHTTP), 'Invalid response content %s' % rspCnt
+        request.scheme, request.method = context.get('wsgi.url_scheme', '').upper(), context.get('REQUEST_METHOD', '').upper()
+        request.headers = {hname[self.headerPrefixLen:].replace('_', '-'):hvalue
+                           for hname, hvalue in context.items() if hname.startswith(self.headerPrefix)}
+        request.headers.update({hname.replace('_', '-'):hvalue
+                                for hname, hvalue in context.items() if hname in self.headers})
+        request.uri = context.get('PATH_INFO', '').lstrip('/')
+        request.parameters = parse_qsl(context.get('QUERY_STRING', ''), True, False)
 
-        req.scheme, req.uri = context['wsgi.url_scheme'].upper(), context['PATH_INFO']
-        if req.uri.startswith('/'): req.uri = req.uri[1:]
+        requestCnt.source = context.get('wsgi.input')
+
+        chain = Chain(proc)
+        chain.process(request=request, requestCnt=requestCnt).doAll()
+
+        response, responseCnt = chain.arg.response, chain.arg.responseCnt
+        assert isinstance(response, ResponseHTTP), 'Invalid response %s' % response
+        assert isinstance(responseCnt, ResponseContentHTTP), 'Invalid response content %s' % responseCnt
 
         responseHeaders = dict(self.defaultHeaders)
-
-        req.method = context['REQUEST_METHOD']
-        if req.method: req.method = req.method.upper()
+        if ResponseHTTP.headers in response: responseHeaders.update(response.headers)
         
-        req.parameters = parse_qsl(context['QUERY_STRING'], True, False)
-        prefix, prefixLen = self.headerPrefix, len(self.headerPrefix,)
-        req.headers = {hname[prefixLen:].replace('_', '-'):hvalue
-                       for hname, hvalue in context.items() if hname.startswith(prefix)}
-        req.headers.update({hname.replace('_', '-'):hvalue
-                            for hname, hvalue in context.items() if hname in self.headers})
-        reqCnt.source = context.get('wsgi.input')
-
-        Chain(proc).process(request=req, requestCnt=reqCnt, response=rsp, responseCnt=rspCnt).doAll()
-
-        assert isinstance(rsp.status, int), 'Invalid response code status %s' % rsp.status
-
-        responseHeaders.update(rsp.headers)
-        if ResponseHTTP.text in rsp: status = '%s %s' % (rsp.status, rsp.text)
-        else: status = str(rsp.status)
-
+        assert isinstance(response.status, int), 'Invalid response status code %s' % response.status
+        if ResponseHTTP.text in response: status = '%s %s' % (response.status, response.text)
+        else: status = str(response.status)
         respond(status, list(responseHeaders.items()))
 
-        if rspCnt.source is not None:
-            if isinstance(rspCnt.source, IInputStream): return readGenerator(rspCnt.source)
-            return rspCnt.source
+        if responseCnt.source is not None:
+            if isinstance(responseCnt.source, IInputStream): return readGenerator(responseCnt.source)
+            return responseCnt.source
         return ()

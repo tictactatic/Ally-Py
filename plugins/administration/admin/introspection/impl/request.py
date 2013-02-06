@@ -30,7 +30,7 @@ import re
 # --------------------------------------------------------------------
 
 @injected
-@setup(IRequestService)
+@setup(IRequestService, name='requestService')
 class RequestService(IRequestService, INodeChildListener, INodeInvokerListener):
     '''
     Provides the implementation for @see: IRequestIntrospectService.

@@ -21,16 +21,16 @@ import logging
 log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
-
+#
 try: from .. import ally_core_http
 except ImportError: log.info('No REST core available thus skip the resources patching specific for asyncore')
 else:
-    ally_core_http = ally_core_http # Just to avoid the import warning
+    ally_core_http = ally_core_http  # Just to avoid the import warning
     # ----------------------------------------------------------------
+        
+    from ..ally_core.processor import parser
+    from ..ally_core_http.processor import updateAssemblyResources, assemblyResources
     
-    from ..ally_core.processor import assemblyResources, parser
-    from ..ally_core_http.processor import updateAssemblyResourcesForHTTP
-
     @ioc.entity
     def asyncoreContent() -> Handler:
         b = AsyncoreContentHandler()
@@ -40,7 +40,7 @@ else:
     
     # ----------------------------------------------------------------
     
-    @ioc.after(updateAssemblyResourcesForHTTP)
+    @ioc.after(updateAssemblyResources)
     def updateAssemblyResourcesForHTTPAsyncore():
         if server_type() == 'asyncore':
             assemblyResources().add(asyncoreContent(), before=parser())

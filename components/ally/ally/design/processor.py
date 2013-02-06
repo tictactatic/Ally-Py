@@ -175,6 +175,17 @@ class Processing:
     '''
     __slots__ = ('ctx', '_calls')
 
+    class Ctx:
+        '''
+        Provides the contexts proxy for an easier access.
+        '''
+        if __debug__:
+            def __setattr__(self, key, clazz):
+                assert isinstance(key, str), 'Invalid context name %s' % key
+                assert not key.startswith('_'), 'The context name \'%s\' cannot start with an _' % key
+                assert isinstance(clazz, ContextMetaClass), 'Invalid context class %s for %s' % (clazz, key)
+                object.__setattr__(self, key, clazz)
+
     def __init__(self, contexts):
         '''
         Construct the processing.
@@ -182,7 +193,7 @@ class Processing:
        @param contexts: dictionary{string, Context class}|None
             The initial contexts to be associated.
         '''
-        self.ctx = _Context()
+        self.ctx = Processing.Ctx()
         assert isinstance(contexts, dict), 'Invalid contexts %s' % contexts
         if __debug__:
             for key, clazz in contexts.items():
@@ -203,6 +214,16 @@ class Chain:
     '''
     __slots__ = ('arg', '_calls', '_callBacks', '_callBacksErrors', '_consumed', '_proceed')
 
+    class Arg:
+        '''
+        Provides the arguments proxy for an easier access.
+        '''
+        if __debug__:
+            def __setattr__(self, key, value):
+                assert isinstance(key, str), 'Invalid argument name %s' % key
+                assert not key.startswith('_'), 'The argument name \'%s\' cannot start with an _' % key
+                object.__setattr__(self, key, value)
+
     def __init__(self, processing):
         '''
         Initializes the chain with the processing to be executed.
@@ -216,7 +237,7 @@ class Chain:
         self._calls = deque(processing)
         if __debug__:
             for call in self._calls: assert callable(call), 'Invalid processor call %s' % call
-        self.arg = _Argument()
+        self.arg = Chain.Arg()
         self._callBacks = deque()
         self._callBacksErrors = deque()
         self._consumed = False
@@ -1035,26 +1056,3 @@ def location(processor):
     assert isinstance(processor, Processor), 'Invalid processor %s' % processor
 
     return '\n  File "%s", line %i, in %s' % (processor.fileName, processor.lineNumber, processor.name)
-
-# --------------------------------------------------------------------
-
-class _Argument:
-    '''
-    Provides the arguments proxy for an easier access.
-    '''
-    
-    def __setattr__(self, key, value):
-        assert isinstance(key, str), 'Invalid argument name %s' % key
-        assert not key.startswith('_'), 'The argument name \'%s\' cannot start with an _' % key
-        object.__setattr__(self, key, value)
-
-class _Context:
-    '''
-    Provides the contexts proxy for an easier access.
-    '''
-    
-    def __setattr__(self, key, clazz):
-        assert isinstance(key, str), 'Invalid context name %s' % key
-        assert not key.startswith('_'), 'The context name \'%s\' cannot start with an _' % key
-        assert isinstance(clazz, ContextMetaClass), 'Invalid context class %s for %s' % (clazz, key)
-        object.__setattr__(self, key, clazz)

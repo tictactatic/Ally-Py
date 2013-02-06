@@ -14,7 +14,7 @@ from ally.container.ioc import injected
 from ally.design.processor import Processing, Assembly, ONLY_AVAILABLE, \
     CREATE_REPORT, Chain
 from ally.http.spec.server import RequestHTTP, ResponseHTTP, RequestContentHTTP, \
-    ResponseContentHTTP, METHODS, METHOD_UNKNOWN
+    ResponseContentHTTP, HTTP
 from ally.support.util_io import IInputStream, IClosable
 from collections import Iterable
 from io import BytesIO
@@ -23,7 +23,6 @@ from urllib.parse import parse_qsl
 from uuid import uuid4
 import json
 import logging
-import re
 import zmq
 
 # --------------------------------------------------------------------
@@ -38,34 +37,27 @@ class RequestHandler:
     The server class that handles the requests.
     '''
     
-    pathAssemblies = list
-    # A list that contains tuples having on the first position a string pattern for matching a path, and as a value 
-    # the assembly to be used for creating the context for handling the request for the path.
     serverVersion = str
     # The server version name
+    scheme = HTTP
+    # The server scheme
+    assembly = Assembly
+    # The assembly used for resolving the requests
  
     httpFormat = 'HTTP/1.1 %(code)s %(status)s\r\n%(headers)s\r\n\r\n'
     # The http format for the response.
 
     def __init__(self):
-        assert isinstance(self.pathAssemblies, list), 'Invalid path assemblies %s' % self.pathAssemblies
         assert isinstance(self.serverVersion, str), 'Invalid server version %s' % self.serverVersion
+        assert isinstance(self.assembly, Assembly), 'Invalid assembly %s' % self.assembly
         assert isinstance(self.httpFormat, str), 'Invalid http format for the response %s' % self.httpFormat
         
-        pathProcessing = []
-        for pattern, assembly in self.pathAssemblies:
-            assert isinstance(pattern, str), 'Invalid pattern %s' % pattern
-            assert isinstance(assembly, Assembly), 'Invalid assembly %s' % assembly
-
-            processing, report = assembly.create(ONLY_AVAILABLE, CREATE_REPORT,
-                                                 request=RequestHTTP, requestCnt=RequestContentHTTP,
-                                                 response=ResponseHTTP, responseCnt=ResponseContentHTTP)
-
-            log.info('Assembly report for pattern \'%s\':\n%s', pattern, report)
-            pathProcessing.append((re.compile(pattern), processing))
-        self.pathProcessing = pathProcessing
+        processing, report = self.assembly.create(ONLY_AVAILABLE, CREATE_REPORT,
+                                                  request=RequestHTTP, requestCnt=RequestContentHTTP,
+                                                  response=ResponseHTTP, responseCnt=ResponseContentHTTP)
+        log.info('Assembly report for mongrel2 server:\n%s', report)
+        self.processing = processing
         self.defaultHeaders = {'Server':self.serverVersion, 'Content-Type':'text'}
-        self.scheme = 'http'
 
     def __call__(self, request):
         '''
@@ -75,51 +67,35 @@ class RequestHandler:
             The request to process.
         '''
         assert isinstance(request, Request), 'Invalid request %s' % request
-        path = request.path
-        responseHeaders = dict(self.defaultHeaders)
-        if path.startswith('/'): path = path[1:]
-
-        for regex, processing in self.pathProcessing:
-            match = regex.match(path)
-            if match:
-                uriRoot = path[:match.end()]
-                if not uriRoot.endswith('/'): uriRoot += '/'
-
-                assert isinstance(processing, Processing), 'Invalid processing %s' % processing
-                req, reqCnt = processing.contexts['request'](), processing.contexts['requestCnt']()
-                rsp, rspCnt = processing.contexts['response'](), processing.contexts['responseCnt']()
-
-                assert isinstance(req, RequestHTTP), 'Invalid request %s' % req
-                assert isinstance(reqCnt, RequestContentHTTP), 'Invalid request content %s' % reqCnt
-                assert isinstance(rsp, ResponseHTTP), 'Invalid response %s' % rsp
-                assert isinstance(rspCnt, ResponseContentHTTP), 'Invalid response content %s' % rspCnt
-
-                req.scheme, req.uriRoot, req.uri = self.scheme, uriRoot, path[match.end():]
-                break
-        else:
-            self._respond(request, 404, 'Not Found', responseHeaders)
-            self._end(request)
-            return
-
-        method = request.headers.pop('METHOD')
-        if method:
-            method = method.upper()
-            if method not in METHODS: method = METHOD_UNKNOWN
-        else: method = METHOD_UNKNOWN
+        proc = self.server.processing
+        assert isinstance(proc, Processing), 'Invalid processing %s' % proc
         
-        req.methodName = method
-        req.parameters = parse_qsl(request.headers.pop('QUERY', ''), True, False)
-        req.headers = request.headers
-        if isinstance(request.body, IInputStream): reqCnt.source = request.body
-        else: reqCnt.source = BytesIO(request.body)
+        request, requestCnt = proc.ctx.request(), proc.ctx.requestCnt()
+        assert isinstance(request, RequestHTTP), 'Invalid request %s' % request
+        assert isinstance(requestCnt, RequestContentHTTP), 'Invalid request content %s' % requestCnt
+        
+        request.scheme, request.method = self.scheme, request.headers.pop('METHOD').upper()
+        request.headers = dict(request.headers)
+        request.uri = request.path.lstrip('/')
+        request.parameters = parse_qsl(request.headers.pop('QUERY', ''), True, False)
+        
+        if isinstance(request.body, IInputStream): requestCnt.source = request.body
+        else: requestCnt.source = BytesIO(request.body)
+        
+        chain = Chain(proc)
+        chain.process(request=request, requestCnt=requestCnt).doAll()
 
-        Chain(processing).process(request=req, requestCnt=reqCnt, response=rsp, responseCnt=rspCnt).doAll()
-
-        assert isinstance(rsp.code, int), 'Invalid response code %s' % rsp.code
-
-        responseHeaders.update(rsp.headers)
-        self._respond(request, rsp.code, rsp.text, responseHeaders)
-        if rspCnt.source is not None: request.push(rspCnt.source)
+        response, responseCnt = chain.arg.response, chain.arg.responseCnt
+        assert isinstance(response, ResponseHTTP), 'Invalid response %s' % response
+        assert isinstance(responseCnt, ResponseContentHTTP), 'Invalid response content %s' % responseCnt
+        
+        responseHeaders = dict(self.defaultHeaders)
+        if ResponseHTTP.headers in response: responseHeaders.update(response.headers)
+        
+        assert isinstance(response.status, int), 'Invalid response status code %s' % response.status
+        self._respond(request, response.status, response.text, responseHeaders)
+        
+        if responseCnt.source is not None: request.push(responseCnt.source)
         self._end(request)
 
     # ----------------------------------------------------------------
@@ -143,32 +119,57 @@ class RequestHandler:
 
 # --------------------------------------------------------------------
 
+@injected
 class Mongrel2Server:
     '''
     The mongrel2 server handling the connection.
     Made based on the mongrel2.handler
     '''
     
-    def __init__(self, workspacePath, sendIdent, sendSpec, recvIdent, recvSpec, requestHandler):
+    workspacePath = str
+    # The workspace path where the uploads can be located, this is basically the mongrel2 workspace path this should not
+    # include the relative, for example "mongrel2/tmp"
+    sendIdent = None
+    # The send ident to use in communication with Mongrel2, if not specified one will be created
+    sendSpec = str
+    # The send address to use in communication with Mongrel2, something like:
+    # "tcp://127.0.0.1:9997" - for using sockets that allow communication between computers
+    # "ipc:///tmp/send" - for using in processes that allow communication on the same computer processes
+    recvIdent = None
+    # The receive ident to use in communication with Mongrel2, if not specified one will be created
+    recvSpec = str
+    # The receive address to use in communication with Mongrel2, see more details at "address_request" configuration
+    requestHandler = RequestHandler
+    # The request handler callable instance to be used.
+    
+    def __init__(self):
         '''
+        Construct the mongrel2 server.
         Your addresses should be the same as what you configured
         in the config.sqlite for Mongrel2 and are usually like 
         tcp://127.0.0.1:9998
         '''
-        assert isinstance(workspacePath, str), 'Invalid path workspace %s' % workspacePath
-        assert callable(requestHandler), 'Invalid request handler %s' % requestHandler
-        self.workspacePath = workspacePath
+        assert isinstance(self.workspacePath, str), 'Invalid path workspace %s' % self.workspacePath
+        assert self.sendIdent is None or isinstance(self.sendIdent, str), 'Invalid send ident %s' % self.sendIdent
+        assert isinstance(self.sendSpec, str), 'Invalid send spec %s' % self.sendSpec
+        assert self.recvIdent is None or isinstance(self.recvIdent, str), 'Invalid receive ident %s' % self.recvIdent
+        assert isinstance(self.recvSpec, str), 'Invalid receive spec %s' % self.recvSpec
+        assert callable(self.requestHandler), 'Invalid request handler %s' % self.requestHandler
+        
+        if self.sendIdent is None: self.sendIdent = uuid4().hex.encode('utf8')
+        elif isinstance(self.sendIdent, str): self.sendIdent = self.sendIdent.encode('utf8')
+        if self.recvIdent is None: self.recvIdent = uuid4().hex.encode('utf8')
+        elif isinstance(self.recvIdent, str): self.recvIdent = self.recvIdent.encode('utf8')
+        
         self.context = zmq.Context()
+        
         self.reqs = self.context.socket(zmq.PULL)
-
-        if recvIdent: self.reqs.setsockopt(zmq.IDENTITY, recvIdent)
-        self.reqs.connect(sendSpec)
+        self.reqs.setsockopt(zmq.IDENTITY, self.recvIdent)
+        self.reqs.connect(self.sendSpec)
 
         self.resp = self.context.socket(zmq.PUB)
-        if sendIdent: self.resp.setsockopt(zmq.IDENTITY, sendIdent)
-        self.resp.connect(recvSpec)
-        
-        self.requestHandler = requestHandler
+        self.resp.setsockopt(zmq.IDENTITY, self.sendIdent)
+        self.resp.connect(self.recvSpec)
         
     def accept(self):
         '''
@@ -277,17 +278,16 @@ class Request:
 
 # --------------------------------------------------------------------
 
-def run(workspacePath, requestHandler, sendIdent, sendSpec, recvIdent, recvSpec):
-    assert isinstance(workspacePath, str), 'Invalid path workspace %s' % workspacePath
-    assert callable(requestHandler), 'Invalid request handler %s' % requestHandler
-    if sendIdent is None: sendIdent = uuid4().hex.encode('utf8')
-    elif isinstance(sendIdent, str): sendIdent = sendIdent.encode('utf8')
-    if recvIdent is None: recvIdent = uuid4().hex.encode('utf8')
-    elif isinstance(recvIdent, str): recvIdent = recvIdent.encode('utf8')
+def run(server):
+    '''
+    Run the mongrel2 server.
     
-    server = Mongrel2Server(workspacePath, sendIdent, sendSpec, recvIdent, recvSpec, requestHandler)
+    @param server: Mongrel2Server
+        The server to run.
+    '''
+    assert isinstance(server, Mongrel2Server), 'Invalid server %s' % server
     try:
-        print('=' * 50, 'Started Mongrel2 REST API server...')
+        print('=' * 50, 'Started Mongrel2 server...')
         server.serve_forever()
     except KeyboardInterrupt:
         print('=' * 50, '^C received, shutting down server')

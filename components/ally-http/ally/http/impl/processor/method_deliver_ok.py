@@ -37,7 +37,7 @@ class Response(Context):
 # --------------------------------------------------------------------
 
 @injected
-class DeliverOkHandler(HandlerProcessor):
+class DeliverOkForMethodHandler(HandlerProcessor):
     '''
     Handler that just sends an ok status.
     '''

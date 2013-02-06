@@ -26,3 +26,12 @@ class AOPError(Exception):
     Exception thrown when there is a AOP problem.
     '''
 
+class WireError(Exception):
+    '''
+    Exception thrown when there is a wiring problem.
+    '''
+
+class AventError(Exception):
+    '''
+    Exception thrown when there is an event problem.
+    '''

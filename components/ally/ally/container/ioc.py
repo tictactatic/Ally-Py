@@ -49,7 +49,7 @@ def entity(*args):
     if not args: return entity
     assert len(args) == 1, 'Expected only one argument that is the decorator function, got %s arguments' % len(args)
     function = args[0]
-    hasType, type = _process(function)
+    hasType, type = process(function)
     if hasType:
         if not isclass(type):
             raise SetupError('Expected a class as the return annotation for function %s' % function)
@@ -67,7 +67,7 @@ def config(*args):
     if not args: return config
     assert len(args) == 1, 'Expected only one argument that is the decorator function, got %s arguments' % len(args)
     function = args[0]
-    hasType, type = _process(function)
+    hasType, type = process(function)
     if hasType:
         if not isclass(type):
             raise SetupError('Expected a class as the return annotation for function %s' % function)
@@ -107,7 +107,7 @@ def before(*setups, auto=True):
         for setup in setups: assert isinstance(setup, SetupFunction), 'Invalid setup function %s' % setup
     assert isinstance(auto, bool), 'Invalid auto flag %s' % auto
     def decorator(function):
-        hasType, type = _process(function)
+        hasType, type = process(function)
         if hasType: raise SetupError('No return type expected for function %s' % function)
         return update_wrapper(register(SetupEvent(function, tuple(setup.name for setup in setups), SetupEvent.BEFORE, auto),
                                        callerLocals()), function)
@@ -129,7 +129,7 @@ def after(*setups, auto=True):
         for setup in setups: assert isinstance(setup, SetupFunction), 'Invalid setup function %s' % setup
     assert isinstance(auto, bool), 'Invalid auto flag %s' % auto
     def decorator(function):
-        hasType, type = _process(function)
+        hasType, type = process(function)
         if hasType: raise SetupError('No return type expected for function %s' % function)
         return update_wrapper(register(SetupEvent(function, tuple(setup.name for setup in setups), SetupEvent.AFTER, auto),
                                        callerLocals()), function)
@@ -144,7 +144,7 @@ def replace(setup):
     '''
     assert isinstance(setup, SetupFunction), 'Invalid setup function %s' % setup
     def decorator(function):
-        hasType, type = _process(function)
+        hasType, type = process(function)
         if isinstance(setup, SetupConfig):
             if hasType: raise SetupError('No return type expected for function %s, when replacing a configuration' % function)
             return update_wrapper(register(SetupConfigReplace(function, setup), callerLocals()), function)
@@ -174,7 +174,7 @@ def start(*args, priority=0):
     assert len(args) == 1, 'Expected only one argument that is the decorator function, got %s arguments' % len(args)
     assert isinstance(priority, int), 'Invalid priority %s' % priority
     function = args[0]
-    hasType, _type = _process(function)
+    hasType, _type = process(function)
     if hasType: raise SetupError('No return type expected for function %s' % function)
     return update_wrapper(register(SetupStart(function, priority), callerLocals()), function)
 
@@ -214,7 +214,7 @@ def entityOf(identifier, module=None):
     
     found = []
     if isinstance(identifier, str):
-        identifier = module.__name__ + '.' + identifier
+        identifier = '%s.%s' % (module.__name__, identifier)
         
         for setup in setups:
             assert isinstance(setup, SetupSource)
@@ -234,9 +234,8 @@ def entityOf(identifier, module=None):
 
 # --------------------------------------------------------------------
 
-def _process(function):
+def process(function):
     '''
-    FOR INTERNAL USE ONLY!
     Processes and validates the function as a setup function.
     
     @param function: function

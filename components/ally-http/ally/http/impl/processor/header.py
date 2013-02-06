@@ -84,7 +84,7 @@ class HeaderHandler(HandlerProcessorProceed):
         assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(response, Response), 'Invalid response %s' % response
 
-        if Request.decoderHeader not in request:  # Only add the decoder if one is not present 
+        if Request.decoderHeader not in request:  # Only add the decoder if one is not present
             request.decoderHeader = DecoderHeader(self, request.headers, request.parameters
                                                   if Request.parameters in request and self.useParameters else None)
         if Response.encoderHeader not in response:  # Only add the encoder if one is not present

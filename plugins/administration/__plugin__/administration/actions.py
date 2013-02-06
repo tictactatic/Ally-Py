@@ -16,9 +16,8 @@ from ..gui_security import acl
 from admin.introspection.api.component import IComponentService
 from admin.introspection.api.plugin import IPluginService
 from admin.introspection.api.request import IRequestService
-from ally.container import ioc
+from ally.container import ioc, app
 from ally.internationalization import NC_
-from distribution.container import app
 from gui.action.api.action import Action
 
 # --------------------------------------------------------------------

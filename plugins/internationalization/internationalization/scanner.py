@@ -11,14 +11,13 @@ The scanner used for extracting the localized text messages.
 
 from admin.introspection.api.component import IComponentService, Component
 from admin.introspection.api.plugin import IPluginService, Plugin
-from ally.container import wire
+from ally.container import wire, app
 from ally.container.ioc import injected
 from ally.container.support import setup
 from babel.messages.extract import extract_nothing, extract_python, \
     _strip_comment_tags, empty_msgid_warning, extract_javascript
 from babel.util import pathmatch
 from datetime import datetime
-from distribution.support import IAnalyzer
 from functools import partial
 from internationalization.api.file import IFileService, QFile, File
 from internationalization.api.message import IMessageService, Message
@@ -60,8 +59,8 @@ COMMENT_TAGS = ('NOTE')
 # --------------------------------------------------------------------
 
 @injected
-@setup(IAnalyzer, name='scanner')
-class Scanner(IAnalyzer):
+@setup(name='scanner')
+class Scanner:
     '''
     The class that provides the scanner.
     '''
@@ -82,11 +81,13 @@ class Scanner(IAnalyzer):
         assert isinstance(self.fileService, IFileService), 'Invalid file service %s' % self.fileService
         assert isinstance(self.sourceService, ISourceService), 'Invalid source service %s' % self.sourceService
         assert isinstance(self.messageService, IMessageService), 'Invalid message service %s' % self.messageService
-        
-    def doAnalyze(self):
+    
+    @app.populate(app.CHANGED)
+    def scanLocalization(self):
         '''
-        @see: IAnalyzer.doAnalyze
+        Scans the application for localization messages.
         '''
+        log.info('Scanning the application distribution for localized messages')
         self.scanComponents()
         self.scanPlugins()
         

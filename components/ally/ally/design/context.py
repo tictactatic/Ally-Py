@@ -11,7 +11,7 @@ Provides the context support.
 
 from abc import ABCMeta
 from ally.support.util import immut
-from inspect import isclass
+from inspect import isclass, ismemberdescriptor
 
 # --------------------------------------------------------------------
 
@@ -157,7 +157,7 @@ class ContextMetaClass(ABCMeta):
             attribute.clazz = self
             attribute.descriptor = getattr(self, key)
             attribute.locked = True
-            setattr(self, key, attribute)
+            if __debug__: setattr(self, key, attribute)  # Only make the attribute descriptor if in debug mode
 
         # Adding also the parent attributes.
         for base in bases:
@@ -165,10 +165,10 @@ class ContextMetaClass(ABCMeta):
             if not isinstance(base, ContextMetaClass):
                 raise TypeError('A context class can only inherit other context classes, invalid class %s' % base)
             assert isinstance(base, ContextMetaClass)
-            attributes.update(base.__attributes__)
+            for key, attribute in base.__attributes__.items():
+                if key not in attributes: attributes[key] = attribute
 
         self.__attributes__ = immut(attributes)
-
         return self
 
 class Context(metaclass=ContextMetaClass):
@@ -205,13 +205,21 @@ class Context(metaclass=ContextMetaClass):
         for name, value in keyargs.items(): setattr(self, name, value)
 
     def __contains__(self, attribute):
+        if ismemberdescriptor(attribute):
+            if not isinstance(attribute.__objclass__, ContextMetaClass): return False
+            assert isinstance(attribute.__objclass__, ContextMetaClass)
+            attribute = attribute.__objclass__.__attributes__.get(attribute.__name__)
         if not isinstance(attribute, Attribute): return False
+        
         assert isinstance(attribute, Attribute)
-        owned = self.__attributes__.get(attribute.name)
-        if owned is None: return False
+        if attribute.name not in self.__attributes__: return False
 
-        try: return isinstance(owned.descriptor.__get__(self), attribute.types)
+        try: return isinstance(getattr(self, attribute.name), attribute.types)
         except AttributeError: return False
+        
+    def __getattr__(self, key):
+        if key in self.__attributes__: return None
+        raise AttributeError('Unknown attribute \'%s\'' % key)
 
 # --------------------------------------------------------------------
 
@@ -234,8 +242,7 @@ def asData(context, *classes):
         
     data = {}
     for name in common:
-        attribute = context.__attributes__.get(name)
-        if attribute in context: data[name] = attribute.__get__(context)
+        if context.__attributes__[name] in context: data[name] = getattr(context, name)
 
     return data
 
@@ -258,6 +265,5 @@ def copy(src, dest, *classes):
         common.intersection_update(clazz.__attributes__)
         
     for name in common:
-        attrSrc = src.__attributes__[name]
-        if attrSrc in src: dest.__attributes__[name].__set__(dest, attrSrc.__get__(src))
+        if src.__attributes__[name] in src: setattr(dest, name, getattr(src, name))
 

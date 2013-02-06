@@ -9,7 +9,7 @@ Created on Jan 8, 2012
 Contains sql alchemy database setup.
 '''
 
-from ally.container import ioc
+from ally.container import ioc, app
 from ally.container.error import ConfigError
 from sqlalchemy.engine import create_engine
 from sqlalchemy.engine.base import Engine
@@ -46,6 +46,7 @@ def metas(): return []
 
 # ---------------------------------
 
+@app.populate(app.DEVEL, app.CHANGED, priority=1)
 def createTables():
     for meta in metas():
         log.info('Create tables for meta %s', meta)

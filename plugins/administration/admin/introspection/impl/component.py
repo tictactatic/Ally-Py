@@ -23,7 +23,7 @@ import sys
 # --------------------------------------------------------------------
 
 @injected
-@setup(IComponentService)
+@setup(IComponentService, name='componentService')
 class ComponentService(IComponentService):
     '''
     Provides the implementation for @see: IComponentService.

@@ -12,13 +12,13 @@ Provides the javascript setup required by browser for ajax.
 from .processor import header, updateAssemblyResources, assemblyResources
 from ally.container import ioc
 from ally.design.processor import Handler
-from ally.http.impl.processor.deliver_ok import DeliverOkHandler
 from ally.http.impl.processor.headers.set_fixed import HeaderSetEncodeHandler
+from ally.http.impl.processor.method_deliver_ok import DeliverOkForMethodHandler
 from ally.http.spec.server import HTTP_OPTIONS
 
 # --------------------------------------------------------------------
 
-@ioc.config()
+@ioc.config
 def ajax_cross_domain() -> bool:
     '''Indicates that the server should also be able to support cross domain ajax requests'''
     return True
@@ -40,8 +40,8 @@ def headerSetAjax() -> Handler:
     return b
 
 @ioc.entity
-def deliverOkHandler() -> Handler:
-    b = DeliverOkHandler()
+def deliverOkForOptionsHandler() -> Handler:
+    b = DeliverOkForMethodHandler()
     b.forMethod = HTTP_OPTIONS
     return b
 
@@ -49,4 +49,4 @@ def deliverOkHandler() -> Handler:
 
 @ioc.after(updateAssemblyResources)
 def updateAssemblyResourcesForHTTPAjax():
-    if ajax_cross_domain(): assemblyResources().add(headerSetAjax(), deliverOkHandler(), after=header())
+    if ajax_cross_domain(): assemblyResources().add(headerSetAjax(), deliverOkForOptionsHandler(), after=header())

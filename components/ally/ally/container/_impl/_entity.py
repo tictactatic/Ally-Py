@@ -9,6 +9,9 @@ Created on Jan 12, 2012
 Provides handlers for entities.
 '''
 
+from ..error import WireError, AventError
+from ally.container.spec.trigger import ITrigger
+from collections import Iterable
 from functools import partial
 from inspect import isclass
 import logging
@@ -49,7 +52,7 @@ class Initializer:
         if initializer is not None:
             assert isinstance(initializer, Initializer)
             if entity.__class__ == initializer._entityClazz:
-                if getattr(entity, '_ally_ioc_initialized', False): return
+                if entity.__dict__.get('_ally_ioc_initialized', False): return
                 args, keyargs = entity._ally_ioc_arguments
                 entity._ally_ioc_initialized = True
                 del entity._ally_ioc_arguments
@@ -74,14 +77,9 @@ class Initializer:
         @see: Callable.__call__
         '''
         assert isinstance(entity, self._entityClazz), 'Invalid entity %s for class %s' % (entity, self._entityClazz)
-        try:
-            if entity._ally_ioc_initialized: self._entityInit(entity, *args, **keyargs)
-        except AttributeError:
-            try: entity._ally_ioc_arguments
-            except AttributeError:
-                entity._ally_ioc_arguments = (args, keyargs)
-            else:
-                raise TypeError('Cannot initialize twice the entity %s' % entity)
+        if entity.__dict__.get('_ally_ioc_initialized'): self._entityInit(entity, *args, **keyargs)
+        elif entity.__dict__.get('_ally_ioc_arguments') is None: entity._ally_ioc_arguments = (args, keyargs)
+        else: raise TypeError('Cannot initialize twice the entity %s' % entity)
 
     def __get__(self, entity, owner=None):
         '''
@@ -91,11 +89,6 @@ class Initializer:
         return self
 
 # --------------------------------------------------------------------
-
-class WireError(Exception):
-    '''
-    Exception thrown when there is a wiring problem.
-    '''
 
 class WireEntity:
     '''
@@ -172,7 +165,7 @@ class Wiring:
     @classmethod
     def wiringOf(cls, clazz):
         '''
-        Provides the wiring for the provided class. This process checks all the inherited classes and compiled a wiring.
+        Provides the wiring for the provided class. This process checks all the inherited classes and compiles a wiring.
         
         @param clazz: class
             The class to provide the compiled wiring for.
@@ -183,7 +176,8 @@ class Wiring:
         compiled = clazz.__dict__.get('__ally_wiring_compiled__')
         if compiled is None:
             wirings = []
-            if '__ally_wiring__' in clazz.__dict__: wirings.append(clazz.__ally_wiring__)
+            try: wirings.append(clazz.__ally_wiring__)
+            except AttributeError: pass
             for claz in clazz.__bases__:
                 if claz == object: continue
                 wiring = cls.wiringOf(claz)
@@ -258,3 +252,114 @@ class Wiring:
         if wconfig.name in self._entities:
             raise WireError('There is already a entity attribute with name %r registered' % wconfig.name)
         self._configurations[wconfig.name] = wconfig
+
+# --------------------------------------------------------------------
+
+class Event:
+    '''
+    Contains the event data.
+    '''
+    
+    def __init__(self, name, priority, triggers):
+        '''
+        Construct the event.
+        
+        @param name: string
+            The name of the method to be called for event.
+        @param priority: integer
+            The event priority.
+        @param triggers: Iterable(ITrigger)
+            The triggers to be associated.
+        '''
+        assert isinstance(name, str), 'Invalid name %s' % name
+        assert isinstance(priority, int), 'Invalid priority %s' % priority
+        assert isinstance(triggers, Iterable), 'Invalid triggers %s' % triggers
+        triggers = triggers if isinstance(triggers, set) else set(triggers)
+        if __debug__:
+            for trigger in triggers: assert isinstance(trigger, ITrigger), 'Invalid trigger %s' % trigger
+        self.name = name
+        self.priority = priority
+        self.triggers = triggers
+
+class Advent:
+    '''
+    Provides the context for events.
+    '''
+
+    @classmethod
+    def adventFor(cls, register):
+        '''
+        Provides the advent registered in the provided register, if there is no advent one will be created.
+        
+        @param register: dictionary{string, object}
+            The register to provide the advent from.
+        @return: Advent
+            The register advent or newly created advent object for the registry.
+        '''
+        assert isinstance(register, dict), 'Invalid register %s' % register
+        advent = register.get('__ally_advent__')
+        if advent is None: advent = register['__ally_advent__'] = Advent()
+        return advent
+
+    @classmethod
+    def adventOf(cls, clazz):
+        '''
+        Provides the advent for the provided class. This process checks all the inherited classes and compiled a wiring.
+        
+        @param clazz: class
+            The class to provide the compiled wiring for.
+        @return: Wiring|None
+            The compiled wiring for the class, or None if there is no wiring available.
+        '''
+        assert isclass(clazz), 'Invalid class %s' % clazz
+        compiled = clazz.__dict__.get('__ally_advent_compiled__')
+        if compiled is None:
+            advents = []
+            try: advents.append(clazz.__ally_advent__)
+            except AttributeError: pass
+            for claz in clazz.__bases__:
+                if claz == object: continue
+                advent = cls.adventOf(claz)
+                if advent: advents.append(advent)
+            if advents:
+                if len(advents) == 1: compiled = advents[0]
+                else:
+                    compiled = Advent()
+                    for advent in reversed(advents):
+                        assert isinstance(advent, Advent), 'Invalid advent %s' % advent
+                        compiled._events.update(advent._events)
+                clazz.__ally_advent_compiled__ = compiled
+            else: clazz.__ally_advent_compiled__ = False
+        elif compiled is False:
+            # No compiled wiring available for class
+            compiled = None
+        return compiled
+
+    def __init__(self):
+        '''
+        Constructs the events context.
+        '''
+        self._events = {}
+
+    events = property(lambda self: self._events.values(), doc=
+'''
+@type events: Iterable[Event]
+    The events of the advent.
+''')
+
+    def addEvent(self, name, priority, triggers):
+        '''
+        Adds a new event.
+        
+        @param name: string
+            The name of the method to be called for event.
+        @param priority: integer
+            The event priority.
+        @param triggers: Iterable(ITrigger)
+            The triggers to be associated.
+        '''
+        event = Event(name, priority, triggers)
+        if event.name in self._events:
+            raise AventError('There is already an event with name %r registered' % event.name)
+        self._events[event.name] = event
+

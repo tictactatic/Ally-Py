@@ -12,7 +12,7 @@ Provides the setup calls implementations for the IoC module.
 from ..error import SetupError, ConfigError
 from ._assembly import Assembly
 from ._entity import Initializer
-from collections import deque
+from ally.container.spec.trigger import ITrigger
 from functools import partial
 from inspect import isclass, isgenerator
 from itertools import chain
@@ -189,7 +189,7 @@ class CallEvent(WithCall, WithListeners):
         WithCall.__init__(self, call)
         WithListeners.__init__(self)
 
-        self._assembly = assembly
+        self.assembly = assembly
         self.name = name
         self._processed = False
 
@@ -205,7 +205,7 @@ class CallEvent(WithCall, WithListeners):
         '''
         if self._processed: return
         self._processed = True
-        self._assembly.called.add(self.name)
+        self.assembly.called.add(self.name)
 
         for listener, _auto in self._listenersBefore: listener()
         ret = self.call()
@@ -265,7 +265,7 @@ class CallEntity(WithCall, WithType, WithListeners):
 
         self.marks = []
 
-        self._assembly = assembly
+        self.assembly = assembly
         self.name = name
         self._hasValue = False
         self._processing = False
@@ -298,7 +298,7 @@ class CallEntity(WithCall, WithType, WithListeners):
             if self._processing:
                 raise SetupError('Cyclic dependency detected for %r, try using yield' % self.name)
             self._processing = True
-            self._assembly.called.add(self.name)
+            self.assembly.called.add(self.name)
 
             ret = self.call()
 
@@ -306,7 +306,7 @@ class CallEntity(WithCall, WithType, WithListeners):
             else: value, followUp = ret, None
 
             if value is not None:
-                valueId, callsOfValue = id(value), self._assembly.callsOfValue
+                valueId, callsOfValue = id(value), self.assembly.callsOfValue
                 calls = callsOfValue.get(valueId)
                 if calls is None: callsOfValue[valueId] = calls = [self]
                 else: calls.append(self)
@@ -358,7 +358,7 @@ class CallConfig(WithType, WithListeners):
         WithType.__init__(self, types)
         WithListeners.__init__(self)
 
-        self._assembly = assembly
+        self.assembly = assembly
         self.name = name
         self.external = False
         self._hasValue = False
@@ -400,7 +400,7 @@ class CallConfig(WithType, WithListeners):
         '''
         if not self._processed:
             self._processed = True
-            self._assembly.called.add(self.name)
+            self.assembly.called.add(self.name)
             for listener, auto in chain(self._listenersBefore, self._listenersAfter):
                 if auto:
                     if not self.external: listener() 
@@ -410,29 +410,90 @@ class CallConfig(WithType, WithListeners):
         if not self._hasValue: raise ConfigError('No value for configuration %s' % self.name)
         return self._value
 
-class CallStart:
+class CallStart(CallEvent):
     '''
-    Provides the start call.
+    Provides the start call event.
     @see: Callable
     '''
-
-    def __init__(self, assembly):
+    
+    def __init__(self, assembly, name, call, priority):
         '''
         Construct the start call.
+        @see: CallEvent.__init__
+        
+        @param priority: integer
+            The priority of the start call.
+        '''
+        assert isinstance(priority, int), 'Invalid priority %s' % priority
+        super().__init__(assembly, name, call)
+        
+        self.priority = priority
+
+class CallEventControlled(WithCall, WithListeners):
+    '''
+    Provides the controlled event call. This calls can be managed externally depending on the event names.
+    @see: Callable, WithCall, WithListeners
+    '''
+
+    def __init__(self, assembly, name, priority, call, triggers):
+        '''
+        Construct the controlled event call.
         
         @param assembly: Assembly
-            The assembly to process the start calls for.
+            The assembly to which this call belongs.
+        @param name: string
+            The controlled event name.
+        @param priority: integer
+            The event priority.
+        @param triggers: set{ITrigger}
+            The triggers to be associated with the event call.
+            
+        @see: WithCall.__init__
+        @see: WithListeners.__init__
         '''
         assert isinstance(assembly, Assembly), 'Invalid assembly %s' % assembly
-        self.assembly = assembly
-        self._processed = False
-        self.names = deque()
+        assert isinstance(name, str), 'Invalid name %s' % name
+        assert isinstance(priority, int), 'Invalid priority %s' % priority
+        assert isinstance(triggers, set), 'Invalid triggers %s' % triggers
+        if __debug__:
+            for trigger in triggers: assert isinstance(trigger, ITrigger), 'Invalid trigger %s' % trigger
+        WithCall.__init__(self, call)
+        WithListeners.__init__(self)
 
+        self.assembly = assembly
+        self.priority = priority
+        self.name = name
+        self.triggers = triggers
+        self._processed = False
+        
+    def addBefore(self, listener, auto):
+        '''
+        @see: WithListeners.addBefore
+        '''
+        raise SetupError('Cannot add before event to the \'%s\' controlled event, only after events are allowed' % self.name)
+
+    def validateAcceptListeners(self):
+        '''
+        @see: WithListeners.validateAcceptListeners
+        '''
+        if self._processed: raise SetupError('Already processed cannot add anymore listeners to \'%s\'' % self.name)
+ 
     def __call__(self):
         '''
         Provides the call for the source.
         '''
-        if self._processed: return
+        if self._processed: return self._value
         self._processed = True
+        self.assembly.called.add(self.name)
 
-        for name in self.names: self.assembly.processForName(name)
+        try: self._value = self.call()
+        except:
+            log.exception('A problem occurred for controlled event: %s' % self.name)
+            self._value = False
+        if self._value is None: self._value = True
+        if not isinstance(self._value, bool):
+            raise SetupError('The controlled event call \'%s\' needs to return a boolean value, got \'%s\'' % 
+                             (self.name, self._value))
+        if self._value:
+            for listener, _auto in self._listenersAfter: listener()
+        return self._value

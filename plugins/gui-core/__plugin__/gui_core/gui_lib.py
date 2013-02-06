@@ -12,9 +12,8 @@ Contains the GUI configuration setup for the node presenter plugin.
 from ..gui_core import publish_gui_resources
 from .gui_core import cdmGUI, getGuiPath, lib_folder_format, publishLib, \
     getPublishedLib, gui_folder_format
-from ally.container import ioc
+from ally.container import ioc, app
 from ally.support.util_io import openURI
-from distribution.container import app
 from io import BytesIO
 import logging
 
@@ -51,7 +50,7 @@ def server_url():
 
 # --------------------------------------------------------------------
 
-@app.populate
+@app.populate(app.DEVEL)
 def publish():
     publishLib('core')
 

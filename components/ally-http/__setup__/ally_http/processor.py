@@ -10,7 +10,8 @@ Provides the configurations for the processors used in handling the request.
 '''
 
 from ally.container import ioc
-from ally.design.processor import Handler
+from ally.design.processor import Handler, Assembly
+from ally.http.impl.processor.deliver_code import DeliverCodeHandler
 from ally.http.impl.processor.header import HeaderHandler
 from ally.http.impl.processor.headers.allow import AllowEncodeHandler
 from ally.http.impl.processor.headers.content_length import \
@@ -20,6 +21,7 @@ from ally.http.impl.processor.headers.content_type import \
 from ally.http.impl.processor.internal_error import InternalErrorHandler
 from ally.http.impl.processor.method_override import MethodOverrideHandler
 from ally.http.impl.processor.path_encoder import EncoderPathHandler
+from ally.http.spec.codes import PATH_NOT_FOUND
 
 # --------------------------------------------------------------------
 # Creating the processors used in handling the request
@@ -69,3 +71,24 @@ def encoderPath() -> Handler: return EncoderPathHandler()
 
 @ioc.entity
 def allowEncode() -> Handler: return AllowEncodeHandler()
+
+@ioc.entity
+def deliverNotFound() -> Handler:
+    b = DeliverCodeHandler()
+    b.code, b.status, b.isSuccess = PATH_NOT_FOUND
+    return b
+
+# --------------------------------------------------------------------
+
+@ioc.entity
+def assemblyNotFound() -> Assembly:
+    '''
+    The assembly containing the handlers that will be used in processing a not found request.
+    '''
+    return Assembly()
+
+# --------------------------------------------------------------------
+
+@ioc.before(assemblyNotFound)
+def updateAssemblyNotFound():
+    assemblyNotFound().add(deliverNotFound())

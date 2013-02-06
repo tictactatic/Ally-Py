@@ -10,7 +10,7 @@ Runs the asyncore py web server.
 '''
 
 from ..ally_http import server_type, server_version, server_host, server_port
-from ..ally_http.server import pathAssemblies
+from ..ally_http.server import assemblyServer
 from ally.container import ioc
 from ally.http.server import server_asyncore
 from threading import Thread
@@ -26,8 +26,21 @@ def server_type_asyncore():
 
 # --------------------------------------------------------------------
 
+@ioc.entity
+def serverAsyncoreRequestHandler(): return server_asyncore.RequestHandler
+
+@ioc.entity
+def serverAsyncore():
+    b = server_asyncore.AsyncServer()
+    b.serverVersion = server_version()
+    b.serverHost = server_host()
+    b.serverPort = server_port()
+    b.requestHandlerFactory = serverAsyncoreRequestHandler()
+    b.assembly = assemblyServer()
+    return b
+
+# --------------------------------------------------------------------
+
 @ioc.start
 def runServer():
-    if server_type() == 'asyncore':
-        args = pathAssemblies(), server_version(), server_host(), server_port()
-        Thread(name='HTTP server thread', target=server_asyncore.run, args=args).start()
+    if server_type() == 'asyncore': Thread(name='HTTP server thread', target=server_asyncore.run, args=(serverAsyncore(),)).start()

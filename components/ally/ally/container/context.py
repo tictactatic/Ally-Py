@@ -11,7 +11,7 @@ Provides the IoC deployment operations.
 
 from ._impl._aop import AOPModules
 from ._impl._assembly import Context, Assembly
-from ._impl._setup import START_CALL
+from ._impl._setup import CallStart
 from .error import SetupError
 from inspect import ismodule
 import importlib
@@ -79,13 +79,20 @@ def processStart(assembly=None):
     @param assembly: Assembly|None
         The assembly to process the start for, if None the active assembly will be used.
     '''
-    if assembly is None: assembly  = Assembly.current()
+    assembly = assembly or Assembly.current()
     assert isinstance(assembly, Assembly), 'Invalid assembly %s' % assembly
+    
     unused = set(assembly.configExtern)
     unused = unused.difference(assembly.configUsed)
     if unused: log.info('Unknown configurations: %s', ', '.join(unused))
-    try: assembly.processForName(START_CALL)
-    except SetupError: raise SetupError('No IoC start calls to start the setup')
+    
+    calls = []
+    for call in assembly.calls.values():
+        if isinstance(call, CallStart):
+            assert isinstance(call, CallStart)
+            if call.assembly == assembly: calls.append(call)
+    calls.sort(key=lambda call: call.priority, reverse=True)
+    for call in calls: assembly.processForName(call.name)
     
 def configurations(assembly=None, force=False):
     '''
@@ -96,7 +103,7 @@ def configurations(assembly=None, force=False):
     @param force: boolean
         If True will first force the configurations loading.
     '''
-    if assembly is None: assembly  = Assembly.current()
+    if assembly is None: assembly = Assembly.current()
     assert isinstance(assembly, Assembly), 'Invalid assembly %s' % assembly
     if force:
         for config in assembly.configurations: assembly.processForName(config)

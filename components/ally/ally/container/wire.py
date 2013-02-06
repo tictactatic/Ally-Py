@@ -9,14 +9,11 @@ Created on Dec 15, 2011
 Provides the IoC auto wiring.
 '''
 
-from ._impl._entity import Wiring, WireError, WireEntity, WireConfig
+from ._impl._entity import Wiring, WireEntity, WireConfig
 from ._impl._setup import normalizeConfigType
+from .error import WireError
 from ally.support.util_sys import callerLocals
 from inspect import isclass
-
-# --------------------------------------------------------------------
-
-WireError = WireError
     
 # --------------------------------------------------------------------
 

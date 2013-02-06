@@ -9,30 +9,44 @@ Created on Nov 24, 2011
 Provides the javascript setup required by browser for ajax.
 '''
 
-from ..ally_core_http.support_ajax import ajax_cross_domain, deliverOkHandler
 from ..cdm.processor import updateAssemblyContent, assemblyContent, \
     contentDelivery
 from ally.container import ioc
 from ally.design.processor import Handler
 from ally.http.impl.processor.headers.set_fixed import HeaderSetEncodeHandler
+from ally.http.impl.processor.method_deliver_ok import DeliverOkForMethodHandler
+from ally.http.spec.server import HTTP_OPTIONS
 
 # --------------------------------------------------------------------
 
 @ioc.config
-def headers_ajax_cdm() -> dict:
+def ajax_cross_domain() -> bool:
+    '''Indicates that the server should also be able to support cross domain ajax requests'''
+    return True
+
+@ioc.config
+def headers_ajax() -> dict:
     '''The ajax specific headers required by browser for cross domain calls'''
     return {
-            'Access-Control-Allow-Origin': ['*'],
-            }
+            'Access-Control-Allow-Origin':['*'],
+            } 
 
 # --------------------------------------------------------------------
 
 @ioc.entity
-def headerSetEncodeCdm() -> Handler:
+def headerSetAjax() -> Handler:
     b = HeaderSetEncodeHandler()
-    b.headers = headers_ajax_cdm()
+    b.headers = headers_ajax()
     return b
+
+@ioc.entity
+def deliverOkForOptionsHandler() -> Handler:
+    b = DeliverOkForMethodHandler()
+    b.forMethod = HTTP_OPTIONS
+    return b
+
+# --------------------------------------------------------------------
 
 @ioc.after(updateAssemblyContent)
 def updateAssemblyContentAjax():
-    if ajax_cross_domain(): assemblyContent().add(headerSetEncodeCdm(), deliverOkHandler(), before=contentDelivery())
+    if ajax_cross_domain(): assemblyContent().add(headerSetAjax(), deliverOkForOptionsHandler(), before=contentDelivery())

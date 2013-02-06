@@ -25,8 +25,8 @@ else:
     cdm = cdm  # Just to avoid the import warning
     # ----------------------------------------------------------------
     
-    from ..cdm.processor import server_provide_content
-
+    from ..cdm.server import server_provide_content
+    
     ioc.doc(server_provide_content, '''
     !!!Attention, if the mongrel2 server is selected this option will always be "false"
     ''')

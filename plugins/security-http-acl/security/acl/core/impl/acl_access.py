@@ -20,8 +20,8 @@ from ally.container.ioc import injected
 from ally.container.support import setup
 from ally.core.spec.resources import Node, ConverterPath, Path, \
     INodeChildListener, INodeInvokerListener, Invoker
-from ally.http.spec.server import METHOD_GET, METHOD_DELETE, METHOD_POST, \
-    METHOD_PUT
+from ally.http.spec.server import HTTP_GET, HTTP_DELETE, HTTP_POST, \
+    HTTP_PUT
 from ally.support.core.util_resources import findNodesFor, pathForNode, \
     propertyTypesOf, ReplacerWithMarkers
 from collections import Iterable

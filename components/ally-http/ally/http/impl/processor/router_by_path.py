@@ -12,7 +12,7 @@ Provides a processor that routes the requests based on patterns.
 from ally.container.ioc import injected
 from ally.design.context import Context, requires, copy, defines
 from ally.design.processor import Assembly, ONLY_AVAILABLE, CREATE_REPORT, Chain, \
-    Processing, HandlerProcessor
+    Processing, HandlerProcessor, NO_MISSING_VALIDATION
 from ally.http.spec.server import RequestHTTP, ResponseHTTP, RequestContentHTTP, \
     ResponseContentHTTP
 from ally.support.util_io import IInputStream
@@ -67,6 +67,8 @@ class RoutingByPathHandler(HandlerProcessor):
     capturing groups that joined will become the routed uri. 
     '''
     
+    name = str
+    # The name for the router, used mainly in logging. 
     pattern = str
     # The string pattern for matching the path, the pattern needs to provide capturing groups that joined will become
     # the routed uri. 
@@ -74,15 +76,16 @@ class RoutingByPathHandler(HandlerProcessor):
     # The assembly to be used in processing the request for the provided pattern.
     
     def __init__(self):
+        assert isinstance(self.name, str), 'Invalid name %s' % self.name
         assert isinstance(self.pattern, str), 'Invalid pattern %s' % self.pattern
         assert isinstance(self.assembly, Assembly), 'Invalid assembly %s' % self.assembly
         super().__init__()
 
-        processing, report = self.assembly.create(ONLY_AVAILABLE, CREATE_REPORT,
+        processing, report = self.assembly.create(ONLY_AVAILABLE, NO_MISSING_VALIDATION, CREATE_REPORT,
                                                   request=RequestHTTP, requestCnt=RequestContentHTTP,
                                                   response=ResponseHTTP, responseCnt=ResponseContentHTTP)
 
-        log.info('Assembly report for \'%s\':\n%s', re.sub('[\\/]+', '/', re.sub('([^\w\\/]*)', '', self.pattern)), report)
+        log.info('Assembly report for \'%s\':\n%s', self.name, report)
         self._regex = re.compile(self.pattern)
         self._processing = processing
             

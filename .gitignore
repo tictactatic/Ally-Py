@@ -5,6 +5,7 @@
 /plugins/internationalization/test/internationalization/core/impl/repo/
 /distribution/workspace/
 
+*.pyo
 *.pyc
 *.egg
 *.properties

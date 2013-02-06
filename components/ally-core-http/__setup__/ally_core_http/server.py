@@ -10,7 +10,7 @@ Provides the server configuration.
 '''
 
 from ..ally.logging import info_for
-from ..ally_http.server import assemblyServer
+from ..ally_http.server import updateAssemblyServer, assemblyServer
 from .processor import assemblyResources
 from ally.container import ioc
 from ally.design.processor import Handler
@@ -37,11 +37,12 @@ def server_pattern_rest():
 @ioc.entity
 def resourcesRouter() -> Handler:
     b = RoutingByPathHandler()
+    b.name = 'REST resources'
     b.assembly = assemblyResources()
     b.pattern = server_pattern_rest()
     return b
     
-@ioc.before(assemblyServer)
+@ioc.before(updateAssemblyServer)
 def updateAssemblyServerForResources():
     if server_provide_rest(): assemblyServer().add(resourcesRouter())
     

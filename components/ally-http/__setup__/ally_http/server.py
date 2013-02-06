@@ -10,8 +10,10 @@ Runs the basic web server.
 '''
 
 from . import server_type, server_version, server_host, server_port
+from .processor import assemblyNotFound
 from ally.container import ioc
-from ally.design.processor import Assembly
+from ally.design.processor import Assembly, Handler
+from ally.http.impl.processor.router_by_path import RoutingByPathHandler
 from ally.http.server import server_basic
 from threading import Thread
 
@@ -24,7 +26,6 @@ def assemblyServer() -> Assembly:
     '''
     return Assembly()
 
-#TODO: add not found processors.
 # --------------------------------------------------------------------
 
 @ioc.entity
@@ -39,6 +40,20 @@ def serverBasic():
     b.requestHandlerFactory = serverBasicRequestHandler()
     b.assembly = assemblyServer()
     return b
+
+# --------------------------------------------------------------------
+
+@ioc.entity
+def notFoundRouter() -> Handler:
+    b = RoutingByPathHandler()
+    b.name = 'NOT FOUND'
+    b.assembly = assemblyNotFound()
+    b.pattern = '(?:.*)'
+    return b
+
+@ioc.before(assemblyServer)
+def updateAssemblyServer():
+    assemblyServer().add(notFoundRouter())
 
 # --------------------------------------------------------------------
 

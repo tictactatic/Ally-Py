@@ -13,8 +13,10 @@ from ..config import Config
 from ..error import SetupError, ConfigError
 from ._assembly import Setup, Assembly
 from ._call import WithType, WithCall, CallEvent, CallEventOnCount, \
-    WithListeners, CallConfig, CallEntity, CallStart
+    WithListeners, CallConfig, CallEntity, CallStart, CallEventControlled
+from ally.container.spec.trigger import ITrigger
 from ally.support.util_sys import locationStack
+from collections import Iterable
 from functools import partial
 from inspect import isclass, isfunction, getfullargspec, getdoc
 from numbers import Number
@@ -23,9 +25,6 @@ import logging
 # --------------------------------------------------------------------
 
 log = logging.getLogger(__name__)
-
-START_CALL = 'start$call'
-# Used for identifying the start call.
 
 # --------------------------------------------------------------------
 
@@ -108,9 +107,8 @@ class SetupFunction(Setup):
         else:
             assert isfunction(function), 'Invalid function %s' % function
             assert function.__name__ != '<lambda>', 'Lambda functions cannot be used %s' % function
-            if group: self.group = group
-            else: self.group = function.__module__
-            self.name = self.group + '.' + function.__name__
+            self.group = group if group else function.__module__
+            self.name = '%s.%s' % (self.group, function.__name__)
             if __debug__:
                 fnArgs = getfullargspec(function)
                 assert not (fnArgs.args or fnArgs.varargs or fnArgs.varkw), \
@@ -410,7 +408,7 @@ class SetupStart(SetupFunction):
         '''
         assert isinstance(priority, int), 'Invalid priority %s' % priority
         SetupFunction.__init__(self, function, **keyargs)
-        self.priority_assemble += priority
+        self._priority = priority
 
     def index(self, assembly):
         '''
@@ -420,19 +418,50 @@ class SetupStart(SetupFunction):
         if self.name in assembly.calls:
             raise SetupError('There is already a setup call for name \'%s\', overlaps with:%s' % 
                              (self.name, locationStack(self._function)))
-        assembly.calls[self.name] = CallEvent(assembly, self.name, self._function)
-        
-    def assemble(self, assembly):
+        assembly.calls[self.name] = CallStart(assembly, self.name, self._function, self._priority)
+
+class SetupEventControlled(SetupFunction):
+    '''
+    Provides the setup for a controlled event function.
+    '''
+
+    priority_assemble = 3
+
+    def __init__(self, function, priority, triggers, **keyargs):
         '''
-        @see: Setup.assemble
+        @see: SetupFunction.__init__
+        
+        @param priority: integer
+            The event priority.
+        @param triggers: Iterable(ITrigger)
+            The triggers to be associated with the setup.
+        '''
+        assert isinstance(priority, int), 'Invalid priority %s' % priority
+        SetupFunction.__init__(self, function, **keyargs)
+        assert isinstance(triggers, Iterable), 'Invalid triggers %s' % triggers
+        triggers = triggers if isinstance(triggers, set) else set(triggers)
+        if __debug__:
+            for trigger in triggers: assert isinstance(trigger, ITrigger), 'Invalid trigger %s' % trigger
+        
+        self._priority = priority
+        self._triggers = triggers
+
+    def index(self, assembly):
+        '''
+        @see: Setup.index
         '''
         assert isinstance(assembly, Assembly), 'Invalid assembly %s' % assembly
-        start = assembly.calls.get(START_CALL)
-        if start is None or start.assembly != assembly: start = assembly.calls[START_CALL] = CallStart(assembly)
-        # We need also to check if the start call is not inherited from a parent assembly.
-        
-        start.names.appendleft(self.name)
+        if self.name in assembly.calls:
+            raise SetupError('There is already a setup call for name \'%s\', overlaps with:%s' % 
+                             (self.name, locationStack(self._function)))
+        assembly.calls[self.name] = CallEventControlled(assembly, self.name, self._priority, self._function, self._triggers)
 
+    def __call__(self):
+        '''
+        Provides the actual setup of the call.
+        '''
+        raise SetupError('Cannot invoke the controlled event setup \'%s\' directly' % self.name)
+    
 # --------------------------------------------------------------------
 
 def normalizeConfigType(clazz):

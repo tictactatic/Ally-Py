@@ -12,7 +12,6 @@ Provides the asyncore handling of content.
 from ally.container.ioc import injected
 from ally.design.context import Context, defines, requires, optional
 from ally.design.processor import HandlerProcessor, Chain
-from ally.http.spec.server import METHOD_POST, METHOD_PUT
 from ally.support.util_io import IInputStream
 from ally.zip.util_zip import normOSPath
 from collections import Callable
@@ -20,6 +19,7 @@ from genericpath import isdir
 from io import BytesIO
 import os
 import time
+from ally.http.spec.server import HTTP_POST, HTTP_PUT
 
 # --------------------------------------------------------------------
 
@@ -28,7 +28,7 @@ class Request(Context):
     The request context.
     '''
     # ---------------------------------------------------------------- Required
-    methodName = requires(str) 
+    method = requires(str) 
     
 class RequestContent(Context):
     '''
@@ -55,7 +55,7 @@ class AsyncoreContentHandler(HandlerProcessor):
     Provides asyncore content handling, basically this handler buffers up the async data received in order to be
     used by the other handlers.
     '''
-    contentMethods = {METHOD_POST, METHOD_PUT}
+    contentMethods = {HTTP_POST, HTTP_PUT}
     # The methods that have content.
 
     dumpRequestsSize = 1024 * 1024
@@ -88,7 +88,7 @@ class AsyncoreContentHandler(HandlerProcessor):
         
         chain.proceed()
         
-        if request.methodName in self.contentMethods:
+        if request.method in self.contentMethods:
             if RequestContent.length in requestCnt:
                 if requestCnt.length == 0: return
                 

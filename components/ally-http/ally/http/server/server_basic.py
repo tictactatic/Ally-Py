@@ -32,13 +32,21 @@ class RequestHandler(BaseHTTPRequestHandler):
     The server class that handles the HTTP requests.
     '''
     
-    def __init__(self, request, client_address, server):
+    def __init__(self, request, address, server):
         '''
         Create the request.
+        
+        @param request: socket
+            The connection request socket.
+        @param address: tuple(string, integer)
+            The client address.
+        @param server: BasicServer
+            The server that created the request.
         '''
+        assert isinstance(address, tuple), 'Invalid address %s' % address
         assert isinstance(server, BasicServer), 'Invalid server %s' % server
-        self.server_version = server.serverVersion
-        super().__init__(request, client_address, server)
+        self.server_version = server.serverVersion  # Needs to be before the __init__
+        super().__init__(request, address, server)
 
     def do_GET(self):
         self._process(HTTP_GET)
@@ -58,6 +66,7 @@ class RequestHandler(BaseHTTPRequestHandler):
     # ----------------------------------------------------------------
 
     def _process(self, method):
+        assert isinstance(method, str), 'Invalid method %s' % method
         proc = self.server.processing
         assert isinstance(proc, Processing), 'Invalid processing %s' % proc
         
@@ -66,11 +75,11 @@ class RequestHandler(BaseHTTPRequestHandler):
         assert isinstance(requestCnt, RequestContentHTTP), 'Invalid request content %s' % requestCnt
         
         url = urlparse(self.path)
-        request.scheme, request.uri = HTTP, url.path.lstrip('/')
-        request.parameters = parse_qsl(url.query, True, False)
-
-        request.method = method
+        request.scheme, request.method = HTTP, method.upper()
         request.headers = dict(self.headers)
+        request.uri = url.path.lstrip('/')
+        request.parameters = parse_qsl(url.query, True, False)
+        
         requestCnt.source = self.rfile
 
         chain = Chain(proc)
@@ -80,13 +89,11 @@ class RequestHandler(BaseHTTPRequestHandler):
         assert isinstance(response, ResponseHTTP), 'Invalid response %s' % response
         assert isinstance(responseCnt, ResponseContentHTTP), 'Invalid response content %s' % responseCnt
 
-        assert isinstance(response.status, int), 'Invalid response status code %s' % response.status
         if ResponseHTTP.headers in response:
             for name, value in response.headers.items(): self.send_header(name, value)
 
-        if ResponseHTTP.text in response: self.send_response(response.status, response.text or response.code)
-        else: self.send_response(response.status)
-
+        assert isinstance(response.status, int), 'Invalid response status code %s' % response.status
+        self.send_response(response.status, response.text or response.code)
         self.end_headers()
 
         if responseCnt.source is not None:

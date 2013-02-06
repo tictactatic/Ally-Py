@@ -12,15 +12,14 @@ Contains the setups for populating default data.
 from ..acl.acl import acl
 from __setup__.ally_core.resources import resourcesRoot
 from acl.spec import TypeAcl, RightBase
-from ally.container import support
+from ally.container import support, app
 from ally.exception import InputError
-from distribution.container import app
 from security.api.right import IRightService, Right
 from security.api.right_type import IRightTypeService, RightType
 
 # --------------------------------------------------------------------
 
-@app.analyze
+@app.populate(app.DEVEL, app.CHANGED)
 def populateRights():
     '''
     Synchronize the active acl rights with the database rights.

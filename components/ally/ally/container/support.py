@@ -12,20 +12,95 @@ Provides support functions for the container.
 from ..support.util_sys import callerLocals, callerGlobals
 from ._impl._aop import AOPResources
 from ._impl._assembly import Assembly
-from ._impl._call import CallEntity, CallConfig
-from ._impl._entity import Wiring, WireConfig
+from ._impl._call import CallEntity, CallConfig, CallEventControlled
+from ._impl._entity import Wiring, WireConfig, Advent, Event
 from ._impl._setup import register, SetupConfig, setupsOf, setupFirstOf, \
-    SetupStart
+    SetupStart, SetupEventControlled
 from ._impl._support import SetupEntityListen, SetupEntityListenAfterBinding, \
     classesFrom, SetupEntityProxy, SetupEntityWire, SetupEntityCreate
 from .error import ConfigError, SetupError
 from ally.container.config import Config
 from copy import deepcopy
 from functools import partial
-from inspect import isclass, ismodule, getsource
+from inspect import isclass, ismodule, getsource, isfunction, ismethod
+from ally.container.spec.trigger import ITrigger
 
 # --------------------------------------------------------------------
-# Functions available in setup modules.
+
+def nameEntity(group, clazz):
+    '''
+    Creates the setup names to be used setup modules based on a setup class and name.
+    
+    @param group: string|module
+        The group or setup module to consider as setup.
+    @param clazz: class
+        The class that is considered the entity.
+    @param name: string|function
+        The name of the property or function to create a name for.
+    '''
+    if ismodule(group): group = group.__name__
+    assert isinstance(group, str), 'Invalid group %s' % group
+    assert isclass(clazz), 'Invalid class %s' % clazz
+    
+    try: types, name = clazz.__ally_setup__
+    except AttributeError: types = name = None
+    if name is None:
+        if types is None: name = clazz.__name__
+        else:
+            assert isclass(types[0]), 'Invalid class %s' % types[0]
+            name = types[0].__name__
+    
+    return '%s.%s' % (group, name)
+
+def nameInEntity(group, clazz, name):
+    '''
+    Creates the setup names to be used setup modules based on a setup class and name.
+    
+    @param group: string|module
+        The group or setup module to consider as setup.
+    @param clazz: class
+        The class that is considered the entity.
+    @param name: string|function
+        The name of the property or function to create a name for.
+    '''
+    if isfunction(name) or ismethod(name): name = name.__name__
+    assert isinstance(name, str), 'Invalid name %s' % name
+    
+    return '%s.%s' % (nameEntity(group, clazz), name)
+
+# --------------------------------------------------------------------
+
+def callEntityEvent(group, clazz, name, assembly=None):
+    '''
+    !Attention this function is only available in an open assembly if the assembly is not provided @see: ioc.open!
+    Calls a inner entity event.
+    
+    @param group: string|module
+        The group or setup module to consider the call in.
+    @param clazz: class
+        The class of the entity to call the event for.
+    @param name: string|function
+        The name of the event function.
+    @param assembly: Assembly|None
+        The assembly to find the entity in, if None the current assembly will be considered.
+    '''
+    if ismodule(group): group = group.__name__
+    assert isinstance(group, str), 'Invalid group %s' % group
+    assert isclass(clazz), 'Invalid class %s' % clazz
+    if isfunction(name) or ismethod(name): name = name.__name__
+    assert isinstance(name, str), 'Invalid name %s' % name
+    
+    assembly = assembly or Assembly.current()
+    assert isinstance(assembly, Assembly), 'Invalid assembly %s' % assembly
+            
+    entity = entityFor(clazz, group=group, assembly=assembly)
+    
+    Assembly.stack.append(assembly)
+    try: return getattr(entity, name)()
+    except AttributeError: raise SetupError('Invalid call name \'%s\' for entity %s' % (name, entity))
+    finally: Assembly.stack.pop()
+
+# --------------------------------------------------------------------
 
 def setup(*types, name=None):
     '''
@@ -38,31 +113,28 @@ def setup(*types, name=None):
     '''
     assert name is None or isinstance(name, str), 'Expected a string name instead of %s ' % name
     if __debug__:
-        assert types or name, 'If no types are provided a name is mandatory for setup'
         for clazz in types: assert isclass(clazz), 'Invalid api class %s' % clazz
 
     def decorator(clazz):
-        setattr(clazz, '__ally_setup__', (types, name))
+        setattr(clazz, '__ally_setup__', (types + (clazz,), name))
         return clazz
 
     return decorator
 
-def createEntitySetup(*classes, formatter=lambda group, clazz, name: group + '.' + name if name else group + '.' + clazz.__name__,
-                      module=None):
+def createEntitySetup(*classes, module=None, nameEntity=nameEntity, nameInEntity=nameInEntity):
     '''
     For impl classes create the setup functions for the associated API classes. The name of the setup functions that will be generated
     are formed based on the provided formatter. To create a setup function a class from the impl classes has to inherit the api class.
     
     @param classes: arguments(string|class|AOPClasses)
         The classes to be considered the implementations for the APIs.
-    @param formatter: Callable
-        The formatter to use in creating the entity setup function name, the Callable will take three arguments, first is
-        the group where the setup function is defined, the second is the class for wich the setup is created and the third 
-        is optional and is the name of the created instance. 
     @param module: module|None
         If the setup module is not provided than the calling module will be considered.
+    @param nameEntity: callable like @see: nameEntity
+        The formatter to use in creating the entity setup function name.
+    @param nameInEntity: callable like @see: nameInEntity
+        The formatter to use in creating the setup function names based on entity properties.
     '''
-    assert callable(formatter), 'Invalid formatter %s' % formatter
     if module:
         assert ismodule(module), 'Invalid setup module %s' % module
         registry = module.__dict__
@@ -72,24 +144,19 @@ def createEntitySetup(*classes, formatter=lambda group, clazz, name: group + '.'
         if '__name__' not in registry:
             raise SetupError('The create entity call needs to be made directly from the module')
         group = registry['__name__']
-
+    assert callable(nameEntity), 'Invalid entity name formatter %s' % nameEntity
+    
     wireClasses = []
     for clazz in classesFrom(classes):
         if not hasattr(clazz, '__ally_setup__'): continue
-        setupTuple = clazz.__ally_setup__
-        if not setupTuple: continue
-        types, name = setupTuple
-        if __debug__:
-            assert types or name, 'If no types are provided a name is mandatory for setup'
-            for typ in types:
-                assert issubclass(clazz, typ), \
-                'The impl class %s does not extend the declared API class %s' % (clazz, typ)
+        types, _name = clazz.__ally_setup__
         wireClasses.append(clazz)
-        register(SetupEntityCreate(clazz, types, name=formatter(group, types[0] if types else None, name), group=group), registry)
+        register(SetupEntityCreate(clazz, types, name=nameEntity(group, clazz), group=group), registry)
 
-    wireEntities(*wireClasses, module=module)
+    wireEntities(*wireClasses, module=module, nameInEntity=nameInEntity)
+    eventEntities(*wireClasses, module=module, nameInEntity=nameInEntity)
 
-def wireEntities(*classes, module=None):
+def wireEntities(*classes, module=None, nameInEntity=nameInEntity):
     '''
     Creates entity wiring setups for the provided classes. The wiring setups consists of configurations found in the
     provided classes that will be published in the setup module.
@@ -98,15 +165,9 @@ def wireEntities(*classes, module=None):
         The classes to be wired.
     @param module: module|None
         If the setup module is not provided than the calling module will be considered.
+    @param nameInEntity: callable like @see: nameInEntity
+        The formatter to use in creating the setup function names based on entity properties.
     '''
-    def processConfig(clazz, wconfig):
-        assert isclass(clazz), 'Invalid class %s' % clazz
-        assert isinstance(wconfig, WireConfig), 'Invalid wire configuration %s' % wconfig
-        value = clazz.__dict__.get(wconfig.name, None)
-        if value and not isclass(value): return deepcopy(value)
-        if wconfig.hasValue: return deepcopy(wconfig.value)
-        raise ConfigError('A configuration value is required for %r in class %r' % (wconfig.name, clazz.__name__))
-
     if module:
         assert ismodule(module), 'Invalid setup module %s' % module
         registry = module.__dict__
@@ -114,8 +175,18 @@ def wireEntities(*classes, module=None):
     else:
         registry = callerLocals()
         if '__name__' not in registry:
-            raise SetupError('The create wiring call needs to be made directly from the module')
+            raise SetupError('The create wiring call needs to be made directly from the setup module')
         group = registry['__name__']
+    assert callable(nameInEntity), 'Invalid name in entity formatter %s' % nameInEntity
+    
+    def processConfig(clazz, wconfig):
+        assert isclass(clazz), 'Invalid class %s' % clazz
+        assert isinstance(wconfig, WireConfig), 'Invalid wire configuration %s' % wconfig
+        value = clazz.__dict__.get(wconfig.name, None)
+        if value and not isclass(value): return deepcopy(value)
+        if wconfig.hasValue: return deepcopy(wconfig.value)
+        raise ConfigError('A configuration value is required for \'%s\' in class %s' % (wconfig.name, clazz.__name__))
+
     wirings = {}
     for clazz in classesFrom(classes):
         wiring = Wiring.wiringOf(clazz)
@@ -124,7 +195,7 @@ def wireEntities(*classes, module=None):
             assert isinstance(wiring, Wiring)
             for wconfig in wiring.configurations:
                 assert isinstance(wconfig, WireConfig)
-                name = SetupEntityWire.nameFor(group, clazz, wconfig)
+                name = nameInEntity(group, clazz, wconfig.name)
                 for setup in setupsOf(registry, SetupConfig):
                     assert isinstance(setup, SetupConfig)
                     if setup.name == name: break
@@ -136,10 +207,44 @@ def wireEntities(*classes, module=None):
                     register(SetupConfig(configCall, types=types, name=name, group=group), registry)
     if wirings:
         wire = setupFirstOf(registry, SetupEntityWire)
-        if wire:
-            assert isinstance(wire, SetupEntityWire)
-            wire.update(wirings)
-        else: register(SetupEntityWire(group, wirings), registry)
+        if not wire: wire = register(SetupEntityWire(group), registry)
+        assert isinstance(wire, SetupEntityWire)
+        wire.update(wirings, nameInEntity)
+
+def eventEntities(*classes, module=None, nameInEntity=nameInEntity):
+    '''
+    Creates entity event setups for the provided classes. The event setups consists of configurations found in the
+    provided classes that will be published in the setup module.
+    
+    @param classes: arguments(string|class|AOPClasses)
+        The classes to be processed for events.
+    @param module: module|None
+        If the setup module is not provided than the calling module will be considered.
+    @param nameInEntity: callable like @see: nameInEntity
+        The formatter to use in creating the setup function names based on event calls.
+    '''
+    if module:
+        assert ismodule(module), 'Invalid setup module %s' % module
+        registry = module.__dict__
+        group = module.__name__
+    else:
+        registry = callerLocals()
+        if '__name__' not in registry:
+            raise SetupError('The create events call needs to be made directly from the setup module')
+        group = registry['__name__']
+    assert callable(nameInEntity), 'Invalid name in entity formatter %s' % nameInEntity
+    
+    for clazz in classesFrom(classes):
+        advent = Advent.adventOf(clazz)
+        if advent:
+            assert isinstance(advent, Advent)
+            for event in advent.events:
+                assert isinstance(event, Event)
+                name = nameInEntity(group, clazz, event.name)
+                eventCall = partial(callEntityEvent, group, clazz, event.name)
+                register(SetupEventControlled(eventCall, event.priority, event.triggers, name=name, group=group), registry)
+
+# --------------------------------------------------------------------
 
 def listenToEntities(*classes, listeners=None, beforeBinding=True, module=None, all=False):
     '''
@@ -190,7 +295,7 @@ def bindToEntities(*classes, binders=None, module=None):
     '''
     Creates entity implementation proxies for the provided entities classes found in the provided module. The binding is
     done at the moment of the entity creation so the binding is not dependent of the declared entity return type.
-    
+
     @param classes: arguments(string|class|AOPClasses)
         The classes to be proxied.
     @param binders: None|Callable|list[Callable]|tuple(Callable)
@@ -311,7 +416,7 @@ def entitiesFor(clazz, assembly=None):
     try: return [assembly.processForName(name) for name in entities]
     finally: Assembly.stack.pop()
 
-def entityFor(clazz, name=None, assembly=None):
+def entityFor(clazz, name=None, group=None, assembly=None):
     '''
     !Attention this function is only available in an open assembly if the assembly is not provided @see: ioc.open!
     Provides the entity for the provided class (only if the setup function exposes a return type that is either the
@@ -321,6 +426,8 @@ def entityFor(clazz, name=None, assembly=None):
         The class to find the entity for.
     @param name: string|None
         The optional name for the entity to be found, this will be considered if there are multiple entities for the class.
+    @param group: string|module
+        The group or setup module to consider as setup.
     @param assembly: Assembly|None
         The assembly to find the entity in, if None the current assembly will be considered.
     @return: object
@@ -329,24 +436,32 @@ def entityFor(clazz, name=None, assembly=None):
     '''
     assert isclass(clazz), 'Invalid class %s' % clazz
     assert name is None or isinstance(name, str), 'Invalid name %s' % name
+    if group:
+        if ismodule(group): group = group.__name__
+        assert isinstance(group, str), 'Invalid group %s' % group
     assembly = assembly or Assembly.current()
     assert isinstance(assembly, Assembly), 'Invalid assembly %s' % assembly
 
-    entities = [name for name, call in assembly.calls.items() if isinstance(call, CallEntity) and call.isOf(clazz)]
+    entities = [nameCall for nameCall, call in assembly.calls.items() if isinstance(call, CallEntity) and call.isOf(clazz)]
     if not entities:
         raise SetupError('There is no entity setup function having a return type of class or subclass %s' % clazz)
     if len(entities) > 1:
+        if group:
+            if not group.endswith('.'): pgroup = '%s.' % group
+            else: pgroup = group
+            entities = [fname for fname in entities if fname.startswith(pgroup)]
+        
         if name:
-            if not name.startswith('.'): pname = '.' + name
+            if not name.startswith('.'): pname = '.%s' % name
             else: pname = name
             entities = [fname for fname in entities if fname == name or fname.endswith(pname)]
     
             if not entities:
                 raise SetupError('No setup functions having a return type of class or subclass %s and name resembling %s' % 
-                                 (clazz, name))
+                                 (clazz, ('%s.*.%s' % (group, name) if group else name)))
             if len(entities) > 1:
                 raise SetupError('To many entities setup functions %s having a return type of class or subclass %s '
-                                 'and name resembling %s' % (', '.join(entities), clazz, name))
+                        'and name resembling %s' % (', '.join(entities), clazz, ('%s.*.%s' % (group, name) if group else name)))
         else:
             raise SetupError('To many entities setup functions %s having a return type of class or subclass %s' % 
                              (', '.join(entities), clazz))
@@ -354,6 +469,35 @@ def entityFor(clazz, name=None, assembly=None):
     Assembly.stack.append(assembly)
     try: return assembly.processForName(entities[0])
     finally: Assembly.stack.pop()
+    
+# --------------------------------------------------------------------
+
+def eventsFor(*triggers, assembly=None):
+    '''
+    !Attention this function is only available in an open assembly if the assembly is not provided @see: ioc.open!
+    Provides all the events for the assembly that match the provided event.
+    
+    @param triggers: arguments[object]
+        The triggers to fetch for.
+    @return: Iterable(tuple(string, Callable))
+        An iterator that yields tuples having on the first position the event name and on the second position a call that
+        can be invoked to execute the event, the call will return True for a successful event execution, False otherwise. 
+    '''
+    assert triggers, 'At least one trigger is required'
+    assembly = assembly or Assembly.current()
+    assert isinstance(assembly, Assembly), 'Invalid assembly %s' % assembly
+    
+    calls = []
+    for name, call in assembly.calls.items():
+        if isinstance(call, CallEventControlled):
+            assert isinstance(call, CallEventControlled)
+            if call.assembly == assembly:
+                for trigger in call.triggers:
+                    assert isinstance(trigger, ITrigger), 'Invalid trigger %s' % trigger
+                    if trigger.isTriggered(triggers):
+                        calls.append((name, call))
+    calls.sort(key=lambda pack: pack[1].priority, reverse=True)
+    return calls
 
 # --------------------------------------------------------------------
 
@@ -384,8 +528,7 @@ def force(setup, value, assembly=None):
 def persist(setup, value, assembly=None):
     '''
     !Attention this function is only available in an open assembly if the assembly is not provided @see: ioc.open!
-    Persists a configuration setup to have the provided value but only in saving the configuration file, so this
-    method should be called before a the configurations are persisted.
+    Persists a configuration setup to have the provided value but only in saving the configuration file.
     
     @param setup: SetupConfig
         The setup to persist the value on.
@@ -401,3 +544,4 @@ def persist(setup, value, assembly=None):
     config = assembly.configurations.get(setup.name)
     assert isinstance(config, Config), 'Invalid configuration %s for the assembly' % setup.name
     config.value = value
+    
