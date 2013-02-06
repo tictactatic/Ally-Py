@@ -70,3 +70,18 @@ def updateStartup():
     cdmGUI().publishContent(bootPath + js_bootstrap_file(), BytesIO(b'\n'.join([fi.read() for fi in fileList])))
 
     for f in fileList: f.close()
+
+@ioc.after(publish)
+def updateStartFile():
+    if not publish_gui_resources(): return  # No publishing is allowed
+    try:
+        bootPath = lib_folder_format() % 'core/'
+        with openURI(getGuiPath(ui_demo_file())) as f:
+            out = f.read().replace(b'{server_url}', bytes(server_url(), 'utf-8'))
+            out = out.replace(b'{gui}', bytes(gui_folder_format(), 'utf-8'));
+            out = out.replace(b'{lib_core}', bytes(bootPath, 'utf-8'));
+            cdmGUI().publishFromFile(bootPath + ui_demo_file(), BytesIO(out))
+    except:
+        log.exception('Error publishing demo client file')
+    else:
+        assert log.debug('Client start script published:', server_url() + getPublishedLib('core/' + ui_demo_file())) or True
