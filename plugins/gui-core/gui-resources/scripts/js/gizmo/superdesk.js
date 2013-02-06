@@ -46,7 +46,19 @@ define(['gizmo', 'jquery', 'jquery/superdesk'], function(giz, $, superdesk)
         },
         href: function(source)
         {
-            return source.indexOf('my/') === -1 ? source.replace('resources/','resources/my/') : source;
+            if($.type(source) === 'object') {
+                /* @TODO: fix this wierd behaviour of the Gizmo.Url
+                 *    get method isn't returnig the source.data instead the previous one
+                 * this only happens for Actions url where the extend is done with jquery extend.
+                 */ 
+                //console.log('Source: ',source.data);
+                //source = source.get();
+                //console.log('Source: ',source);
+                //source = source.data.root+source.data.url;
+                source = source.getUrl();
+            }
+            var ret = source.indexOf('my/') === -1 ? source.replace('resources/','resources/my/') : source;
+            return ret;
         }
     }),
     xfilter = function() // x-filter implementation

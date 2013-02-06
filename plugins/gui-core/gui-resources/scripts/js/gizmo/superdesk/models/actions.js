@@ -1,4 +1,4 @@
-define(['gizmo/superdesk', 'gizmo/superdesk/models/action'], function(Gizmo, Action)
+ define(['gizmo/superdesk', 'gizmo/superdesk/models/action'], function(Gizmo, Action)
 {
     var 
     actionUrlInst = null,
@@ -8,8 +8,9 @@ define(['gizmo/superdesk', 'gizmo/superdesk/models/action'], function(Gizmo, Act
         get: function()
         {
             var login = localStorage.getItem('superdesk.login.selfHref');
-            this.data.url = login ? login +'/Action' : 'GUI/Action';
-            this.data.root = login ? '' : rootUrl;
+            this.data.url = login ? '/Action' : 'GUI/Action';
+            this.data.root = login ? login : rootUrl;
+            //console.log('url: ',this.data.url,'root: ',this.data.root);
             return Gizmo.Url.prototype.get.apply(this, arguments);
         }
     });

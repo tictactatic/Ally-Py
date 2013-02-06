@@ -48,7 +48,7 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
     ({
         _construct: function(arg) 
         {
-            this.data = !this.data ? { root: ''} : this.data;
+            this.data = !this.data ? { root: ''} : { root: this.data.root };
             switch( $.type(arg) )
             {
                 case 'string':
@@ -78,6 +78,18 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
         get: function()
         {
             return this.data.root + this.data.url;
+        },
+        /**
+         * @TODO: remove after the get isn't overloaded in 
+         *   actions authenthfication part
+         */
+        getUrl: function()
+        {
+            return this.data.root + this.data.url;
+        },
+        set: function(url)
+        {
+            this.data.url = url;
         },
         order: function(key, direction) 
         {

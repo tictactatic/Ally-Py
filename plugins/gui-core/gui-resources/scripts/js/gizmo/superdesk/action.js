@@ -1,9 +1,10 @@
 define([ 'gizmo/superdesk', 'jquery', 'gizmo/superdesk/models/actions' ], 
 function( gizmo, $, Actions )
 {
+    var newActions = new Actions();
     gizmo.Superdesk.action =
     {
-        actions: new Actions,
+        actions: newActions,
         cache: {},
         /*!
          * 
