@@ -80,9 +80,7 @@ function($, superdesk, gizmo, Action, jsSHA, AuthToken, AuthLogin)
                     superdesk.login = {Id: localStorage.getItem('superdesk.login.id'), Name: localStorage.getItem('superdesk.login.name'), EMail: localStorage.getItem('superdesk.login.email')}
                     $(authLogin).trigger('success');
                 }).fail(function(data){
-                    //if ( data.status == 400) {
-                        $(self).triggerHandler('dashfailed', 'authToken');
-                    //}
+                    $(self).triggerHandler('dashfailed', 'authToken');
                 });
                 authLogin.on('failed', function()
                 {
