@@ -1,7 +1,7 @@
 requirejs.config
 ({
 	baseUrl: config.content_url,
-//	urlArgs: "bust=" +  (new Date).getTime(),
+	urlArgs: "v=2",
 	waitSeconds: 15,
     templatePaths:
 	{
