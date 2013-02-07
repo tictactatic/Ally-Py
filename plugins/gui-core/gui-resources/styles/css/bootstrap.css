@@ -4015,6 +4015,43 @@ a.thumbnail:hover {
   line-height: 27px;
   color: inherit;
 }
+.footer {
+  padding: 5px;
+  /*border-top: 1px solid #e0e0e0;*/
+
+  -webkit-box-shadow: inset 0px 6px 6px -6px #999999;
+  -moz-box-shadow: inset 0px 6px 6px -6px #999999;
+  box-shadow: inset 0px 6px 6px -6px #999999;
+  box-shadow: inset 0px 6px 6px -6px #999999 0 3px 0px #000000;
+  -moz-box-shadow: inset 0px 6px 6px -6px #999999 0 3px 0px #000000;
+  -webkit-box-shadow: inset 0px 6px 6px -6px #999999 0 3px 0px #000000;
+  filter: progid:dximagetransform.microsoft.gradient(enabled=false);
+  /* IE6-9 */
+
+}
+.footer.static-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  background: #fff;
+}
+.footer .footer-logo {
+  width: 180px;
+  height: 40px;
+  float: left;
+  background: url(../../images/superdesk_footer_logo.png) no-repeat 0 0;
+  background-size: 140px 40px;
+  text-indent: -9999px;
+}
+.footer .footer-text {
+  color: #484848;
+  line-height: 40px;
+}
+.footer .footer-text a {
+  color: #009360;
+}
 .pull-right {
   float: right;
 }

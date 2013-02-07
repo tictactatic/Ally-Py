@@ -33,13 +33,14 @@ a.close {
 }
 
 .navbar .brand {
-    text-indent: 100%;
+	text-indent: 100%;
 	white-space: nowrap;
 	overflow: hidden;
-	background:url(../../images/live-desk_logo.png) no-repeat 0 3px;
+	background: url(../../images/live-desk_logo.png) no-repeat 0 10px;
 	padding: 8px 0 12px;
-	margin:0 20px 0 0;
-	width:100px;
+	background-size: 90px 18px;
+	margin: 0 20px 0 0;
+	width: 90px;
 	}
 	
 .btn-primary-gv {
@@ -131,6 +132,7 @@ section.main-section {
 	left:0; right:0; margin:0;
 	padding:0;
 	z-index:1;
+	padding-bottom:50px !important; /* because of footer*/
 }
 
 .popover-inner {
