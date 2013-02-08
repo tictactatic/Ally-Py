@@ -12,6 +12,7 @@ function( gizmo, $, Actions )
         clearCache: function()
         {
             this.cache = {};
+            this.actions._list = [];
         },
         /*!
          * @param string path 
@@ -66,7 +67,8 @@ function( gizmo, $, Actions )
                         self.actions.each(function(){ self.cache[this.get('Path')] = this; });
                         self.cache[path] && dfd.resolve(self.cache[path]);
                         dfd.reject();
-                    });
+                    })
+                    .fail(function(){ dfd.reject(); });
                 return dfd;
             }
             return dfd.resolve(self.cache[path]);
@@ -103,7 +105,7 @@ function( gizmo, $, Actions )
                 {
                     app && app.init && app.init.apply( app, args );
                 }); 
-            })
+            });
         }
            
     };

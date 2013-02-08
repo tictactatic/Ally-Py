@@ -79,8 +79,12 @@ function($, superdesk, gizmo, Action, jsSHA, AuthToken, AuthLogin)
                     
                     superdesk.login = {Id: localStorage.getItem('superdesk.login.id'), Name: localStorage.getItem('superdesk.login.name'), EMail: localStorage.getItem('superdesk.login.email')}
                     $(authLogin).trigger('success');
-                }).fail(function(data){
-                    $(self).triggerHandler('dashfailed', 'authToken');
+                })
+                .fail(function(data)
+                {
+                    //if ( data.status == 400) {
+                        $(self).triggerHandler('dashfailed', 'authToken');
+                    //}
                 });
                 authLogin.on('failed', function()
                 {
@@ -132,8 +136,9 @@ function($, superdesk, gizmo, Action, jsSHA, AuthToken, AuthLogin)
                 // trigger login-failed event
                 $(self).triggerHandler('login-failed');
             })
-            .on('dashfailed', function(evt, type, el){
-                 self.alertmsg.removeClass('hide')
+            .on('dashfailed', function(evt, type, el)
+            {
+                 self.alertmsg.removeClass('hide');
             })
             .on('success', function(evt)
             { 
