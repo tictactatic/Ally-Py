@@ -9,8 +9,7 @@ Created on Nov 24, 2011
 Provides the javascript setup required by browser for ajax.
 '''
 
-from ..cdm.processor import updateAssemblyContent, assemblyContent, \
-    contentDelivery
+from .processor import updateAssemblyContent, assemblyContent, contentDelivery
 from ally.container import ioc
 from ally.design.processor import Handler
 from ally.http.impl.processor.headers.set_fixed import HeaderSetEncodeHandler

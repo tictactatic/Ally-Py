@@ -53,8 +53,8 @@ class RequestDecode(Context):
     '''
     # ---------------------------------------------------------------- Required
     decoderHeader = requires(IDecoderHeader)
-    accLanguages = requires(list)
     # ---------------------------------------------------------------- Optional
+    accLanguages = optional(list)
     language = optional(str)
     argumentsOfType = optional(dict)
     # ---------------------------------------------------------------- Defined

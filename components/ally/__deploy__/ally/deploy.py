@@ -67,9 +67,8 @@ def deploy():
     if not application.options.start: return
     try:
         openSetups()
+        context.processStart()
         
-        try: context.processStart()
-        finally: context.deactivate()
     except SystemExit: raise
     except (SetupError, ConfigError):
         print('-' * 150, file=sys.stderr)
@@ -82,6 +81,7 @@ def deploy():
         print('A problem occurred while deploying', file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
         print('-' * 150, file=sys.stderr)
+    finally: context.deactivate()
     
 @ioc.start
 def dump():
@@ -129,12 +129,10 @@ def repair():
     if not application.options.repair: return
     try:
         openSetups()
-        
-        try:
-            for name, call in support.eventsFor(event.REPAIR):
-                log.info('Executing repair event call \'%s\'', name)
-                call()
-        finally: context.deactivate()
+        for name, call in support.eventsFor(event.REPAIR):
+            log.info('Executing repair event call \'%s\'', name)
+            call()
+            
     except SystemExit: raise
     except (SetupError, ConfigError):
         print('-' * 150, file=sys.stderr)
@@ -147,3 +145,4 @@ def repair():
         print('A problem occurred while repairing', file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
         print('-' * 150, file=sys.stderr)
+    finally: context.deactivate()

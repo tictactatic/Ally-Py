@@ -9,7 +9,7 @@ Created on Nov 7, 2012
 Special module that is used in deploying the application.
 '''
  
-from ..ally.deploy import dumpAssembly, test
+from ..ally.deploy import dumpAssembly, test, openSetups
 from ..ally.prepare import OptionsCore
 from __setup__.ally_core_plugin.deploy_plugin import configurations_file_path, \
     loadPlugins
@@ -58,5 +58,15 @@ def dump():
 def testUpdatePlugins():
     assert isinstance(application.options, OptionsCore), 'Invalid application options %s' % application.options
     if not application.options.test: return
-    loadPlugins()
+    try:
+        openSetups()
+        loadPlugins()
+        
+    except:
+        print('-' * 150, file=sys.stderr)
+        print('A problem occurred while opening setups for testing', file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        print('-' * 150, file=sys.stderr)
+        return
+    finally: context.deactivate()
 

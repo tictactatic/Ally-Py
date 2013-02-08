@@ -11,14 +11,15 @@ Provides the configurations for the processors used in handling the request.
 
 from ..ally_core.encoder_decoder import parsingAssembly
 from ..ally_core.processor import argumentsBuild, argumentsPrepare, \
-    createEncoder, renderEncoder, explainError, invoking, parser, \
-    default_characterset, renderer, conversion, createDecoder, content
+    renderEncoder, invoking, default_characterset, renderer, conversion, \
+    createDecoder, content
 from ..ally_core.resources import resourcesRoot
 from ..ally_http.processor import encoderPath, header, contentTypeDecode, \
     contentLengthDecode, contentTypeEncode, contentLengthEncode, methodOverride, \
     allowEncode
 from ally.container import ioc
-from ally.core.http.impl.processor.encoder import CreateEncoderPathHandler
+from ally.core.http.impl.processor.encoder import CreateEncoderWithPathHandler
+from ally.core.http.impl.processor.explain_error import ExplainErrorHandler
 from ally.core.http.impl.processor.fetcher import FetcherHandler
 from ally.core.http.impl.processor.headers.accept import AcceptDecodeHandler
 from ally.core.http.impl.processor.headers.content_disposition import \
@@ -101,10 +102,10 @@ def parameter() -> Handler: return ParameterHandler()
 @ioc.entity
 def fetcher() -> Handler: return FetcherHandler()
 
-@ioc.replace(createEncoder)
-def createEncoderPath() -> Handler: return CreateEncoderPathHandler()
+@ioc.entity
+def createEncoderWithPath() -> Handler: return CreateEncoderWithPathHandler()
 
-@ioc.replace(parser)
+@ioc.entity
 def parserMultiPart() -> Handler:
     b = ParsingMultiPartHandler()
     b.charSetDefault = default_characterset()
@@ -118,7 +119,6 @@ def redirect() -> Handler:
     b.redirectAssembly = assemblyRedirect()
     return b
 
-
 @ioc.entity
 def statusCodeToStatus(): return dict(CODE_TO_STATUS)
 
@@ -131,6 +131,9 @@ def status() -> Handler:
     b.codeToStatus = statusCodeToStatus()
     b.codeToText = statusCodeToText()
     return b
+
+@ioc.entity
+def explainError(): return ExplainErrorHandler()
 
 # --------------------------------------------------------------------
 
@@ -162,10 +165,10 @@ def updateAssemblyResources():
     assemblyResources().add(internalDevelError(), header(), encoderPath(),
                             argumentsPrepare(), uri(), methodInvoker(), redirect(),
                             contentTypeDecode(), contentLengthDecode(), contentLanguageDecode(), acceptDecode(),
-                            renderer(), conversion(), createDecoder(), createEncoder(), parser(), content(),
+                            renderer(), conversion(), createDecoder(), createEncoderWithPath(), parserMultiPart(), content(),
                             parameter(), fetcher(), argumentsBuild(), invoking(), renderEncoder(),
-                            contentTypeEncode(), contentLanguageEncode(), explainError(), contentLengthEncode(),
-                            status(), allowEncode())
+                            status(), explainError(), contentTypeEncode(), contentLanguageEncode(),
+                            contentLengthEncode(), allowEncode())
     
     if allow_method_override(): assemblyResources().add(methodOverride(), before=methodInvoker())
 

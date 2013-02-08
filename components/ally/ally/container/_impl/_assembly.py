@@ -164,8 +164,8 @@ class Assembly:
         '''
         assert isinstance(name, str), 'Invalid name %s' % name
         call = self.calls.get(name)
-        if not call: raise SetupError('No IoC resource for name %r' % name)
-        if not callable(call): raise SetupError('Invalid call %s for name %r' % (call, name))
+        if not call: raise SetupError('No IoC resource for name \'%s\'' % name)
+        if not callable(call): raise SetupError('Invalid call %s for name \'%s\'' % (call, name))
         return call
 
     def processForName(self, name):

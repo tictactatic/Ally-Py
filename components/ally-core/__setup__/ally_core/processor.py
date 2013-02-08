@@ -16,7 +16,6 @@ from ally.core.impl.processor.arguments import ArgumentsPrepareHandler, \
 from ally.core.impl.processor.content import ContentHandler
 from ally.core.impl.processor.decoder import CreateDecoderHandler
 from ally.core.impl.processor.encoder import CreateEncoderHandler
-from ally.core.impl.processor.explain_error import ExplainErrorHandler
 from ally.core.impl.processor.invoking import InvokingHandler
 from ally.core.impl.processor.parsing import ParsingHandler
 from ally.core.impl.processor.render_encoder import RenderEncoderHandler
@@ -108,7 +107,4 @@ def renderEncoder() -> Handler:
     b.allowChunked = allow_chuncked_response()
     b.bufferSize = chunck_size()
     return b
-
-@ioc.entity
-def explainError(): return ExplainErrorHandler()
 

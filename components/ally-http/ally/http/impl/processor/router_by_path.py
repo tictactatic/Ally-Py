@@ -28,32 +28,32 @@ log = logging.getLogger(__name__)
 
 class Request(Context):
     '''
-    Context for request data. 
+    Context for request. 
     '''
     # ---------------------------------------------------------------- Required
     scheme = requires(str)
     method = requires(str)
+    headers = requires(dict)
     uri = requires(str)
     parameters = requires(list)
-    headers = requires(dict)
 
 class RequestContent(Context):
     '''
-    Context for request content data. 
+    Context for request content. 
     '''
     # ---------------------------------------------------------------- Required
     source = requires(IInputStream)
 
 class Response(Context):
     '''
-    Context for response data. 
+    Context for response. 
     '''
     # ---------------------------------------------------------------- Required
     status = defines(int)
 
 class ResponseContent(Context):
     '''
-    Context for response content data. 
+    Context for response content. 
     '''
     # ---------------------------------------------------------------- Defined
     source = defines(IInputStream, Iterable)
@@ -71,7 +71,7 @@ class RoutingByPathHandler(HandlerProcessor):
     # The name for the router, used mainly in logging. 
     pattern = str
     # The string pattern for matching the path, the pattern needs to provide capturing groups that joined will become
-    # the routed uri. 
+    # the routed uri.
     assembly = Assembly
     # The assembly to be used in processing the request for the provided pattern.
     
@@ -103,14 +103,14 @@ class RoutingByPathHandler(HandlerProcessor):
             proc = self._processing
             assert isinstance(proc, Processing), 'Invalid processing %s' % proc
             requestHTTP, requestCntHTTP = proc.ctx.request(), proc.ctx.requestCnt()
-            responseHTTP, responseCntHTTP = proc.ctx.response(), proc.ctx.responseCnt()
+            response, responseCnt = proc.ctx.response(), proc.ctx.responseCnt()
             
             copy(request, requestHTTP)
             copy(requestCnt, requestCntHTTP)
             
             requestHTTP.uri = ''.join(match.groups())
             
-            chain.update(request=requestHTTP, requestCnt=requestCntHTTP, response=responseHTTP, responseCnt=responseCntHTTP)
+            chain.update(request=requestHTTP, requestCnt=requestCntHTTP, response=response, responseCnt=responseCnt)
             chain.branch(self._processing)
         else:
             chain.proceed()

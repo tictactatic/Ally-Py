@@ -101,7 +101,7 @@ class SetupEntityWire(Setup):
                     for wconfig in wiring.configurations:
                         assert isinstance(wconfig, WireConfig)
                         if wconfig.name not in value.__dict__:
-                            name = nameInEntity(self.group, clazz, wconfig.name)
+                            name = nameInEntity(clazz, wconfig.name, self.group)
                             setattr(value, wconfig.name, assembly.processForName(name))
                     if followUp: followUp()
                 return value, followWiring

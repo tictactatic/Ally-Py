@@ -57,8 +57,8 @@ class Response(Context):
     '''
     The response context.
     '''
-    # ---------------------------------------------------------------- Required
-    encoderPath = requires(IEncoderPath, doc='''
+    # ---------------------------------------------------------------- Optional
+    encoderPath = optional(IEncoderPath, doc='''
     @rtype: IEncoderPath
     The path encoder used for encoding resource paths that will be rendered in the response.
     ''')
@@ -117,8 +117,6 @@ class URIHandler(HandlerProcessorProceed):
         assert isinstance(request.uri, str), 'Invalid request URI %s' % request.uri
         if response.isSuccess is False: return  # Skip in case the response is in error
         
-        assert isinstance(response.encoderPath, IEncoderPath), 'Invalid encoder path %s' % response.encoderPath
-
         paths = request.uri.split('/')
         i = paths[-1].rfind('.') if len(paths) > 0 else -1
         if i < 0:
@@ -128,6 +126,7 @@ class URIHandler(HandlerProcessorProceed):
             paths[-1] = paths[-1][0:i]
         paths = [unquote(p) for p in paths if p]
 
+        if extension: responseCnt.type = extension
         request.path = findPath(self.resourcesRoot, paths, self.converterPath)
         assert isinstance(request.path, Path), 'Invalid path %s' % request.path
         if not request.path.node:
@@ -143,11 +142,11 @@ class URIHandler(HandlerProcessorProceed):
 
         if Request.argumentsOfType in request: request.argumentsOfType[Scheme] = request.scheme
 
-        response.encoderPath = EncoderPathURI(response.encoderPath, self.converterPath, self.resourcesRootURI, extension)
+        if Response.encoderPath in response:
+            response.encoderPath = EncoderPathURI(response.encoderPath, self.converterPath, self.resourcesRootURI, extension)
 
         response.code, response.status, response.isSuccess = PATH_FOUND
         response.converterId = self.converterPath
-        if extension: responseCnt.type = extension
 
 # --------------------------------------------------------------------
 

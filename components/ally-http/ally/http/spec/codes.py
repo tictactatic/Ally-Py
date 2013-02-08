@@ -48,3 +48,12 @@ METHOD_NOT_AVAILABLE = CodeHTTP('Method not allowed', 405, False)  # HTTP code 4
 HEADER_ERROR = CodeHTTP('Invalid header', 400, False)  # HTTP code 400 Bad Request
 
 INTERNAL_ERROR = CodeHTTP('Internal error', 500, False)  # HTTP code 500 Internal Server Error
+
+# --------------------------------------------------------------------
+# Response gateway HTTP codes.
+
+UNAUTHORIZED_ACCESS = CodeHTTP('Unauthorized access', 401, False)  # HTTP code 401 Unauthorized access
+
+INVALID_ACCESS = CodeHTTP('Invalid authorization', 401, False)  # HTTP code 401 Unauthorized access
+
+FORBIDDEN_ACCESS = CodeHTTP('Forbidden access', 403, False)  # HTTP code 403 Forbidden access

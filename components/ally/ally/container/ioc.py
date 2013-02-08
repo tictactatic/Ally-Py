@@ -13,8 +13,8 @@ single thread at one time.
 from ..support.util_sys import callerLocals
 from ._impl._entity import Initializer
 from ._impl._setup import SetupEntity, SetupSource, SetupConfig, SetupFunction, \
-    SetupEvent, SetupEventReplace, SetupSourceReplace, SetupStart, register, \
-    SetupConfigReplace, setupsOf
+    SetupEvent, SetupEventReplace, SetupSourceReplace, SetupStart, SetupEventCancel, \
+    register, SetupConfigReplace, setupsOf
 from .error import SetupError
 from functools import partial, update_wrapper
 from inspect import isclass, ismodule, getfullargspec, isfunction, cleandoc
@@ -180,6 +180,18 @@ def start(*args, priority=0):
 
 # --------------------------------------------------------------------
 
+def cancel(setup):
+    '''
+    Cancel the provided event setup.
+    
+    @param setup: SetupEvent
+        The event setup to cancel.
+    '''
+    assert isinstance(setup, SetupEvent), 'Invalid setup %s' % setup
+    register(SetupEventCancel(setup), callerLocals())
+    
+# --------------------------------------------------------------------
+
 def initialize(entity):
     '''
     Initializes the provided entity if the entity is decorated with injected, otherwise no action is taken.
@@ -214,7 +226,9 @@ def entityOf(identifier, module=None):
     
     found = []
     if isinstance(identifier, str):
-        identifier = '%s.%s' % (module.__name__, identifier)
+        assert '__name__' in register, 'The entity of call needs to be made directly from the setup module'
+        group = register['__name__']
+        if not identifier.startswith('%s.' % group): identifier = '%s.%s' % (group, identifier)
         
         for setup in setups:
             assert isinstance(setup, SetupSource)

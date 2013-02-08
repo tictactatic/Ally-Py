@@ -11,7 +11,7 @@ Provide the internal error representation. This is usually when the server fails
 
 from ally.container.ioc import injected
 from ally.design.context import defines
-from ally.design.processor import Chain
+from ally.design.processor import Chain, Function, Handler
 from ally.exception import DevelError
 from ally.http.impl.processor.internal_error import InternalErrorHandler, \
     ResponseContent, Response
@@ -40,13 +40,26 @@ class InternalDevelErrorHandler(InternalErrorHandler):
     '''
     Extension for @see: InternalErrorHandler that better handles the DevelError.
     '''
+    
+    def __init__(self):
+        '''
+        Construct the internal development error handler.
+        '''
+        assert isinstance(self.errorHeaders, dict), 'Invalid error headers %s' % self.errorHeaders
+        Handler.__init__(self, Function(dict(response=ResponseDevel, responseCnt=ResponseContent), self.process))
             
-    def handleError(self, chain, response:ResponseDevel, responseCnt:ResponseContent):
+    def handleError(self, chain):
         '''
         Handle the error.
         @see: InternalErrorHandler.handleError
         '''
         assert isinstance(chain, Chain), 'Invalid processors chain %s' % chain
+        try: response = chain.arg.response
+        except AttributeError: response = ResponseDevel()
+        
+        try: responseCnt = chain.arg.responseCnt
+        except AttributeError: responseCnt = ResponseContent()
+        
         assert isinstance(response, ResponseDevel), 'Invalid response %s' % response
         assert isinstance(responseCnt, ResponseContent), 'Invalid response content %s' % responseCnt
         
@@ -62,4 +75,4 @@ class InternalDevelErrorHandler(InternalErrorHandler):
             # We try to process now the chain (where it left of) with the exception set.
             return
         
-        super().handleError(chain, response, responseCnt)
+        super().handleError(chain)

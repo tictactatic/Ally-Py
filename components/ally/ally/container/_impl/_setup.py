@@ -396,6 +396,37 @@ class SetupEventReplace(SetupFunction):
             raise SetupError('Cannot replace call for name \'%s\' from:%s' % (self.name, locationStack(self._function)))
         assert isinstance(call, WithCall)
         call.call = self._function
+        
+class SetupEventCancel(Setup):
+    '''
+    Provides the setup for canceling an event setup function.
+    '''
+
+    def __init__(self, target):
+        '''
+        Construct the event canceler.
+        
+        @param target: SetupEvent
+            The setup to be replaced.
+        '''
+        assert isinstance(target, SetupEvent), 'Invalid target %s' % target
+        self.priority_assemble = target.priority_assemble + 1
+        self.target = target
+
+    def assemble(self, assembly):
+        '''
+        @see: Setup.assemble
+        '''
+        assert isinstance(assembly, Assembly), 'Invalid assembly %s' % assembly
+        if self.target.name not in assembly.calls:
+            raise SetupError('There is no setup call for name \'%s\' to be canceled' % self.target.name)
+        call = assembly.calls[self.target.name]
+        if not isinstance(call, WithCall):
+            raise SetupError('Cannot cancel call for name \'%s\'' % self.target.name)
+        assert isinstance(call, WithCall)
+        call.call = lambda: None
+    
+    def __str__(self): return '%s for:%s' % (self.__class__.__name__, self.target)
 
 class SetupStart(SetupFunction):
     '''

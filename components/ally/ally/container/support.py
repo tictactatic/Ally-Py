@@ -27,19 +27,23 @@ from ally.container.spec.trigger import ITrigger
 
 # --------------------------------------------------------------------
 
-def nameEntity(group, clazz):
+def nameEntity(clazz, module=None):
     '''
     Creates the setup names to be used setup modules based on a setup class and name.
     
-    @param group: string|module
-        The group or setup module to consider as setup.
     @param clazz: class
         The class that is considered the entity.
     @param name: string|function
         The name of the property or function to create a name for.
+    @param module: string|module|None
+        The group or setup module to consider as setup container, if not provided the calling module is considered.
     '''
-    if ismodule(group): group = group.__name__
-    assert isinstance(group, str), 'Invalid group %s' % group
+    if not module:
+        registry = callerGlobals()
+        assert '__name__' in registry, 'The name entity call needs to be made from a setup module function'
+        module = registry['__name__']
+    if ismodule(module): module = module.__name__
+    assert isinstance(module, str), 'Invalid module %s' % module
     assert isclass(clazz), 'Invalid class %s' % clazz
     
     try: types, name = clazz.__ally_setup__
@@ -50,23 +54,27 @@ def nameEntity(group, clazz):
             assert isclass(types[0]), 'Invalid class %s' % types[0]
             name = types[0].__name__
     
-    return '%s.%s' % (group, name)
+    return '%s.%s' % (module, name)
 
-def nameInEntity(group, clazz, name):
+def nameInEntity(clazz, name, module=None):
     '''
     Creates the setup names to be used setup modules based on a setup class and name.
     
-    @param group: string|module
-        The group or setup module to consider as setup.
     @param clazz: class
         The class that is considered the entity.
     @param name: string|function
         The name of the property or function to create a name for.
+    @param module: string|module|None
+        The group or setup module to consider as setup container, if not provided the calling module is considered.
     '''
+    if not module:
+        registry = callerGlobals()
+        assert '__name__' in registry, 'The name in entity call needs to be made from a setup module function'
+        module = registry['__name__']
     if isfunction(name) or ismethod(name): name = name.__name__
     assert isinstance(name, str), 'Invalid name %s' % name
     
-    return '%s.%s' % (nameEntity(group, clazz), name)
+    return '%s.%s' % (nameEntity(clazz, module), name)
 
 # --------------------------------------------------------------------
 
@@ -107,7 +115,7 @@ def setup(*types, name=None):
     Decorate a IMPL class with the info about required API class and optional a name
     
     @param types: arguments[class]
-        The type(s) of the correspondent API.
+        The type(s) of the correspondent API. If no type is provided then the decorated class is considered as the return type.
     @param name: string
         The name associated to created IOC object
     '''
@@ -116,7 +124,7 @@ def setup(*types, name=None):
         for clazz in types: assert isclass(clazz), 'Invalid api class %s' % clazz
 
     def decorator(clazz):
-        setattr(clazz, '__ally_setup__', (types + (clazz,), name))
+        setattr(clazz, '__ally_setup__', (types if types else (clazz,), name))
         return clazz
 
     return decorator
@@ -141,8 +149,7 @@ def createEntitySetup(*classes, module=None, nameEntity=nameEntity, nameInEntity
         group = module.__name__
     else:
         registry = callerLocals()
-        if '__name__' not in registry:
-            raise SetupError('The create entity call needs to be made directly from the module')
+        assert '__name__' in registry, 'The create entity call needs to be made directly from the setup module'
         group = registry['__name__']
     assert callable(nameEntity), 'Invalid entity name formatter %s' % nameEntity
     
@@ -151,7 +158,7 @@ def createEntitySetup(*classes, module=None, nameEntity=nameEntity, nameInEntity
         if not hasattr(clazz, '__ally_setup__'): continue
         types, _name = clazz.__ally_setup__
         wireClasses.append(clazz)
-        register(SetupEntityCreate(clazz, types, name=nameEntity(group, clazz), group=group), registry)
+        register(SetupEntityCreate(clazz, types, name=nameEntity(clazz, group), group=group), registry)
 
     wireEntities(*wireClasses, module=module, nameInEntity=nameInEntity)
     eventEntities(*wireClasses, module=module, nameInEntity=nameInEntity)
@@ -174,8 +181,7 @@ def wireEntities(*classes, module=None, nameInEntity=nameInEntity):
         group = module.__name__
     else:
         registry = callerLocals()
-        if '__name__' not in registry:
-            raise SetupError('The create wiring call needs to be made directly from the setup module')
+        assert '__name__' in registry, 'The create wiring call needs to be made directly from the setup module'
         group = registry['__name__']
     assert callable(nameInEntity), 'Invalid name in entity formatter %s' % nameInEntity
     
@@ -195,7 +201,7 @@ def wireEntities(*classes, module=None, nameInEntity=nameInEntity):
             assert isinstance(wiring, Wiring)
             for wconfig in wiring.configurations:
                 assert isinstance(wconfig, WireConfig)
-                name = nameInEntity(group, clazz, wconfig.name)
+                name = nameInEntity(clazz, wconfig.name, group)
                 for setup in setupsOf(registry, SetupConfig):
                     assert isinstance(setup, SetupConfig)
                     if setup.name == name: break
@@ -229,8 +235,7 @@ def eventEntities(*classes, module=None, nameInEntity=nameInEntity):
         group = module.__name__
     else:
         registry = callerLocals()
-        if '__name__' not in registry:
-            raise SetupError('The create events call needs to be made directly from the setup module')
+        assert '__name__' in registry, 'The event entities call needs to be made directly from the setup module'
         group = registry['__name__']
     assert callable(nameInEntity), 'Invalid name in entity formatter %s' % nameInEntity
     
@@ -240,7 +245,7 @@ def eventEntities(*classes, module=None, nameInEntity=nameInEntity):
             assert isinstance(advent, Advent)
             for event in advent.events:
                 assert isinstance(event, Event)
-                name = nameInEntity(group, clazz, event.name)
+                name = nameInEntity(clazz, event.name, group)
                 eventCall = partial(callEntityEvent, group, clazz, event.name)
                 register(SetupEventControlled(eventCall, event.priority, event.triggers, name=name, group=group), registry)
 
@@ -271,8 +276,7 @@ def listenToEntities(*classes, listeners=None, beforeBinding=True, module=None, 
     assert isinstance(all, bool), 'Invalid all flag %s' % all
     if not module:
         registry = callerLocals()
-        if '__name__' not in registry:
-            raise SetupError('The create proxy call needs to be made directly from the module')
+        assert '__name__' in registry, 'The listen to entities call needs to be made directly from the setup module'
         if all: group = None
         else: group = registry['__name__']
     elif ismodule(module):
@@ -281,8 +285,7 @@ def listenToEntities(*classes, listeners=None, beforeBinding=True, module=None, 
         else: group = module.__name__
     else:
         assert isinstance(module, dict), 'Invalid setup module %s' % module
-        if '__name__' not in module:
-            raise SetupError('The provided registry dictionary has no __name__')
+        assert '__name__' in module, 'The provided registry dictionary has no __name__'
         registry = module
         if all: group = None
         else: group = module['__name__']
@@ -313,8 +316,7 @@ def bindToEntities(*classes, binders=None, module=None):
         group = module.__name__
     else:
         registry = callerLocals()
-        if '__name__' not in registry:
-            raise SetupError('The create proxy call needs to be made directly from the module')
+        assert '__name__' in registry, 'The bind to entities call needs to be made directly from the setup module'
         group = registry['__name__']
     register(SetupEntityProxy(group, classesFrom(classes), binders), registry)
 
@@ -340,8 +342,7 @@ def loadAllEntities(*classes, module=None):
         group = module.__name__
     else:
         registry = callerLocals()
-        if '__name__' not in registry:
-            raise SetupError('The create proxy call needs to be made directly from the module')
+        assert '__name__' in registry, 'The load all entities call needs to be made directly from the setup module'
         group = registry['__name__']
 
     loader = partial(loadAll, group + '.', classesFrom(classes))
@@ -387,8 +388,7 @@ def entitiesLocal():
         The resource AOP.
     '''
     registry = callerGlobals()
-    if '__name__' not in registry:
-        raise SetupError('The create call needs to be made from a module function')
+    assert '__name__' in registry, 'The entities local call needs to be made from a setup module function'
     rsc = AOPResources({name:name for name, call in Assembly.current().calls.items() if isinstance(call, CallEntity)})
     rsc.filter(registry['__name__'] + '.**')
     return rsc

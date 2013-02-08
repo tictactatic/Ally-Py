@@ -57,7 +57,7 @@ class Response(encoder.Response):
 # --------------------------------------------------------------------
 
 @injected
-class CreateEncoderPathHandler(CreateEncoderHandler):
+class CreateEncoderWithPathHandler(CreateEncoderHandler):
     '''
     Extends the model encoder with paths also.
     '''
@@ -372,7 +372,7 @@ class EncodeModel(EncodeObject):
         @param modelType: TypeModel
             The model type of the encoded model.
         '''
-        assert isinstance(encoder, CreateEncoderPathHandler), 'Invalid encoder %s' % encoder
+        assert isinstance(encoder, CreateEncoderWithPathHandler), 'Invalid encoder %s' % encoder
         assert isinstance(modelType, TypeModel), 'Invalid model type %s' % modelType
         super().__init__(modelType.container.name, getter)
 

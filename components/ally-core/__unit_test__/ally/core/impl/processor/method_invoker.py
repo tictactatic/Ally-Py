@@ -16,13 +16,13 @@ if True:
 
 # --------------------------------------------------------------------
 
-from ally.api.config import GET
 from ally.container import ioc
-from ally.core.impl.node import NodeRoot
-from ally.core.impl.processor.method_invoker import MethodInvokerHandler, \
+from ally.core.http.impl.processor.method_invoker import MethodInvokerHandler, \
     Request, Response
+from ally.core.impl.node import NodeRoot
 from ally.core.spec.resources import Path
 from ally.design.processor import Chain
+from ally.http.spec.server import HTTP_GET
 import unittest
 
 # --------------------------------------------------------------------
@@ -36,13 +36,13 @@ class TestMethodInvoker(unittest.TestCase):
         request, response = Request(), Response()
 
         node = NodeRoot()
-        request.method, request.path = GET, Path([], node)
+        request.method, request.path = HTTP_GET, Path([], node)
 
         def callProcess(chain, **keyargs): handler.process(**keyargs)
         chain = Chain([callProcess])
         chain.process(request=request, response=response).doAll()
 
-        self.assertEqual(response.allows, 0)
+        self.assertEqual(response.allows, [])
         self.assertTrue(response.isSuccess is False)
 
 # --------------------------------------------------------------------

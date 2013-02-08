@@ -1,7 +1,7 @@
 '''
 Created on Jun 28, 2011
 
-@package: ally core
+@package: ally core http
 @copyright: 2011 Sourcefabric o.p.s.
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Mihai Balaceanu
@@ -28,8 +28,6 @@ class Response(Context):
     The response context.
     '''
     # ---------------------------------------------------------------- Optional
-    code = optional(str)
-    isSuccess = optional(bool)
     text = optional(str)
     errorMessage = optional(str, doc='''
     @rtype: object
@@ -40,6 +38,9 @@ class Response(Context):
     The error text object describing a detailed situation for the error.
     ''')
     # ---------------------------------------------------------------- Required
+    status = requires(int)
+    code = requires(str)
+    isSuccess = requires(bool)
     renderFactory = requires(Callable)
 
 class ResponseContent(Context):
@@ -70,11 +71,11 @@ class ExplainErrorHandler(HandlerProcessorProceed):
         assert isinstance(responseCnt, ResponseContent), 'Invalid response content %s' % responseCnt
 
         if response.isSuccess is False and Response.renderFactory in response:
-            errors = [Value('code', response.code)]
+            errors = [Value('code', str(response.status))]
             if Response.errorMessage in response:
                 errors.append(Value('message', response.errorMessage))
-            elif Response.text in response:
-                errors.append(Value('message', response.text))
+            else:
+                errors.append(Value('message', response.text or response.code))
 
             if Response.errorDetails in response:
                 errors.append(Object('details', response.errorDetails))

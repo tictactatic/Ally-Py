@@ -84,9 +84,9 @@ class AsyncoreContentHandler(HandlerProcessor):
         assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(requestCnt, RequestContent), 'Invalid request content %s' % requestCnt
         assert isinstance(response, Response), 'Invalid response %s' % response
-        if response.isSuccess is False: return  # Skip in case the response is in error
         
         chain.proceed()
+        if response.isSuccess is False: return  # Skip in case the response is in error
         
         if request.method in self.contentMethods:
             if RequestContent.length in requestCnt:

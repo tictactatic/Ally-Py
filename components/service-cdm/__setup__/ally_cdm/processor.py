@@ -27,17 +27,19 @@ def repository_path():
 # Creating the processors used in handling the request
 
 @ioc.entity
+def contentDelivery() -> Handler:
+    b = ContentDeliveryHandler()
+    b.repositoryPath = repository_path()
+    return b
+
+# --------------------------------------------------------------------
+
+@ioc.entity
 def assemblyContent() -> Assembly:
     '''
     The assembly containing the handlers that will be used in processing a content file request.
     '''
     return Assembly()
-
-@ioc.entity
-def contentDelivery() -> Handler:
-    h = ContentDeliveryHandler()
-    h.repositoryPath = repository_path()
-    return h
 
 # --------------------------------------------------------------------
 
