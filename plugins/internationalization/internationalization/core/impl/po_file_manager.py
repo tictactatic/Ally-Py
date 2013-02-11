@@ -71,7 +71,7 @@ class POFileManager(IPOFileManager):
                       'fuzzy': False,
                       }; wire.config('catalog_config', doc='''
     The global catalog default configuration for templates.
-    
+
     :param header_comment: the header comment as string, or `None` for the default header
     :param project: the project's name
     :param version: the project's version
@@ -93,7 +93,7 @@ class POFileManager(IPOFileManager):
                        'include_previous': False,
                        }; wire.config('write_po_config', doc='''
     The configurations used when writing the PO files.
-    
+
     :param width: the maximum line width for the generated output; use `None`, 0, or a negative number to
                   completely disable line wrapping
     :param no_location: do not emit a location comment for every message
@@ -251,7 +251,7 @@ class POFileManager(IPOFileManager):
         Returns the path to the internal PO file corresponding to the given locale and / or
         component / plugin. If no component of plugin was specified it returns the
         name of the global PO file.
-        
+
         @param locale: Locale
             The locale.
         @param component: string
@@ -286,7 +286,7 @@ class POFileManager(IPOFileManager):
         '''
         Provides the last modification time stamp for the provided locale. You can specify the component id in order to
         get the last modification for the component domain, or plugin or either to get the global domain modification.
-        
+
         @param locale: Locale
             The locale to get the last modification for.
         @param component: string|None
@@ -303,7 +303,7 @@ class POFileManager(IPOFileManager):
         q.lastModified.orderDesc()
         if component: q.component = component
         elif plugin: q.plugin = plugin
-        sources = self.sourceService.getAll(0, 1, q)
+        sources = self.sourceService.getAll(0, 1, q=q)
         try: lastModified = next(iter(sources)).LastModified
         except StopIteration: lastModified = None
 
@@ -316,7 +316,7 @@ class POFileManager(IPOFileManager):
         '''
         Processes a catalog based on the given messages list. Basically the catalog will be made in sync with the list of
         messages.
-        
+
         @param catalog: Catalog
             The catalog to keep in sync.
         @param messages: Iterable
@@ -351,14 +351,14 @@ class POFileManager(IPOFileManager):
             if msg.Plural and msgC and msgCOrig and isinstance(msgCOrig.string, str) and msgCOrig.string != '':
                 copyTranslation(msgCOrig, msgC)
 
-        creationDate = catalog.creation_date # We need to make sure that the catalog keeps its creation date.
+        creationDate = catalog.creation_date  # We need to make sure that the catalog keeps its creation date.
         catalog.creation_date = creationDate
         return catalog
 
     def _toPOFile(self, catalog):
         '''
         Convert the catalog to a PO file like object.
-        
+
         @param catalog: Catalog
             The catalog to convert to a file.
         @return: file read object
@@ -375,7 +375,7 @@ class POFileManager(IPOFileManager):
         '''
         Convert the catalog to a dictionary.
         Format description: @see IPOFileManager.getGlobalAsDict
-        
+
         @param catalog: Catalog
             The catalog to convert to a dictionary.
         @return: dict
@@ -403,7 +403,7 @@ class POFileManager(IPOFileManager):
         '''
         Builds a catalog based on the provided locale paths, the path is used as the main source any messages that are not
         found in path locale but are part of messages will attempt to be extracted from the global path locale.
-        
+
         @param locale: Locale
             The locale.
         @param messages: Iterable(Message)
