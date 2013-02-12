@@ -2266,11 +2266,17 @@ figure {
 a.collaborator-name  {
 	line-height: 22px;
 	font-weight: bold;
-	width: auto;
+
 	padding-right: 10px;
 	display: inline-block;
 	text-decoration: none;
 	color: #424242;
+
+	width: 200px;
+	max-width: 200px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 a.collaborator-name-large  {
