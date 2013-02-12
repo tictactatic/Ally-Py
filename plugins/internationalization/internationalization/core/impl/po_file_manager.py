@@ -449,11 +449,12 @@ class POFileManager(IPOFileManager):
 
         if not isGlobal:
             pathGlobal = self._filePath(locale)
+            pathGlobalMO = self._filePath(locale, format=FORMAT_MO)
             if isfile(pathGlobal):
                 with open(pathGlobal) as fObj: catalogGlobal = read_po(fObj, locale)
                 self._processCatalog(catalogGlobal, self.messageService.getMessages())
             else:
-                isGlobal, path = True, pathGlobal
+                isGlobal, path, pathMO = True, pathGlobal, pathGlobalMO
                 messages = self.messageService.getMessages()
         self._processCatalog(catalog, messages)
 
@@ -494,8 +495,10 @@ class POFileManager(IPOFileManager):
                         catalogGlobal.delete(msgId(msg), msg.context)
 
                 catalogGlobal.revision_date = datetime.now()
+                os.makedirs(dirname(pathGlobal), exist_ok=True)
                 with open(pathGlobal, 'wb') as fObj: write_po(fObj, catalogGlobal, **self.write_po_config)
-                with open(self._filePath(locale, format=FORMAT_MO), 'wb') as fObj: write_mo(fObj, catalogGlobal)
+                os.makedirs(dirname(pathGlobalMO), exist_ok=True)
+                with open(pathGlobalMO, 'wb') as fObj: write_mo(fObj, catalogGlobal)
         else:
             # We remove all the messages that are not translated.
             for msg in list(catalog):
@@ -503,5 +506,7 @@ class POFileManager(IPOFileManager):
                     catalog.delete(msgId(msg), msg.context)
 
         catalog.revision_date = datetime.now()
+        os.makedirs(dirname(path), exist_ok=True)
         with open(path, 'wb') as fObj: write_po(fObj, catalog, **self.write_po_config)
+        os.makedirs(dirname(pathMO), exist_ok=True)
         with open(pathMO, 'wb') as fObj: write_mo(fObj, catalog)
