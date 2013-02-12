@@ -6151,8 +6151,9 @@ table thead tr th.desc {
   cursor: text;
 }
 #timeline-view .post-list .editable.annotation {
-  border: 1px dotted #EBEBEB;
+  border: 1px dotted #ccc;
   min-height: 18px;
+  margin-left: 5px;
   *zoom: 1;
 }
 #timeline-view .post-list .editable.annotation:before,
