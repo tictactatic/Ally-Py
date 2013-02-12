@@ -1913,6 +1913,7 @@ ul.posttypes li {
 .wizard-preview {
 	border:1px dashed #eee;
 	padding: 5px;
+	min-height: 30px;
 }
 .wizard-picture {
 	display: none;
@@ -1946,9 +1947,6 @@ ul.posttypes li {
 			border-color:#0068b8;
 			background:#e5f0f8; 
 		}
-
-
-
 
 .wizard-color {
 	width: 18px;
@@ -2576,7 +2574,7 @@ ul.posttypes li {
 	border: 0;
 	list-style-type: square;
 }
-
+/*
 .wizard {
 	float: left;
 	margin: 15px 0; 
@@ -2668,42 +2666,6 @@ ul.posttypes li {
 
 
 
-.wizard-color {
-	width: 18px;
-	height: 18px;
-	box-sizing:border-box;
-	border: 1px solid #ccc;
-	display: block;
-	float: left;
-
-    box-shadow: inset 0px 0px 0px 1px #fff;
-	-moz-box-shadow: inset 0px 0px 0px 1px #fff;
-    -webkit-box-shadow:  inset 0px 0px 0px 1px #fff;
-
-    background: #000;
-}
-
-.color-picker {
-	display: inline;
-	float: right;
-}
-	.color-picker li {
-		padding: 0 10px;
-		max-width: 150px;
-	}
-
-		.color-picker li span.wizard-color {
-			margin-right: 5px;
-			margin-bottom: 5px;
-		}
-			.color-picker li span.wizard-color:hover {
-				cursor: pointer;
-				border-color:#878787;
-			}
-
-			.color-picker li span.wizard-color.picked-color {
-				border-color:#0073cc;
-			}
 
 .modalscreen {
 	display: none;
@@ -2766,3 +2728,4 @@ label.bgcolor {
 	margin-left: 5px;
 	vertical-align: top;
 }
+*/
