@@ -15,7 +15,7 @@ from ..ally_core_http.processor import assemblyResources, \
 from ally.container import ioc
 from ally.core.sqlalchemy.processor.transactional_wrapping import \
     TransactionWrappingHandler
-from ally.design.processor import Handler
+from ally.design.processor.handler import Handler
 
 # --------------------------------------------------------------------
 # Creating the processors used in handling the sql alchemy session

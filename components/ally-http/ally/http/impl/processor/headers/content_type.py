@@ -11,38 +11,14 @@ Provides the content type header decoding/encoding.
 
 from ally.container.ioc import injected
 from ally.core.http.spec.codes import CONTENT_TYPE_ERROR
-from ally.design.context import Context, requires, defines, optional
-from ally.design.processor import HandlerProcessorProceed
+from ally.design.processor.attribute import requires, optional, defines
+from ally.design.processor.context import Context
+from ally.design.processor.handler import HandlerProcessorProceed
 from ally.http.spec.server import IDecoderHeader, IEncoderHeader
-
+        
 # --------------------------------------------------------------------
 
-class RequestDecode(Context):
-    '''
-    The request context.
-    '''
-    # ---------------------------------------------------------------- Required
-    decoderHeader = requires(IDecoderHeader)
-
-class RequestContentDecode(Context):
-    '''
-    The request content context.
-    '''
-    # ---------------------------------------------------------------- Defined
-    type = defines(str, doc='''
-    @rtype: string
-    The request content type.
-    ''')
-    charSet = defines(str, doc='''
-    @rtype: string
-    The character set for the text content.
-    ''')
-    typeAttr = defines(dict, doc='''
-    @rtype: dictionary{string, string}
-    The content request type attributes.
-    ''')
-
-class ResponseDecode(Context):
+class Response(Context):
     '''
     The response context.
     '''
@@ -50,14 +26,13 @@ class ResponseDecode(Context):
     code = defines(str)
     status = defines(int)
     isSuccess = defines(bool)
-    errorMessage = defines(str)
+    text = defines(str)
 
 # --------------------------------------------------------------------
 
-@injected
-class ContentTypeDecodeHandler(HandlerProcessorProceed):
+class ContentTypeConfigurations:
     '''
-    Implementation for a processor that provides the decoding of content type HTTP request header.
+    Provides the configurations for content type HTTP request header.
     '''
 
     nameContentType = 'Content-Type'
@@ -67,11 +42,48 @@ class ContentTypeDecodeHandler(HandlerProcessorProceed):
 
     def __init__(self):
         assert isinstance(self.nameContentType, str), 'Invalid content type header name %s' % self.nameContentType
-        assert isinstance(self.attrContentTypeCharSet, str), \
-        'Invalid char set attribute name %s' % self.attrContentTypeCharSet
-        super().__init__()
+        assert isinstance(self.attrContentTypeCharSet, str), 'Invalid char set attribute name %s' % self.attrContentTypeCharSet
 
-    def process(self, request:RequestDecode, requestCnt:RequestContentDecode, response:ResponseDecode, **keyargs):
+# --------------------------------------------------------------------
+
+class RequestDecode(Context):
+    '''
+    The request context decode.
+    '''
+    # ---------------------------------------------------------------- Required
+    decoderHeader = requires(IDecoderHeader)
+
+class RequestContentDecode(Context):
+    '''
+    The request content context decode.
+    '''
+    # ---------------------------------------------------------------- Defined
+    type = defines(str, doc='''
+    @rtype: string
+    The request content type.
+    ''')
+    charSet = defines(str, doc='''
+    @rtype: string
+    The request character set for the text content.
+    ''')
+    typeAttr = defines(dict, doc='''
+    @rtype: dictionary{string, string}
+    The content request type attributes.
+    ''')
+    
+# --------------------------------------------------------------------
+
+@injected
+class ContentTypeRequestDecodeHandler(HandlerProcessorProceed, ContentTypeConfigurations):
+    '''
+    Implementation for a processor that provides the decoding of content type HTTP request header.
+    '''
+
+    def __init__(self):
+        ContentTypeConfigurations.__init__(self)
+        HandlerProcessorProceed.__init__(self)
+
+    def process(self, request:RequestDecode, requestCnt:RequestContentDecode, response:Response, **keyargs):
         '''
         @see: HandlerProcessorProceed.process
         
@@ -79,7 +91,7 @@ class ContentTypeDecodeHandler(HandlerProcessorProceed):
         '''
         assert isinstance(request, RequestDecode), 'Invalid request %s' % request
         assert isinstance(requestCnt, RequestContentDecode), 'Invalid request content %s' % requestCnt
-        assert isinstance(response, ResponseDecode), 'Invalid response %s' % response
+        assert isinstance(response, Response), 'Invalid response %s' % response
         assert isinstance(request.decoderHeader, IDecoderHeader), 'Invalid header decoder %s' % request.decoderHeader
 
         value = request.decoderHeader.decode(self.nameContentType)
@@ -87,13 +99,76 @@ class ContentTypeDecodeHandler(HandlerProcessorProceed):
             if len(value) > 1:
                 if response.isSuccess is False: return  # Skip in case the response is in error
                 response.code, response.status, response.isSuccess = CONTENT_TYPE_ERROR
-                response.errorMessage = 'Invalid value \'%s\' for header \'%s\''\
+                response.text = 'Invalid value \'%s\' for header \'%s\''\
                 ', expected only one type entry' % (value, self.nameContentType)
                 return
             value, attributes = value[0]
             requestCnt.type = value
             requestCnt.charSet = attributes.get(self.attrContentTypeCharSet, None)
             requestCnt.typeAttr = attributes
+
+# --------------------------------------------------------------------
+
+class ResponseDecode(Response):
+    '''
+    The response context decode.
+    '''
+    # ---------------------------------------------------------------- Required
+    decoderHeader = requires(IDecoderHeader)
+
+class ResponseContentDecode(Context):
+    '''
+    The request content context decode.
+    '''
+    # ---------------------------------------------------------------- Defined
+    type = defines(str, doc='''
+    @rtype: string
+    The response content type.
+    ''')
+    charSet = defines(str, doc='''
+    @rtype: string
+    The response character set for the text content.
+    ''')
+    typeAttr = defines(dict, doc='''
+    @rtype: dictionary{string, string}
+    The content response type attributes.
+    ''')
+    
+# --------------------------------------------------------------------
+
+@injected
+class ContentTypeResponseDecodeHandler(HandlerProcessorProceed, ContentTypeConfigurations):
+    '''
+    Implementation for a processor that provides the decoding of content type HTTP response header.
+    '''
+
+    def __init__(self):
+        ContentTypeConfigurations.__init__(self)
+        HandlerProcessorProceed.__init__(self)
+
+    def process(self, response:ResponseDecode, responseCnt:ResponseContentDecode, **keyargs):
+        '''
+        @see: HandlerProcessorProceed.process
+        
+        Decode the content type for the response.
+        '''
+        assert isinstance(response, ResponseDecode), 'Invalid response %s' % response
+        assert isinstance(responseCnt, ResponseContentDecode), 'Invalid response content %s' % responseCnt
+        if response.isSuccess is False: return  # Skip in case the response is in error
+        
+        assert isinstance(response.decoderHeader, IDecoderHeader), 'Invalid header decoder %s' % response.decoderHeader
+        value = response.decoderHeader.decode(self.nameContentType)
+        if value:
+            if len(value) > 1:
+                if response.isSuccess is False: return  # Skip in case the response is in error
+                response.code, response.status, response.isSuccess = CONTENT_TYPE_ERROR
+                response.text = 'Invalid value \'%s\' for header \'%s\''\
+                ', expected only one type entry' % (value, self.nameContentType)
+                return
+            value, attributes = value[0]
+            responseCnt.type = value
+            responseCnt.charSet = attributes.get(self.attrContentTypeCharSet, None)
+            responseCnt.typeAttr = attributes
 
 # --------------------------------------------------------------------
 
@@ -116,21 +191,14 @@ class ResponseContentEncode(Context):
 # --------------------------------------------------------------------
 
 @injected
-class ContentTypeEncodeHandler(HandlerProcessorProceed):
+class ContentTypeResponseEncodeHandler(HandlerProcessorProceed, ContentTypeConfigurations):
     '''
     Implementation for a processor that provides the encoding of content type HTTP request header.
     '''
 
-    nameContentType = 'Content-Type'
-    # The header name where the content type is specified.
-    attrContentTypeCharSet = 'charset'
-    # The name of the content type attribute where the character set is provided.
-
     def __init__(self):
-        assert isinstance(self.nameContentType, str), 'Invalid content type header name %s' % self.nameContentType
-        assert isinstance(self.attrContentTypeCharSet, str), \
-        'Invalid char set attribute name %s' % self.attrContentTypeCharSet
-        super().__init__()
+        ContentTypeConfigurations.__init__(self)
+        HandlerProcessorProceed.__init__(self)
 
     def process(self, response:ResponseEncode, responseCnt:ResponseContentEncode, **keyargs):
         '''
@@ -140,8 +208,7 @@ class ContentTypeEncodeHandler(HandlerProcessorProceed):
         '''
         assert isinstance(response, ResponseEncode), 'Invalid response %s' % response
         assert isinstance(responseCnt, ResponseContentEncode), 'Invalid response content %s' % responseCnt
-        assert isinstance(response.encoderHeader, IEncoderHeader), \
-        'Invalid header encoder %s' % response.encoderHeader
+        assert isinstance(response.encoderHeader, IEncoderHeader), 'Invalid header encoder %s' % response.encoderHeader
 
         if ResponseContentEncode.type in responseCnt:
             value = responseCnt.type
@@ -149,4 +216,3 @@ class ContentTypeEncodeHandler(HandlerProcessorProceed):
                 if responseCnt.charSet: value = (value, (self.attrContentTypeCharSet, responseCnt.charSet))
 
             response.encoderHeader.encode(self.nameContentType, value)
-

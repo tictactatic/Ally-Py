@@ -22,7 +22,7 @@ from ally.core.impl.processor.render_encoder import RenderEncoderHandler
 from ally.core.impl.processor.rendering import RenderingHandler
 from ally.core.impl.processor.text_conversion import ConversionSetHandler
 from ally.core.spec.resources import Normalizer, Converter
-from ally.design.processor import Handler
+from ally.design.processor.handler import Handler
 
 # --------------------------------------------------------------------
 # Creating the processors used in handling the request

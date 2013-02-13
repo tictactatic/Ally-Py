@@ -12,8 +12,9 @@ Renders the response encoder.
 from ally.container.ioc import injected
 from ally.core.spec.transform.exploit import Resolve
 from ally.core.spec.transform.render import IRender
-from ally.design.context import defines, Context, requires, optional
-from ally.design.processor import HandlerProcessorProceed
+from ally.design.processor.attribute import requires, defines, optional
+from ally.design.processor.context import Context
+from ally.design.processor.handler import HandlerProcessorProceed
 from collections import Callable, Iterable
 from io import BytesIO
 import logging
@@ -61,7 +62,6 @@ class RenderEncoderHandler(HandlerProcessorProceed):
     bufferSize = 1024
     # The buffer size used in the generator returned chuncks.
     
-    
     def __init__(self):
         assert isinstance(self.allowChunked, bool), 'Invalid allow chuncked flag %s' % self.allowChunked
         assert isinstance(self.bufferSize, int), 'Invalid buffer size %s' % self.bufferSize
@@ -70,6 +70,8 @@ class RenderEncoderHandler(HandlerProcessorProceed):
     def process(self, response:Response, responseCnt:ResponseContent, **keyargs):
         '''
         @see: HandlerProcessorProceed.process
+        
+        Process the encoder rendering.
         '''
         assert isinstance(response, Response), 'Invalid response %s' % response
         assert isinstance(responseCnt, ResponseContent), 'Invalid response content %s' % responseCnt

@@ -9,11 +9,13 @@ Created on Jan 5, 2012
 Provides the configurations for delivering files from the local file system.
 '''
 
-from ..ally_http.processor import contentLengthEncode, contentTypeEncode, header, \
-    allowEncode, internalError
+from ..ally_http.processor import contentLengthEncode, allowEncode, \
+    internalError, contentTypeResponseEncode
+from __setup__.ally_http.processor import headerEncodeResponse
 from ally.container import ioc
 from ally.core.cdm.processor.content_delivery import ContentDeliveryHandler
-from ally.design.processor import Handler, Assembly
+from ally.design.processor.assembly import Assembly
+from ally.design.processor.handler import Handler
 from os import path
 
 # --------------------------------------------------------------------
@@ -45,6 +47,6 @@ def assemblyContent() -> Assembly:
 
 @ioc.before(assemblyContent)
 def updateAssemblyContent():
-    assemblyContent().add(internalError(), header(), contentDelivery(), allowEncode(), contentTypeEncode(),
+    assemblyContent().add(internalError(), headerEncodeResponse(), contentDelivery(), allowEncode(), contentTypeResponseEncode(),
                           contentLengthEncode())
     

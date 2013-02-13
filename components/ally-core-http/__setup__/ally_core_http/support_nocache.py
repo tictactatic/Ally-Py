@@ -9,10 +9,11 @@ Created on Sep 13, 2012
 Provides the no cache headers support for browsers like IE.
 '''
 
-from .processor import header, assemblyResources
+from ..ally_http.processor import headerEncodeResponse
+from .processor import assemblyResources
 from .support_ajax import updateAssemblyResourcesForHTTPAjax
 from ally.container import ioc
-from ally.design.processor import Handler
+from ally.design.processor.handler import Handler
 from ally.http.impl.processor.headers.set_fixed import HeaderSetEncodeHandler
 
 # --------------------------------------------------------------------
@@ -42,4 +43,4 @@ def headerSetNoCache() -> Handler:
 
 @ioc.after(updateAssemblyResourcesForHTTPAjax)
 def updateAssemblyResourcesForHTTPNoCache():
-    if no_cache(): assemblyResources().add(headerSetNoCache(), after=header())
+    if no_cache(): assemblyResources().add(headerSetNoCache(), after=headerEncodeResponse())

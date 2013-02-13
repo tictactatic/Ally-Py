@@ -9,11 +9,12 @@ Created on Jun 11, 2012
 Provides the accept headers handling.
 '''
 
-from ally.container.ioc import injected
-from ally.http.spec.server import IDecoderHeader
-from ally.design.processor import HandlerProcessorProceed
 from ally.api.type import List, Locale
-from ally.design.context import Context, requires, optional, defines
+from ally.container.ioc import injected
+from ally.design.processor.attribute import requires, optional, defines
+from ally.design.processor.context import Context
+from ally.design.processor.handler import HandlerProcessorProceed
+from ally.http.spec.server import IDecoderHeader
 
 # --------------------------------------------------------------------
 

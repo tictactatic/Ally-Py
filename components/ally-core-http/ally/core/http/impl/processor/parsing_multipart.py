@@ -14,9 +14,11 @@ from ally.container.ioc import injected
 from ally.core.http.spec.codes import MUTLIPART_NO_BOUNDARY
 from ally.core.impl.processor.parsing import ParsingHandler, Request, \
     RequestContent, Response
-from ally.design.context import requires, defines, Context
-from ally.design.processor import Chain, Assembly, Processing, \
-    NO_MISSING_VALIDATION
+from ally.design.processor.assembly import Assembly
+from ally.design.processor.attribute import requires, defines
+from ally.design.processor.context import Context
+from ally.design.processor.execution import Chain, Processing
+from ally.design.processor.processor import Using
 from ally.exception import DevelError
 from ally.support.util_io import IInputStream, IClosable
 from collections import Callable
@@ -131,19 +133,20 @@ class ParsingMultiPartHandler(ParsingHandler, DataMultiPart):
         assert isinstance(self.attrBoundary, str), 'Invalid attribute boundary name %s' % self.attrBoundary
         assert isinstance(self.populateAssembly, Assembly), 'Invalid populate assembly %s' % self.populateAssembly
         DataMultiPart.__init__(self)
-        populateProcessing = self.populateAssembly.create(NO_MISSING_VALIDATION, request=RequestPopulate,
-                                                          requestCnt=RequestContentMultiPart, response=ResponseMultiPart)
-        assert isinstance(populateProcessing, Processing), 'Invalid processing %s' % populateProcessing
-        ParsingHandler.__init__(self, requestCnt=populateProcessing.ctx.requestCnt)
-        self._populateProcessing = populateProcessing
+        ParsingHandler.__init__(self, Using(self.populateAssembly, request=RequestPopulate))
 
         self._reMultipart = re.compile(self.regexMultipart)
 
-    def process(self, chain, request, requestCnt, response, **keyargs):
+    def process(self, chain, populate, parsing, request:Request, requestCnt:RequestContentMultiPart,
+                response:ResponseMultiPart, **keyargs):
         '''
+        @see: ParsingHandler.process
+        
         Parse the request content.
         '''
         assert isinstance(chain, Chain), 'Invalid processors chain %s' % chain
+        assert isinstance(populate, Processing), 'Invalid processing %s' % populate
+        assert isinstance(parsing, Processing), 'Invalid processing %s' % parsing
         assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(requestCnt, RequestContentMultiPart), 'Invalid request content %s' % requestCnt
         assert isinstance(response, ResponseMultiPart), 'Invalid response %s' % response
@@ -162,7 +165,7 @@ class ParsingMultiPartHandler(ParsingHandler, DataMultiPart):
 
             assert isinstance(requestCnt.source, IInputStream), 'Invalid request content source %s' % requestCnt.source
             stream = StreamMultiPart(self, requestCnt.source, boundary)
-            requestCnt = NextContent(requestCnt, response, self._populateProcessing, self, stream)()
+            requestCnt = NextContent(requestCnt, response, populate, self, stream)()
             if requestCnt is None:
                 response.code, response.status, response.isSuccess = MUTLIPART_NO_BOUNDARY
                 return
@@ -171,7 +174,7 @@ class ParsingMultiPartHandler(ParsingHandler, DataMultiPart):
             if isMultipart: chain.update(requestCnt=requestCnt)
             return  # Skip if there is no decoder.
 
-        if self.processParsing(request=request, requestCnt=requestCnt, response=response, **keyargs):
+        if self.processParsing(parsing, request=request, requestCnt=requestCnt, response=response, **keyargs):
             # We process the chain without the request content anymore
             if RequestContentMultiPart.fetchNextContent in requestCnt:
                 nextContent = requestCnt.fetchNextContent()

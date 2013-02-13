@@ -16,7 +16,8 @@ if True:
 
 # --------------------------------------------------------------------
 
-from ally.design.context import Context, requires, defines, optional
+from ally.design.processor.attribute import requires, defines, optional
+from ally.design.processor.context import Object, Context
 import unittest
 
 # --------------------------------------------------------------------
@@ -33,35 +34,39 @@ class C(Context):
 
 class D(Context):
     p2 = requires(str)
+    
+class F(D):
+    p3 = requires(str)
+    
+class E(F, D):
+    p2 = optional(str)
+    p3 = optional(str)
+
+class I(Object):
+    p1 = optional(str)
+    p2 = optional(str)
+    p3 = optional(str)
 
 # --------------------------------------------------------------------
 
 class TestDesign(unittest.TestCase):
 
     def testContext(self):
-        a = A()
-        self.assertIsInstance(a, Context)
-        self.assertIsInstance(a, A)
-        self.assertIsInstance(a, B)
-        self.assertIsInstance(a, C)
-        self.assertNotIsInstance(a, D)
-        self.assertFalse(B.p1 in a)
+        i = I()
+        self.assertIsInstance(i, Context)
+        self.assertNotIsInstance(i, A)
+        self.assertIsInstance(i, B)
+        self.assertNotIsInstance(i, C)
+        self.assertIsInstance(i, D)
+        self.assertIsInstance(i, F)
+        self.assertIsInstance(i, E)
+        
+        self.assertFalse(B.p1 in i)
 
-        self.assertRaises(AssertionError, setattr, a, 'p1', 12)
-        a.p1 = 'astr'
-        self.assertEqual(a.p1, 'astr')
-
-        c = C()
-        self.assertIsInstance(a, Context)
-        self.assertNotIsInstance(c, A)
-        self.assertIsInstance(c, B)
-        self.assertNotIsInstance(c, D)
-        self.assertIsInstance(c, C)
-
-        self.assertRaises(AssertionError, setattr, c, 'p2', 'astr')
-        c.p2 = 12
-        self.assertEqual(c.p2, 12)
-
+        self.assertRaises(AssertionError, setattr, i, 'p1', 12)
+        i.p1 = 'astr'
+        self.assertEqual(i.p1, 'astr')
+        
 # --------------------------------------------------------------------
 
 if __name__ == '__main__': unittest.main()

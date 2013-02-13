@@ -17,13 +17,42 @@ if True:
 # --------------------------------------------------------------------
 
 from ally.container import ioc
-from ally.core.http.impl.processor.method_invoker import MethodInvokerHandler, \
-    Request, Response
+from ally.core.http.impl.processor.method_invoker import MethodInvokerHandler
 from ally.core.impl.node import NodeRoot
-from ally.core.spec.resources import Path
-from ally.design.processor import Chain
+from ally.core.spec.resources import Invoker, Path
+from ally.design.processor.attribute import defines
+from ally.design.processor.context import Object
+from ally.design.processor.execution import Chain
 from ally.http.spec.server import HTTP_GET
 import unittest
+
+# --------------------------------------------------------------------
+
+class Request(Object):
+    '''
+    The request context.
+    '''
+    # ---------------------------------------------------------------- Required
+    method = defines(str)
+    path = defines(Path)
+    # ---------------------------------------------------------------- Defined
+    invoker = defines(Invoker, doc='''
+    @rtype: Invoker
+    The invoker to be used for calling the service.
+    ''')
+
+class Response(Object):
+    '''
+    The response context.
+    '''
+    # ---------------------------------------------------------------- Defined
+    code = defines(str)
+    status = defines(int)
+    isSuccess = defines(bool)
+    allows = defines(list, doc='''
+    @rtype: list[string]
+    Contains the allow list for the methods.
+    ''')
 
 # --------------------------------------------------------------------
 

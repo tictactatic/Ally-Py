@@ -10,8 +10,10 @@ Provides the text base encoder processor handler.
 '''
 
 from ally.container.ioc import injected
-from ally.design.context import Context, defines, requires
-from ally.design.processor import HandlerProcessor, Chain
+from ally.design.processor.attribute import requires, defines
+from ally.design.processor.context import Context
+from ally.design.processor.execution import Chain
+from ally.design.processor.handler import HandlerProcessor
 from collections import Callable
 from functools import partial
 import abc
@@ -77,7 +79,7 @@ class RenderBaseHandler(HandlerProcessor):
                 responseCnt.type = contentType
 
             response.renderFactory = partial(self.renderFactory, responseCnt.charSet)
-            return # We need to stop the chain if we have been able to provide the encoding
+            return  # We need to stop the chain if we have been able to provide the encoding
         chain.proceed()
 
     # ----------------------------------------------------------------

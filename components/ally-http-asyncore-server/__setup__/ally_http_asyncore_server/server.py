@@ -43,4 +43,5 @@ def serverAsyncore():
 
 @ioc.start
 def runServer():
-    if server_type() == 'asyncore': Thread(name='HTTP server thread', target=server_asyncore.run, args=(serverAsyncore(),)).start()
+    if server_type() == 'asyncore':
+        Thread(name='HTTP server thread', target=server_asyncore.run, args=(serverAsyncore(),)).start()

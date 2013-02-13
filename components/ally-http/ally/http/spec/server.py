@@ -9,7 +9,8 @@ Created on Jun 1, 2012
 Provides HTTP server specification.
 '''
 
-from ally.design.context import Context, defines, requires, optional
+from ally.design.processor.attribute import requires, optional, defines
+from ally.design.processor.context import Context
 from ally.support.util_io import IInputStream
 from collections import Iterable
 import abc
@@ -92,7 +93,7 @@ class ResponseContentHTTP(Context):
     Context for HTTP response content data. 
     '''
     # ---------------------------------------------------------------- Required
-    source = requires(IInputStream, Iterable, doc='''
+    source = optional(IInputStream, Iterable, doc='''
     @rtype: IInputStream|Iterable
     The source for the response content.
     ''')

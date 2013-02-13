@@ -13,8 +13,9 @@ from ally.api.type import Scheme
 from ally.container.ioc import injected
 from ally.core.spec.resources import ConverterPath, Path, Converter, Normalizer, \
     Node
-from ally.design.context import Context, requires, defines, optional
-from ally.design.processor import HandlerProcessorProceed
+from ally.design.processor.attribute import requires, defines, optional
+from ally.design.processor.context import Context
+from ally.design.processor.handler import HandlerProcessorProceed
 from ally.http.spec.codes import PATH_FOUND, PATH_NOT_FOUND
 from ally.http.spec.server import IEncoderPath
 from ally.support.core.util_resources import findPath

@@ -9,9 +9,10 @@ Created on Nov 24, 2011
 Provides the javascript setup required by browser for ajax.
 '''
 
-from .processor import header, updateAssemblyResources, assemblyResources
+from ..ally_http.processor import headerEncodeResponse
+from .processor import updateAssemblyResources, assemblyResources
 from ally.container import ioc
-from ally.design.processor import Handler
+from ally.design.processor.handler import Handler
 from ally.http.impl.processor.headers.set_fixed import HeaderSetEncodeHandler
 from ally.http.impl.processor.method_deliver_ok import DeliverOkForMethodHandler
 from ally.http.spec.server import HTTP_OPTIONS
@@ -49,4 +50,4 @@ def deliverOkForOptionsHandler() -> Handler:
 
 @ioc.after(updateAssemblyResources)
 def updateAssemblyResourcesForHTTPAjax():
-    if ajax_cross_domain(): assemblyResources().add(headerSetAjax(), deliverOkForOptionsHandler(), after=header())
+    if ajax_cross_domain(): assemblyResources().add(headerSetAjax(), deliverOkForOptionsHandler(), after=headerEncodeResponse())

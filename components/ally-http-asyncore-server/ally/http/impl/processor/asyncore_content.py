@@ -10,8 +10,11 @@ Provides the asyncore handling of content.
 '''
 
 from ally.container.ioc import injected
-from ally.design.context import Context, defines, requires, optional
-from ally.design.processor import HandlerProcessor, Chain
+from ally.design.processor.attribute import defines, requires, optional
+from ally.design.processor.context import Context
+from ally.design.processor.execution import Chain
+from ally.design.processor.handler import HandlerProcessor
+from ally.http.spec.server import HTTP_POST, HTTP_PUT
 from ally.support.util_io import IInputStream
 from ally.zip.util_zip import normOSPath
 from collections import Callable
@@ -19,7 +22,6 @@ from genericpath import isdir
 from io import BytesIO
 import os
 import time
-from ally.http.spec.server import HTTP_POST, HTTP_PUT
 
 # --------------------------------------------------------------------
 

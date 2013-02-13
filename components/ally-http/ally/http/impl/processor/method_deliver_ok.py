@@ -11,8 +11,10 @@ method for instance where we just want to deliver some response headers.
 '''
 
 from ally.container.ioc import injected
-from ally.design.context import Context, requires, defines
-from ally.design.processor import HandlerProcessor, Chain
+from ally.design.processor.attribute import requires, defines
+from ally.design.processor.context import Context
+from ally.design.processor.execution import Chain
+from ally.design.processor.handler import HandlerProcessor
 from ally.http.spec.codes import PATH_FOUND
 
 # --------------------------------------------------------------------

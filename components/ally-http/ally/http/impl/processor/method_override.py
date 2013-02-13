@@ -10,8 +10,9 @@ Provides the method override header handling.
 '''
 
 from ally.container.ioc import injected
-from ally.design.context import Context, requires, defines
-from ally.design.processor import HandlerProcessorProceed
+from ally.design.processor.attribute import requires, defines
+from ally.design.processor.context import Context
+from ally.design.processor.handler import HandlerProcessorProceed
 from ally.http.spec.codes import HEADER_ERROR
 from ally.http.spec.server import IDecoderHeader, HTTP_GET, HTTP_POST, \
     HTTP_DELETE, HTTP_PUT
@@ -39,7 +40,7 @@ class Response(Context):
     code = defines(str)
     status = defines(int)
     isSuccess = defines(bool)
-    errorMessage = defines(str)
+    text = defines(str)
 
 # --------------------------------------------------------------------
 
@@ -80,13 +81,13 @@ class MethodOverrideHandler(HandlerProcessorProceed):
             allowed = self.methodsOverride.get(request.method)
             if not allowed:
                 response.code, response.status, response.isSuccess = HEADER_ERROR
-                response.errorMessage = 'Cannot override method \'%s\'' % request.method
+                response.text = 'Cannot override method \'%s\'' % request.method
                 return
 
             value = value.upper()
             if value not in allowed:
                 response.code, response.status, response.isSuccess = HEADER_ERROR
-                response.errorMessage = 'Cannot override method \'%s\' to method \'%s\'' % (request.method, value)
+                response.text = 'Cannot override method \'%s\' to method \'%s\'' % (request.method, value)
                 return
 
             assert log.debug('Successfully overridden method %s with %s', request.method, value) or True

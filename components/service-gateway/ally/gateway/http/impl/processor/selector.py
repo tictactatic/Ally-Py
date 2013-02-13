@@ -10,8 +10,9 @@ Provides the gateway repository selector processor.
 '''
 
 from ally.container.ioc import injected
-from ally.design.context import Context, requires, defines
-from ally.design.processor import HandlerProcessorProceed
+from ally.design.processor.attribute import requires, defines
+from ally.design.processor.context import Context
+from ally.design.processor.handler import HandlerProcessorProceed
 from ally.gateway.http.spec.gateway import IRepository, Match
 from ally.http.spec.codes import PATH_NOT_FOUND, METHOD_NOT_AVAILABLE
 
@@ -51,6 +52,8 @@ class GatewaySelectorHandler(HandlerProcessorProceed):
     def process(self, request:Request, response:Response, **keyargs):
         '''
         @see: HandlerProcessorProceed.process
+        
+        Provides the gateway selection.
         '''
         assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(response, Response), 'Invalid response %s' % response

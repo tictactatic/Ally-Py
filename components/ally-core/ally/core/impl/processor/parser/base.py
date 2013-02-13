@@ -12,8 +12,10 @@ Provides the text base parser processor handler.
 from ally.container.ioc import injected
 from ally.core.spec.codes import CONTENT_BAD, CONTENT_ILLEGAL
 from ally.core.spec.transform.render import Value, List, Object
-from ally.design.context import Context, requires, defines
-from ally.design.processor import HandlerProcessor, Chain
+from ally.design.processor.attribute import requires, defines
+from ally.design.processor.context import Context
+from ally.design.processor.execution import Chain
+from ally.design.processor.handler import HandlerProcessor
 from ally.exception import InputError, Ref
 from ally.support.util_io import IInputStream
 from collections import Callable, deque

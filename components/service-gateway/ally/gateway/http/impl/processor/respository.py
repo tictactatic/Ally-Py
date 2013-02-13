@@ -10,9 +10,12 @@ Provides the gateway repository processor.
 '''
 
 from ally.container.ioc import injected
-from ally.design.context import Context, requires, defines
-from ally.design.processor import Processing, Chain, Assembly, ONLY_AVAILABLE, \
-    NO_MISSING_VALIDATION, CREATE_REPORT, HandlerProcessorProceed
+from ally.design.processor.assembly import Assembly
+from ally.design.processor.attribute import requires, defines
+from ally.design.processor.context import Context
+from ally.design.processor.execution import Processing, Chain
+from ally.design.processor.handler import HandlerBranchingProceed
+from ally.design.processor.processor import Using
 from ally.gateway.http.spec.gateway import IRepository, Gateway, Match
 from ally.http.spec.server import RequestHTTP, ResponseHTTP, ResponseContentHTTP, \
     HTTP_GET, HTTP, RequestContentHTTP
@@ -56,7 +59,7 @@ class ResponseContentGateway(ResponseContentHTTP):
 # --------------------------------------------------------------------
 
 @injected
-class GatewayRepositoryHandler(HandlerProcessorProceed):
+class GatewayRepositoryHandler(HandlerBranchingProceed):
     '''
     Implementation for a handler that provides the gateway repository by using REST data received from either internal or
     external server. The Gateway structure is defined as in the @see: gateway-http plugin.
@@ -79,41 +82,40 @@ class GatewayRepositoryHandler(HandlerProcessorProceed):
         assert isinstance(self.uri, str), 'Invalid URI %s' % self.uri
         assert isinstance(self.cleanupInterval, int), 'Invalid cleanup interval %s' % self.cleanupInterval
         assert isinstance(self.assembly, Assembly), 'Invalid assembly %s' % self.assembly
-        super().__init__()
-
-        processing, report = self.assembly.create(ONLY_AVAILABLE, NO_MISSING_VALIDATION, CREATE_REPORT,
-                                                  request=RequestGateway, requestCnt=RequestContentHTTP,
-                                                  response=ResponseHTTP, responseCnt=ResponseContentGateway)
-
-        log.info('Assembly report for Gateway:\n%s', report)
-        self._processing = processing
-        self._repository = None
+        super().__init__(Using(self.assembly, False, request=RequestGateway, requestCnt=RequestContentHTTP,
+                               response=ResponseHTTP, responseCnt=ResponseContentGateway))
         
+        self._repository = None
         self.startCleanupThread('Cleanup gateways thread')
 
-    def process(self, request:Request, **keyargs):
+    def process(self, processing, request:Request, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerBranchingProceed.process
+        
+        Obtains the repository.
         '''
+        assert isinstance(processing, Processing), 'Invalid processing %s' % processing
         assert isinstance(request, Request), 'Invalid request %s' % request
-        if not self._repository: self._repository = Repository(self.obtainGatways(self.uri))
+        if not self._repository: self._repository = Repository(self.obtainGateways(processing, self.uri))
         request.repository = self._repository
         
     # ----------------------------------------------------------------
     
-    def obtainGatways(self, uri):
+    def obtainGateways(self, processing, uri):
         '''
         Get the gateway objects representation.
         
+        @param processing: Processing
+            The processing used for delivering the request.
         @param uri: string
             The URI to call, parameters are allowed.
         @return: dictionary{...}
             The gateway objects representation.
         '''
+        assert isinstance(processing, Processing), 'Invalid processing %s' % processing
         assert isinstance(uri, str), 'Invalid URI %s' % uri
-        proc = self._processing
-        assert isinstance(proc, Processing), 'Invalid processing %s' % proc
-        request = proc.ctx.request()
+        
+        request = processing.ctx.request()
         assert isinstance(request, RequestGateway), 'Invalid request %s' % request
         
         url = urlparse(uri)
@@ -123,8 +125,9 @@ class GatewayRepositoryHandler(HandlerProcessorProceed):
         request.parameters = parse_qsl(url.query, True, False)
         request.type = self.mimeTypeJson
         
-        chain = Chain(proc)
-        chain.process(request=request, requestCnt=proc.ctx.requestCnt()).doAll()
+        chain = Chain(processing)
+        chain.process(request=request, requestCnt=processing.ctx.requestCnt(),
+                      response=processing.ctx.response(), responseCnt=processing.ctx.responseCnt()).doAll()
 
         response, responseCnt = chain.arg.response, chain.arg.responseCnt
         assert isinstance(response, ResponseHTTP), 'Invalid response %s' % response

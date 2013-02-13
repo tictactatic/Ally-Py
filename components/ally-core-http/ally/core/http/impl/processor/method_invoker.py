@@ -10,38 +10,24 @@ Provides the requested method validation handler.
 '''
 
 from ally.core.spec.resources import Path, Node, Invoker
-from ally.design.context import Context, requires, defines
-from ally.design.processor import HandlerProcessorProceed
+from ally.design.processor.attribute import requires, defines
+from ally.design.processor.context import Context
+from ally.design.processor.handler import HandlerProcessorProceed
 from ally.http.spec.codes import METHOD_NOT_AVAILABLE
 from ally.http.spec.server import HTTP_GET, HTTP_POST, HTTP_PUT, HTTP_DELETE
 
 # --------------------------------------------------------------------
 
 class Request(Context):
-    '''
-    The request context.
-    '''
-    # ---------------------------------------------------------------- Required
     method = requires(str)
     path = requires(Path)
-    # ---------------------------------------------------------------- Defined
-    invoker = defines(Invoker, doc='''
-    @rtype: Invoker
-    The invoker to be used for calling the service.
-    ''')
+    invoker = defines(Invoker)
 
 class Response(Context):
-    '''
-    The response context.
-    '''
-    # ---------------------------------------------------------------- Defined
     code = defines(str)
     status = defines(int)
     isSuccess = defines(bool)
-    allows = defines(list, doc='''
-    @rtype: list[string]
-    Contains the allow list for the methods.
-    ''')
+    allows = defines(list)
 
 # --------------------------------------------------------------------
 

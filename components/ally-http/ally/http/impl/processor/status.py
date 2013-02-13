@@ -10,8 +10,9 @@ Provides the status and status text population based on codes.
 '''
 
 from ally.container.ioc import injected
-from ally.design.context import Context, requires, defines
-from ally.design.processor import HandlerProcessorProceed
+from ally.design.processor.attribute import requires, defines
+from ally.design.processor.context import Context
+from ally.design.processor.handler import HandlerProcessorProceed
 
 # --------------------------------------------------------------------
 
@@ -56,6 +57,8 @@ class StatusHandler(HandlerProcessorProceed):
     def process(self, response:Response, **keyargs):
         '''
         @see: HandlerProcessorProceed.process
+        
+        Process the status.
         '''
         assert isinstance(response, Response), 'Invalid response %s' % response
         assert isinstance(response.code, str), 'Invalid response code %s' % response.code

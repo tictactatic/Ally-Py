@@ -16,8 +16,9 @@ from ally.api.type import Type, Percentage, Number, Date, DateTime, Time, \
 from ally.container.ioc import injected
 from ally.core.http.spec.codes import FORMATING_ERROR
 from ally.core.spec.resources import Converter, Normalizer
-from ally.design.context import Context, defines, requires, optional
-from ally.design.processor import HandlerProcessorProceed
+from ally.design.processor.attribute import requires, defines, optional
+from ally.design.processor.context import Context
+from ally.design.processor.handler import HandlerProcessorProceed
 from ally.http.spec.server import IDecoderHeader, IEncoderHeader
 from ally.internationalization import _
 from babel import numbers as bn, dates as bd

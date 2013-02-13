@@ -10,13 +10,12 @@ Provides a processor that routes the requests based on patterns.
 '''
 
 from ally.container.ioc import injected
-from ally.design.context import Context, requires, copy, defines
-from ally.design.processor import Assembly, ONLY_AVAILABLE, CREATE_REPORT, Chain, \
-    Processing, HandlerProcessor, NO_MISSING_VALIDATION
-from ally.http.spec.server import RequestHTTP, ResponseHTTP, RequestContentHTTP, \
-    ResponseContentHTTP
-from ally.support.util_io import IInputStream
-from collections import Iterable
+from ally.design.processor.assembly import Assembly
+from ally.design.processor.attribute import requires
+from ally.design.processor.context import Context, copy
+from ally.design.processor.execution import Chain, Processing
+from ally.design.processor.handler import HandlerBranching
+from ally.design.processor.processor import Routing
 import logging
 import re
 
@@ -31,86 +30,54 @@ class Request(Context):
     Context for request. 
     '''
     # ---------------------------------------------------------------- Required
-    scheme = requires(str)
-    method = requires(str)
-    headers = requires(dict)
     uri = requires(str)
-    parameters = requires(list)
-
-class RequestContent(Context):
-    '''
-    Context for request content. 
-    '''
-    # ---------------------------------------------------------------- Required
-    source = requires(IInputStream)
-
-class Response(Context):
-    '''
-    Context for response. 
-    '''
-    # ---------------------------------------------------------------- Required
-    status = defines(int)
-
-class ResponseContent(Context):
-    '''
-    Context for response content. 
-    '''
-    # ---------------------------------------------------------------- Defined
-    source = defines(IInputStream, Iterable)
 
 # --------------------------------------------------------------------
 
 @injected
-class RoutingByPathHandler(HandlerProcessor):
+class RoutingByPathHandler(HandlerBranching):
     '''
     Implementation for a handler that provides the routing of requests based on regex patterns. The regex needs to provide
     capturing groups that joined will become the routed uri. 
     '''
     
-    name = str
-    # The name for the router, used mainly in logging. 
     pattern = str
     # The string pattern for matching the path, the pattern needs to provide capturing groups that joined will become
     # the routed uri.
     assembly = Assembly
     # The assembly to be used in processing the request for the provided pattern.
+    useSameContexts = True
+    # Flag indicating that the routing should use the same requests context as provided.
     
     def __init__(self):
-        assert isinstance(self.name, str), 'Invalid name %s' % self.name
         assert isinstance(self.pattern, str), 'Invalid pattern %s' % self.pattern
         assert isinstance(self.assembly, Assembly), 'Invalid assembly %s' % self.assembly
-        super().__init__()
-
-        processing, report = self.assembly.create(ONLY_AVAILABLE, NO_MISSING_VALIDATION, CREATE_REPORT,
-                                                  request=RequestHTTP, requestCnt=RequestContentHTTP,
-                                                  response=ResponseHTTP, responseCnt=ResponseContentHTTP)
-
-        log.info('Assembly report for \'%s\':\n%s', self.name, report)
+        assert isinstance(self.useSameContexts, bool), 'Invalid use same contexts flag %s' % self.useSameContexts
+        super().__init__(Routing(self.assembly, self.useSameContexts))
+        
         self._regex = re.compile(self.pattern)
-        self._processing = processing
             
-    def process(self, chain, request:Request, requestCnt:RequestContent,
-                response:Response=None, responseCnt:ResponseContent=None):
+    def process(self, chain, processing, request:Request, requestCnt, response, responseCnt):
         '''
+        @see: HandlerBranching.process
+        
         Process the routing.
         '''
         assert isinstance(chain, Chain), 'Invalid chain %s' % chain
+        assert isinstance(processing, Processing), 'Invalid processing %s' % processing
         assert isinstance(request, Request), 'Invalid request %s' % request
-        assert isinstance(requestCnt, RequestContent), 'Invalid request content %s' % requestCnt
         
         match = self._regex.match(request.uri)
         if match:
-            proc = self._processing
-            assert isinstance(proc, Processing), 'Invalid processing %s' % proc
-            requestHTTP, requestCntHTTP = proc.ctx.request(), proc.ctx.requestCnt()
-            response, responseCnt = proc.ctx.response(), proc.ctx.responseCnt()
-            
-            copy(request, requestHTTP)
-            copy(requestCnt, requestCntHTTP)
-            
-            requestHTTP.uri = ''.join(match.groups())
-            
-            chain.update(request=requestHTTP, requestCnt=requestCntHTTP, response=response, responseCnt=responseCnt)
-            chain.branch(self._processing)
+            if not self.useSameContexts:
+                req, reqCnt = processing.ctx.request(), processing.ctx.requestCnt()
+                copy(request, req)
+                copy(requestCnt, reqCnt)
+                request, requestCnt = req, reqCnt
+                response, responseCnt = processing.ctx.response(), processing.ctx.responseCnt()
+                
+            request.uri = ''.join(match.groups())
+            chain.update(request=request, requestCnt=requestCnt, response=response, responseCnt=responseCnt)
+            chain.branch(processing)
         else:
             chain.proceed()

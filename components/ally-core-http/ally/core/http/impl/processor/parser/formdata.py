@@ -11,8 +11,10 @@ Provides the multipart form-data conversion to url encoded content.
 
 from ally.container.ioc import injected
 from ally.core.http.spec.codes import MUTLIPART_ERROR
-from ally.design.context import Context, requires, defines
-from ally.design.processor import HandlerProcessor, Chain
+from ally.design.processor.attribute import requires, defines
+from ally.design.processor.context import Context
+from ally.design.processor.execution import Chain
+from ally.design.processor.handler import HandlerProcessor
 from ally.support.util_io import IInputStream
 from collections import Callable, deque
 from io import BytesIO

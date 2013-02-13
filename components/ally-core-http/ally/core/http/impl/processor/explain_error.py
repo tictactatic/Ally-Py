@@ -11,8 +11,9 @@ Provides support for explaining the errors in the content of the request.
 
 from ally.container.ioc import injected
 from ally.core.spec.transform.render import Object, Value, renderObject
-from ally.design.context import Context, requires, defines, optional
-from ally.design.processor import HandlerProcessorProceed
+from ally.design.processor.attribute import requires, defines, optional
+from ally.design.processor.context import Context
+from ally.design.processor.handler import HandlerProcessorProceed
 from collections import Iterable, Callable
 from io import BytesIO
 import logging

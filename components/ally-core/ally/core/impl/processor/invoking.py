@@ -16,8 +16,9 @@ from ally.core.spec.codes import INPUT_ERROR, INSERT_ERROR, INSERT_SUCCESS, \
     UPDATE_SUCCESS, UPDATE_ERROR, DELETE_SUCCESS, DELETE_ERROR
 from ally.core.spec.resources import Path, Invoker
 from ally.core.spec.transform.render import Object, List, Value
-from ally.design.context import Context, defines, requires
-from ally.design.processor import HandlerProcessorProceed
+from ally.design.processor.attribute import requires, defines
+from ally.design.processor.context import Context
+from ally.design.processor.handler import HandlerProcessorProceed
 from ally.exception import DevelError, InputError, Ref
 from collections import deque
 import logging

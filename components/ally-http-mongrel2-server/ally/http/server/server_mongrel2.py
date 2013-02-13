@@ -11,8 +11,8 @@ Provides the mongrel2 web server support.
 
 from ..support import tnetstrings
 from ally.container.ioc import injected
-from ally.design.processor import Processing, Assembly, ONLY_AVAILABLE, \
-    CREATE_REPORT, Chain
+from ally.design.processor.assembly import Assembly
+from ally.design.processor.execution import Chain, Processing
 from ally.http.spec.server import RequestHTTP, ResponseHTTP, RequestContentHTTP, \
     ResponseContentHTTP, HTTP
 from ally.support.util_io import IInputStream, IClosable
@@ -52,11 +52,8 @@ class RequestHandler:
         assert isinstance(self.assembly, Assembly), 'Invalid assembly %s' % self.assembly
         assert isinstance(self.httpFormat, str), 'Invalid http format for the response %s' % self.httpFormat
         
-        processing, report = self.assembly.create(ONLY_AVAILABLE, CREATE_REPORT,
-                                                  request=RequestHTTP, requestCnt=RequestContentHTTP,
-                                                  response=ResponseHTTP, responseCnt=ResponseContentHTTP)
-        log.info('Assembly report for mongrel2 server:\n%s', report)
-        self.processing = processing
+        self.processing = self.assembly.create(request=RequestHTTP, requestCnt=RequestContentHTTP,
+                                               response=ResponseHTTP, responseCnt=ResponseContentHTTP)
         self.defaultHeaders = {'Server':self.serverVersion, 'Content-Type':'text'}
 
     def __call__(self, request):
@@ -83,7 +80,8 @@ class RequestHandler:
         else: requestCnt.source = BytesIO(request.body)
         
         chain = Chain(proc)
-        chain.process(request=request, requestCnt=requestCnt).doAll()
+        chain.process(request=request, requestCnt=requestCnt,
+                      response=proc.ctx.response(), responseCnt=proc.ctx.responseCnt()).doAll()
 
         response, responseCnt = chain.arg.response, chain.arg.responseCnt
         assert isinstance(response, ResponseHTTP), 'Invalid response %s' % response

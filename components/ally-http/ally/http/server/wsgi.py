@@ -10,8 +10,8 @@ Provides the WSGI web server support.
 '''
 
 from ally.container.ioc import injected
-from ally.design.processor import Processing, Assembly, ONLY_AVAILABLE, \
-    CREATE_REPORT, Chain
+from ally.design.processor.assembly import Assembly
+from ally.design.processor.execution import Processing, Chain
 from ally.http.spec.server import RequestHTTP, ResponseHTTP, RequestContentHTTP, \
     ResponseContentHTTP
 from ally.support.util_io import IInputStream, readGenerator
@@ -46,12 +46,8 @@ class RequestHandler:
         assert isinstance(self.responses, dict), 'Invalid responses %s' % self.responses
         assert isinstance(self.assembly, Assembly), 'Invalid assembly %s' % self.assembly
         
-        processing, report = self.assembly.create(ONLY_AVAILABLE, CREATE_REPORT,
-                                                  request=RequestHTTP, requestCnt=RequestContentHTTP,
-                                                  response=ResponseHTTP, responseCnt=ResponseContentHTTP)
-
-        log.info('Assembly report for wsgi:\n%s', report)
-        self.processing = processing
+        self.processing = self.assembly.create(request=RequestHTTP, requestCnt=RequestContentHTTP,
+                                               response=ResponseHTTP, responseCnt=ResponseContentHTTP)
         
         self.defaultHeaders = {'Server':self.serverVersion, 'Content-Type':'text'}
         self.headerPrefixLen = len(self.headerPrefix)
@@ -81,7 +77,8 @@ class RequestHandler:
         requestCnt.source = context.get('wsgi.input')
 
         chain = Chain(proc)
-        chain.process(request=request, requestCnt=requestCnt).doAll()
+        chain.process(request=request, requestCnt=requestCnt,
+                      response=proc.ctx.response(), responseCnt=proc.ctx.responseCnt()).doAll()
 
         response, responseCnt = chain.arg.response, chain.arg.responseCnt
         assert isinstance(response, ResponseHTTP), 'Invalid response %s' % response

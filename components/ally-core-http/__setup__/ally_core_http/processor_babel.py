@@ -9,6 +9,12 @@ Created on Sep 14, 2012
 Provides the configurations for the Babel conversion processor.
 '''
 
+from ..ally_core.processor import conversion, default_language, normalizer
+from ..ally_core_http.processor import assemblyResources, \
+    updateAssemblyResources
+from ..ally_http.processor import contentTypeResponseEncode
+from ally.container import ioc
+from ally.design.processor.handler import Handler
 import logging
 
 # --------------------------------------------------------------------
@@ -23,14 +29,8 @@ else:
     babel = babel  # Just to avoid import warning
     # ----------------------------------------------------------------
 
-    from ..ally_core.processor import conversion, default_language, normalizer
-    from ..ally_core_http.processor import assemblyResources, \
-        updateAssemblyResources
-    from ..ally_http.processor import contentTypeEncode
-    from ally.container import ioc
     from ally.core.http.impl.processor.text_conversion import \
         BabelConversionDecodeHandler, BabelConversionEncodeHandler
-    from ally.design.processor import Handler
     
     # --------------------------------------------------------------------
     
@@ -57,4 +57,4 @@ else:
     
     @ioc.after(updateAssemblyResources)
     def updateAssemblyResourcesForBabel():
-        if present_formatting(): assemblyResources().add(babelConversionEncode(), after=contentTypeEncode())
+        if present_formatting(): assemblyResources().add(babelConversionEncode(), after=contentTypeResponseEncode())

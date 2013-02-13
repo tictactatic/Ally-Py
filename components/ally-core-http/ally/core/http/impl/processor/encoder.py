@@ -21,7 +21,7 @@ from ally.core.impl.processor.encoder import CreateEncoderHandler, EncodeObject,
 from ally.core.spec.resources import Path, Normalizer, Invoker
 from ally.core.spec.transform.exploit import handleExploitError
 from ally.core.spec.transform.render import IRender
-from ally.design.context import requires, defines
+from ally.design.processor.attribute import requires, defines
 from ally.http.spec.codes import HEADER_ERROR
 from ally.http.spec.server import IDecoderHeader, IEncoderPath
 from ally.support.core.util_resources import pathLongName, findGetModel, \

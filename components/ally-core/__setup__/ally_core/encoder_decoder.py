@@ -15,7 +15,8 @@ from ally.core.impl.processor.parser.xml import ParseXMLHandler
 from ally.core.impl.processor.render.json import RenderJSONHandler
 from ally.core.impl.processor.render.text import RenderTextHandler
 from ally.core.impl.processor.render.xml import RenderXMLHandler
-from ally.design.processor import Handler, Assembly
+from ally.design.processor.assembly import Assembly
+from ally.design.processor.handler import Handler
 import codecs
 import logging
 

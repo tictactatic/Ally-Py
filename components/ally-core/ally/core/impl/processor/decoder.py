@@ -17,8 +17,9 @@ from ally.core.spec.resources import Invoker, Normalizer, Converter
 from ally.core.spec.transform.exploit import handleExploitError
 from ally.core.spec.transform.support import setterOnObj, obtainOnDict, \
     obtainOnObj
-from ally.design.context import defines, Context, requires
-from ally.design.processor import HandlerProcessorProceed
+from ally.design.processor.attribute import requires, defines
+from ally.design.processor.context import Context
+from ally.design.processor.handler import HandlerProcessorProceed
 from ally.exception import InputError, Ref
 from ally.internationalization import _
 from collections import Callable, deque
@@ -68,9 +69,6 @@ class CreateDecoderHandler(HandlerProcessorProceed):
     '''
 
     def __init__(self):
-        '''
-        Construct the decoder.
-        '''
         super().__init__()
 
         self._cache = WeakKeyDictionary()
@@ -84,8 +82,8 @@ class CreateDecoderHandler(HandlerProcessorProceed):
         assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(response, Response), 'Invalid response %s' % response
 
-        if response.isSuccess is False: return # Skip in case the response is in error
-        if Request.decoder in request: return # There is already a decoder no need to create another one
+        if response.isSuccess is False: return  # Skip in case the response is in error
+        if Request.decoder in request: return  # There is already a decoder no need to create another one
         assert isinstance(request.invoker, Invoker), 'Invalid request invoker %s' % request.invoker
 
         for inp in request.invoker.inputs:

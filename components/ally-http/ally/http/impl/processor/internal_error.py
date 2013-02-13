@@ -10,8 +10,11 @@ Provide the internal error representation. This is usually when the server fails
 '''
 
 from ally.container.ioc import injected
-from ally.design.context import defines, Context, optional
-from ally.design.processor import Handler, Chain, Function
+from ally.design.processor.attribute import defines, optional
+from ally.design.processor.context import Context
+from ally.design.processor.execution import Chain
+from ally.design.processor.handler import Handler
+from ally.design.processor.processor import Processor
 from ally.http.spec.codes import INTERNAL_ERROR
 from ally.support.util_io import convertToBytes, IInputStream
 from collections import Iterable
@@ -54,12 +57,12 @@ class InternalErrorHandler(Handler):
     errorHeaders = {'Content-Type':'text'}
     # The headers that will be placed on the response.
 
-    def __init__(self):
+    def __init__(self, response=Response, responseCnt=ResponseContent, **contexts):
         '''
         Construct the internal error handler.
         '''
         assert isinstance(self.errorHeaders, dict), 'Invalid error headers %s' % self.errorHeaders
-        super().__init__(Function(dict(response=Response, responseCnt=ResponseContent), self.process))
+        super().__init__(Processor(dict(response=Response, responseCnt=ResponseContent, **contexts), self.process))
 
     def process(self, chain, **keyargs):
         '''

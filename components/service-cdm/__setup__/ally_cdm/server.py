@@ -12,7 +12,7 @@ Provides the server configuration.
 from ..ally_http.server import assemblyServer, updateAssemblyServer
 from .processor import assemblyContent
 from ally.container import ioc
-from ally.design.processor import Handler
+from ally.design.processor.handler import Handler
 from ally.http.impl.processor.router_by_path import RoutingByPathHandler
 
 # --------------------------------------------------------------------
@@ -32,11 +32,11 @@ def server_pattern_content():
 @ioc.entity
 def contentRouter() -> Handler:
     b = RoutingByPathHandler()
-    b.name = 'CDM resources'
     b.assembly = assemblyContent()
     b.pattern = server_pattern_content()
     return b
     
 @ioc.before(updateAssemblyServer)
 def updateAssemblyServerForContent():
-    if server_provide_content(): assemblyServer().add(contentRouter())
+    if server_provide_content():
+        assemblyServer().add(contentRouter())

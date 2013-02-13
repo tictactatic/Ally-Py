@@ -10,8 +10,9 @@ Provides support for setting fixed headers on responses.
 '''
 
 from ally.container.ioc import injected
-from ally.design.context import Context, requires
-from ally.design.processor import HandlerProcessorProceed
+from ally.design.processor.attribute import requires
+from ally.design.processor.context import Context
+from ally.design.processor.handler import HandlerProcessorProceed
 from ally.http.spec.server import IEncoderHeader
 import logging
 

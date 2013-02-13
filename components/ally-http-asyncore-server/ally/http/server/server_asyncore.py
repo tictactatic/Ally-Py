@@ -10,9 +10,9 @@ Provides the asyncore web server based on the python build in http server and as
 '''
 
 from ally.container.ioc import injected
-from ally.design.context import optional
-from ally.design.processor import Processing, Assembly, ONLY_AVAILABLE, \
-    CREATE_REPORT, Chain
+from ally.design.processor.assembly import Assembly
+from ally.design.processor.attribute import optional
+from ally.design.processor.execution import Chain, Processing
 from ally.http.spec.server import RequestHTTP, ResponseHTTP, RequestContentHTTP, \
     ResponseContentHTTP, HTTP
 from ally.support.util_io import IInputStream, readGenerator
@@ -272,7 +272,8 @@ class RequestHandler(dispatcher, BaseHTTPRequestHandler):
         requestCnt.source = self.rfile
         
         chain = Chain(proc)
-        chain.process(request=request, requestCnt=requestCnt)
+        chain.process(request=request, requestCnt=requestCnt,
+                      response=proc.ctx.response(), responseCnt=proc.ctx.responseCnt())
         
         def respond():
             response, responseCnt = chain.arg.response, chain.arg.responseCnt
@@ -340,11 +341,8 @@ class AsyncServer(dispatcher):
         self.map = {}
         dispatcher.__init__(self, map=self.map)
 
-        processing, report = self.assembly.create(ONLY_AVAILABLE, CREATE_REPORT,
-                                                  request=RequestHTTP, requestCnt=RequestContentHTTPAsyncore,
-                                                  response=ResponseHTTP, responseCnt=ResponseContentHTTP)
-        log.info('Assembly report for asyncore server:\n%s', report)
-        self.processing = processing
+        self.processing = self.assembly.create(request=RequestHTTP, requestCnt=RequestContentHTTPAsyncore,
+                                               response=ResponseHTTP, responseCnt=ResponseContentHTTP)
         
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.set_reuse_addr()

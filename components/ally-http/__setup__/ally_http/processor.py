@@ -10,14 +10,17 @@ Provides the configurations for the processors used in handling the request.
 '''
 
 from ally.container import ioc
-from ally.design.processor import Handler, Assembly
+from ally.design.processor.assembly import Assembly
+from ally.design.processor.handler import Handler
 from ally.http.impl.processor.deliver_code import DeliverCodeHandler
-from ally.http.impl.processor.header import HeaderHandler
+from ally.http.impl.processor.header import HeaderDecodeRequestHandler, \
+    HeaderDecodeResponseHandler, HeaderEncodeResponseHandler
 from ally.http.impl.processor.headers.allow import AllowEncodeHandler
 from ally.http.impl.processor.headers.content_length import \
     ContentLengthDecodeHandler, ContentLengthEncodeHandler
 from ally.http.impl.processor.headers.content_type import \
-    ContentTypeDecodeHandler, ContentTypeEncodeHandler
+    ContentTypeRequestDecodeHandler, ContentTypeResponseEncodeHandler, \
+    ContentTypeResponseDecodeHandler
 from ally.http.impl.processor.internal_error import InternalErrorHandler
 from ally.http.impl.processor.method_override import MethodOverrideHandler
 from ally.http.impl.processor.path_encoder import EncoderPathHandler
@@ -37,31 +40,31 @@ def read_from_params():
 def internalError(): return InternalErrorHandler()
 
 @ioc.entity
-def header() -> Handler:
-    b = HeaderHandler()
+def headerDecodeRequest() -> Handler:
+    b = HeaderDecodeRequestHandler()
     b.useParameters = read_from_params()
     return b
 
-# --------------------------------------------------------------------
-# Header decoders
+@ioc.entity
+def headerDecodeResponse() -> Handler: return HeaderDecodeResponseHandler()
 
 @ioc.entity
-def contentTypeDecode() -> Handler: return ContentTypeDecodeHandler()
+def headerEncodeResponse() -> Handler: return HeaderEncodeResponseHandler()
+
+@ioc.entity
+def contentTypeRequestDecode() -> Handler: return ContentTypeRequestDecodeHandler()
+
+@ioc.entity
+def contentTypeResponseDecode() -> Handler: return ContentTypeResponseDecodeHandler()
+
+@ioc.entity
+def contentTypeResponseEncode() -> Handler: return ContentTypeResponseEncodeHandler()
 
 @ioc.entity
 def contentLengthDecode() -> Handler: return ContentLengthDecodeHandler()
 
-# --------------------------------------------------------------------
-# Header encoders
-
-@ioc.entity
-def contentTypeEncode() -> Handler: return ContentTypeEncodeHandler()
-
 @ioc.entity
 def contentLengthEncode() -> Handler: return ContentLengthEncodeHandler()
-
-# --------------------------------------------------------------------
-# General HTTP handlers
 
 @ioc.entity
 def methodOverride() -> Handler: return MethodOverrideHandler()

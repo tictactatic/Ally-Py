@@ -33,7 +33,7 @@ def debug_for():
 @ioc.config
 def info_for():
     '''The list of packages or module patterns to provide info for'''
-    return ['__deploy__', '__setup__']
+    return ['__deploy__', '__setup__', 'ally.design.processor']
 
 @ioc.config
 def warning_for():

@@ -11,8 +11,9 @@ Provides the decoding/encoding for the content length header.
 
 from ally.container.ioc import injected
 from ally.core.http.spec.codes import CONTENT_LENGHT_ERROR
-from ally.design.context import Context, requires, defines, optional
-from ally.design.processor import HandlerProcessorProceed
+from ally.design.processor.attribute import requires, defines, optional
+from ally.design.processor.context import Context
+from ally.design.processor.handler import HandlerProcessorProceed
 from ally.http.spec.server import IEncoderHeader, IDecoderHeader
 from ally.support.util_io import IInputStream, IClosable
 
@@ -45,7 +46,7 @@ class ResponseDecode(Context):
     code = defines(str)
     status = defines(int)
     isSuccess = defines(bool)
-    errorMessage = defines(str)
+    text = defines(str)
 
 # --------------------------------------------------------------------
 
@@ -80,7 +81,7 @@ class ContentLengthDecodeHandler(HandlerProcessorProceed):
             except ValueError:
                 if response.isSuccess is False: return  # Skip in case the response is in error
                 response.code, response.status, response.isSuccess = CONTENT_LENGHT_ERROR
-                response.errorMessage = 'Invalid value \'%s\' for header \'%s\''\
+                response.text = 'Invalid value \'%s\' for header \'%s\''\
                 ', expected an integer value' % (value, self.nameContentLength)
                 return
             else:

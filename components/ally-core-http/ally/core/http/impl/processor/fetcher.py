@@ -14,8 +14,9 @@ from ally.api.type import Input, typeFor, TypeClass, Type
 from ally.container.ioc import injected
 from ally.core.http.spec.transform.support_model import DataModel, IFetcher
 from ally.core.spec.resources import Path, Node, Invoker, INodeInvokerListener
-from ally.design.context import Context, requires, optional
-from ally.design.processor import HandlerProcessorProceed
+from ally.design.processor.attribute import requires, optional
+from ally.design.processor.context import Context
+from ally.design.processor.handler import HandlerProcessorProceed
 from weakref import WeakKeyDictionary
 import logging
 
@@ -65,6 +66,8 @@ class FetcherHandler(HandlerProcessorProceed, INodeInvokerListener):
     def process(self, request:Request, response:Response, **keyargs):
         '''
         @see: HandlerProcessorProceed.process
+        
+        Provide the fetcher.
         '''
         assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(response, Response), 'Invalid response %s' % response

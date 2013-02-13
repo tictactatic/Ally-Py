@@ -11,7 +11,7 @@ Provides the javascript setup required by browser for ajax.
 
 from .processor import updateAssemblyContent, assemblyContent, contentDelivery
 from ally.container import ioc
-from ally.design.processor import Handler
+from ally.design.processor.handler import Handler
 from ally.http.impl.processor.headers.set_fixed import HeaderSetEncodeHandler
 from ally.http.impl.processor.method_deliver_ok import DeliverOkForMethodHandler
 from ally.http.spec.server import HTTP_OPTIONS
@@ -48,4 +48,5 @@ def deliverOkForOptionsHandler() -> Handler:
 
 @ioc.after(updateAssemblyContent)
 def updateAssemblyContentAjax():
-    if ajax_cross_domain(): assemblyContent().add(headerSetAjax(), deliverOkForOptionsHandler(), before=contentDelivery())
+    if ajax_cross_domain():
+        assemblyContent().add(headerSetAjax(), deliverOkForOptionsHandler(), before=contentDelivery())

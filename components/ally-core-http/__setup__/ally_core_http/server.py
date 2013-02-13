@@ -13,7 +13,7 @@ from ..ally_http.server import updateAssemblyServer, assemblyServer
 from .processor import assemblyResources
 from .processor_error import assemblyErrorDelivery
 from ally.container import ioc
-from ally.design.processor import Handler
+from ally.design.processor.handler import Handler
 from ally.http.impl.processor.router_by_path import RoutingByPathHandler
 
 # --------------------------------------------------------------------
@@ -49,7 +49,6 @@ def server_pattern_errors():
 @ioc.entity
 def resourcesRouter() -> Handler:
     b = RoutingByPathHandler()
-    b.name = 'REST resources'
     b.assembly = assemblyResources()
     b.pattern = server_pattern_rest()
     return b
@@ -57,7 +56,6 @@ def resourcesRouter() -> Handler:
 @ioc.entity
 def errorsRouter() -> Handler:
     b = RoutingByPathHandler()
-    b.name = 'REST errors'
     b.assembly = assemblyErrorDelivery()
     b.pattern = server_pattern_errors()
     return b

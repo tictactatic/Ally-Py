@@ -10,19 +10,22 @@ Provides the gateway filter processor.
 '''
 
 from ally.container.ioc import injected
-from ally.design.context import Context, requires, defines
-from ally.design.processor import HandlerProcessorProceed, Assembly, \
-    ONLY_AVAILABLE, NO_MISSING_VALIDATION, CREATE_REPORT, Processing, Chain
+from ally.design.processor.assembly import Assembly
+from ally.design.processor.attribute import requires, defines
+from ally.design.processor.context import Context
+from ally.design.processor.execution import Processing, Chain
+from ally.design.processor.handler import HandlerBranchingProceed
+from ally.design.processor.processor import Using
 from ally.gateway.http.spec.gateway import IRepository, Match, Gateway
+from ally.http.spec.codes import FORBIDDEN_ACCESS
 from ally.http.spec.server import HTTP, RequestHTTP, ResponseContentHTTP, \
-    RequestContentHTTP, ResponseHTTP, HTTP_GET
+    ResponseHTTP, HTTP_GET, RequestContentHTTP
 from ally.support.util_io import IInputStream
 from babel.compat import BytesIO
 from urllib.parse import urlparse, parse_qsl
 import codecs
 import json
 import logging
-from ally.http.spec.codes import FORBIDDEN_ACCESS
 
 # --------------------------------------------------------------------
 
@@ -67,7 +70,7 @@ class ResponseContentFilter(ResponseContentHTTP):
 # --------------------------------------------------------------------
 
 @injected
-class GatewayFilterHandler(HandlerProcessorProceed):
+class GatewayFilterHandler(HandlerBranchingProceed):
     '''
     Implementation for a handler that provides the gateway filter.
     '''
@@ -83,19 +86,14 @@ class GatewayFilterHandler(HandlerProcessorProceed):
         assert isinstance(self.scheme, str), 'Invalid scheme %s' % self.scheme
         assert isinstance(self.mimeTypeJson, str), 'Invalid json mime type %s' % self.mimeTypeJson
         assert isinstance(self.assembly, Assembly), 'Invalid assembly %s' % self.assembly
-        super().__init__()
+        super().__init__(Using(self.assembly, False, request=RequestFilter, requestCnt=RequestContentHTTP,
+                               response=ResponseHTTP, responseCnt=ResponseContentFilter))
 
-        processing, report = self.assembly.create(ONLY_AVAILABLE, NO_MISSING_VALIDATION, CREATE_REPORT,
-                                                  request=RequestFilter, requestCnt=RequestContentHTTP,
-                                                  response=ResponseHTTP, responseCnt=ResponseContentFilter)
-
-        log.info('Assembly report for Filter:\n%s', report)
-        self._processing = processing
-
-    def process(self, request:Request, response:Response, **keyargs):
+    def process(self, processing, request:Request, response:Response, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerBranchingProceed.process
         '''
+        assert isinstance(processing, Processing), 'Invalid processing %s' % processing
         assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(response, Response), 'Invalid response %s' % response
         if Request.match not in request: return  # No filtering is required if there is no match on request
@@ -114,7 +112,7 @@ class GatewayFilterHandler(HandlerProcessorProceed):
                 except IndexError: raise Exception('Invalid filter URI \'%s\' for groups %s' % (filterURI, match.groupsURI))
                 
                 isAllowed = cache.get(filterURI)
-                if isAllowed is None: isAllowed = cache[filterURI] = self.checkFilter(filterURI)
+                if isAllowed is None: isAllowed = cache[filterURI] = self.checkFilter(processing, filterURI)
                 
                 if not isAllowed:
                     response.code, response.status, response.isSuccess = FORBIDDEN_ACCESS
@@ -123,19 +121,21 @@ class GatewayFilterHandler(HandlerProcessorProceed):
                 
     # ----------------------------------------------------------------
     
-    def checkFilter(self, uri):
+    def checkFilter(self, processing, uri):
         '''
         Checks the filter URI.
         
+        @param processing: Processing
+            The processing used for delivering the request.
         @param uri: string
             The URI to call, parameters are allowed.
         @return: boolean
             True if the filter URI provided a True value, False otherwise.
         '''
+        assert isinstance(processing, Processing), 'Invalid processing %s' % processing
         assert isinstance(uri, str), 'Invalid URI %s' % uri
-        proc = self._processing
-        assert isinstance(proc, Processing), 'Invalid processing %s' % proc
-        request = proc.ctx.request()
+        
+        request = processing.ctx.request()
         assert isinstance(request, RequestFilter), 'Invalid request %s' % request
         
         url = urlparse(uri)
@@ -145,8 +145,9 @@ class GatewayFilterHandler(HandlerProcessorProceed):
         request.parameters = parse_qsl(url.query, True, False)
         request.type = self.mimeTypeJson
         
-        chain = Chain(proc)
-        chain.process(request=request, requestCnt=proc.ctx.requestCnt()).doAll()
+        chain = Chain(processing)
+        chain.process(request=request, requestCnt=processing.ctx.requestCnt(),
+                      response=processing.ctx.response(), responseCnt=processing.ctx.responseCnt()).doAll()
 
         response, responseCnt = chain.arg.response, chain.arg.responseCnt
         assert isinstance(response, ResponseHTTP), 'Invalid response %s' % response

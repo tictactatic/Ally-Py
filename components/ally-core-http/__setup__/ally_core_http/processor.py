@@ -14,9 +14,9 @@ from ..ally_core.processor import argumentsBuild, argumentsPrepare, \
     renderEncoder, invoking, default_characterset, renderer, conversion, \
     createDecoder, content
 from ..ally_core.resources import resourcesRoot
-from ..ally_http.processor import encoderPath, header, contentTypeDecode, \
-    contentLengthDecode, contentTypeEncode, contentLengthEncode, methodOverride, \
-    allowEncode
+from ..ally_http.processor import encoderPath, contentLengthDecode, \
+    contentLengthEncode, methodOverride, allowEncode, headerDecodeRequest, \
+    contentTypeRequestDecode, headerEncodeResponse, contentTypeResponseEncode
 from ally.container import ioc
 from ally.core.http.impl.processor.encoder import CreateEncoderWithPathHandler
 from ally.core.http.impl.processor.explain_error import ExplainErrorHandler
@@ -36,7 +36,8 @@ from ally.core.http.impl.processor.redirect import RedirectHandler
 from ally.core.http.impl.processor.uri import URIHandler
 from ally.core.http.spec.codes import CODE_TO_STATUS, CODE_TO_TEXT
 from ally.core.spec.resources import ConverterPath
-from ally.design.processor import Handler, Assembly
+from ally.design.processor.assembly import Assembly
+from ally.design.processor.handler import Handler
 from ally.http.impl.processor.status import StatusHandler
 
 # --------------------------------------------------------------------
@@ -162,19 +163,19 @@ def assemblyRedirect() -> Assembly:
 
 @ioc.before(assemblyResources)
 def updateAssemblyResources():
-    assemblyResources().add(internalDevelError(), header(), encoderPath(),
-                            argumentsPrepare(), uri(), methodInvoker(), redirect(),
-                            contentTypeDecode(), contentLengthDecode(), contentLanguageDecode(), acceptDecode(),
+    assemblyResources().add(internalDevelError(), headerDecodeRequest(), encoderPath(),
+                            argumentsPrepare(), uri(), methodInvoker(), headerEncodeResponse(), redirect(),
+                            contentTypeRequestDecode(), contentLengthDecode(), contentLanguageDecode(), acceptDecode(),
                             renderer(), conversion(), createDecoder(), createEncoderWithPath(), parserMultiPart(), content(),
                             parameter(), fetcher(), argumentsBuild(), invoking(), renderEncoder(),
-                            status(), explainError(), contentTypeEncode(), contentLanguageEncode(),
-                            contentLengthEncode(), allowEncode())
+                            status(), explainError(), contentTypeResponseEncode(),
+                            contentLanguageEncode(), contentLengthEncode(), allowEncode())
     
     if allow_method_override(): assemblyResources().add(methodOverride(), before=methodInvoker())
 
 @ioc.before(assemblyMultiPartPopulate)
 def updateAssemblyMultiPartPopulate():
-    assemblyMultiPartPopulate().add(header(), contentTypeDecode(), contentDispositionDecode())
+    assemblyMultiPartPopulate().add(headerDecodeRequest(), contentTypeRequestDecode(), contentDispositionDecode())
 
 @ioc.before(assemblyRedirect)
 def updateAssemblyRedirect():

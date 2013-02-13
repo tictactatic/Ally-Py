@@ -10,8 +10,9 @@ Provides the gateway error parameters populating.
 '''
 
 from ally.container.ioc import injected
-from ally.design.context import Context, requires, defines
-from ally.design.processor import HandlerProcessorProceed
+from ally.design.processor.attribute import requires, defines
+from ally.design.processor.context import Context
+from ally.design.processor.handler import HandlerProcessorProceed
 from ally.http.spec.codes import METHOD_NOT_AVAILABLE
 import logging
 
@@ -58,6 +59,8 @@ class GatewayErrorHandler(HandlerProcessorProceed):
     def process(self, request:Request, response:Response, **keyargs):
         '''
         @see: HandlerProcessorProceed.process
+        
+        Places the error.
         '''
         assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(response, Response), 'Invalid response %s' % response

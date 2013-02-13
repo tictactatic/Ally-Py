@@ -12,7 +12,8 @@ Runs the basic web server.
 from . import server_type, server_version, server_host, server_port
 from .processor import assemblyNotFound
 from ally.container import ioc
-from ally.design.processor import Assembly, Handler
+from ally.design.processor.assembly import Assembly
+from ally.design.processor.handler import Handler
 from ally.http.impl.processor.router_by_path import RoutingByPathHandler
 from ally.http.server import server_basic
 from threading import Thread
@@ -46,7 +47,6 @@ def serverBasic():
 @ioc.entity
 def notFoundRouter() -> Handler:
     b = RoutingByPathHandler()
-    b.name = 'NOT FOUND'
     b.assembly = assemblyNotFound()
     b.pattern = '(?:.*)'
     return b
@@ -59,4 +59,5 @@ def updateAssemblyServer():
 
 @ioc.start
 def runServer():
-    if server_type() == 'basic': Thread(name='HTTP server thread', target=server_basic.run, args=(serverBasic(),)).start()
+    if server_type() == 'basic':
+        Thread(name='HTTP server thread', target=server_basic.run, args=(serverBasic(),)).start()

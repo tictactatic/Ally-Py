@@ -11,7 +11,7 @@ Provides utility functions for handling system packages/modules/classes.
 
 from collections import deque
 from inspect import isclass, ismodule, stack, isfunction, getsourcelines, \
-    getsourcefile
+    getsourcefile, ismethod
 from os.path import dirname, relpath
 from pkgutil import iter_modules, get_importer, iter_importers, \
     iter_importer_modules
@@ -99,7 +99,7 @@ def locationStack(located):
         except IOError: return '\n  Generated class "%s.%s"' % (located.__module__, located.__name__)
         return '\n  File "%s", line %i' % (getsourcefile(located), line)
     else:
-        assert isfunction(located), 'Invalid function or class %s' % located
+        assert isfunction(located) or ismethod(located), 'Invalid function or class %s' % located
         return '\n  File "%s", line %i, in %s' % (located.__code__.co_filename, located.__code__.co_firstlineno,
                                                   located.__name__)
 

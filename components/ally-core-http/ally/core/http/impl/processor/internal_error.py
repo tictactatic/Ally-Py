@@ -10,8 +10,8 @@ Provide the internal error representation. This is usually when the server fails
 '''
 
 from ally.container.ioc import injected
-from ally.design.context import defines
-from ally.design.processor import Chain, Function, Handler
+from ally.design.processor.attribute import defines
+from ally.design.processor.execution import Chain
 from ally.exception import DevelError
 from ally.http.impl.processor.internal_error import InternalErrorHandler, \
     ResponseContent, Response
@@ -46,12 +46,13 @@ class InternalDevelErrorHandler(InternalErrorHandler):
         Construct the internal development error handler.
         '''
         assert isinstance(self.errorHeaders, dict), 'Invalid error headers %s' % self.errorHeaders
-        Handler.__init__(self, Function(dict(response=ResponseDevel, responseCnt=ResponseContent), self.process))
+        super().__init__(response=ResponseDevel)
             
     def handleError(self, chain):
         '''
-        Handle the error.
         @see: InternalErrorHandler.handleError
+        
+        Handle the error.
         '''
         assert isinstance(chain, Chain), 'Invalid processors chain %s' % chain
         try: response = chain.arg.response

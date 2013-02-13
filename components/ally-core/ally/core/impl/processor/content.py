@@ -14,8 +14,9 @@ from ally.api.type import Input
 from ally.container.ioc import injected
 from ally.core.spec.codes import CONTENT_EXPECTED
 from ally.core.spec.resources import Invoker
-from ally.design.context import Context, requires, optional, asData, defines
-from ally.design.processor import HandlerProcessorProceed
+from ally.design.processor.attribute import requires, defines, optional
+from ally.design.processor.context import Context, asData
+from ally.design.processor.handler import HandlerProcessorProceed
 from ally.support.util_io import IInputStream
 from collections import Callable
 import logging
@@ -69,15 +70,11 @@ class ContentHandler(HandlerProcessorProceed):
     Handler that provides the content as an argument if required.
     '''
 
-    def __init__(self):
-        '''
-        Construct the content handler.
-        '''
-        super().__init__()
-
     def process(self, request:Request, response:Response, requestCnt:RequestContent=None, **keyargs):
         '''
         @see: HandlerProcessorProceed.process
+        
+        Process the content.
         '''
         assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(response, Response), 'Invalid response %s' % response

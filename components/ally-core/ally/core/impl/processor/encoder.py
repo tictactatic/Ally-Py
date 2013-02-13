@@ -19,8 +19,9 @@ from ally.core.spec.resources import Invoker, Normalizer, Converter
 from ally.core.spec.transform.exploit import IResolve, handleExploitError
 from ally.core.spec.transform.render import IRender
 from ally.core.spec.transform.support import getterOnObjIfIn
-from ally.design.context import defines, Context, requires, optional
-from ally.design.processor import HandlerProcessorProceed
+from ally.design.processor.attribute import requires, defines, optional
+from ally.design.processor.context import Context
+from ally.design.processor.handler import HandlerProcessorProceed
 from collections import Callable, Iterable, OrderedDict
 from weakref import WeakKeyDictionary
 import logging

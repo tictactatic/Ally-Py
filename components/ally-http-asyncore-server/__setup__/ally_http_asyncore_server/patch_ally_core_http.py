@@ -10,10 +10,8 @@ Provides the setup patch when the server is run with ally core http.
 '''
 
 from ..ally_http import server_type
-from .processor import dump_requests_size, dump_requests_path
+from .processor import asyncoreContent
 from ally.container import ioc
-from ally.design.processor import Handler
-from ally.http.impl.processor.asyncore_content import AsyncoreContentHandler
 import logging
 
 # --------------------------------------------------------------------
@@ -29,13 +27,6 @@ else:
     # ----------------------------------------------------------------
 
     from ..ally_core_http.processor import updateAssemblyResources, assemblyResources, parserMultiPart
-    
-    @ioc.entity
-    def asyncoreContent() -> Handler:
-        b = AsyncoreContentHandler()
-        b.dumpRequestsSize = dump_requests_size()
-        b.dumpRequestsPath = dump_requests_path()
-        return b
     
     # ----------------------------------------------------------------
     

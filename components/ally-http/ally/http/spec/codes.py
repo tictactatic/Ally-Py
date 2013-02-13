@@ -52,8 +52,11 @@ INTERNAL_ERROR = CodeHTTP('Internal error', 500, False)  # HTTP code 500 Interna
 # --------------------------------------------------------------------
 # Response gateway HTTP codes.
 
+BAD_GATEWAY = CodeHTTP('Bad Gateway', 502, False)  # HTTP code 502 Bad Gateway
+
 UNAUTHORIZED_ACCESS = CodeHTTP('Unauthorized access', 401, False)  # HTTP code 401 Unauthorized access
 
 INVALID_ACCESS = CodeHTTP('Invalid authorization', 401, False)  # HTTP code 401 Unauthorized access
 
 FORBIDDEN_ACCESS = CodeHTTP('Forbidden access', 403, False)  # HTTP code 403 Forbidden access
+
