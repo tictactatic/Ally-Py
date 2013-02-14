@@ -833,13 +833,13 @@ define('jqueryui/texteditor', ['jquery','jqueryui/widget', 'jqueryui/ext', 'jque
                 '<div class="control-group">'+
                     '<label class="control-label" for="editor-image-text">Description:</label>'+
                     '<div class="controls">'+
-                        '<input id="editor-image-text" data-option="image-text" />'+
+                        '<input id="editor-image-text" data-option="image-text" class="input-large" />'+
                     '</div>'+
                 '</div>'+
                 '<div class="control-group">'+
                     '<label class="control-label" for="editor-image-value">URL:</label>'+
                     '<div class="controls">'+
-                        '<input id="editor-image-value" data-option="image-value" />'+
+                        '<input id="editor-image-value" data-option="image-value" class="input-large" />'+
                     '</div>'+
                 '</div>'+
                 '<div class="control-group">'+
