@@ -397,7 +397,7 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
                     }
                     else if( this.data[i] != data[i] )
                     {
-                        this.changeset[i] = data[i];undefined
+                        this.changeset[i] = data[i];
                     }
                 }
                 if( $.type(data[i]) === 'object' && $.type(this.data[i]) === 'object' )
@@ -749,24 +749,33 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
                             }
 						}
                         if( !model ) {
-                            if( !list[i].isDeleted() ) {
-								self._list.push(list[i]);
+                            //console.log('is not in the collection');
+                            if(self.isCollectionDeleted(list[i])) {
+                                if( self.hasEvent('updates') ) {
+                                    updates.push(list[i]);
+                                }
+                            }
+                            else if( !list[i].isDeleted() ) {
+								//console.log('is not delete');
+                                self._list.push(list[i]);
 								changeset.push(list[i]);
                                 if( self.hasEvent('addings') ) {
                                     addings.push(list[i]);
                                 }
 							} else {
+                                //console.log('is delete');
                                 if( self.hasEvent('updates') ) {
-								    updates.push(list[i]);
-                                }					
+                                    updates.push(list[i]);
+                                }
 							}
                         }
                         else {
+                            //console.log('is in collection');
                             if( self.hasEvent('updates') ) {
                                 updates.push(model);
                             }
                             if(self.isCollectionDeleted(model)) {
-                                self._list.splice(i,1);
+                                self._list.splice(j,1);
                                 if( self.hasEvent('removeings') ) {
                                     removeings.push(model);
                                 }
