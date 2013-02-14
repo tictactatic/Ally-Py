@@ -751,23 +751,26 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
                         if( !model ) {
                             //console.log('is not in the collection');
                             if(self.isCollectionDeleted(list[i])) {
+                                //console.log('is collection deleted');
                                 if( self.hasEvent('updates') ) {
                                     updates.push(list[i]);
                                 }
                             }
-                            else if( !list[i].isDeleted() ) {
-								//console.log('is not delete');
-                                self._list.push(list[i]);
-								changeset.push(list[i]);
-                                if( self.hasEvent('addings') ) {
-                                    addings.push(list[i]);
-                                }
-							} else {
-                                //console.log('is delete');
-                                if( self.hasEvent('updates') ) {
-                                    updates.push(list[i]);
-                                }
-							}
+                            else {
+                                if( !list[i].isDeleted() ) {
+    								//console.log('is not delete');
+                                    self._list.push(list[i]);
+    								changeset.push(list[i]);
+                                    if( self.hasEvent('addings') ) {
+                                        addings.push(list[i]);
+                                    }
+    							} else {
+                                    //console.log('is delete');
+                                    if( self.hasEvent('updates') ) {
+                                        updates.push(list[i]);
+                                    }
+    							}
+                            }
                         }
                         else {
                             //console.log('is in collection');
@@ -780,15 +783,16 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
                                     removeings.push(model);
                                 }
 
-                            }
-                            if( model.isDeleted()) {
-                                model._remove();                                
-                            } else if( model.isChanged() ){
-								changeset.push(model);
-							}
-                            else {
-                                model.on('delete', function(){ self.remove(this.hash()); })
-                                        .on('garbage', function(){ this.desynced = true; });
+                            } else {
+                                if( model.isDeleted()) {
+                                    model._remove();                                
+                                } else if( model.isChanged() ){
+    								changeset.push(model);
+    							}
+                                else {
+                                    model.on('delete', function(){ self.remove(this.hash()); })
+                                            .on('garbage', function(){ this.desynced = true; });
+                                }
                             }
                         }
                     }
