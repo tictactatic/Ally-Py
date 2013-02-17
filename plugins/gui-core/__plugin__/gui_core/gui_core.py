@@ -12,7 +12,7 @@ Special package that is targeted by the IoC for processing plugins.
 from ..cdm import contentDeliveryManager
 from ..gui_core import publish_gui_resources
 from ally.cdm.spec import ICDM
-from ally.container import ioc
+from ally.container import ioc, app
 from ally.support.util_sys import callerGlobals
 import logging
 import os
@@ -44,6 +44,8 @@ def cdmGUI() -> ICDM:
     return contentDeliveryManager()
 
 # --------------------------------------------------------------------
+
+publish = app.populate(app.DEVEL, app.CHANGED) # TO be used as decorator whenever publishing GUI files
 
 def getGuiPath(file=None):
     '''Provides the file path within the plugin "gui-resources" directory'''

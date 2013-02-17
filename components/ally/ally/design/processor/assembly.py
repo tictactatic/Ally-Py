@@ -10,8 +10,8 @@ Contains the assembly support.
 '''
 
 from .execution import Processing
-from .merging import solveAttributes, iterateAttributes, createObject
-from .spec import IProcessor, AssemblyError, IAttribute
+from .merging import Merger
+from .spec import IProcessor, AssemblyError
 from abc import ABCMeta
 from collections import Iterable
 import logging
@@ -39,6 +39,17 @@ class Assembly(Container):
     '''
     The assembly provides a container for the processors.
     '''
+    
+    def __init__(self, name):
+        '''
+        Constructs the assembly.
+        
+        @param name: string
+            The name of the assembly mainly used for reporting purposes.
+        '''
+        assert isinstance(name, str), 'Invalid name %s' % name
+        super().__init__()
+        self.name = name
 
     def add(self, *processors, before=None, after=None):
         '''
@@ -110,23 +121,13 @@ class Assembly(Container):
             report: string
             A text containing the report for the processing creation
         '''
-        attributes, calls = {}, []
-        for processor in self.processors:
-            assert isinstance(processor, IProcessor)
-            processor.register(contexts, attributes, calls)
-        solveAttributes(attributes, iterateAttributes(contexts))
-
-        processing = Processing(calls, createObject(attributes))
-        
-        report = []
-        for attribute in attributes.values():
-            assert isinstance(attribute, IAttribute), 'Invalid attribute %s' % attribute
-            if not attribute.isUsed():
-                report.append('\n\tNever used %s' % attribute)
-        
-        if not report: log.info('Nothing to report, everything fits nicely')
-        else: log.info('Assembly report:%s', ''.join(report))
-        return processing
+        assert log.debug('Started %s', self) or True
+        merger = Merger(self.name, contexts)
+        merger.processNow(self.processors)
+        merger.resolve()
+        merger.processAllNext()
+        log.info('Assembly report:%s', '\n'.join(merger.report()))
+        return Processing(merger.calls(), merger.createContexts())
 
     # ----------------------------------------------------------------
 
@@ -191,3 +192,6 @@ class Assembly(Container):
             try: index = self.processors.index(after) + 1
             except ValueError: raise AssemblyError('Unknown after processor %s in assembly' % after)
         return index
+    
+    def __str__(self):
+        return '%s \'%s\' with %s processors' % (self.__class__.__name__, self.name, len(self.processors))

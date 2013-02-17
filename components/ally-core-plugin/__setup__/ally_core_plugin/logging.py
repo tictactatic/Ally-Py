@@ -10,10 +10,21 @@ Update the default logging.
 '''
 
 from ..ally.logging import info_for
+from .distribution import application_mode, APP_DEVEL
 from ally.container import ioc
+from ally.design import processor
+import __plugin__
+import logging
 
 # --------------------------------------------------------------------
 
 @ioc.before(info_for)
 def updateInfos():
-    return info_for().append('__plugin__')
+    info_for().append(__plugin__.__name__)
+
+# --------------------------------------------------------------------
+
+@ioc.start(priority=10)
+def updateDevelopment():
+    if application_mode() == APP_DEVEL:
+        logging.getLogger(processor.__name__).setLevel(logging.INFO)

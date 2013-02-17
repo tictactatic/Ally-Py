@@ -9,7 +9,7 @@ Created on Nov 24, 2011
 Provides the configurations for encoders and decoders.
 '''
 
-from ..ally_core.encoder_decoder import parsingAssembly, updateParsingAssembly
+from ..ally_core.encoder_decoder import assemblyParsing, updateAssemblyParsing
 from ally.container import ioc
 from ally.core.http.impl.processor.parser.formdata import ParseFormDataHandler
 from ally.core.http.impl.url_encoded import parseStr
@@ -45,7 +45,7 @@ def parseFormData() -> Handler:
 
 # --------------------------------------------------------------------
 
-@ioc.before(updateParsingAssembly)
-def updateParsingHTTPAssembly():
-    parsingAssembly().add(parseFormData())
-    parsingAssembly().add(parseURLEncoded())
+@ioc.before(updateAssemblyParsing)
+def updateAssemblyParsingFormData():
+    assemblyParsing().add(parseFormData())
+    assemblyParsing().add(parseURLEncoded())

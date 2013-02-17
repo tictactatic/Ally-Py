@@ -25,7 +25,7 @@ def assemblyServer() -> Assembly:
     '''
     The assembly used in processing the server requests.
     '''
-    return Assembly()
+    return Assembly('Server')
 
 # --------------------------------------------------------------------
 

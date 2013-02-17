@@ -10,7 +10,7 @@ Provides the distribution controlled events for the plugins.
 '''
 
 from __setup__.ally_core_plugin.distribution import distribution_file_path, \
-    application_mode
+    application_mode, APP_DEVEL
 from ally.container import ioc, support, app
 from ally.container.config import load, save, Config
 from os.path import isfile
@@ -52,7 +52,7 @@ def deploy():
                 log.debug('No need to execute populate event call \'%s\'', name)
             markers()[name] = executed
             
-        if application_mode() == 'devel':
+        if application_mode() == APP_DEVEL:
             for name, call in support.eventsFor(app.DEVEL):
                 executed = call()
                 log.debug('Executed development event call \'%s\' and got %s', name, executed)

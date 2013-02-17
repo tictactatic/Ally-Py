@@ -9,8 +9,9 @@ Created on Jan 5, 2012
 Provides the configurations for delivering files from the local file system.
 '''
 
-from ..ally_http.processor import contentLengthDecode, internalError, \
-    headerDecodeRequest, headerDecodeResponse, contentTypeResponseDecode
+from ..ally_http.processor import internalError
+from __setup__.ally_http.processor import headerEncodeRequest, \
+    acceptRequestEncode
 from ally.container import ioc
 from ally.container.error import ConfigError
 from ally.design.processor.assembly import Assembly
@@ -20,6 +21,8 @@ from ally.gateway.http.impl.processor.forward import GatewayForwardHandler
 from ally.gateway.http.impl.processor.place_error import GatewayErrorHandler
 from ally.gateway.http.impl.processor.respository import \
     GatewayRepositoryHandler
+from ally.gateway.http.impl.processor.respository_authorized import \
+    GatewayAuthorizedRepositoryHandler
 from ally.gateway.http.impl.processor.selector import GatewaySelectorHandler
 from ally.http.impl.processor.forward import ForwardHTTPHandler
 
@@ -45,23 +48,42 @@ def external_port():
 @ioc.config
 def gateway_uri() -> str:
     ''' The gateway URI to fetch the Gateway objects from'''
-    raise ConfigError('There is no access URI provided')
+    raise ConfigError('There is no gateway URI provided')
+
+@ioc.config
+def gateway_authorized_uri() -> str:
+    '''
+    The gateway URI to fetch the authorized Gateway objects from, this URI needs to have a marker '*' where the actual
+    authentication code will be placed
+    '''
+    raise ConfigError('There is no authorized gateway URI provided')
 
 @ioc.config
 def server_provide_gateway():
     '''
     Indicates that this server should provide the gateway service, possible values are:
-    "internal" - the gateway should be configured for using internal REST resources, this means that the
+    "%s" - the gateway should be configured for using internal REST resources, this means that the
                  ally core http component is present in python path.
-    "external" - the gateway will use an external REST resources server, you need to configure the external host and port
+    "%s" - the gateway will use an external REST resources server, you need to configure the external host and port
                  in order to make this work.
     "don't"    - if this or any other unknown value is provided then the server will not provide gateway service.
-    '''
+    ''' % (GATEWAY_INTERNAL, GATEWAY_EXTERNAL)
     return GATEWAY_INTERNAL
 
 @ioc.config
-def cleanup_interval():
-    ''' The anonymous gateway data cleanup interval, this is basically the interval the anonymous gateway refreshes the data'''
+def cleanup_interval() -> float:
+    '''
+    The anonymous gateway data cleanup interval in seconds, this is basically the interval the anonymous gateway refreshes
+    the data
+    '''
+    return 60
+
+@ioc.config
+def cleanup_authorized_interval() -> float:
+    '''
+    The authorized gateway data cleanup interval in seconds, this is the inactivity time for an authorization until it
+    gets cleared
+    '''
     return 60
 
 # --------------------------------------------------------------------
@@ -72,6 +94,14 @@ def gatewayRepository() -> Handler:
     b = GatewayRepositoryHandler()
     b.uri = gateway_uri()
     b.cleanupInterval = cleanup_interval()
+    b.assembly = assemblyRESTRequest()
+    return b
+
+@ioc.entity
+def gatewayAuthorizedRepository() -> Handler:
+    b = GatewayAuthorizedRepositoryHandler()
+    b.uri = gateway_authorized_uri()
+    b.cleanupInterval = cleanup_authorized_interval()
     b.assembly = assemblyRESTRequest()
     return b
 
@@ -107,33 +137,33 @@ def assemblyRESTRequest() -> Assembly:
     '''
     The assembly containing the handlers that will be used in processing the gateway REST requests.
     '''
-    return Assembly()
+    return Assembly('Gateway REST data')
 
 @ioc.entity
 def assemblyForward() -> Assembly:
     '''
     The assembly containing the handlers that will be used for forwarding the request.
     '''
-    return Assembly()
+    return Assembly('Gateway forward')
 
 @ioc.entity
 def assemblyGateway() -> Assembly:
     '''
     The assembly containing the handlers that will be used in processing the gateway.
     '''
-    return Assembly()
+    return Assembly('Gateway')
 
 # --------------------------------------------------------------------
     
 @ioc.before(assemblyGateway)
 def updateAssemblyGateway():
-    assemblyGateway().add(internalError(), gatewayRepository(), gatewaySelector(), gatewayFilter(), gatewayError(),
-                          gatewayForward())
+    assemblyGateway().add(internalError(), gatewayRepository(), gatewayAuthorizedRepository(), gatewaySelector(),
+                          gatewayFilter(), gatewayError(), gatewayForward())
     
 @ioc.before(assemblyRESTRequest)
 def updateAssemblyRESTRequestForExternal():
     if server_provide_gateway() == GATEWAY_EXTERNAL:
-        assemblyRESTRequest().add(externalForward(), headerDecodeResponse(), contentTypeResponseDecode())
+        assemblyRESTRequest().add(headerEncodeRequest(), acceptRequestEncode(), externalForward())
             
 @ioc.before(assemblyForward)
 def updateAssemblyForwardForExternal():

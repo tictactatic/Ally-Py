@@ -13,6 +13,6 @@ from ally.container import support
 
 # --------------------------------------------------------------------
 
-support.createEntitySetup('acl.*.impl.**.*')
+support.createEntitySetup('acl.**.impl.**.*')
 
 # --------------------------------------------------------------------

@@ -9,7 +9,7 @@ Created on Nov 24, 2011
 Provides the configurations for the processors used in handling the request.
 '''
 
-from .encoder_decoder import renderingAssembly, parsingAssembly
+from .encoder_decoder import renderingAssembly, assemblyParsing
 from ally.container import ioc
 from ally.core.impl.processor.arguments import ArgumentsPrepareHandler, \
     ArgumentsBuildHandler
@@ -89,7 +89,7 @@ def createEncoder() -> Handler: return CreateEncoderHandler()
 def parser() -> Handler:
     b = ParsingHandler()
     b.charSetDefault = default_characterset()
-    b.parsingAssembly = parsingAssembly()
+    b.parsingAssembly = assemblyParsing()
     return b
 
 @ioc.entity

@@ -110,6 +110,7 @@ class Attribute(IAttribute):
         if not isinstance(other, Attribute):
             if isFirst: return other.merge(self, False)
             raise AttrError('Cannot merge %s with %s' % (self, other))
+        assert isFirst, 'Is required to be first for merging'
         assert isinstance(other, Attribute)
         
         if self.status == REQUIRED:
@@ -129,8 +130,6 @@ class Attribute(IAttribute):
                 if not types: raise AttrError('Incompatible required types of %s, with required types of %s' % (self, other))
             
         elif self.status == DEFINED:
-            if not isFirst and other.status == REQUIRED:
-                raise AttrError('Improper order for %s, it should be before %s' % (self, other))
             status = DEFINED
             if other.status == DEFINED: 
                 types = set(self.types)
@@ -167,9 +166,9 @@ class Attribute(IAttribute):
             
         return attribute
     
-    def isForObject(self):
+    def isCreatable(self):
         '''
-        @see: IAttribute.isForObject
+        @see: IAttribute.isCreatable
         '''
         return self.status != REQUIRED
     

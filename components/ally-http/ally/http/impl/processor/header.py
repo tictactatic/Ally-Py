@@ -127,6 +127,49 @@ class HeaderDecodeResponseHandler(HandlerProcessorProceed, HeaderConfigurations)
 
 # --------------------------------------------------------------------
 
+class RequestEncode(Context):
+    '''
+    The response context.
+    '''
+    # ---------------------------------------------------------------- Optional
+    headers = optional(dict, doc='''
+    @rtype: dictionary{string, string}
+    The raw headers for the request.
+    ''')
+    # ---------------------------------------------------------------- Defined
+    encoderHeader = defines(IEncoderHeader, doc='''
+    @rtype: IEncoderPath
+    The path encoder used for encoding headers that will be used in the request.
+    ''')
+
+# --------------------------------------------------------------------
+    
+@injected
+class HeaderEncodeRequestHandler(HandlerProcessorProceed, HeaderConfigurations):
+    '''
+    Provides the request encoder for handling HTTP headers.
+    '''
+
+    def __init__(self):
+        HeaderConfigurations.__init__(self)
+        HandlerProcessorProceed.__init__(self)
+
+    def process(self, request:RequestEncode, **keyargs):
+        '''
+        @see: HandlerProcessorProceed.process
+        
+        Provide the request headers encoders.
+        '''
+        assert isinstance(request, RequestEncode), 'Invalid request %s' % request
+
+        if RequestEncode.encoderHeader not in request:  # Only add the encoder if one is not present
+            request.encoderHeader = EncoderHeader(self)
+        
+            if request.headers: request.encoderHeader.headers.update(request.headers)
+            request.headers = request.encoderHeader.headers
+            
+# --------------------------------------------------------------------
+
 class ResponseEncode(Context):
     '''
     The response context.
@@ -138,7 +181,7 @@ class ResponseEncode(Context):
     ''')
     encoderHeader = defines(IEncoderHeader, doc='''
     @rtype: IEncoderPath
-    The path encoder used for encoding paths that will be rendered in the response.
+    The path encoder used for encoding headers that will be rendered in the response.
     ''')
 
 # --------------------------------------------------------------------

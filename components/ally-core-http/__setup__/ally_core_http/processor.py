@@ -9,7 +9,7 @@ Created on Nov 24, 2011
 Provides the configurations for the processors used in handling the request.
 '''
 
-from ..ally_core.encoder_decoder import parsingAssembly
+from ..ally_core.encoder_decoder import assemblyParsing
 from ..ally_core.processor import argumentsBuild, argumentsPrepare, \
     renderEncoder, invoking, default_characterset, renderer, conversion, \
     createDecoder, content
@@ -110,7 +110,7 @@ def createEncoderWithPath() -> Handler: return CreateEncoderWithPathHandler()
 def parserMultiPart() -> Handler:
     b = ParsingMultiPartHandler()
     b.charSetDefault = default_characterset()
-    b.parsingAssembly = parsingAssembly()
+    b.parsingAssembly = assemblyParsing()
     b.populateAssembly = assemblyMultiPartPopulate()
     return b
 
@@ -143,21 +143,21 @@ def assemblyResources() -> Assembly:
     '''
     The assembly containing the handlers that will be used in processing a REST request.
     '''
-    return Assembly()
+    return Assembly('REST resources')
 
 @ioc.entity
 def assemblyMultiPartPopulate() -> Assembly:
     '''
     The assembly containing the handlers that will populate data on the next request content.
     '''
-    return Assembly()
+    return Assembly('Multipart content')
 
 @ioc.entity
 def assemblyRedirect() -> Assembly:
     '''
     The assembly containing the handlers that will be used in processing a redirect.
     '''
-    return Assembly()
+    return Assembly('Redirect')
 
 # --------------------------------------------------------------------
 

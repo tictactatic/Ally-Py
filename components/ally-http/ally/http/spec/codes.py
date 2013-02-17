@@ -45,6 +45,8 @@ PATH_FOUND = CodeHTTP('OK', 200, True)  # HTTP code 200 OK
 
 METHOD_NOT_AVAILABLE = CodeHTTP('Method not allowed', 405, False)  # HTTP code 405 Method Not Allowed
 
+BAD_REQUEST = CodeHTTP('Bad Request', 400, False)  # HTTP code 400 Bad Request
+
 HEADER_ERROR = CodeHTTP('Invalid header', 400, False)  # HTTP code 400 Bad Request
 
 INTERNAL_ERROR = CodeHTTP('Internal error', 500, False)  # HTTP code 500 Internal Server Error
@@ -52,11 +54,13 @@ INTERNAL_ERROR = CodeHTTP('Internal error', 500, False)  # HTTP code 500 Interna
 # --------------------------------------------------------------------
 # Response gateway HTTP codes.
 
+SERVICE_UNAVAILABLE = CodeHTTP('Service Unavailable', 503, False)  # HTTP code 503 Service Unavailable
+
 BAD_GATEWAY = CodeHTTP('Bad Gateway', 502, False)  # HTTP code 502 Bad Gateway
 
 UNAUTHORIZED_ACCESS = CodeHTTP('Unauthorized access', 401, False)  # HTTP code 401 Unauthorized access
 
-INVALID_ACCESS = CodeHTTP('Invalid authorization', 401, False)  # HTTP code 401 Unauthorized access
+INVALID_AUTHORIZATION = CodeHTTP('Invalid authorization', 401, False)  # HTTP code 401 Unauthorized access
 
 FORBIDDEN_ACCESS = CodeHTTP('Forbidden access', 403, False)  # HTTP code 403 Forbidden access
 

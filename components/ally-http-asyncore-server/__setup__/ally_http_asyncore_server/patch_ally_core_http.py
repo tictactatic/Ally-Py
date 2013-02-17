@@ -11,6 +11,7 @@ Provides the setup patch when the server is run with ally core http.
 
 from ..ally_http import server_type
 from .processor import asyncoreContent
+from .server import SERVER_ASYNCORE
 from ally.container import ioc
 import logging
 
@@ -32,5 +33,5 @@ else:
     
     @ioc.after(updateAssemblyResources)
     def updateAssemblyResourcesForHTTPAsyncore():
-        if server_type() == 'asyncore':
+        if server_type() == SERVER_ASYNCORE:
             assemblyResources().add(asyncoreContent(), before=parserMultiPart())

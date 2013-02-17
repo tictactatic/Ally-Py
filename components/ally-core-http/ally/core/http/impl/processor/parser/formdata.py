@@ -13,8 +13,7 @@ from ally.container.ioc import injected
 from ally.core.http.spec.codes import MUTLIPART_ERROR
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
-from ally.design.processor.execution import Chain
-from ally.design.processor.handler import HandlerProcessor
+from ally.design.processor.handler import HandlerProcessorProceed
 from ally.support.util_io import IInputStream
 from collections import Callable, deque
 from io import BytesIO
@@ -56,7 +55,7 @@ class Response(Context):
 # --------------------------------------------------------------------
 
 @injected
-class ParseFormDataHandler(HandlerProcessor):
+class ParseFormDataHandler(HandlerProcessorProceed):
     '''
     Provides the multi part form data content handler processor.
     '''
@@ -89,15 +88,14 @@ class ParseFormDataHandler(HandlerProcessor):
 
         self._reMultipart = re.compile(self.regexMultipart)
 
-    def process(self, chain, requestCnt:RequestContent, response:Response, **keyargs):
+    def process(self, requestCnt:RequestContent, response:Response, **keyargs):
         '''
-        @see: HandlerProcessor.process
+        @see: HandlerProcessorProceed.process
+        
+        Process the multi part data.
         '''
-        assert isinstance(chain, Chain), 'Invalid processors chain %s' % chain
         assert isinstance(requestCnt, RequestContent), 'Invalid request content %s' % requestCnt
         assert isinstance(response, Response), 'Invalid response %s' % response
-
-        chain.proceed()
 
         if RequestContent.previousContent not in requestCnt: return
         # If there is no previous content it means that this is not a multi part request content.

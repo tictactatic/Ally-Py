@@ -14,7 +14,10 @@ from ally.design.processor.assembly import Assembly
 from ally.design.processor.handler import Handler
 from ally.http.impl.processor.deliver_code import DeliverCodeHandler
 from ally.http.impl.processor.header import HeaderDecodeRequestHandler, \
-    HeaderDecodeResponseHandler, HeaderEncodeResponseHandler
+    HeaderDecodeResponseHandler, HeaderEncodeResponseHandler, \
+    HeaderEncodeRequestHandler
+from ally.http.impl.processor.headers.accept import AcceptRequestDecodeHandler, \
+    AcceptRequestEncodeHandler
 from ally.http.impl.processor.headers.allow import AllowEncodeHandler
 from ally.http.impl.processor.headers.content_length import \
     ContentLengthDecodeHandler, ContentLengthEncodeHandler
@@ -49,7 +52,16 @@ def headerDecodeRequest() -> Handler:
 def headerDecodeResponse() -> Handler: return HeaderDecodeResponseHandler()
 
 @ioc.entity
+def headerEncodeRequest() -> Handler: return HeaderEncodeRequestHandler()
+
+@ioc.entity
 def headerEncodeResponse() -> Handler: return HeaderEncodeResponseHandler()
+
+@ioc.entity
+def acceptRequestDecode() -> Handler: return AcceptRequestDecodeHandler()
+
+@ioc.entity
+def acceptRequestEncode() -> Handler: return AcceptRequestEncodeHandler()
 
 @ioc.entity
 def contentTypeRequestDecode() -> Handler: return ContentTypeRequestDecodeHandler()
@@ -88,7 +100,7 @@ def assemblyNotFound() -> Assembly:
     '''
     The assembly containing the handlers that will be used in processing a not found request.
     '''
-    return Assembly()
+    return Assembly('Not found')
 
 # --------------------------------------------------------------------
 

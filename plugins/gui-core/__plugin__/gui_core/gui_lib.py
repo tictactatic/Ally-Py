@@ -11,8 +11,8 @@ Contains the GUI configuration setup for the node presenter plugin.
 
 from ..gui_core import publish_gui_resources
 from .gui_core import cdmGUI, getGuiPath, lib_folder_format, publishLib, \
-    getPublishedLib, gui_folder_format
-from ally.container import ioc, app
+    getPublishedLib, gui_folder_format, publish
+from ally.container import ioc
 from ally.support.util_io import openURI
 from io import BytesIO
 import logging
@@ -50,11 +50,11 @@ def server_url():
 
 # --------------------------------------------------------------------
 
-@app.populate(app.DEVEL)
-def publish():
+@publish
+def publishCore():
     publishLib('core')
 
-@ioc.after(publish)
+@ioc.after(publishCore)
 def updateStartup():
     if not publish_gui_resources(): return  # No publishing is allowed
     bootPath = lib_folder_format() % 'core/'
@@ -69,7 +69,7 @@ def updateStartup():
 
     for f in fileList: f.close()
 
-@ioc.after(publish)
+@ioc.after(publishCore)
 def updateDemoFile():
     if not publish_gui_resources(): return  # No publishing is allowed
     try:

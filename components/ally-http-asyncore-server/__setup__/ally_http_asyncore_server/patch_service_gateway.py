@@ -12,6 +12,7 @@ Provides the setup patch when the server is run with ally core http.
 from ..ally_http import server_type
 from ..ally_http.processor import headerDecodeRequest, contentLengthDecode
 from .processor import asyncoreContent
+from .server import SERVER_ASYNCORE
 from ally.container import ioc
 import logging
 
@@ -27,17 +28,12 @@ else:
     ally_gateway = ally_gateway  # Just to avoid the import warning
     # ----------------------------------------------------------------
 
-    from ..ally_gateway.processor import updateAssemblyRESTRequestForExternal, updateAssemblyForwardForExternal, \
-    server_provide_gateway, assemblyRESTRequest, assemblyForward, externalForward, GATEWAY_EXTERNAL
+    from ..ally_gateway.processor import updateAssemblyForwardForExternal, server_provide_gateway, \
+    assemblyForward, externalForward, GATEWAY_EXTERNAL
     
     # ----------------------------------------------------------------
-    
-    @ioc.after(updateAssemblyRESTRequestForExternal)
-    def updateAssemblyRESTRequestForHTTPAsyncore():
-        if server_type() == 'asyncore' and server_provide_gateway() == GATEWAY_EXTERNAL:
-            assemblyRESTRequest().add(headerDecodeRequest(), contentLengthDecode(), asyncoreContent(), before=externalForward())
             
     @ioc.after(updateAssemblyForwardForExternal)
     def updateAssemblyForwardForHTTPAsyncore():
-        if server_type() == 'asyncore' and server_provide_gateway() == GATEWAY_EXTERNAL:
+        if server_type() == SERVER_ASYNCORE and server_provide_gateway() == GATEWAY_EXTERNAL:
             assemblyForward().add(headerDecodeRequest(), contentLengthDecode(), asyncoreContent(), before=externalForward())

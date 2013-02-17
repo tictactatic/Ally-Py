@@ -42,7 +42,7 @@ def assemblyErrorDelivery() -> Assembly:
     '''
     The assembly containing the handlers that will be used in delivery for the error responses.
     '''
-    return Assembly()
+    return Assembly('Error delivery')
 
 # --------------------------------------------------------------------
     

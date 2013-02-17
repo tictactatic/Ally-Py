@@ -48,6 +48,4 @@ def metas(): return []
 
 @app.populate(app.DEVEL, app.CHANGED, priority=1)
 def createTables():
-    for meta in metas():
-        log.info('Create tables for meta %s', meta)
-        meta.create_all(alchemyEngine())
+    for meta in metas(): meta.create_all(alchemyEngine())

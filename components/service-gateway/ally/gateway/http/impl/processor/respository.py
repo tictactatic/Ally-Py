@@ -11,12 +11,13 @@ Provides the gateway repository processor.
 
 from ally.container.ioc import injected
 from ally.design.processor.assembly import Assembly
-from ally.design.processor.attribute import requires, defines
+from ally.design.processor.attribute import defines
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Processing, Chain
 from ally.design.processor.handler import HandlerBranchingProceed
 from ally.design.processor.processor import Using
 from ally.gateway.http.spec.gateway import IRepository, Gateway, Match
+from ally.http.spec.codes import BAD_GATEWAY
 from ally.http.spec.server import RequestHTTP, ResponseHTTP, ResponseContentHTTP, \
     HTTP_GET, HTTP, RequestContentHTTP
 from ally.support.util_io import IInputStream
@@ -41,20 +42,26 @@ class Request(Context):
     '''
     # ---------------------------------------------------------------- Defined
     repository = defines(IRepository)
+    
+class Response(Context):
+    '''
+    The response context.
+    '''
+    # ---------------------------------------------------------------- Defined
+    code = defines(str)
+    status = defines(int)
+    isSuccess = defines(bool)
+    text = defines(str)
+
+# --------------------------------------------------------------------
 
 class RequestGateway(RequestHTTP):
     '''
     The request gateway context.
     '''
     # ---------------------------------------------------------------- Defined
-    type = defines(str)
-
-class ResponseContentGateway(ResponseContentHTTP):
-    '''
-    The response gateway content context.
-    '''
-    # ---------------------------------------------------------------- Required
-    charSet = requires(str)
+    accTypes = defines(list)
+    accCharSets = defines(list)
 
 # --------------------------------------------------------------------
 
@@ -69,6 +76,8 @@ class GatewayRepositoryHandler(HandlerBranchingProceed):
     # The scheme to be used in fetching the Gateway objects.
     mimeTypeJson = 'json'
     # The json mime type to be sent for the gateway requests.
+    encodingJson = 'utf-8'
+    # The json encoding to be sent for the gateway requests.
     uri = str
     # The URI used in fetching the gateways.
     cleanupInterval = float
@@ -79,16 +88,15 @@ class GatewayRepositoryHandler(HandlerBranchingProceed):
     def __init__(self):
         assert isinstance(self.scheme, str), 'Invalid scheme %s' % self.scheme
         assert isinstance(self.mimeTypeJson, str), 'Invalid json mime type %s' % self.mimeTypeJson
+        assert isinstance(self.encodingJson, str), 'Invalid json encoding %s' % self.encodingJson
         assert isinstance(self.uri, str), 'Invalid URI %s' % self.uri
         assert isinstance(self.cleanupInterval, int), 'Invalid cleanup interval %s' % self.cleanupInterval
         assert isinstance(self.assembly, Assembly), 'Invalid assembly %s' % self.assembly
-        super().__init__(Using(self.assembly, False, request=RequestGateway, requestCnt=RequestContentHTTP,
-                               response=ResponseHTTP, responseCnt=ResponseContentGateway))
-        
-        self._repository = None
-        self.startCleanupThread('Cleanup gateways thread')
+        super().__init__(Using(self.assembly, request=RequestGateway, requestCnt=RequestContentHTTP,
+                               response=ResponseHTTP, responseCnt=ResponseContentHTTP))
+        self.initialize()
 
-    def process(self, processing, request:Request, **keyargs):
+    def process(self, processing, request:Request, response:Response, **keyargs):
         '''
         @see: HandlerBranchingProceed.process
         
@@ -96,11 +104,20 @@ class GatewayRepositoryHandler(HandlerBranchingProceed):
         '''
         assert isinstance(processing, Processing), 'Invalid processing %s' % processing
         assert isinstance(request, Request), 'Invalid request %s' % request
-        if not self._repository: self._repository = Repository(self.obtainGateways(processing, self.uri))
+        assert isinstance(response, Response), 'Invalid response %s' % response
+        
+        if not self._repository:
+            robj, status, text = self.obtainGateways(processing, self.uri)
+            if robj is None:
+                log.info('Cannot fetch the gateways from URI \'%s\', with response %s %s', self.uri, status, text)
+                response.code, response.status, response.isSuccess = BAD_GATEWAY
+                response.text = text
+                return
+            self._repository = Repository(robj)
         request.repository = self._repository
         
     # ----------------------------------------------------------------
-    
+   
     def obtainGateways(self, processing, uri):
         '''
         Get the gateway objects representation.
@@ -109,8 +126,9 @@ class GatewayRepositoryHandler(HandlerBranchingProceed):
             The processing used for delivering the request.
         @param uri: string
             The URI to call, parameters are allowed.
-        @return: dictionary{...}
-            The gateway objects representation.
+        @return: tuple(dictionary{...}|None, integer, string)
+            A tuple containing as the first position the gateway objects representation, None if the gateways cannot be fetched,
+            on the second position the response status and on the last position the response text.
         '''
         assert isinstance(processing, Processing), 'Invalid processing %s' % processing
         assert isinstance(uri, str), 'Invalid URI %s' % uri
@@ -123,7 +141,8 @@ class GatewayRepositoryHandler(HandlerBranchingProceed):
         request.headers = {}
         request.uri = url.path.lstrip('/')
         request.parameters = parse_qsl(url.query, True, False)
-        request.type = self.mimeTypeJson
+        request.accTypes = [self.mimeTypeJson]
+        request.accCharSets = [self.encodingJson]
         
         chain = Chain(processing)
         chain.process(request=request, requestCnt=processing.ctx.requestCnt(),
@@ -131,11 +150,9 @@ class GatewayRepositoryHandler(HandlerBranchingProceed):
 
         response, responseCnt = chain.arg.response, chain.arg.responseCnt
         assert isinstance(response, ResponseHTTP), 'Invalid response %s' % response
-        assert isinstance(responseCnt, ResponseContentGateway), 'Invalid response content %s' % responseCnt
-        assert responseCnt.source is not None, 'Cannot fetch the gateways content from URI \'%s\', has a response %s %s' % \
-        (uri, response.status, response.text or response.code)
-        assert responseCnt.charSet, 'No character set available for response %s %s' % \
-        (uri, response.status, response.text or response.code)
+        assert isinstance(responseCnt, ResponseContentHTTP), 'Invalid response content %s' % responseCnt
+        
+        if responseCnt.source is None: return None, response.status, response.text or response.code
         
         if isinstance(responseCnt.source, IInputStream):
             source = responseCnt.source
@@ -143,8 +160,17 @@ class GatewayRepositoryHandler(HandlerBranchingProceed):
             source = BytesIO()
             for bytes in responseCnt.source: source.write(bytes)
             source.seek(0)
-        return json.load(codecs.getreader(responseCnt.charSet)(source))
+        return json.load(codecs.getreader(self.encodingJson)(source)), response.status, response.text or response.code
+
+    # ----------------------------------------------------------------
     
+    def initialize(self):
+        '''
+        Initialize the repository.
+        '''
+        self._repository = None
+        self.startCleanupThread('Cleanup gateways thread')
+   
     def startCleanupThread(self, name):
         '''
         Starts the cleanup thread.

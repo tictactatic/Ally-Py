@@ -17,12 +17,17 @@ from threading import Thread
 
 # --------------------------------------------------------------------
 
+SERVER_ASYNCORE = 'asyncore'
+# The asyncore server name
+
+# --------------------------------------------------------------------
+
 @ioc.replace(server_type)
 def server_type_asyncore():
     '''
-    "asyncore" - server made based on asyncore package, fast (runs on a single CPU) and reliable.
-    '''
-    return 'asyncore'
+    "%s" - server made based on asyncore package, fast (runs on a single CPU) and reliable.
+    ''' % SERVER_ASYNCORE
+    return SERVER_ASYNCORE
 
 # --------------------------------------------------------------------
 
@@ -43,5 +48,5 @@ def serverAsyncore():
 
 @ioc.start
 def runServer():
-    if server_type() == 'asyncore':
+    if server_type() == SERVER_ASYNCORE:
         Thread(name='HTTP server thread', target=server_asyncore.run, args=(serverAsyncore(),)).start()

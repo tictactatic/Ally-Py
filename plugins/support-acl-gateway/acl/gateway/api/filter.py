@@ -1,20 +1,20 @@
 '''
 Created on Jan 14, 2013
 
-@package: security acl
+@package: gateway acl
 @copyright: 2012 Sourcefabric o.p.s.
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
 
-API specifications for security filter.
+API specifications for gateway filter.
 '''
 
-from security.api.domain_security import modelSecurity
+from .domain_filter import modelFilter
 import abc
 
 # --------------------------------------------------------------------
 
-@modelSecurity
+@modelFilter
 class IsAllowed:
     '''
     Provides the model that provides the allowed access.

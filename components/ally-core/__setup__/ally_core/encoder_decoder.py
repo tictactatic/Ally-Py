@@ -73,14 +73,14 @@ def renderingAssembly() -> Assembly:
     '''
     The assembly containing the response renders.
     '''
-    return Assembly()
+    return Assembly('Renderer selection')
 
 @ioc.entity
-def parsingAssembly() -> Assembly:
+def assemblyParsing() -> Assembly:
     '''
     The assembly containing the request parsers.
     '''
-    return Assembly()
+    return Assembly('Parsing request content')
 
 @ioc.entity
 def renderJSON() -> Handler:
@@ -122,10 +122,10 @@ def parseXML() -> Handler:
 
 # --------------------------------------------------------------------
 
-@ioc.before(parsingAssembly)
-def updateParsingAssembly():
-    parsingAssembly().add(parseJSON())
-    parsingAssembly().add(parseXML())
+@ioc.before(assemblyParsing)
+def updateAssemblyParsing():
+    assemblyParsing().add(parseJSON())
+    assemblyParsing().add(parseXML())
 
 try: import yaml
 except ImportError: log.info('No YAML library available, no yaml available for output or input')
@@ -157,6 +157,6 @@ else:
         b.parser = parserYAML
         b.parserName = 'yaml'
         
-    @ioc.before(parsingAssembly)
-    def updateParsingAssemblyWithYAML():
-        parsingAssembly().add(parseYAML())
+    @ioc.before(assemblyParsing)
+    def updateAssemblyParsingWithYAML():
+        assemblyParsing().add(parseYAML())

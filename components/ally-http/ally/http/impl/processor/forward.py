@@ -20,6 +20,8 @@ from http.client import HTTPConnection
 from io import BytesIO
 from urllib.parse import urlencode, urlunsplit
 import logging
+import socket
+from ally.http.spec.codes import SERVICE_UNAVAILABLE
 
 # --------------------------------------------------------------------
 
@@ -52,7 +54,6 @@ class Response(Context):
     # ---------------------------------------------------------------- Defined
     code = defines(str)
     status = defines(int)
-    isSuccess = defines(bool)
     text = defines(str)
     headers = defines(dict)
 
@@ -105,7 +106,13 @@ class ForwardHTTPHandler(HandlerProcessorProceed):
         else: parameters = None
         
         connection = HTTPConnection(self.externalHost, self.externalPort)
-        connection.request(request.method, urlunsplit(('', '', '/%s' % request.uri, parameters, '')), body, request.headers)
+        try:
+            connection.request(request.method, urlunsplit(('', '', '/%s' % request.uri, parameters, '')), body, request.headers)
+        except socket.error as e:
+            response.code, response.status, _isSuccess = SERVICE_UNAVAILABLE
+            if e.errno == 111: response.text = 'Connection refused'
+            else: response.text = str(e)
+            return
         
         rsp = connection.getresponse()
         response.status = rsp.status

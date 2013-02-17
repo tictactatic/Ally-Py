@@ -41,7 +41,7 @@ def assemblyContent() -> Assembly:
     '''
     The assembly containing the handlers that will be used in processing a content file request.
     '''
-    return Assembly()
+    return Assembly('CDM')
 
 # --------------------------------------------------------------------
 

@@ -19,6 +19,11 @@ VERSION = '1.0'
 DESCRIPTION = 'Provides the HTTP communication support'
 
 # --------------------------------------------------------------------
+
+SERVER_BASIC = 'basic'
+# The basic server name
+
+# --------------------------------------------------------------------
 # The default configurations
 
 @ioc.config
@@ -26,8 +31,8 @@ def server_type() -> str:
     '''
     The type of the server to use, the options are:
     "basic"- single threaded server, the safest but slowest server to use.
-    '''
-    return 'basic'
+    ''' % SERVER_BASIC
+    return SERVER_BASIC
 
 @ioc.config
 def server_host() -> str:

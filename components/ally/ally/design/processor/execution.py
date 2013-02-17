@@ -70,6 +70,22 @@ class Processing:
     @rtype: Iterable(call)
     The iterable containing the calls of this processing.
     ''')
+    
+    def update(self, **contexts):
+        '''
+        Used to update the contexts of the processing.
+
+        @param contexts: dictionary{string, ContextMetaClass}
+            The contexts to update with.
+        @return: this processing
+            This processing for chaining purposes.
+        '''
+        if __debug__:
+            for key, clazz in contexts.items():
+                assert isinstance(key, str), 'Invalid context name %s' % key
+                assert isinstance(clazz, ContextMetaClass), 'Invalid context class %s for %s' % (clazz, key)
+        self.ctx.__dict__.update(contexts)
+        return self
 
 class Chain:
     '''

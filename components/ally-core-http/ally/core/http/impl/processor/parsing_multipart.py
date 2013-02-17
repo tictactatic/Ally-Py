@@ -18,7 +18,7 @@ from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain, Processing
-from ally.design.processor.processor import Using
+from ally.design.processor.processor import Included
 from ally.exception import DevelError
 from ally.support.util_io import IInputStream, IClosable
 from collections import Callable
@@ -133,8 +133,7 @@ class ParsingMultiPartHandler(ParsingHandler, DataMultiPart):
         assert isinstance(self.attrBoundary, str), 'Invalid attribute boundary name %s' % self.attrBoundary
         assert isinstance(self.populateAssembly, Assembly), 'Invalid populate assembly %s' % self.populateAssembly
         DataMultiPart.__init__(self)
-        ParsingHandler.__init__(self, Using(self.populateAssembly, request=RequestPopulate))
-
+        ParsingHandler.__init__(self, Included(self.populateAssembly).using(request=RequestPopulate))
         self._reMultipart = re.compile(self.regexMultipart)
 
     def process(self, chain, populate, parsing, request:Request, requestCnt:RequestContentMultiPart,
@@ -401,7 +400,7 @@ class NextContent:
                     if stream._flag & FLAG_END: return
 
             req = processing.ctx.request()
-            self._nextCnt = reqCnt = processing.ctx.requestCnt()
+            self._nextCnt = reqCnt = self._requestCnt.__class__()
             assert isinstance(req, RequestPopulate), 'Invalid request %s' % req
             assert isinstance(reqCnt, RequestContentMultiPart), 'Invalid request content %s' % reqCnt
 
@@ -411,6 +410,6 @@ class NextContent:
             reqCnt.source = stream
             reqCnt.fetchNextContent = NextContent(reqCnt, self._response, self._processing, self._data, stream)
             reqCnt.previousContent = self._requestCnt
-            Chain(self._processing).process(request=req, requestCnt=reqCnt, response=self._response).doAll()
-
-            return reqCnt
+            
+            chain = Chain(self._processing).process(request=req, requestCnt=reqCnt, response=self._response)
+            return chain.doAll().arg.requestCnt

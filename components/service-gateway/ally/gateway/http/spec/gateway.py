@@ -119,7 +119,7 @@ class IRepository(metaclass=abc.ABCMeta):
         '''
     
     @abc.abstractmethod
-    def allowsFor(self, headers=None, uri=None, error=None):
+    def allowsFor(self, headers=None, uri=None):
         '''
         Provides the allowed methods for the provided parameters.
         
@@ -127,9 +127,6 @@ class IRepository(metaclass=abc.ABCMeta):
             The headers to be matched for the gateway.
         @param uri: string|None
             The URI that needs to match the gateway patterns.
-        @param error: integer|None
-            The error to be matched for the gateway. If an error is provided then only the matchings that resolve errors will
-            be returned.
         @return: set(string)
             The list of allowed methods.
         '''

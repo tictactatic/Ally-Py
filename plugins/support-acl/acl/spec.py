@@ -12,6 +12,7 @@ Provides the ACL specifications.
 from ally.api.operator.type import TypeProperty
 from ally.api.type import typeFor
 from collections import Iterable
+from itertools import chain
 import abc
 
 # --------------------------------------------------------------------
@@ -98,7 +99,7 @@ class RightBase(metaclass=abc.ABCMeta):
             The right name.
         @param description: string
             The description for the right.
-        @param type: Type|None
+        @param type: TypeAcl|None
             The type of the right.
         '''
         assert isinstance(name, str), 'Invalid name %s' % name
@@ -193,6 +194,31 @@ class TypeAcl:
         for right in self._rights.values():
             assert isinstance(right, RightBase)
             if right.hasPermissions(node, method): yield right
+            
+    def activeRightsFor(self, node, *names, method=None):
+        '''
+        Provides the active rights based on the provided parameters.
+        
+        @param node: Node
+            The node to provide the active types for.
+        @param names: arguments[string|Iterable(string)]
+            The right names to provide the rights for.
+        @param method: integer|None
+            The method to get the types rights for, if None then all methods are considered.
+        @return: Iterable(RightBase)
+            The active rights based on the provided data.
+        '''
+        if names:
+            aclNames = namesOf(names)
+            if not aclNames: return
+        else: aclNames = None
+        
+        if aclNames is not None:
+            for right in self.activeRights(node, method=method):
+                assert isinstance(right, RightBase)
+                if right.name in aclNames: yield right
+        else:
+            for right in self.activeRights(node, method=method): yield right
 
 class Acl:
     '''
@@ -209,7 +235,7 @@ class Acl:
         '''
         Add a new ACL type that is binded to this ACL repository.
         
-        @param type: Type
+        @param type: TypeAcl
             The ACL type to be added.
         @return: Type
             The same type.
@@ -227,10 +253,74 @@ class Acl:
             The node to provide the active types for.
         @param method: integer|None
             The method to get the types rights for, if None then all methods are considered.
-        @return: Iterable(Type)
+        @return: Iterable(TypeAcl)
             The iterable of active types.
         '''
         for type in self._types.values():
             assert isinstance(type, TypeAcl)
             if type.hasPermissions(node, method): yield type
-                            
+            
+    def activeRights(self, node, method=None):
+        '''
+        Provides the rights that have valid accesses in respect with the provided node and optionally method.
+        
+        @param node: Node
+            The node to provide the active rights for.
+        @param method: integer|None
+            The method to get the active rights for, if None then all methods are considered.
+        @return: Iterable(RightBase)
+            The iterable of active rights.
+        '''
+        rights = []
+        for typeAcl in self.activeTypes(node, method):
+            assert isinstance(typeAcl, TypeAcl)
+            rights.append(typeAcl.activeRights(node, method=method))
+        return chain(*rights)
+            
+    def activeRightsFor(self, node, *names, method=None):
+        '''
+        Provides the active rights based on the provided parameters.
+        
+        @param node: Node
+            The node to provide the active types for.
+        @param names: arguments[string|Iterable(string)]
+            The right names to provide the rights for.
+        @param method: integer|None
+            The method to get the types rights for, if None then all methods are considered.
+        @return: Iterable(RightBase)
+            The active rights based on the provided data.
+        '''
+        if names:
+            aclNames = namesOf(names)
+            if not aclNames: return ()
+        else: aclNames = None
+        
+        if aclNames is not None:
+            rights = []
+            for typeAcl in self.activeTypes(node, method):
+                assert isinstance(typeAcl, TypeAcl)
+                rights.append(typeAcl.activeRightsFor(node, aclNames, method=method))
+            return chain(*rights)
+        
+        return self.activeRights(node, method=method)
+
+# --------------------------------------------------------------------
+
+def namesOf(names):
+    '''
+    Compiles the names arguments into a single set of names.
+    
+    @param names: tuple(string|Iterable(string))
+        The names to compile.
+    @return: set(string)|None
+        The set containing all the names, None if no names are specified.
+    '''
+    assert isinstance(names, tuple), 'Invalid names %s' % names
+    if len(names) == 1 and isinstance(names[0], set): aclNames = names[0]
+    else:
+        aclNames = set()
+        for name in names:
+            if isinstance(name, str): aclNames.add(name)
+            assert isinstance(name, Iterable), 'Invalid name %s' % name
+            aclNames.update(name)
+    return aclNames

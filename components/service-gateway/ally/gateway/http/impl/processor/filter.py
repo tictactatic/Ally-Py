@@ -17,7 +17,7 @@ from ally.design.processor.execution import Processing, Chain
 from ally.design.processor.handler import HandlerBranchingProceed
 from ally.design.processor.processor import Using
 from ally.gateway.http.spec.gateway import IRepository, Match, Gateway
-from ally.http.spec.codes import FORBIDDEN_ACCESS
+from ally.http.spec.codes import FORBIDDEN_ACCESS, BAD_GATEWAY
 from ally.http.spec.server import HTTP, RequestHTTP, ResponseContentHTTP, \
     ResponseHTTP, HTTP_GET, RequestContentHTTP
 from ally.support.util_io import IInputStream
@@ -52,20 +52,15 @@ class Response(Context):
     code = defines(str)
     status = defines(int)
     isSuccess = defines(bool)
+    text = defines(str)
     
 class RequestFilter(RequestHTTP):
     '''
     The request filter context.
     '''
     # ---------------------------------------------------------------- Defined
-    type = defines(str)
-
-class ResponseContentFilter(ResponseContentHTTP):
-    '''
-    The response filter content context.
-    '''
-    # ---------------------------------------------------------------- Required
-    charSet = requires(str)
+    accTypes = defines(list)
+    accCharSets = defines(list)
 
 # --------------------------------------------------------------------
 
@@ -79,15 +74,18 @@ class GatewayFilterHandler(HandlerBranchingProceed):
     # The scheme to be used in calling the filters.
     mimeTypeJson = 'json'
     # The json mime type to be sent for the filter requests.
+    encodingJson = 'utf-8'
+    # The json encoding to be sent for the gateway requests.
     assembly = Assembly
     # The assembly to be used in processing the request for the filters.
     
     def __init__(self):
         assert isinstance(self.scheme, str), 'Invalid scheme %s' % self.scheme
         assert isinstance(self.mimeTypeJson, str), 'Invalid json mime type %s' % self.mimeTypeJson
+        assert isinstance(self.encodingJson, str), 'Invalid json encoding %s' % self.encodingJson
         assert isinstance(self.assembly, Assembly), 'Invalid assembly %s' % self.assembly
-        super().__init__(Using(self.assembly, False, request=RequestFilter, requestCnt=RequestContentHTTP,
-                               response=ResponseHTTP, responseCnt=ResponseContentFilter))
+        super().__init__(Using(self.assembly, request=RequestFilter, requestCnt=RequestContentHTTP,
+                               response=ResponseHTTP, responseCnt=ResponseContentHTTP))
 
     def process(self, processing, request:Request, response:Response, **keyargs):
         '''
@@ -109,10 +107,20 @@ class GatewayFilterHandler(HandlerBranchingProceed):
             for filterURI in match.gateway.filters:
                 assert isinstance(filterURI, str), 'Invalid filter %s' % filterURI
                 try: filterURI = filterURI.format(None, *match.groupsURI)
-                except IndexError: raise Exception('Invalid filter URI \'%s\' for groups %s' % (filterURI, match.groupsURI))
+                except IndexError:
+                    response.code, response.status, response.isSuccess = BAD_GATEWAY
+                    response.text = 'Invalid filter URI \'%s\' for groups %s' % (filterURI, match.groupsURI)
+                    return
                 
                 isAllowed = cache.get(filterURI)
-                if isAllowed is None: isAllowed = cache[filterURI] = self.checkFilter(processing, filterURI)
+                if isAllowed is None:
+                    isAllowed, status, text = self.obtainFilter(processing, filterURI)
+                    if isAllowed is None:
+                        log.info('Cannot fetch the filter from URI \'%s\', with response %s %s', self.uri, status, text)
+                        response.code, response.status, response.isSuccess = BAD_GATEWAY
+                        response.text = text
+                        return
+                    cache[filterURI] = isAllowed
                 
                 if not isAllowed:
                     response.code, response.status, response.isSuccess = FORBIDDEN_ACCESS
@@ -121,7 +129,7 @@ class GatewayFilterHandler(HandlerBranchingProceed):
                 
     # ----------------------------------------------------------------
     
-    def checkFilter(self, processing, uri):
+    def obtainFilter(self, processing, uri):
         '''
         Checks the filter URI.
         
@@ -131,6 +139,9 @@ class GatewayFilterHandler(HandlerBranchingProceed):
             The URI to call, parameters are allowed.
         @return: boolean
             True if the filter URI provided a True value, False otherwise.
+        @return: tuple(boolean|None, integer, string)
+            A tuple containing as the first True if the filter URI provided a True value, None if the filter cannot be fetched,
+            on the second position the response status and on the last position the response text.
         '''
         assert isinstance(processing, Processing), 'Invalid processing %s' % processing
         assert isinstance(uri, str), 'Invalid URI %s' % uri
@@ -143,7 +154,8 @@ class GatewayFilterHandler(HandlerBranchingProceed):
         request.headers = {}
         request.uri = url.path.lstrip('/')
         request.parameters = parse_qsl(url.query, True, False)
-        request.type = self.mimeTypeJson
+        request.accTypes = [self.mimeTypeJson]
+        request.accCharSets = [self.encodingJson]
         
         chain = Chain(processing)
         chain.process(request=request, requestCnt=processing.ctx.requestCnt(),
@@ -151,11 +163,9 @@ class GatewayFilterHandler(HandlerBranchingProceed):
 
         response, responseCnt = chain.arg.response, chain.arg.responseCnt
         assert isinstance(response, ResponseHTTP), 'Invalid response %s' % response
-        assert isinstance(responseCnt, ResponseContentFilter), 'Invalid response content %s' % responseCnt
-        assert responseCnt.source is not None, 'Cannot fetch the gateways content from URI \'%s\', has a response %s %s' % \
-        (uri, response.status, response.text or response.code)
-        assert responseCnt.charSet, 'No character set available for response %s %s' % \
-        (uri, response.status, response.text or response.code)
+        assert isinstance(responseCnt, ResponseContentHTTP), 'Invalid response content %s' % responseCnt
+        
+        if responseCnt.source is None: return None, response.status, response.text or response.code
         
         if isinstance(responseCnt.source, IInputStream):
             source = responseCnt.source
@@ -163,5 +173,5 @@ class GatewayFilterHandler(HandlerBranchingProceed):
             source = BytesIO()
             for bytes in responseCnt.source: source.write(bytes)
             source.seek(0)
-        allowed = json.load(codecs.getreader(responseCnt.charSet)(source))
-        return allowed['HasAccess'] == 'True'
+        allowed = json.load(codecs.getreader(self.encodingJson)(source))
+        return allowed['HasAccess'] == 'True', response.status, response.text or response.code

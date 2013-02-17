@@ -9,9 +9,9 @@ Created on Nov 7, 2012
 Update the default logging.
 '''
 
-from . import server
 from ..ally.logging import info_for
 from ally.container import ioc
+from ally.http import server
 
 # --------------------------------------------------------------------
 

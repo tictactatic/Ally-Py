@@ -390,10 +390,10 @@ def run(server):
     assert isinstance(server, AsyncServer), 'Invalid server %s' % server
         
     try:
-        print('=' * 50, 'Started Async HTTP server...')
+        log.info('=' * 50 + ' Started Async HTTP server...')
         server.serve_forever()
     except KeyboardInterrupt:
-        print('=' * 50, '^C received, shutting down server')
+        log.info('=' * 50 + ' ^C received, shutting down server')
         server.close()
     except:
         log.exception('=' * 50 + ' The server has stooped')

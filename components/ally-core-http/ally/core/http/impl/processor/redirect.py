@@ -19,7 +19,7 @@ from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Processing, Chain
 from ally.design.processor.handler import HandlerBranching
-from ally.design.processor.processor import Routing
+from ally.design.processor.processor import Included
 from ally.http.spec.server import IEncoderHeader, IEncoderPath
 import logging
 
@@ -65,7 +65,7 @@ class RedirectHandler(HandlerBranching):
     def __init__(self):
         assert isinstance(self.redirectAssembly, Assembly), 'Invalid redirect assembly %s' % self.redirectAssembly
         assert isinstance(self.nameLocation, str), 'Invalid string %s' % self.nameLocation
-        super().__init__(Routing(self.redirectAssembly))
+        super().__init__(Included(self.redirectAssembly))
 
     def process(self, chain, redirect, request:Request, response:Response, **keyargs):
         '''

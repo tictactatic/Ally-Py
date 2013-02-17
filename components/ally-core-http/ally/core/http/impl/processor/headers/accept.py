@@ -11,10 +11,9 @@ Provides the accept headers handling.
 
 from ally.api.type import List, Locale
 from ally.container.ioc import injected
-from ally.design.processor.attribute import requires, optional, defines
-from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessorProceed
-from ally.http.spec.server import IDecoderHeader
+from ally.design.processor.attribute import optional, defines
+from ally.http.impl.processor.headers.accept import RequestDecode, \
+    AcceptRequestDecodeHandler
 
 # --------------------------------------------------------------------
 
@@ -23,23 +22,13 @@ LIST_LOCALE = List(Locale)
 
 # --------------------------------------------------------------------
 
-class Request(Context):
+class Request(RequestDecode):
     '''
     The request context.
     '''
-    # ---------------------------------------------------------------- Required
-    decoderHeader = requires(IDecoderHeader)
     # ---------------------------------------------------------------- Optional
     argumentsOfType = optional(dict)
     # ---------------------------------------------------------------- Defined
-    accTypes = defines(list, doc='''
-    @rtype: list[string]
-    The content types accepted for response.
-    ''')
-    accCharSets = defines(list, doc='''
-    @rtype: list[string]
-    The character sets accepted for response.
-    ''')
     accLanguages = defines(list, doc='''
     @rtype: list[string]
     The languages accepted for response.
@@ -48,21 +37,15 @@ class Request(Context):
 # --------------------------------------------------------------------
 
 @injected
-class AcceptDecodeHandler(HandlerProcessorProceed):
+class AcceptDecodeHandler(AcceptRequestDecodeHandler):
     '''
     Implementation for a processor that provides the decoding of accept HTTP request headers.
     '''
-
-    nameAccept = 'Accept'
-    # The name for the accept header
-    nameAcceptCharset = 'Accept-Charset'
-    # The name for the accept character sets header
+    
     nameAcceptLanguage = 'Accept-Language'
     # The name for the accept languages header
 
     def __init__(self):
-        assert isinstance(self.nameAccept, str), 'Invalid accept name %s' % self.nameAccept
-        assert isinstance(self.nameAcceptCharset, str), 'Invalid accept charset name %s' % self.nameAcceptCharset
         assert isinstance(self.nameAcceptLanguage, str), 'Invalid accept languages name %s' % self.nameAcceptLanguage
         super().__init__()
 
@@ -72,15 +55,7 @@ class AcceptDecodeHandler(HandlerProcessorProceed):
         
         Decode the accepted headers.
         '''
-        assert isinstance(request, Request), 'Invalid request %s' % request
-        assert isinstance(request.decoderHeader, IDecoderHeader), 'Invalid decoder header %s' % request.decoderHeader
-
-        value = request.decoderHeader.decode(self.nameAccept)
-        if value: request.accTypes = list(val for val, _attr in value)
-
-        value = request.decoderHeader.decode(self.nameAcceptCharset)
-        if value: request.accCharSets = list(val for val, _attr in value)
-
+        super().process(request)
         value = request.decoderHeader.decode(self.nameAcceptLanguage)
         if value:
             request.accLanguages = list(val for val, _attr in value)

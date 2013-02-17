@@ -9,13 +9,10 @@ Created on Nov 14, 2012
 Provides the decorator to be used by the models in the security domain.
 '''
 
-from ally.api.config import model, alias
+from ally.api.config import model
 from functools import partial
 
 # --------------------------------------------------------------------
 
 DOMAIN = 'Security/'
 modelSecurity = partial(model, domain=DOMAIN)
-
-DOMAIN_FILTER = 'Filter/'
-aliasFilter = partial(alias, domain=DOMAIN_FILTER)
