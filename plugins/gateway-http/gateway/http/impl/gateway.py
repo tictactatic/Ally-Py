@@ -12,7 +12,8 @@ Implementation for the default anonymous gateway data.
 from ally.container import wire
 from ally.container.ioc import injected
 from ally.container.support import setup
-from gateway.http.api.gateway import IGatewayService, Gateway
+from gateway.http.api.gateway import IGatewayService
+from gateway.http.support.util_gateway import gatewayFrom
 
 # --------------------------------------------------------------------
 
@@ -63,37 +64,7 @@ class GatewayService(IGatewayService):
         assert isinstance(self.default_gateways, list), 'Invalid default gateways %s' % self.default_gateways
         
         self._gateways = []
-        if __debug__: keys = set()
-        for config in self.default_gateways:
-            assert isinstance(config, dict), 'Invalid gateway configuration %s' % config
-            assert keys.clear() or True
-            gateway = Gateway()
-            for key in ('Pattern', 'Headers', 'Methods', 'Filters', 'Errors', 'Host', 'Protocol', 'Navigate'):
-                value = config.get(key)
-                if value is not None:
-                    if __debug__:
-                        if key == 'Pattern': assert isinstance(value, str), 'Invalid Pattern %s' % value
-                        elif key == 'Headers':
-                            assert isinstance(value, list), 'Invalid Headers %s' % value
-                            for item in value: assert isinstance(item, str), 'Invalid Headers value %s' % item
-                        elif key == 'Methods':
-                            assert isinstance(value, list), 'Invalid Methods %s' % value
-                            for item in value: assert isinstance(item, str), 'Invalid Methods value %s' % item
-                        elif key == 'Filters':
-                            assert isinstance(value, list), 'Invalid Filters %s' % value
-                            for item in value: assert isinstance(item, str), 'Invalid Filters value %s' % item
-                        elif key == 'Errors':
-                            assert isinstance(value, list), 'Invalid Errors %s' % value
-                            for item in value: assert isinstance(item, int), 'Invalid Errors value %s' % item
-                        elif key == 'Host': assert isinstance(value, str), 'Invalid Host %s' % value
-                        elif key == 'Protocol': assert isinstance(value, str), 'Invalid Protocol %s' % value
-                        elif key == 'Navigate': assert isinstance(value, str), 'Invalid Navigate %s' % value
-                            
-                    setattr(gateway, key, value)
-                    assert keys.add(key) or True
-                    
-            assert len(keys) == len(config), 'Invalid gateway configuration names: %s' % (', '.join(keys.difference(config)))
-            self._gateways.append(gateway)
+        for config in self.default_gateways: self._gateways.append(gatewayFrom(config))
          
     def getAnonymous(self):
         '''

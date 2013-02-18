@@ -227,7 +227,7 @@ class Attribute(IAttribute):
         '''
         @see: IAttribute.isUsed
         '''
-        return len(self.usedIn) > 1
+        return len(self.usedIn) > 1 or self.status == OPTIONAL
 
     def __str__(self):
         status = None

@@ -29,11 +29,10 @@ def server_deliver_errors() -> bool:
     return True
 
 @ioc.config
-def server_pattern_rest():
+def server_pattern_resources():
     '''
     The pattern used for matching the REST resources paths in HTTP URL's
-    !Attention if this is changed you also need to adjust the 'resources_root_uri' configuration to have properly rendered
-    references
+    !Attention this configuration needs to be in concordance with 'root_uri_resources' configuration
     '''
     return '^resources(?:/|(?=\\.)|$)(.*)'
 
@@ -50,7 +49,7 @@ def server_pattern_errors():
 def resourcesRouter() -> Handler:
     b = RoutingByPathHandler()
     b.assembly = assemblyResources()
-    b.pattern = server_pattern_rest()
+    b.pattern = server_pattern_resources()
     return b
 
 @ioc.entity

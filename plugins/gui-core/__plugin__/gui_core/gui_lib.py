@@ -12,6 +12,7 @@ Contains the GUI configuration setup for the node presenter plugin.
 from ..gui_core import publish_gui_resources
 from .gui_core import cdmGUI, getGuiPath, lib_folder_format, publishLib, \
     getPublishedLib, gui_folder_format, publish
+from __setup__.ally_http import server_port
 from ally.container import ioc
 from ally.support.util_io import openURI
 from io import BytesIO
@@ -45,8 +46,11 @@ def ui_demo_file():
 
 @ioc.config
 def server_url():
-    ''' for demo file update... '''
-    return 'localhost:8080'
+    '''
+    The GUI server URL. This location is used for loading the client java script files.
+    !Attention this configuration needs to be in concordance with 'server_host' an 'server_port' configurations.
+    '''
+    return 'localhost:%s' % server_port()
 
 # --------------------------------------------------------------------
 

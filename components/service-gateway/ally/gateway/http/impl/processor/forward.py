@@ -15,7 +15,7 @@ from ally.design.processor.attribute import requires
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Processing, Chain
 from ally.design.processor.handler import HandlerBranching
-from ally.design.processor.processor import Routing
+from ally.design.processor.processor import Included
 from ally.gateway.http.spec.gateway import IRepository, Match, Gateway
 from urllib.parse import urlparse, parse_qsl
 import logging
@@ -48,7 +48,7 @@ class GatewayForwardHandler(HandlerBranching):
     
     def __init__(self):
         assert isinstance(self.assembly, Assembly), 'Invalid assembly %s' % self.assembly
-        super().__init__(Routing(self.assembly))
+        super().__init__(Included(self.assembly))
 
     def process(self, chain, processing, request:Request, **keyargs):
         '''

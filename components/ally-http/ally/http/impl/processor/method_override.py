@@ -53,8 +53,8 @@ class MethodOverrideHandler(HandlerProcessorProceed):
     nameXMethodOverride = 'X-HTTP-Method-Override'
     # The header name for the method override.
     methodsOverride = {
-                       HTTP_GET: [HTTP_GET, HTTP_DELETE],
-                       HTTP_POST: [HTTP_POST, HTTP_PUT],
+                       HTTP_GET: [HTTP_DELETE],
+                       HTTP_POST: [HTTP_PUT],
                        }
     # A dictionary containing as a key the original method and as a value the methods that are allowed for override.
 

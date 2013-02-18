@@ -9,7 +9,8 @@ Created on Feb 11, 2013
 Provides the processor specifications.
 '''
 
-from ally.support.util import immut
+from ally.support.util import immut, firstOf
+from collections import Iterable
 import abc
 
 # --------------------------------------------------------------------
@@ -186,17 +187,221 @@ class ContextMetaClass(abc.ABCMeta):
 
 # --------------------------------------------------------------------
 
+class Attributes:
+    '''
+    Contextual attributes repository.
+    '''
+    __slots__ = ('_attributes', '_locked')
+    
+    def __init__(self, locked=False, contexts=None):
+        '''
+        Construct the attributes repository.
+
+        @param locked: boolean
+            If True then the attributes cannot be modified.
+        @param contexts: dictionary{string, ContextMetaClass)|None
+            The contexts to have the attributes created based on.
+        '''
+        assert isinstance(locked, bool), 'Invalid locked flag %s' % locked
+        self._attributes = {}
+        self._locked = locked
+        
+        if contexts is not None:
+            assert isinstance(contexts, dict), 'Invalid contexts %s' % contexts
+            for nameContext, context in contexts.items():
+                assert isinstance(nameContext, str), 'Invalid context name %s' % nameContext
+                assert isinstance(context, ContextMetaClass), 'Invalid context class %s' % context
+        
+                for nameAttribute, attribute in context.__attributes__.items():
+                    assert isinstance(attribute, IAttribute), 'Invalid attribute %s' % attribute
+                    self._attributes[(nameContext, nameAttribute)] = attribute
+                    
+    def lock(self):
+        '''
+        Locks this attributes repository.
+        '''
+        self._locked = True
+                    
+    def merge(self, other, joined=True):
+        '''
+        Merges into this attributes the provided attributes.
+        
+        @param other: Attributes|dictionary{string, ContextMetaClass)
+            The attributes or dictionary of context to merge with.
+        @param joined: boolean
+            If True then the other attributes that are not found in this attributes repository will be added, if False
+            the merging is done only on existing attributes in this repository.
+        '''
+        if self._locked: raise AttrError('Attributes locked')
+        if not isinstance(other, Attributes): other = Attributes(True, other)
+        assert isinstance(other, Attributes), 'Invalid other attributes %s' % other
+        assert isinstance(joined, bool), 'Invalid joined flag %s' % joined
+    
+        for key, attribute in other._attributes.items():
+            assert isinstance(attribute, IAttribute), 'Invalid attribute %s' % attribute
+            assert isinstance(key, tuple), 'Invalid key %s' % key
+    
+            attr = self._attributes.get(key)
+            if attr is None:
+                if joined: self._attributes[key] = attribute
+            else:
+                assert isinstance(attr, IAttribute), 'Invalid attribute %s' % attr 
+                self._attributes[key] = attr.merge(attribute)
+                
+    def solve(self, other, joined=True):
+        '''
+        Solves into this attributes the provided attributes.
+        
+        @param other: Attributes|dictionary{string, ContextMetaClass)
+            The attributes or dictionary of context to solve with.
+        @param joined: boolean
+            If True then the other attributes that are not found in this attributes repository will be added, if False
+            the solving is done only on existing attributes in this repository.
+        '''
+        if self._locked: raise AttrError('Attributes locked')
+        if not isinstance(other, Attributes): other = Attributes(True, other)
+        assert isinstance(other, Attributes), 'Invalid other attributes %s' % other
+        assert isinstance(joined, bool), 'Invalid joined flag %s' % joined
+    
+        for key, attribute in other._attributes.items():
+            assert isinstance(attribute, IAttribute), 'Invalid attribute %s' % attribute
+            assert isinstance(key, tuple), 'Invalid key %s' % key
+            
+            attr = self._attributes.get(key)
+            if attr is None:
+                if joined: self._attributes[key] = attribute
+            else: self._attributes[key] = attribute.solve(attr)
+    
+    # ----------------------------------------------------------------
+    
+    def copy(self, names=None):
+        '''
+        Creates a copy for this attributes repository, if this repository has the locked flag it will no be passed on to the copy.
+        
+        @param names: Iterable(string|tuple(string, string))|None
+            The context or attribute names to copy the attributes for, if None then all attributes are copied.
+        @return: Attributes
+            The cloned attributes repository.
+        '''
+        copy = Attributes()
+        if names:
+            assert isinstance(names, Iterable), 'Invalid names %s' % names
+            for name in names:
+                if isinstance(name, tuple):
+                    attr = self._attributes.get(name)
+                    if attr: copy._attributes[name] = attr
+                else:
+                    assert isinstance(name, str), 'Invalid context or attribute name %s' % name
+                    for key, attr in self._attributes.items():
+                        if key[0] == name: copy._attributes[key] = attr
+        else:
+            copy._attributes.update(self._attributes)
+            
+        return copy
+    
+    def extract(self, names):
+        '''
+        Extracts from this attributes repository all the attributes for the provided context or attribute names.
+        
+        @param names: Iterable(string|tuple(string, string))
+            The context or attribute names to extract the attributes for.
+        @return: Attributes
+            The extracted attributes repository.
+        '''
+        if self._locked: raise AttrError('Attributes locked')
+        assert isinstance(names, Iterable), 'Invalid names %s' % names
+        
+        toExtract = []
+        for name in names:
+            if isinstance(name, tuple):
+                if name in self._attributes: toExtract.append(name)
+            else:
+                assert isinstance(name, str), 'Invalid context or attribute name %s' % name
+                for key in self._attributes:
+                    if key[0] == name: toExtract.append(key)
+                
+        extracted = Attributes()
+        for key in toExtract: extracted._attributes[key] = self._attributes.pop(key)
+        
+        return extracted
+    
+    # ----------------------------------------------------------------
+    
+    def validate(self):
+        '''
+        Validates the attributes in this repository.
+        '''
+        for key, attribute in self._attributes.items():
+            assert isinstance(attribute, IAttribute), 'Invalid attribute %s' % attribute
+            if not attribute.isCreatable(): raise AttrError('The \'%s.%s\' unsolved for %s' % (key + (attribute,)))
+    
+    def iterateNames(self):
+        '''
+        Iterates the attributes names for this attributes repository.
+        
+        @return: Iterable(tuple(string, string))
+            The attributes names iterator.
+        '''
+        return self._attributes.keys()
+    
+    def iterate(self):
+        '''
+        Iterates the attributes for this attributes repository.
+        
+        @return: Iterable(tuple(string, string), IAttribute)
+            The attributes iterator.
+        '''
+        return self._attributes.items()
+    
+    # ----------------------------------------------------------------
+    
+    def __str__(self):
+        return '%s:\n%s' % (self.__class__.__name__,
+                    ''.join('%s.%s with %s' % (key + (attr,)) for key, attr in sorted(self._attributes.items(), key=firstOf)))
+            
+class IReport(metaclass=abc.ABCMeta):
+    '''
+    Provides the reporting support.
+    '''
+    
+    def open(self, name):
+        '''
+        Open a new report for the provided name.
+        
+        @param name: string
+            The name for the created report.
+        @return: IReport
+            The report for name.
+        '''
+        
+    def add(self, attributes):
+        '''
+        Adds the provided attributes to be reported on.
+        
+        @param attributes: Attributes
+            The attributes to be reported.
+        '''
+
 class IProcessor(metaclass=abc.ABCMeta):
     '''
     The processor specification.
     '''
     
     @abc.abstractmethod
-    def register(self, merger):
+    def register(self, sources, attributes, extensions, calls, report):
         '''
-        Register the processor call. The processor also needs to register the contexts that are used by the call into the
-        provided merger attributes.
+        Register the processor call. The processor needs to alter the attributes and extensions dictionaries based on the
+        processor.
         
-        @param merger: Merger
-            The merger context that needs to be solved by processors.
-        ''' 
+        @param sources: Attributes
+            The sources attributes that need to be solved by processors.
+        @param attributes: Attributes
+            The attributes solved so far by processors.
+        @param extensions: Attributes
+            The attributes that are not part of the main stream attributes but they are rather extension for the created
+            contexts.
+        @param report: IReport
+            The report to be used in the registration process.
+        @param calls: list[callable]
+            The list of callable objects to register the processor call into.
+        '''

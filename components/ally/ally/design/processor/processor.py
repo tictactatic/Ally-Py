@@ -10,10 +10,10 @@ Module containing processors.
 '''
 
 from .assembly import Assembly
+from .context import create
 from .execution import Chain, Processing
-from .merging import Merger
 from .spec import AttrError, AssemblyError, IProcessor, ContextMetaClass, \
-    ProcessorError
+    ProcessorError, Attributes, IReport
 from ally.support.util_sys import locationStack
 from collections import Iterable
 from inspect import ismethod, isfunction, getfullargspec
@@ -48,13 +48,14 @@ class Processor(IProcessor):
         self.contexts = contexts
         self.call = call
 
-    def register(self, merger):
+    def register(self, sources, attributes, extensions, calls, report):
         '''
         @see: IProcessor.register
         '''
-        assert isinstance(merger, Merger), 'Invalid merger %s' % merger
-        merger.merge(self.contexts)
-        merger.addCall(self.call)
+        assert isinstance(attributes, Attributes), 'Invalid attributes %s' % attributes
+        assert isinstance(calls, list), 'Invalid calls %s' % calls
+        attributes.merge(self.contexts)
+        calls.append(self.call)
         
     # ----------------------------------------------------------------
 
@@ -104,16 +105,17 @@ class Contextual(Processor):
                                               locationStack(self.function))
         
         super().__init__(contexts, self.processCall(function))
-        
-    def register(self, merger):
+    
+    def register(self, sources, attributes, extensions, calls, report):
         '''
         @see: IProcessor.register
         '''
-        assert isinstance(merger, Merger), 'Invalid merger %s' % merger
+        assert isinstance(attributes, Attributes), 'Invalid attributes %s' % attributes
+        assert isinstance(calls, list), 'Invalid calls %s' % calls
         
-        try: merger.merge(self.contexts)
+        try: attributes.merge(self.contexts)
         except AttrError: raise AssemblyError('Cannot merge contexts at:%s' % locationStack(self.function))
-        merger.addCall(self.call)
+        calls.append(self.call)
         
     # ----------------------------------------------------------------
      
@@ -175,14 +177,19 @@ class IBranch(metaclass=abc.ABCMeta):
     __slots__ = ()
     
     @abc.abstractmethod
-    def process(self, processor, merger):
+    def process(self, processor, sources, attributes, extensions, report):
         '''
         Process the branch for the current contexts and attributes.
         
-        @param processor: IProcessor
-            The processor that is performing the branching.
-        @param merger: Merger
-            The merger that needs to be solved.
+        @param sources: Attributes
+            The sources attributes that need to be solved by processors.
+        @param attributes: Attributes
+            The attributes solved so far by processors.
+        @param extensions: Attributes
+            The attributes that are not part of the main stream attributes but they are rather extension for the created
+            contexts.
+        @param report: IReport
+            The report to be used in the registration process.
         @return: IProcessing
             The branch processing.
         ''' 
@@ -207,20 +214,20 @@ class Brancher(Contextual):
         self.branches = branches
         super().__init__(function, proceed)
     
-    def register(self, merger):
+    def register(self, sources, attributes, extensions, calls, report):
         '''
         @see: IProcessor.register
         '''
-        assert isinstance(merger, Merger), 'Invalid merger %s' % merger
+        assert isinstance(calls, list), 'Invalid calls %s' % calls
         
         self.processings = []
         for branch in self.branches:
             assert isinstance(branch, IBranch), 'Invalid branch %s' % branch
-            try: processing = branch.process(self, merger)
+            try: processing = branch.process(self, sources, attributes, extensions, report)
             except AttrError: raise AssemblyError('Cannot create processing at:%s' % locationStack(self.function))
             assert isinstance(processing, Processing), 'Invalid processing %s' % processing
             self.processings.append(processing)
-        merger.addCall(self.call)
+        calls.append(self.call)
         
     # ----------------------------------------------------------------
         
@@ -245,7 +252,7 @@ class Brancher(Contextual):
 
 # --------------------------------------------------------------------
 
-class Routing(IBranch, IProcessor):
+class Routing(IBranch):
     '''
     Branch for routed processors containers. By routing is understood that the processors will be executed separately
     from the main chain and they need to solve the main contexts. 
@@ -268,44 +275,47 @@ class Routing(IBranch, IProcessor):
         self.assembly = assembly
         self.merged = merged
         
-    def process(self, processor, merger):
+    def process(self, processor, sources, attributes, extensions, report):
         '''
         @see: IBrach.process
         '''
         assert isinstance(processor, Processor), 'Invalid processor %s' % processor
-        assert isinstance(merger, Merger), 'Invalid merger %s' % merger
+        assert isinstance(sources, Attributes), 'Invalid sources %s' % sources
+        assert isinstance(attributes, Attributes), 'Invalid attributes %s' % attributes
+        assert isinstance(report, IReport), 'Invalid report %s' % report
         
-        merger.merge(processor.contexts)
+        report = report.open('Routing \'%s\'' % self.assembly.name)
+        try:
+            calls, rattrs, rextens = [], Attributes(), Attributes()
+            for rproc in self.assembly.processors:
+                assert isinstance(rproc, IProcessor), 'Invalid processor %s' % rproc
+                rproc.register(sources, rattrs, rextens, calls, report)
+        except (AttrError, AssemblyError): raise AssemblyError('Cannot process Routing for %s' % self.assembly.name)
         
-        bmerger = merger.branch('Routing %s' % self.assembly.name)
-        assert isinstance(bmerger, Merger)
-        bmerger.processNow(self.assembly.processors)
-        bmerger.solve(processor.contexts)
-        bmerger.mergeWithParent()
-        
-        if self.merged:
-            bmerger.addOnNext(self)
-            return Processing(bmerger.calls())
-        
-        bmerger.resolve()
-        bmerger.processAllNext()
-        return Processing(bmerger.calls(), bmerger.createContexts())
-        
-    def register(self, merger):
-        '''
-        @see: IProcessor.register
-        
-        Register the merged attributes.
-        '''
-        assert isinstance(merger, Merger), 'Invalid merger %s' % merger
-        merger.solveOnParent()
-  
+        try:
+            rattrs.solve(processor.contexts)
+            attributes.merge(rattrs.copy(sources.iterateNames()))
+            rattrs.solve(sources)
+            rattrs.validate()
+            rattrs.solve(rextens)
+            
+            if self.merged:
+                assert isinstance(extensions, Attributes), 'Invalid extensions %s' % extensions
+                extensions.merge(rattrs)
+                return Processing(calls)
+            
+            report.add(rattrs)
+            return Processing(calls, create(rattrs))
+        except AttrError:
+            raise AssemblyError('Attributes problems on Routing for %s\n, with processors %s\n'
+                                ', and extensions %s' % (self.assembly.name, rattrs, rextens))
+ 
 class Using(IBranch):
     '''
     Branch for using processors containers. By using is understood that the processors will be executed separately
     from the main chain and they need to solve the provided contexts. 
     '''
-    __slots__ = ('assembly', 'contexts')
+    __slots__ = ('assembly', 'contexts', 'useSources')
 
     def __init__(self, assembly, **contexts):
         '''
@@ -323,22 +333,59 @@ class Using(IBranch):
                 assert isinstance(clazz, ContextMetaClass), 'Invalid context class %s' % clazz
         self.assembly = assembly
         self.contexts = contexts
-        
-    def process(self, processor, merger):
+        self.useSources = set()
+    
+    def process(self, processor, sources, attributes, extensions, report):
         '''
         @see: IBrach.process
         '''
         assert isinstance(processor, Processor), 'Invalid processor %s' % processor
-        assert isinstance(merger, Merger), 'Invalid merger %s' % merger
+        assert isinstance(sources, Attributes), 'Invalid sources %s' % sources
+        assert isinstance(attributes, Attributes), 'Invalid attributes %s' % attributes
+        assert isinstance(report, IReport), 'Invalid report %s' % report
         
-        merger.merge(processor.contexts)
+        attributes.merge(processor.contexts)
+        report = report.open('Using \'%s\'' % self.assembly.name)
         
-        nmerger = merger.branchNew('Using %s' % self.assembly.name, self.contexts)
-        assert isinstance(nmerger, Merger)
-        nmerger.processNow(self.assembly.processors)
-        nmerger.resolve()
-        nmerger.processAllNext()
-        return Processing(nmerger.calls(), nmerger.createContexts())
+        try:
+            if self.useSources:
+                usrcs = sources.copy(self.useSources)
+                if self.contexts: usrcs.merge(self.contexts)
+                usrcs.lock()
+            else:
+                usrcs = Attributes(True, self.contexts)
+            
+            calls, uattrs, uextens = [], Attributes(), Attributes()
+            for uproc in self.assembly.processors:
+                assert isinstance(uproc, IProcessor), 'Invalid processor %s' % uproc
+                uproc.register(usrcs, uattrs, uextens, calls, report)
+        except (AttrError, AssemblyError): raise AssemblyError('Cannot process Using for %s' % self.assembly.name)
+        
+        try:
+            uattrs.solve(usrcs)
+            uattrs.validate()
+            uattrs.solve(uextens)
+            report.add(uattrs)
+            return Processing(calls, create(uattrs))
+        except AttrError:
+            raise AssemblyError('Attributes problems on Using for %s\n, with sources %s\n, with processors %s\n'
+                                ', and extensions %s' % (self.assembly.name, usrcs, uattrs, uextens))
+            
+    # ----------------------------------------------------------------
+    
+    def sources(self, *names):
+        '''
+        Declare the source names that are used as contexts.
+        
+        @param names: arguments[string]
+            The contexts names to be used from the sources.
+        @return: self
+            This instance for chaining purposes.
+        '''
+        if __debug__:
+            for name in names: assert isinstance(name, str), 'Invalid context name %s' % name
+        self.useSources.update(names)
+        return self
 
 class Included(IBranch):
     '''
@@ -358,33 +405,40 @@ class Included(IBranch):
         assert isinstance(assembly, Assembly), 'Invalid assembly %s' % assembly
         self.assembly = assembly
         self.contextsUsing = {}
-        
-    def process(self, processor, merger):
+    
+    def process(self, processor, sources, attributes, extensions, report):
         '''
         @see: IBrach.process
         '''
         assert isinstance(processor, Processor), 'Invalid processor %s' % processor
-        assert isinstance(merger, Merger), 'Invalid merger %s' % merger
+        assert isinstance(attributes, Attributes), 'Invalid attributes %s' % attributes
+        assert isinstance(extensions, Attributes), 'Invalid extensions %s' % extensions
+        assert isinstance(report, IReport), 'Invalid report %s' % report
         
-        bmerger = merger.branch('Included %s' % self.assembly.name)
-        assert isinstance(bmerger, Merger)
-        bmerger.processNow(self.assembly.processors)
+        report = report.open('Included \'%s\'' % self.assembly.name)
         
-        if self.contextsUsing:
-            umerger = bmerger.branchExtract('Using from Included \'%s\'' % self.assembly.name, self.contextsUsing)
-            assert isinstance(umerger, Merger)
-            umerger.resolve()
-            umerger.processAllNext()
-            contexts = umerger.createContexts()
+        try:
+            calls, iattrs, iextens = [], Attributes(), Attributes()
+            for iproc in self.assembly.processors:
+                assert isinstance(iproc, IProcessor), 'Invalid processor %s' % iproc
+                iproc.register(sources, iattrs, iextens, calls, report)
+            
+            if self.contextsUsing:
+                uattrs = iattrs.extract(self.contextsUsing)
+                assert isinstance(uattrs, Attributes)
+                uattrs.solve(self.contextsUsing)
+                uattrs.validate()
+                uattrs.solve(iextens.extract(self.contextsUsing))
+                report.add(uattrs)
+                contexts = create(uattrs)
+            else: contexts = None
+            
+            iattrs.solve(processor.contexts)
+            attributes.merge(iattrs)
+            extensions.solve(iextens)
+            return Processing(calls, contexts=contexts)
         
-        bmerger.solve(processor.contexts)
-        bmerger.mergeOnParent()
-        
-        processing = Processing(bmerger.calls())
-        assert isinstance(processing, Processing)
-        if self.contextsUsing: processing.update(**contexts)
-        
-        return processing
+        except (AttrError, AssemblyError): raise AssemblyError('Cannot process Included for %s' % self.assembly.name)
     
     # ----------------------------------------------------------------
     

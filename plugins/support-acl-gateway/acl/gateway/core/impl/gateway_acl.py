@@ -13,7 +13,6 @@ from ..spec import IGatewayAclService, IAuthenticatedProvider
 from acl.gateway.api.filter import IAclFilter
 from acl.spec import RightBase, Filter
 from ally.api.config import GET, DELETE, INSERT, UPDATE
-from ally.api.operator.container import Model
 from ally.api.operator.type import TypeService, TypeProperty
 from ally.api.type import typeFor
 from ally.container import wire
@@ -24,10 +23,10 @@ from ally.core.spec.resources import Node, ConverterPath, Path, \
 from ally.http.spec.server import HTTP_GET, HTTP_DELETE, HTTP_POST, HTTP_PUT
 from ally.support.core.util_resources import findNodesFor, pathForNode, \
     propertyTypesOf, ReplacerWithMarkers
-from collections import Iterable
+from collections import Iterable, deque
 from gateway.http.api.gateway import Gateway
 import logging
-from collections import deque
+import re
 
 # --------------------------------------------------------------------
 
@@ -57,7 +56,7 @@ class GatewayAclService(IGatewayAclService, INodeChildListener, INodeInvokerList
         self._cacheFilters = {}
         self.resourcesRoot.addStructureListener(self)
         
-    def gatewaysFor(self, rights, provider):
+    def gatewaysFor(self, rights, provider, root='%s'):
         '''
         @see: IGatewayAclService.gatewaysFor
         '''
@@ -65,73 +64,81 @@ class GatewayAclService(IGatewayAclService, INodeChildListener, INodeInvokerList
         assert isinstance(rights, Iterable), 'Invalid rights %s' % rights
         if not isinstance(rights, (list, tuple, deque)): rights = list(rights)
         assert isinstance(provider, IAuthenticatedProvider), 'Invalid authenticated provider %s' % provider
+        assert isinstance(root, str), 'Invalid root URI %s' % root
         
-        replacer = ReplacerWithMarkers()
+        parts = root.split('%s')
+        parts = (re.escape(part) for part in parts)
+        rootPattern = '%s'.join(parts)
         
-        gateways, gatewaysGETByPattern = [], {}
+        replacer, gateways = ReplacerWithMarkers(), []
+        
         # Process GET gateways
+        gatewaysGETByPattern = {}
         for _method, path, invoker, filters in RightBase.iterPermissions(self.resourcesRoot, rights, GET):
             assert isinstance(path, Path), 'Invalid path %s' % path
             
+            pattern, types = self.processPattern(path, invoker, replacer)
+            
             gateway = Gateway()
             gateway.Methods = [HTTP_GET]
-            gateway.Pattern, types = self.processPattern(path, invoker, replacer)
-            gateway.Filters = self.processFilters(types, filters, provider, replacer)
+            gateway.Pattern = rootPattern % pattern
+            gateway.Filters = self.processFilters(types, filters, provider, replacer, root)
             
             gatewaysGETByPattern[gateway.Pattern] = gateway
             gateways.append(gateway)
+            
+        # Process DELETE gateways
+        for _method, path, invoker, filters in RightBase.iterPermissions(self.resourcesRoot, rights, DELETE):
+            assert isinstance(path, Path), 'Invalid path %s' % path
+            
+            pattern, types = self.processPattern(path, invoker, replacer)
+            filters = self.processFilters(types, filters, provider, replacer, root)
+            
+            gateway = gatewaysGETByPattern.get(pattern)
+            if gateway and gateway.Filter == filters:
+                gateway.Methods.append(HTTP_DELETE)
+            else:
+                gateway = Gateway()
+                gateway.Methods = [HTTP_DELETE]
+                gateway.Pattern = rootPattern % pattern
+                gateway.Filters = filters
+                
+                gateways.append(gateway)
+                
+        # Process INSERT gateways
+        gatewaysInsertByPattern = {}
+        for _method, path, invoker, filters in RightBase.iterPermissions(self.resourcesRoot, rights, INSERT):
+            assert isinstance(path, Path), 'Invalid path %s' % path
+            
+            pattern, types = self.processPattern(path, invoker, replacer)
+            
+            gateway = Gateway()
+            gateway.Methods = [HTTP_POST]
+            gateway.Pattern = rootPattern % pattern
+            gateway.Filters = self.processFilters(types, filters, provider, replacer, root)
+            
+            gatewaysInsertByPattern[gateway.Pattern] = gateway
+            gateways.append(gateway)
         
-#        # Process DELETE access
-#        for _method, path, invoker, filters in RightBase.iterPermissions(self.resourcesRoot, rights, DELETE):
-#            assert isinstance(path, Path)
-#            
-#            filtersWithPath = self._processFilters(filters, replacer)
-#            data = self._processPatternWithFilters(path, invoker, filtersWithPath, replacer)
-#            
-#            pattern, accessFilters, accessMarkers = data
-#            
-#            access = accessesGetByPattern.get(pattern)
-#            if access and access.Filter == accessFilters:
-#                access.Methods.append(HTTP_DELETE)
-#                continue
-#            
-#            access = AclAccess()
-#            access.Methods = [HTTP_DELETE, HTTP_GET]  # Needed to add get also because of the method overide
-#            access.Pattern = pattern
-#            access.Filter = accessFilters
-#            if accessMarkers: access.markers.update(accessMarkers)
-#            
-#            accesses.append(access)
-#        
-#        # TODO: properly implement the secured redirect
-#        accessesUpdateByPattern = {}
-#        # Process POST access
-#        for _method, path, invoker, filters in RightBase.iterPermissions(self.resourcesRoot, rights, INSERT):
-#            assert isinstance(path, Path)
-#            
-#            access = AclAccess()
-#            access.Methods = [HTTP_POST]
-#            access.Pattern = self._processPatternWithSecured(path, invoker, replacer)
-#            
-#            accessesUpdateByPattern[access.Pattern] = access
-#            accesses.append(access)
-#            
-#        # Process PUT access
-#        for _method, path, invoker, filters in RightBase.iterPermissions(self.resourcesRoot, rights, UPDATE):
-#            assert isinstance(path, Path)
-#            
-#            pattern = self._processPatternWithSecured(path, invoker, replacer)
-#            
-#            access = accessesUpdateByPattern.get(pattern)
-#            if access:
-#                access.Methods.append(HTTP_PUT)
-#                continue
-#            
-#            access = AclAccess()
-#            access.Methods = [HTTP_PUT, HTTP_POST]  # Needed to add post also because of the method overide
-#            access.Pattern = pattern
-#            
-#            accesses.append(access)
+        
+        # TODO: properly implement the secured redirect
+        # Process UPDATE gateways
+        for _method, path, invoker, filters in RightBase.iterPermissions(self.resourcesRoot, rights, UPDATE):
+            assert isinstance(path, Path), 'Invalid path %s' % path
+            
+            pattern, types = self.processPattern(path, invoker, replacer)
+            filters = self.processFilters(types, filters, provider, replacer, root)
+            
+            gateway = gatewaysInsertByPattern.get(pattern)
+            if gateway and gateway.Filter == filters:
+                gateway.Methods.append(HTTP_PUT)
+            else:
+                gateway = Gateway()
+                gateway.Methods = [HTTP_PUT]
+                gateway.Pattern = rootPattern % pattern
+                gateway.Filters = filters
+                
+                gateways.append(gateway)
         
         gateways.sort(key=lambda gateway: (gateway.Pattern, gateway.Methods))
         return gateways
@@ -181,7 +188,7 @@ class GatewayAclService(IGatewayAclService, INodeChildListener, INodeInvokerList
         replacer.register(replaceMarkers)
         return ''.join(('\\/'.join(path.toPaths(self.converterPath, replacer)), '[\\/]?(?:\\.|$)')), types
     
-    def processFilters(self, types, filters, provider, replacer):
+    def processFilters(self, types, filters, provider, replacer, root):
         '''
         Process the filters into path filters.
         
@@ -194,12 +201,15 @@ class GatewayAclService(IGatewayAclService, INodeChildListener, INodeInvokerList
             The @see: IAuthenticatedProvider used in solving the filters paths.
         @param replacer: ReplacerWithMarkers
             The replacer to use on the path.
+         @param root: string
+            The root URI string to use on the filters paths.
         @return: dictionary{TypeProperty, tuple(string, dictionary{TypeProperty: string}}
             A dictionary containing {resource type, (marked path, {authenticated type: marker}}
         '''
         assert isinstance(types, list), 'Invalid types %s' % types
         assert isinstance(filters, Iterable), 'Invalid filters %s' % filter
         assert isinstance(replacer, ReplacerWithMarkers), 'Invalid replacer %s' % replacer
+        assert isinstance(root, str), 'Invalid root %s' % root
         
         paths = None
         for rfilter in filters:
@@ -212,8 +222,8 @@ class GatewayAclService(IGatewayAclService, INodeChildListener, INodeInvokerList
             
             path = self.processFilter(rfilter, provider, '{%s}' % (index + 1), replacer)
             if path is not None:
-                if paths is None: paths = [path]
-                else: paths.append(path)
+                if paths is None: paths = [root % path]
+                else: paths.append(root % path)
                 
         return paths
     

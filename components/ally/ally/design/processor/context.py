@@ -9,7 +9,7 @@ Created on Jun 12, 2012
 Provides the context support.
 '''
 
-from .spec import IAttribute, IDefiner, ContextMetaClass
+from .spec import IAttribute, IDefiner, ContextMetaClass, Attributes
 from ally.support.util import immut
 
 # --------------------------------------------------------------------
@@ -197,6 +197,28 @@ class Object(metaclass=ContextMetaClass):
         return '%s(%s)' % (self.__class__.__name__, attrs)
 
 # --------------------------------------------------------------------
+
+def create(attributes):
+    '''
+    Creates the object contexts for the provided attributes.
+    
+    @param attributes: Attributes
+        The attributes to create the context for.
+    '''
+    assert isinstance(attributes, Attributes), 'Invalid attributes %s' % attributes
+    attributes.validate()
+    
+    namespaces = {}
+    for key, attribute in attributes.iterate():
+        assert isinstance(attribute, IAttribute), 'Invalid attribute %s' % attribute
+        nameContext, nameAttribute = key
+
+        namespace = namespaces.get(nameContext)
+        if namespace is None: namespace = namespaces[nameContext] = dict(__module__=__name__)
+        namespace[nameAttribute] = attribute
+
+    return {name: type('Object$%s%s' % (name[0].upper(), name[1:]), (Object,), namespace)
+            for name, namespace in namespaces.items()}
 
 def asData(context, *classes):
     '''

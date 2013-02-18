@@ -118,11 +118,15 @@ class Merger:
     def processNext(self):
         '''
         Process the next cycle of processors that are found in the merger.
-         If the merger is not resolved then it will be resolved automatically.
         
         @return: boolean
             True if there has been something to process, False otherwise. 
-        '''        
+        '''
+        for key, attribute in self._attributes.items():
+            assert isinstance(attribute, IAttribute), 'Invalid attribute %s' % attribute
+            if not attribute.isCreatable():
+                raise AttrError('The %s.%s unsolved for %s, on %s' % (key + (attribute, self)))
+            
         processed = False
         for branch in self._branches:
             assert isinstance(branch, Merger), 'Invalid branch %s' % branch
@@ -338,7 +342,8 @@ class Merger:
         @return: list[string]
             The lines that compose the report.
         '''
-        #TODO: make a better report 
+        # TODO: make a better report
+        # still for routing doesnt work properly. 
         report = ['Report for %s' % self._name]
         for key, attribute in self._attributes.items():
             assert isinstance(attribute, IAttribute), 'Invalid attribute %s' % attribute

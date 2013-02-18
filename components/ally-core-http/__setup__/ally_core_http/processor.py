@@ -52,9 +52,10 @@ def allow_method_override():
     return True
 
 @ioc.config
-def resources_root_uri():
+def root_uri_resources():
     '''
     This will be used for adjusting the encoded URIs to have a root URI.
+    !Attention this configuration needs to be in concordance with 'server_pattern_resources' configuration
     '''
     return 'resources/%s'
 
@@ -93,7 +94,7 @@ def contentLanguageEncode() -> Handler: return ContentLanguageEncodeHandler()
 def uri() -> Handler:
     b = URIHandler()
     b.resourcesRoot = resourcesRoot()
-    b.resourcesRootURI = resources_root_uri()
+    b.resourcesRootURI = root_uri_resources()
     b.converterPath = converterPath()
     return b
 

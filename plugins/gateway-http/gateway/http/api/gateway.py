@@ -67,4 +67,3 @@ class IGatewayService:
         '''
         Get the gateway options that apply for an anonymous accesses.
         '''
-    

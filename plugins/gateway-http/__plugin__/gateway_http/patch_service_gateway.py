@@ -9,7 +9,7 @@ Created on Jan 23, 2013
 Provides the gateway service setup patch.
 '''
 
-from __setup__.ally_core_http.processor import resources_root_uri
+from __setup__.ally_core_http.processor import root_uri_resources
 from ally.container import ioc
 import logging
 
@@ -32,5 +32,5 @@ else:
         '''
         The anonymous gateway URI.
         '''
-        return resources_root_uri() % 'Gateway'
+        return root_uri_resources() % 'Gateway'
 

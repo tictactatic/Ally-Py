@@ -11,7 +11,7 @@ Contains the services for http gateway.
     
 from ..plugin.registry import registerService
 from __setup__.ally_core_http.processor_error import statusToCode
-from __setup__.ally_core_http.server import server_pattern_rest, \
+from __setup__.ally_core_http.server import server_pattern_resources, \
     server_pattern_errors
 from ally.container import support, ioc
 from ally.container.support import nameInEntity
@@ -50,12 +50,12 @@ def updateGatewayWithResourcesErrors():
                                # If path is not found then we try to dispatch a unauthorized access if the path is not found
                                # in REST the default error will have priority over the unauthorized access
                                {
-                                'Pattern': server_pattern_rest(),
+                                'Pattern': server_pattern_resources(),
                                 'Errors': [PATH_NOT_FOUND.status],
                                 'Navigate': 'error/{1}?status=%s' % UNAUTHORIZED_ACCESS.status,
                                 },
                                {
-                                'Pattern': server_pattern_rest(),
+                                'Pattern': server_pattern_resources(),
                                 'Errors': [FORBIDDEN_ACCESS.status, METHOD_NOT_AVAILABLE.status],
                                 'Navigate': 'error/{1}',
                                 },

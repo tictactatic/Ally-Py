@@ -78,7 +78,7 @@ class GatewayAuthorizedRepositoryHandler(GatewayRepositoryHandler):
         
         repository = self._repositories.get(authentication)
         if repository is None:
-            robj, status, text = self.obtainGateways(processing, self.uri.replace('*', authentication))
+            robj, status, text = self.obtainGateways(processing, self.uri % authentication)
             if robj is None:
                 if status == BAD_REQUEST.status:
                     response.code, response.status, response.isSuccess = INVALID_AUTHORIZATION

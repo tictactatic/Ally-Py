@@ -65,6 +65,7 @@ class Gateway:
             for error in errors:
                 try: self.errors.add(int(error))
                 except ValueError: raise ValueError('Invalid error value \'%s\'' % error)
+        else: self.errors = None
                 
         self.host = obj.get('Host')
         assert not self.host or isinstance(self.host, str), 'Invalid host %s' % self.host

@@ -35,7 +35,7 @@ class IGatewayAclService(metaclass=abc.ABCMeta):
     '''
     
     @abc.abstractmethod
-    def gatewaysFor(self, rights, provider):
+    def gatewaysFor(self, rights, provider, root='%s'):
         '''
         Provides the gateway objects compiled for the provided right or rights.
         
@@ -43,6 +43,9 @@ class IGatewayAclService(metaclass=abc.ABCMeta):
             The rights to construct gateway for.
         @param provider: IAuthenticatedProvider
             The @see: IAuthenticatedProvider used in solving the filters paths.
+        @param root: string
+            The root URI string to use on the patterns and filters paths, the root needs to contain the place 
+            holder '%s' where to place the pattern or filter. For patterns the root will be escaped automatically.
         @return: list[Gateway]
             The list of gateways models reflecting the provided rights.
         '''

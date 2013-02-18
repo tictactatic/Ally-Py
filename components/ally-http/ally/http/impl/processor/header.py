@@ -243,10 +243,12 @@ class DecoderHeader(IDecoderHeader):
         @see: IDecoderHeader.retrieve
         '''
         assert isinstance(name, str), 'Invalid name %s' % name
-
+        cfg = self.configuration
+        assert isinstance(cfg, HeaderConfigurations)
+        
         name = name.lower()
         value = self.readParameters(name)
-        if value: return self.handler.separatorMain.join(value)
+        if value: return cfg.separatorMain.join(value)
 
         return self.headers.get(name)
 

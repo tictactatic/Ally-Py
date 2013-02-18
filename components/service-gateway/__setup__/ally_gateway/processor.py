@@ -9,9 +9,8 @@ Created on Jan 5, 2012
 Provides the configurations for delivering files from the local file system.
 '''
 
-from ..ally_http.processor import internalError
-from __setup__.ally_http.processor import headerEncodeRequest, \
-    acceptRequestEncode
+from ..ally_http.processor import headerEncodeRequest, acceptRequestEncode, \
+    headerDecodeRequest, internalError
 from ally.container import ioc
 from ally.container.error import ConfigError
 from ally.design.processor.assembly import Assembly
@@ -53,7 +52,7 @@ def gateway_uri() -> str:
 @ioc.config
 def gateway_authorized_uri() -> str:
     '''
-    The gateway URI to fetch the authorized Gateway objects from, this URI needs to have a marker '*' where the actual
+    The gateway URI to fetch the authorized Gateway objects from, this URI needs to have a marker '%s' where the actual
     authentication code will be placed
     '''
     raise ConfigError('There is no authorized gateway URI provided')
@@ -62,12 +61,12 @@ def gateway_authorized_uri() -> str:
 def server_provide_gateway():
     '''
     Indicates that this server should provide the gateway service, possible values are:
-    "%s" - the gateway should be configured for using internal REST resources, this means that the
+    "internal" - the gateway should be configured for using internal REST resources, this means that the
                  ally core http component is present in python path.
-    "%s" - the gateway will use an external REST resources server, you need to configure the external host and port
+    "external" - the gateway will use an external REST resources server, you need to configure the external host and port
                  in order to make this work.
     "don't"    - if this or any other unknown value is provided then the server will not provide gateway service.
-    ''' % (GATEWAY_INTERNAL, GATEWAY_EXTERNAL)
+    '''
     return GATEWAY_INTERNAL
 
 @ioc.config
@@ -157,8 +156,8 @@ def assemblyGateway() -> Assembly:
     
 @ioc.before(assemblyGateway)
 def updateAssemblyGateway():
-    assemblyGateway().add(internalError(), gatewayRepository(), gatewayAuthorizedRepository(), gatewaySelector(),
-                          gatewayFilter(), gatewayError(), gatewayForward())
+    assemblyGateway().add(internalError(), headerDecodeRequest(), gatewayRepository(), gatewayAuthorizedRepository(),
+                          gatewaySelector(), gatewayFilter(), gatewayError(), gatewayForward())
     
 @ioc.before(assemblyRESTRequest)
 def updateAssemblyRESTRequestForExternal():

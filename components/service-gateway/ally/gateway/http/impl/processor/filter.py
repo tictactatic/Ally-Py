@@ -19,7 +19,7 @@ from ally.design.processor.processor import Using
 from ally.gateway.http.spec.gateway import IRepository, Match, Gateway
 from ally.http.spec.codes import FORBIDDEN_ACCESS, BAD_GATEWAY
 from ally.http.spec.server import HTTP, RequestHTTP, ResponseContentHTTP, \
-    ResponseHTTP, HTTP_GET, RequestContentHTTP
+    ResponseHTTP, HTTP_GET
 from ally.support.util_io import IInputStream
 from babel.compat import BytesIO
 from urllib.parse import urlparse, parse_qsl
@@ -84,8 +84,7 @@ class GatewayFilterHandler(HandlerBranchingProceed):
         assert isinstance(self.mimeTypeJson, str), 'Invalid json mime type %s' % self.mimeTypeJson
         assert isinstance(self.encodingJson, str), 'Invalid json encoding %s' % self.encodingJson
         assert isinstance(self.assembly, Assembly), 'Invalid assembly %s' % self.assembly
-        super().__init__(Using(self.assembly, request=RequestFilter, requestCnt=RequestContentHTTP,
-                               response=ResponseHTTP, responseCnt=ResponseContentHTTP))
+        super().__init__(Using(self.assembly, request=RequestFilter).sources('requestCnt', 'response', 'responseCnt'))
 
     def process(self, processing, request:Request, response:Response, **keyargs):
         '''
@@ -116,7 +115,7 @@ class GatewayFilterHandler(HandlerBranchingProceed):
                 if isAllowed is None:
                     isAllowed, status, text = self.obtainFilter(processing, filterURI)
                     if isAllowed is None:
-                        log.info('Cannot fetch the filter from URI \'%s\', with response %s %s', self.uri, status, text)
+                        log.info('Cannot fetch the filter from URI \'%s\', with response %s %s', request.uri, status, text)
                         response.code, response.status, response.isSuccess = BAD_GATEWAY
                         response.text = text
                         return

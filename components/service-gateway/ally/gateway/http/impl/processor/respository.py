@@ -19,7 +19,7 @@ from ally.design.processor.processor import Using
 from ally.gateway.http.spec.gateway import IRepository, Gateway, Match
 from ally.http.spec.codes import BAD_GATEWAY
 from ally.http.spec.server import RequestHTTP, ResponseHTTP, ResponseContentHTTP, \
-    HTTP_GET, HTTP, RequestContentHTTP
+    HTTP_GET, HTTP
 from ally.support.util_io import IInputStream
 from io import BytesIO
 from sched import scheduler
@@ -92,8 +92,7 @@ class GatewayRepositoryHandler(HandlerBranchingProceed):
         assert isinstance(self.uri, str), 'Invalid URI %s' % self.uri
         assert isinstance(self.cleanupInterval, int), 'Invalid cleanup interval %s' % self.cleanupInterval
         assert isinstance(self.assembly, Assembly), 'Invalid assembly %s' % self.assembly
-        super().__init__(Using(self.assembly, request=RequestGateway, requestCnt=RequestContentHTTP,
-                               response=ResponseHTTP, responseCnt=ResponseContentHTTP))
+        super().__init__(Using(self.assembly, request=RequestGateway).sources('requestCnt', 'response', 'responseCnt'))
         self.initialize()
 
     def process(self, processing, request:Request, response:Response, **keyargs):

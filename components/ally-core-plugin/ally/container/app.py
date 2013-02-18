@@ -20,6 +20,9 @@ from itertools import chain
 REPAIR = REPAIR
 DEPLOY = Trigger('deploy') 
 # Trigger used for controlled event setup that is called on application deploy.
+NORMAL = Trigger('normal')
+# Event used for controlled event setup that is called when the application is in normal mode.
+
 POPULATE = Trigger('populate')
 # Trigger used for controlled event setup that is called on application populate.
 
@@ -30,18 +33,20 @@ DEVEL = Trigger('development')
 
 # --------------------------------------------------------------------
 
-def deploy(*args, priority=0):
+def deploy(*triggers, priority=0):
     '''
     Decorator for deploy setup functions. The deploy function will be called every time the  application is started.
     This should manly be used to gather data.
     
+    @param triggers: arguments[ITrigger]
+        Triggers to be considered for the deploy call, this will actually condition the deploy call to the provided triggers.
     @param priority: integer
         The priority to associate with the event, a bigger number means that the event will be called earlier.
     '''
-    decorator = onDecorator((DEPLOY,), priority, callerLocals())
-    if not args: return decorator
-    assert len(args) == 1, 'Expected only one argument that is the decorator function, got %s arguments' % len(args)
-    return decorator(args[0])
+    if not triggers: return onDecorator((DEPLOY,), callerLocals())
+    if len(triggers) == 1 and not isinstance(triggers[0], ITrigger):
+        return onDecorator((DEPLOY,), priority, callerLocals())(triggers[0])
+    return onDecorator(triggers, priority, callerLocals())
 
 def populate(*triggers, priority=0):
     '''

@@ -9,10 +9,11 @@ Created on Feb 11, 2013
 Contains the assembly support.
 '''
 
+from .context import create
 from .execution import Processing
-from .merging import Merger
-from .spec import IProcessor, AssemblyError
+from .spec import IProcessor, AssemblyError, Attributes
 from abc import ABCMeta
+from ally.design.processor.report import ReportUnused
 from collections import Iterable
 import logging
 
@@ -121,13 +122,21 @@ class Assembly(Container):
             report: string
             A text containing the report for the processing creation
         '''
-        assert log.debug('Started %s', self) or True
-        merger = Merger(self.name, contexts)
-        merger.processNow(self.processors)
-        merger.resolve()
-        merger.processAllNext()
-        log.info('Assembly report:%s', '\n'.join(merger.report()))
-        return Processing(merger.calls(), merger.createContexts())
+        report = ReportUnused()
+        calls, sources, attributes, extensions = [], Attributes(True, contexts), Attributes(), Attributes()
+        for processor in self.processors:
+            assert isinstance(processor, IProcessor), 'Invalid processor %s' % processor
+            processor.register(sources, attributes, extensions, calls, report)
+            
+        attributes.solve(sources)
+        attributes.validate()
+        attributes.solve(extensions)
+        processing = Processing(calls, create(attributes))
+        
+        lines = report.report()
+        if lines: log.info('\n%s\n' % '\n'.join(lines))
+        else: log.info('Nothing to report, everything fits nicely')
+        return processing
 
     # ----------------------------------------------------------------
 
