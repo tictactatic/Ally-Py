@@ -63,9 +63,11 @@ class StatusHandler(HandlerProcessorProceed):
         assert isinstance(response, Response), 'Invalid response %s' % response
         assert isinstance(response.code, str), 'Invalid response code %s' % response.code
 
+        status = self.codeToStatus.get(response.code)
         if Response.status not in response:
-            response.status = self.codeToStatus.get(response.code)
-            if response.status is None: Exception('Cannot produce a status for code \'%s\'' % response.code)
+            if status is None: ValueError('Cannot produce a status for code \'%s\'' % response.code)
+            response.status = status
+        elif status is not None: response.status = status
             
         text = self.codeToText.get(response.code)
         if text: response.text = text

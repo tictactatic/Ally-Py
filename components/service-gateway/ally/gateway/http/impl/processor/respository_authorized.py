@@ -15,7 +15,8 @@ from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Processing
 from ally.gateway.http.spec.gateway import IRepository
-from ally.http.spec.codes import BAD_REQUEST, BAD_GATEWAY, INVALID_AUTHORIZATION
+from ally.http.spec.codes import BAD_REQUEST, BAD_GATEWAY, INVALID_AUTHORIZATION, \
+    isSuccess
 from ally.http.spec.server import IDecoderHeader
 from datetime import datetime, timedelta
 import logging
@@ -79,7 +80,7 @@ class GatewayAuthorizedRepositoryHandler(GatewayRepositoryHandler):
         repository = self._repositories.get(authentication)
         if repository is None:
             robj, status, text = self.obtainGateways(processing, self.uri % authentication)
-            if robj is None:
+            if robj is None or not isSuccess(status):
                 if status == BAD_REQUEST.status:
                     response.code, response.status, response.isSuccess = INVALID_AUTHORIZATION
                 else:

@@ -28,7 +28,7 @@ else:
     from ..ally_cdm.server import server_provide_content
     
     ioc.doc(server_provide_content, '''
-    !!!Attention, if the mongrel2 server is selected this option will always be "false"
+    !Attention, if the mongrel2 server is selected this option will always be "false"
     ''')
     
     @ioc.before(server_provide_content, auto=False)

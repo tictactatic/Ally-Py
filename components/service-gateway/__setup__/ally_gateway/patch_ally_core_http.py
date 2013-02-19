@@ -50,8 +50,8 @@ else:
     ally_core_http = ally_core_http  # Just to avoid the import warning
     # ----------------------------------------------------------------
 
-    from ..ally_core_http.server import resourcesRouter, server_provide_rest, updateAssemblyServerForResources, \
-    errorsRouter, server_deliver_errors, server_pattern_resources
+    from ..ally_core_http.server import resourcesRouter, server_provide_resources, updateAssemblyServerForResources, \
+    errorsRouter, server_provide_errors, server_pattern_resources
     from ..ally_core_http.processor import assemblyResources, uri, converterPath
     from ..ally_core.resources import resourcesRoot
     from ally.core.http.impl.processor.uri import URIHandler
@@ -83,21 +83,21 @@ else:
     @ioc.before(assemblyRESTRequest)
     def updateAssemblyRESTRequestForResources():
         if server_provide_gateway() == GATEWAY_INTERNAL:
-            if not server_provide_rest():
+            if not server_provide_resources():
                 raise SetupError('Cannot configure internal gateway because the REST resources is not enabled')
             assemblyRESTRequest().add(resourcesRouter())
                 
     @ioc.before(assemblyForward)
     def updateAssemblyForwardForResources():
         if server_provide_gateway() == GATEWAY_INTERNAL:
-            if not server_provide_rest():
+            if not server_provide_resources():
                 raise SetupError('Cannot configure internal gateway because the REST resources is not enabled')
             assemblyForward().add(resourcesRouterGateway())
-            if server_deliver_errors(): assemblyForward().add(errorsRouter(), after=resourcesRouterGateway())
+            if server_provide_errors(): assemblyForward().add(errorsRouter(), after=resourcesRouterGateway())
     
     @ioc.after(updateAssemblyServerForResources)
     def updateAssemblyServerForGatewayInternal():
         if server_provide_gateway() == GATEWAY_INTERNAL:
-            if not server_provide_rest():
+            if not server_provide_resources():
                 raise SetupError('Cannot configure internal gateway because the REST resources is not enabled')
             assemblyServer().add(gatewayRouter(), before=resourcesRouter())

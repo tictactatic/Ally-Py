@@ -19,12 +19,12 @@ from ally.http.impl.processor.router_by_path import RoutingByPathHandler
 # --------------------------------------------------------------------
 
 @ioc.config
-def server_provide_rest() -> bool:
+def server_provide_resources() -> bool:
     ''' Flag indicating that this server should provide REST resources'''
     return True
 
 @ioc.config
-def server_deliver_errors() -> bool:
+def server_provide_errors() -> bool:
     ''' Flag indicating that this server should provide separate REST errors, mainly used for gateway'''
     return True
 
@@ -63,8 +63,8 @@ def errorsRouter() -> Handler:
 
 @ioc.before(updateAssemblyServer)
 def updateAssemblyServerForResources():
-    if server_provide_rest(): assemblyServer().add(resourcesRouter())
+    if server_provide_resources(): assemblyServer().add(resourcesRouter())
 
 @ioc.after(updateAssemblyServerForResources)
 def updateAssemblyServerForError():
-    if server_deliver_errors(): assemblyServer().add(errorsRouter())
+    if server_provide_errors(): assemblyServer().add(errorsRouter())

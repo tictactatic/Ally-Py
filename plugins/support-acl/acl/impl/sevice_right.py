@@ -311,9 +311,9 @@ class RightService(RightBase):
 
             for method, attr in METHOD_NODE_ATTRIBUTE.items():
                 original = getattr(node, attr)
-                if not original:  continue
+                if not original: continue
                 invoker = invokerCallOf(original)
-                if not invoker:  continue
+                if not invoker: continue
                 
                 assert isinstance(invoker, InvokerCall)
                 assert isinstance(invoker.call, Call)

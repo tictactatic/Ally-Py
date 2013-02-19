@@ -13,7 +13,8 @@ from ..cdm import contentDeliveryManager
 from ..gui_core import publish_gui_resources
 from ally.cdm.spec import ICDM
 from ally.container import ioc, app
-from ally.support.util_sys import callerGlobals
+from ally.container.event import onDecorator
+from ally.support.util_sys import callerGlobals, callerLocals
 import logging
 import os
 
@@ -45,7 +46,14 @@ def cdmGUI() -> ICDM:
 
 # --------------------------------------------------------------------
 
-publish = app.populate(app.DEVEL, app.CHANGED) # TO be used as decorator whenever publishing GUI files
+def publish(*args):
+    '''
+    To be used as decorator whenever publishing GUI files
+    '''
+    decorator = onDecorator((app.POPULATE, app.DEVEL, app.CHANGED), 0, callerLocals())
+    if not args: return decorator
+    assert len(args) == 1, 'Expected only one argument that is the decorator function, got %s arguments' % len(args)
+    return decorator(args[0])
 
 def getGuiPath(file=None):
     '''Provides the file path within the plugin "gui-resources" directory'''

@@ -84,7 +84,7 @@ class GatewayAclService(IGatewayAclService, INodeChildListener, INodeInvokerList
             gateway.Pattern = rootPattern % pattern
             gateway.Filters = self.processFilters(types, filters, provider, replacer, root)
             
-            gatewaysGETByPattern[gateway.Pattern] = gateway
+            gatewaysGETByPattern[pattern] = gateway
             gateways.append(gateway)
             
         # Process DELETE gateways
@@ -95,7 +95,7 @@ class GatewayAclService(IGatewayAclService, INodeChildListener, INodeInvokerList
             filters = self.processFilters(types, filters, provider, replacer, root)
             
             gateway = gatewaysGETByPattern.get(pattern)
-            if gateway and gateway.Filter == filters:
+            if gateway and gateway.Filters == filters:
                 gateway.Methods.append(HTTP_DELETE)
             else:
                 gateway = Gateway()
@@ -117,7 +117,7 @@ class GatewayAclService(IGatewayAclService, INodeChildListener, INodeInvokerList
             gateway.Pattern = rootPattern % pattern
             gateway.Filters = self.processFilters(types, filters, provider, replacer, root)
             
-            gatewaysInsertByPattern[gateway.Pattern] = gateway
+            gatewaysInsertByPattern[pattern] = gateway
             gateways.append(gateway)
         
         
@@ -130,7 +130,7 @@ class GatewayAclService(IGatewayAclService, INodeChildListener, INodeInvokerList
             filters = self.processFilters(types, filters, provider, replacer, root)
             
             gateway = gatewaysInsertByPattern.get(pattern)
-            if gateway and gateway.Filter == filters:
+            if gateway and gateway.Filters == filters:
                 gateway.Methods.append(HTTP_PUT)
             else:
                 gateway = Gateway()

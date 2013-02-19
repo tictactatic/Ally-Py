@@ -17,7 +17,7 @@ from ally.design.processor.execution import Processing, Chain
 from ally.design.processor.handler import HandlerBranchingProceed
 from ally.design.processor.processor import Using
 from ally.gateway.http.spec.gateway import IRepository, Gateway, Match
-from ally.http.spec.codes import BAD_GATEWAY
+from ally.http.spec.codes import BAD_GATEWAY, isSuccess
 from ally.http.spec.server import RequestHTTP, ResponseHTTP, ResponseContentHTTP, \
     HTTP_GET, HTTP
 from ally.support.util_io import IInputStream
@@ -107,7 +107,7 @@ class GatewayRepositoryHandler(HandlerBranchingProceed):
         
         if not self._repository:
             robj, status, text = self.obtainGateways(processing, self.uri)
-            if robj is None:
+            if robj is None or not isSuccess(status):
                 log.info('Cannot fetch the gateways from URI \'%s\', with response %s %s', self.uri, status, text)
                 response.code, response.status, response.isSuccess = BAD_GATEWAY
                 response.text = text

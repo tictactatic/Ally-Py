@@ -20,16 +20,18 @@ from itertools import chain
 REPAIR = REPAIR
 DEPLOY = Trigger('deploy') 
 # Trigger used for controlled event setup that is called on application deploy.
+
+SUPPORT = Trigger('support')
+# Event used for controlled event setup that is called when the application is in support mode.
 NORMAL = Trigger('normal')
 # Event used for controlled event setup that is called when the application is in normal mode.
+DEVEL = Trigger('development')
+# Event used for controlled event setup that is called when the application is in development mode.
 
 POPULATE = Trigger('populate')
 # Trigger used for controlled event setup that is called on application populate.
-
 CHANGED = Trigger('changed', REPAIR)
 # Event used for controlled event setup that is called when the application distribution changes.
-DEVEL = Trigger('development')
-# Event used for controlled event setup that is called when the application is in development mode.
 
 # --------------------------------------------------------------------
 

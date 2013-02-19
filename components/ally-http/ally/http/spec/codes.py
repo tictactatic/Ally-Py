@@ -36,7 +36,19 @@ class CodeHTTP:
         self.code = code
         self.status = status
         self.isSuccess = isSuccess
-        
+
+def isSuccess(status):
+    '''
+    Checks if the status provided is a success status.
+    
+    @param status: integer
+        The status code to check if is for a successful operation.
+    @return: boolean
+        True if the status is a success status, False otherwise.
+    '''
+    assert isinstance(status, int), 'Invalid status %s' % status
+    return status / 100 == 2
+    
 # --------------------------------------------------------------------
 # Response codes.
 

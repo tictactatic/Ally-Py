@@ -1,7 +1,7 @@
 '''
 Created on Jan 28, 2013
 
-@package: gateway http
+@package: gateway
 @copyright: 2012 Sourcefabric o.p.s.
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
@@ -9,11 +9,11 @@ Created on Jan 28, 2013
 Implementation for the default anonymous gateway data.
 '''
 
+from ..api.gateway import IGatewayService
+from ..support.util_gateway import gatewayFrom
 from ally.container import wire
 from ally.container.ioc import injected
 from ally.container.support import setup
-from gateway.http.api.gateway import IGatewayService
-from gateway.http.support.util_gateway import gatewayFrom
 
 # --------------------------------------------------------------------
 

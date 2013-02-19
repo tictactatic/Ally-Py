@@ -1,7 +1,7 @@
 '''
 Created on Jan 28, 2013
 
-@package: gateway http
+@package: gateway
 @copyright: 2012 Sourcefabric o.p.s.
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
@@ -10,21 +10,20 @@ API specifications for gateway data.
 '''
 
 from ally.api.config import model, service, call
-from ally.api.type import List, Iter
+from ally.api.type import List, Iter, Scheme
 
 # --------------------------------------------------------------------
 
 @model
-class Gateway:
+class GatewayHTTP:
     '''
     Provides the gateway data.
         Pattern -   contains the regex that needs to match with the requested URI. The pattern needs to produce, if is the
                     case, capturing groups that can be used by the Filters or Navigate.
-        Headers -   The headers to be filtered in order to validate the navigation. Even though this might look specific for
-                    http they actually can be used for any meta data that accompanies a request, it depends mostly on the
-                    gateway interpretation. The headers are provided as regexes that need to be matched. In case of headers
-                    that are paired as name and value the regex will receive the matching string as 'Name:Value', the name
-                    is not allowed to contain ':'. At least one header needs to match to consider the navigation valid.
+        Headers -   The headers to be filtered in order to validate the navigation. The headers are provided as regexes that
+                    need to be matched. In case of headers that are paired as name and value the regex will receive the matching
+                    string as 'Name:Value', the name is not allowed to contain ':'. At least one header needs to match to consider
+                    the navigation valid.
         Methods -   The list of allowed methods for the request, if no method is provided then all methods are considered
                     valid. At least one method needs to match to consider the navigation valid.
         Filters -   contains a list of URIs that need to be called in order to allow the gateway Navigate. The filters are
@@ -53,17 +52,26 @@ class Gateway:
     Host = str
     Protocol = str
     Navigate = str
+
+   
+# -------------------------------------------------------------------- 
+
+@model
+class Gateway(GatewayHTTP):
+    '''
+    The gateway general model
+    '''
    
 # --------------------------------------------------------------------
 
 @service
 class IGatewayService:
     '''
-    The http gateway service that provides the anonymous accesses.
+    The gateway service that provides the anonymous accesses.
     '''
 
     @call
-    def getAnonymous(self) -> Iter(Gateway):
+    def getAnonymous(self, scheme:Scheme) -> Iter(Gateway):
         '''
-        Get the gateway options that apply for an anonymous accesses.
+        Get the gateway options that apply for an anonymous accesses for the provided scheme.
         '''

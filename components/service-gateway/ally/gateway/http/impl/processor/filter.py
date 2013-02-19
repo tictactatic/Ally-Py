@@ -17,7 +17,7 @@ from ally.design.processor.execution import Processing, Chain
 from ally.design.processor.handler import HandlerBranchingProceed
 from ally.design.processor.processor import Using
 from ally.gateway.http.spec.gateway import IRepository, Match, Gateway
-from ally.http.spec.codes import FORBIDDEN_ACCESS, BAD_GATEWAY
+from ally.http.spec.codes import FORBIDDEN_ACCESS, BAD_GATEWAY, isSuccess
 from ally.http.spec.server import HTTP, RequestHTTP, ResponseContentHTTP, \
     ResponseHTTP, HTTP_GET
 from ally.support.util_io import IInputStream
@@ -164,7 +164,8 @@ class GatewayFilterHandler(HandlerBranchingProceed):
         assert isinstance(response, ResponseHTTP), 'Invalid response %s' % response
         assert isinstance(responseCnt, ResponseContentHTTP), 'Invalid response content %s' % responseCnt
         
-        if responseCnt.source is None: return None, response.status, response.text or response.code
+        if responseCnt.source is None or not isSuccess(response.status):
+            return None, response.status, response.text or response.code
         
         if isinstance(responseCnt.source, IInputStream):
             source = responseCnt.source

@@ -1,7 +1,7 @@
 '''
 Created on Feb 18, 2013
 
-@package: gateway http
+@package: gateway
 @copyright: 2012 Sourcefabric o.p.s.
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
@@ -9,7 +9,7 @@ Created on Feb 18, 2013
 Utility functions related to gateways.
 '''
 
-from gateway.http.api.gateway import Gateway
+from ..api.gateway import Gateway
 
 # --------------------------------------------------------------------
 
