@@ -1161,10 +1161,13 @@ section.main-section {
 		padding: 5px 8px 8px 7px;
 		}		
 .post-list > li .tool-box-right {
-	position:relative;
-	top:0;
-	right:0;
-	display:none;
+	position: absolute;
+	top: 3px;
+	right: 2px;
+	display: none;
+	background: #FFF;
+	height: 20px;
+	width: 32px;
 	}
 	.post-list > li:hover .tool-box-right {
 		display:block;
