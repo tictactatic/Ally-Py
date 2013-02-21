@@ -64,5 +64,10 @@ $.styledNodeHtml = function(node)
     }
     return node.html();
 };
+$.fn.preloadImages = function() {
+	this.each(function(){
+		$('<img/>')[0].src = this;
+	});
+};
 $.extend($.browser, {language: window.navigator.userLanguage || window.navigator.language});
 });
