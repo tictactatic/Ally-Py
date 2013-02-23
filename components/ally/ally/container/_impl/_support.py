@@ -10,7 +10,7 @@ Provides the setup implementations for the IoC support module.
 '''
 
 from ..aop import classesIn
-from ..proxy import proxyWrapFor
+from ..impl.proxy import proxyWrapFor
 from ._aop import AOPClasses
 from ._entity import Wiring, WireConfig, WireEntity
 from ._setup import Setup, Assembly, SetupError, CallEntity, SetupSource
@@ -221,20 +221,12 @@ class SetupEntityProxy(Setup):
         This is the interceptor method used in creating the proxies.
         '''
         if value is not None:
-            proxies = [clazz for clazz in self._classes if isinstance(value, clazz)]
-            if proxies:
-                if len(proxies) > 1:
-                    # If there are to many proxies we find out which ones are sub classes.
-
-                    proxies = [clazz for clazz in proxies
-                               if all(not issubclass(cls, clazz) for cls in proxies if cls != clazz)]
-                if len(proxies) > 1:
-                    raise SetupError('Cannot create proxy for %s, because to many proxy classes matched %s' % 
-                                     (value, proxies))
-
-                value = proxyWrapFor(value)
-
-                for binder in self._binders: binder(value)
+            for clazz in self._classes:
+                if isinstance(value, clazz):
+                    value = proxyWrapFor(value)
+                    for binder in self._binders: binder(value)
+                    break
+            
         return value, followUp
     
     def __str__(self): return '%s for:%s' % (self.__class__.__name__,

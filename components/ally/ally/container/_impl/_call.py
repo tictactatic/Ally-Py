@@ -10,9 +10,9 @@ Provides the setup calls implementations for the IoC module.
 '''
 
 from ..error import SetupError, ConfigError
+from ..impl.priority import Priority
 from ._assembly import Assembly
 from ._entity import Initializer
-from ally.container.spec.trigger import ITrigger
 from functools import partial
 from inspect import isclass, isgenerator
 from itertools import chain
@@ -296,7 +296,7 @@ class CallEntity(WithCall, WithType, WithListeners):
         '''
         if not self._hasValue:
             if self._processing:
-                raise SetupError('Cyclic dependency detected for %r, try using yield' % self.name)
+                raise SetupError('Cyclic dependency detected for \'%s\', try using yield' % self.name)
             self._processing = True
             self.assembly.called.add(self.name)
 
@@ -312,10 +312,11 @@ class CallEntity(WithCall, WithType, WithListeners):
                 else: calls.append(self)
             else: valueId = None
 
-            assert log.debug('Processed entity %r with value %s', self.name, value) or True
+            assert log.debug('Processed entity \'%s\' with value %s', self.name, value) or True
             v = self.validate(value)
             for inter in self._interceptors:
-                v, followUp = inter(v, followUp)
+                try: v, followUp = inter(v, followUp)
+                except: raise SetupError('Problems for interceptor %s' % inter)
 
             self._hasValue = True
             self._value = v
@@ -421,10 +422,10 @@ class CallStart(CallEvent):
         Construct the start call.
         @see: CallEvent.__init__
         
-        @param priority: integer
+        @param priority: Priority
             The priority of the start call.
         '''
-        assert isinstance(priority, int), 'Invalid priority %s' % priority
+        assert isinstance(priority, Priority), 'Invalid priority %s' % priority
         super().__init__(assembly, name, call)
         
         self.priority = priority
@@ -443,7 +444,7 @@ class CallEventControlled(WithCall, WithListeners):
             The assembly to which this call belongs.
         @param name: string
             The controlled event name.
-        @param priority: integer
+        @param priority: Priority
             The event priority.
         @param triggers: set{ITrigger}
             The triggers to be associated with the event call.
@@ -453,9 +454,10 @@ class CallEventControlled(WithCall, WithListeners):
         '''
         assert isinstance(assembly, Assembly), 'Invalid assembly %s' % assembly
         assert isinstance(name, str), 'Invalid name %s' % name
-        assert isinstance(priority, int), 'Invalid priority %s' % priority
+        assert isinstance(priority, Priority), 'Invalid priority %s' % priority
         assert isinstance(triggers, set), 'Invalid triggers %s' % triggers
         if __debug__:
+            from ..event import ITrigger
             for trigger in triggers: assert isinstance(trigger, ITrigger), 'Invalid trigger %s' % trigger
         WithCall.__init__(self, call)
         WithListeners.__init__(self)

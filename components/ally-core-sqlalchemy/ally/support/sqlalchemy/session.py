@@ -9,15 +9,15 @@ Created on Jan 5, 2012
 Provides support for SQL alchemy automatic session handling.
 '''
 
-from ally.container.binder import registerProxyBinder, bindBeforeListener, \
+from ally.container.impl.binder import registerProxyBinder, bindBeforeListener, \
     bindAfterListener, bindExceptionListener, indexAfter, INDEX_LOCK_BEGIN, \
     indexBefore, INDEX_LOCK_END
 from ally.exception import DevelError
 from collections import deque
 from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.orm.session import Session
-import logging
 from threading import current_thread
+import logging
 
 # --------------------------------------------------------------------
 

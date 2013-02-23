@@ -12,8 +12,8 @@ Special module that is used in deploying the application.
 from .prepare import OptionsCore
 from __setup__.ally.logging import format, debug_for, info_for, warning_for
 from ally.container import ioc, aop, context, support, event
-from ally.container.config import load, save
 from ally.container.error import SetupError, ConfigError
+from ally.container.impl.config import load, save
 import application
 import logging
 import os
@@ -129,7 +129,7 @@ def repair():
     if not application.options.repair: return
     try:
         openSetups()
-        for name, call in support.eventsFor(event.REPAIR):
+        for call, name, _trigger in support.eventsFor(event.REPAIR):
             log.info('Executing repair event call \'%s\'', name)
             call()
             

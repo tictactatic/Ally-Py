@@ -55,6 +55,12 @@ class IRoleService(IEntityService):
     Role model service API.
     '''
     
+    @call
+    def getByName(self, name:Role.Name) -> Role:
+        '''
+        Provides the role based on a provided name.
+        '''
+    
     @call(webName='Roles')
     def getRoles(self, roleId:Role, offset:int=None, limit:int=None, detailed:bool=True, q:QRole=None) -> Iter(Role):
         '''

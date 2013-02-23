@@ -9,8 +9,8 @@ Created on Jan 8, 2013
 Provides the setup assembly implementations for the IoC module.
 '''
 
-from ..config import Config
 from ..error import SetupError, ConfigError
+from ..impl.config import Config
 from collections import deque
 from inspect import ismodule
 import abc

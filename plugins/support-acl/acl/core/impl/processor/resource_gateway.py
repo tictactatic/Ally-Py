@@ -1,17 +1,16 @@
 '''
-Created on Jan 21, 2013
+Created on Feb 21, 2013
 
-@package: security acl
+@package: support acl
 @copyright: 2012 Sourcefabric o.p.s.
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
 
-Implementation for the ACL access service.
+Processor that creates Gateway objects based on resource permissions.
 '''
 
-from ..spec import IGatewayAclService, IAuthenticatedProvider
-from acl.gateway.api.filter import IAclFilter
-from acl.spec import RightBase, Filter
+from acl.api.filter import IAclFilter
+from acl.spec import Filter
 from ally.api.config import GET, DELETE, INSERT, UPDATE
 from ally.api.operator.type import TypeService, TypeProperty
 from ally.api.type import typeFor
@@ -20,11 +19,15 @@ from ally.container.ioc import injected
 from ally.container.support import setup
 from ally.core.spec.resources import Node, ConverterPath, Path, \
     INodeChildListener, INodeInvokerListener, Invoker
+from ally.design.processor.attribute import defines, requires
+from ally.design.processor.context import Context
+from ally.design.processor.handler import HandlerProcessorProceed, Handler
 from ally.http.spec.server import HTTP_GET, HTTP_DELETE, HTTP_POST, HTTP_PUT
-from ally.support.core.util_resources import findNodesFor, pathForNode, \
-    propertyTypesOf, ReplacerWithMarkers
-from collections import Iterable, deque
-from gateway.http.api.gateway import Gateway
+from ally.support.core.util_resources import findNodesFor, propertyTypesOf, \
+    ReplacerWithMarkers, pathForNode
+from collections import Callable, Iterable
+from gateway.api.gateway import Gateway
+from itertools import chain
 import logging
 import re
 
@@ -32,116 +35,105 @@ import re
 
 log = logging.getLogger(__name__)
 
+TO_HTTP_METHOD = {GET: HTTP_GET, DELETE: HTTP_DELETE, INSERT: HTTP_POST, UPDATE: HTTP_PUT}
+# The mapping from configuration methods to http methods.
+
+# --------------------------------------------------------------------
+
+class Solicitation(Context):
+    '''
+    The solicitation context.
+    '''
+    # ---------------------------------------------------------------- Required
+    permissionsResource = requires(Iterable, doc='''
+    @rtype: Iterable(tuple(integer, Path, Invoker, dictionary{TypeProperty:Filter}))
+    The permissions tuples of (method, path, invoker, filters) to be processed to gateways.
+    ''')
+    provider = requires(Callable, doc='''
+    @rtype: callable(TypeProperty) -> string|None
+    Callable used for getting the authenticated value for the provided property type.
+    ''')
+
+class Reply(Context):
+    '''
+    The reply context.
+    '''
+    # ---------------------------------------------------------------- Defined
+    gateways = defines(Iterable, doc='''
+    @rtype: Iterable(Gateway)
+    The resource permissions generated gateways.
+    ''')
+
 # --------------------------------------------------------------------
 
 @injected
-@setup(IGatewayAclService, name='gatewayAclService')
-class GatewayAclService(IGatewayAclService, INodeChildListener, INodeInvokerListener):
+@setup(Handler, name='gatewaysFromResourcePermissions')
+class GatewaysFromResourcePermissions(HandlerProcessorProceed, INodeChildListener, INodeInvokerListener):
     '''
-    Implementation for @see: IGatewayAclService
+    Provides the handler that creates gateways based on  resource permissions.
     '''
     
     resourcesRoot = Node; wire.entity('resourcesRoot')
-    # The root node to process the security rights repository against.
+    # The root node to process the filters against.
     converterPath = ConverterPath; wire.entity('converterPath')
     # The converter path to be used.
     
+    root_uri_resources = str; wire.config('root_uri_resources', doc='''
+    This will be used for adjusting the gateways patterns and filters with a root URI. It needs to have the place holder '%s',
+    something like 'resources/%s'.
+    ''')
+
     def __init__(self):
-        '''
-        Construct the access service.
-        '''
         assert isinstance(self.resourcesRoot, Node), 'Invalid root node %s' % self.resourcesRoot
         assert isinstance(self.converterPath, ConverterPath), 'Invalid converter path %s' % self.converterPath
+        assert isinstance(self.root_uri_resources, str), 'Invalid root resources uri %s' % self.root_uri_resources
+        super().__init__()
         
+        parts = self.root_uri_resources.split('%s')
+        parts = (re.escape(part) for part in parts)
+        self.rootPatternResources = '%s'.join(parts)
         self._cacheFilters = {}
         self.resourcesRoot.addStructureListener(self)
-        
-    def gatewaysFor(self, rights, provider, root='%s'):
+
+    def process(self, solicitation:Solicitation, reply:Reply, **keyargs):
         '''
-        @see: IGatewayAclService.gatewaysFor
-        '''
-        if isinstance(rights, RightBase): rights = (rights,)
-        assert isinstance(rights, Iterable), 'Invalid rights %s' % rights
-        if not isinstance(rights, (list, tuple, deque)): rights = list(rights)
-        assert isinstance(provider, IAuthenticatedProvider), 'Invalid authenticated provider %s' % provider
-        assert isinstance(root, str), 'Invalid root URI %s' % root
+        @see: HandlerProcessorProceed.process
         
-        parts = root.split('%s')
-        parts = (re.escape(part) for part in parts)
-        rootPattern = '%s'.join(parts)
+        Filters the rights with permissions.
+        '''
+        assert isinstance(solicitation, Solicitation), 'Invalid solicitation %s' % solicitation
+        assert isinstance(reply, Reply), 'Invalid reply %s' % reply
+        assert isinstance(solicitation.permissionsResource, Iterable), 'Invalid permissions %s' % solicitation.permissionsResource
+        assert callable(solicitation.provider), 'Invalid provider %s' % solicitation.provider
         
         replacer, gateways = ReplacerWithMarkers(), []
         
-        # Process GET gateways
-        gatewaysGETByPattern = {}
-        for _method, path, invoker, filters in RightBase.iterPermissions(self.resourcesRoot, rights, GET):
+        # Process gateways
+        gatewaysByPattern = {}
+        for method, path, invoker, filters in solicitation.permissionsResource:
             assert isinstance(path, Path), 'Invalid path %s' % path
             
             pattern, types = self.processPattern(path, invoker, replacer)
+            filters = self.processFilters(types, filters, solicitation.provider, replacer, self.root_uri_resources)
             
-            gateway = Gateway()
-            gateway.Methods = [HTTP_GET]
-            gateway.Pattern = rootPattern % pattern
-            gateway.Filters = self.processFilters(types, filters, provider, replacer, root)
-            
-            gatewaysGETByPattern[pattern] = gateway
-            gateways.append(gateway)
-            
-        # Process DELETE gateways
-        for _method, path, invoker, filters in RightBase.iterPermissions(self.resourcesRoot, rights, DELETE):
-            assert isinstance(path, Path), 'Invalid path %s' % path
-            
-            pattern, types = self.processPattern(path, invoker, replacer)
-            filters = self.processFilters(types, filters, provider, replacer, root)
-            
-            gateway = gatewaysGETByPattern.get(pattern)
+            gateway = gatewaysByPattern.get(pattern)
             if gateway and gateway.Filters == filters:
-                gateway.Methods.append(HTTP_DELETE)
+                gateway.Methods.append(TO_HTTP_METHOD[method])
             else:
                 gateway = Gateway()
-                gateway.Methods = [HTTP_DELETE]
-                gateway.Pattern = rootPattern % pattern
+                gateway.Methods = [TO_HTTP_METHOD[method]]
+                gateway.Pattern = self.rootPatternResources % pattern
                 gateway.Filters = filters
                 
-                gateways.append(gateway)
-                
-        # Process INSERT gateways
-        gatewaysInsertByPattern = {}
-        for _method, path, invoker, filters in RightBase.iterPermissions(self.resourcesRoot, rights, INSERT):
-            assert isinstance(path, Path), 'Invalid path %s' % path
-            
-            pattern, types = self.processPattern(path, invoker, replacer)
-            
-            gateway = Gateway()
-            gateway.Methods = [HTTP_POST]
-            gateway.Pattern = rootPattern % pattern
-            gateway.Filters = self.processFilters(types, filters, provider, replacer, root)
-            
-            gatewaysInsertByPattern[pattern] = gateway
-            gateways.append(gateway)
-        
-        
-        # TODO: properly implement the secured redirect
-        # Process UPDATE gateways
-        for _method, path, invoker, filters in RightBase.iterPermissions(self.resourcesRoot, rights, UPDATE):
-            assert isinstance(path, Path), 'Invalid path %s' % path
-            
-            pattern, types = self.processPattern(path, invoker, replacer)
-            filters = self.processFilters(types, filters, provider, replacer, root)
-            
-            gateway = gatewaysInsertByPattern.get(pattern)
-            if gateway and gateway.Filters == filters:
-                gateway.Methods.append(HTTP_PUT)
-            else:
-                gateway = Gateway()
-                gateway.Methods = [HTTP_PUT]
-                gateway.Pattern = rootPattern % pattern
-                gateway.Filters = filters
-                
+                gatewaysByPattern[pattern] = gateway
                 gateways.append(gateway)
         
         gateways.sort(key=lambda gateway: (gateway.Pattern, gateway.Methods))
-        return gateways
+        
+        if Reply.gateways in reply:
+            reply.gateways = chain(reply.gateways, gateways)
+        else:
+            reply.gateways = gateways
     
     # ----------------------------------------------------------------
     
@@ -233,8 +225,8 @@ class GatewayAclService(IGatewayAclService, INodeChildListener, INodeInvokerList
         
         @param rfilter: Filter
             The resource filter to process.
-        @param provider: IAuthenticatedProvider
-            The @see: IAuthenticatedProvider used in solving the filters paths.
+        @param provider: callable
+            The callable used in solving the authenticated values.
         @param marker: string
             The resource marker to place in the filter path, this marker is used to identify the group in the gateway pattern.
         @param replacer: ReplacerWithMarkers
@@ -246,7 +238,7 @@ class GatewayAclService(IGatewayAclService, INodeChildListener, INodeInvokerList
         assert isinstance(rfilter.filter, IAclFilter), 'Invalid filter %s of %s' % (rfilter.filter, rfilter)
         typeService = typeFor(rfilter.filter)
         assert isinstance(typeService, TypeService), 'Invalid filter %s, is not a REST service' % rfilter.filter
-        assert isinstance(provider, IAuthenticatedProvider), 'Invalid authenticated provider %s' % provider
+        assert callable(provider), 'Invalid authenticated provider %s' % provider
         assert isinstance(marker, str), 'Invalid marker %s' % marker
         assert isinstance(replacer, ReplacerWithMarkers), 'Invalid replacer %s' % replacer
         
@@ -275,11 +267,10 @@ class GatewayAclService(IGatewayAclService, INodeChildListener, INodeInvokerList
                 assert indexAuth < indexRsc, 'Invalid path %s, improper order for types' % path
     
         assert isinstance(path, Path), 'Invalid path %s' % path
-        valueAuth = provider.valueFor(rfilter.authenticated)
+        valueAuth = provider(rfilter.authenticated)
         if valueAuth is None:
             log.error('The filter service %s has not authenticated value for %s', typeService, rfilter.authenticated)
             return
         
         replacer.register((valueAuth, marker))
         return '/'.join(path.toPaths(self.converterPath, replacer))
-    

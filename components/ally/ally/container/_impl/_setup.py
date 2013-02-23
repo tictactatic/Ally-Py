@@ -9,12 +9,12 @@ Created on Jan 12, 2012
 Provides the setup implementations for the IoC module.
 '''
 
-from ..config import Config
 from ..error import SetupError, ConfigError
+from ..impl.config import Config
+from ..impl.priority import Priority
 from ._assembly import Setup, Assembly
 from ._call import WithType, WithCall, CallEvent, CallEventOnCount, \
     WithListeners, CallConfig, CallEntity, CallStart, CallEventControlled
-from ally.container.spec.trigger import ITrigger
 from ally.support.util_sys import locationStack
 from collections import Iterable
 from functools import partial
@@ -143,16 +143,20 @@ class SetupSourceReplace(SetupFunction, WithType):
     Provides the setup for replacing source setup function.
     '''
 
-    def __init__(self, function, target, types=None, **keyargs):
+    def __init__(self, function, target, withOriginal, types=None, **keyargs):
         '''
         @see: SetupFunction.__init__
         
         @param target: SetupSource
             The setup to be replaced.
+        @param withOriginal: boolean
+            Flag indicating that the function requires the original replaced value to be passed as an argument.
         '''
         assert isinstance(target, SetupSource), 'Invalid target %s' % target
+        assert isinstance(withOriginal, bool), 'Invalid with original flag %s' % withOriginal
         SetupFunction.__init__(self, function, name=target.name, group=target.group, ** keyargs)
         WithType.__init__(self, types)
+        self._withOriginal = withOriginal
         self.priority_assemble = target.priority_assemble + 1
 
     def assemble(self, assembly):
@@ -167,7 +171,10 @@ class SetupSourceReplace(SetupFunction, WithType):
         if not isinstance(call, WithCall) and not isinstance(call, WithType):
             raise SetupError('Cannot replace call for name \'%s\' from:%s' % (self.name, locationStack(self._function)))
         assert isinstance(call, WithCall)
-        call.call = self._function
+        if self._withOriginal:
+            call.call = self.createCallWithOriginal(self._function, call.call) 
+        else:
+            call.call = self._function
         if self._types:
             assert isinstance(call, WithType)
             if call.types:
@@ -182,6 +189,14 @@ class SetupSourceReplace(SetupFunction, WithType):
                                                ([str(clazz) for clazz in self._types], [str(clazz) for clazz in call.types]))
             
             call.types = self._types
+            
+    def createCallWithOriginal(self, call, original):
+        '''
+        Creates a new call that uses call as the main function and the original function is used to get the original value.
+        '''
+        def callWithOriginal(): return call(original())
+        return callWithOriginal
+        
 
 class SetupEntity(SetupSource):
     '''
@@ -433,11 +448,14 @@ class SetupStart(SetupFunction):
     Provides the start function.
     '''
 
-    def __init__(self, function, priority=0, **keyargs):
+    def __init__(self, function, priority, **keyargs):
         '''
         @see: SetupFunction.__init__
+        
+        @param priority: Priority
+            The start priority.
         '''
-        assert isinstance(priority, int), 'Invalid priority %s' % priority
+        assert isinstance(priority, Priority), 'Invalid priority %s' % priority
         SetupFunction.__init__(self, function, **keyargs)
         self._priority = priority
 
@@ -462,16 +480,17 @@ class SetupEventControlled(SetupFunction):
         '''
         @see: SetupFunction.__init__
         
-        @param priority: integer
+        @param priority: Priority
             The event priority.
         @param triggers: Iterable(ITrigger)
             The triggers to be associated with the setup.
         '''
-        assert isinstance(priority, int), 'Invalid priority %s' % priority
+        assert isinstance(priority, Priority), 'Invalid priority %s' % priority
         SetupFunction.__init__(self, function, **keyargs)
         assert isinstance(triggers, Iterable), 'Invalid triggers %s' % triggers
         triggers = triggers if isinstance(triggers, set) else set(triggers)
         if __debug__:
+            from ..event import ITrigger
             for trigger in triggers: assert isinstance(trigger, ITrigger), 'Invalid trigger %s' % trigger
         
         self._priority = priority

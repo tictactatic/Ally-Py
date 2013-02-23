@@ -1,5 +1,6 @@
 '''
 Created on Jan 3, 2012
+
 @package: ally base
 @copyright: 2011 Sourcefabric o.p.s.
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
@@ -111,7 +112,7 @@ def analyzeProxy(proxy):
     elif isinstance(proxy, Proxy):
         return proxy, None
     else:
-        raise ProxyError('The provided object %r is not a proxy' % proxy)
+        raise ProxyError('The provided object \'%s\' is not a proxy' % proxy)
 
 def registerProxyHandler(proxyHandler, proxy):
     '''

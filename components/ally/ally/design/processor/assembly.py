@@ -135,7 +135,7 @@ class Assembly(Container):
         
         lines = report.report()
         if lines: log.info('\n%s\n' % '\n'.join(lines))
-        else: log.info('Nothing to report, everything fits nicely')
+        else: log.info('Nothing to report for \'%s\', everything fits nicely', self.name)
         return processing
 
     # ----------------------------------------------------------------

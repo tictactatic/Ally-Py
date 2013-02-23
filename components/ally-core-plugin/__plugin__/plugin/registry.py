@@ -10,7 +10,8 @@ Provides the setup registry for the plugins.
 '''
 
 from __setup__.ally_core.resources import resourcesRegister
-from ally.container.proxy import proxyWrapFor
+from ally.container.bind import processBinders
+from ally.container.impl.proxy import proxyWrapFor
 from functools import partial
 
 # --------------------------------------------------------------------
@@ -36,5 +37,7 @@ def addService(*binders):
     @param binders: arguments[Callable]
         The binders used for the registered services.
     '''
+    binders = processBinders(binders)
+    assert binders, 'At least a binder is required, if you want the register without binders use the \'registerService\' function'
     return partial(registerService, binders=binders)
 

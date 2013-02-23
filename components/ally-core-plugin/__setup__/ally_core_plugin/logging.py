@@ -24,7 +24,7 @@ def updateInfos():
 
 # --------------------------------------------------------------------
 
-@ioc.start(priority=10)
+@ioc.start(priority=ioc.PRIORITY_TOP)
 def updateDevelopment():
     if application_mode() == APP_DEVEL:
         logging.getLogger(processor.__name__).setLevel(logging.INFO)

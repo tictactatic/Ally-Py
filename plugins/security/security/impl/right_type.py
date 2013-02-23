@@ -35,4 +35,4 @@ class RightTypeServiceAlchemy(EntityNQServiceAlchemy, IRightTypeService):
         @see: IRightTypeService.getByName
         '''
         try: return self.session().query(RightTypeMapped).filter(RightTypeMapped.Name == name).one()
-        except NoResultFound: raise InputError(Ref(_('Unknown id'), ref=RightType.Id))
+        except NoResultFound: raise InputError(Ref(_('Unknown name'), ref=RightType.Name))

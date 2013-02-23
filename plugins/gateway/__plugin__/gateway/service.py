@@ -12,18 +12,29 @@ Contains the services for gateway.
 from ..plugin.registry import registerService
 from ally.container import support, ioc
 from ally.container.support import nameInEntity
-from gateway.impl.gateway import GatewayService
+from ally.design.processor.assembly import Assembly
+from gateway.core.impl.processor.default_gateway import RegisterDefaultGateways
 
 # --------------------------------------------------------------------
 
 SERVICES = 'gateway.api.**.I*Service'
 
-support.createEntitySetup('gateway.impl.**.*')
+support.createEntitySetup('gateway.impl.**.*', RegisterDefaultGateways)
 support.listenToEntities(SERVICES, listeners=registerService)
 support.loadAllEntities(SERVICES)
 
+global registerDefaultGateways
+default_gateways = ioc.entityOf(nameInEntity(RegisterDefaultGateways, 'default_gateways'))
+
 # --------------------------------------------------------------------
 
-default_gateways = ioc.entityOf(nameInEntity(GatewayService, 'default_gateways'))
+@ioc.entity
+def assemblyAnonymousGateways() -> Assembly:
+    ''' The assembly used for generating anonymous gateways'''
+    return Assembly('Anonymous gateways')
 
 # --------------------------------------------------------------------
+
+@ioc.before(assemblyAnonymousGateways)
+def updateAssemblyAnonymousGateways():
+    assemblyAnonymousGateways().add(registerDefaultGateways())

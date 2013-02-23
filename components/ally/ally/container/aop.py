@@ -40,7 +40,7 @@ def classesIn(*paths):
     '''
     Provides all the classes that are found in the provided pattern paths.
     
-    @param paths: arguments[string]
+    @param paths: arguments[string|module]
         The pattern paths to load classes from.
     @return: AOPClasses
         The found classes.

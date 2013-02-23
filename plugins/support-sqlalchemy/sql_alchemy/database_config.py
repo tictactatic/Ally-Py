@@ -32,7 +32,9 @@ def database_url():
     raise ConfigError('A database URL is required')
 
 @ioc.config
-def alchemy_pool_recycle(): '''The time to recycle pooled connection'''; return 3600
+def alchemy_pool_recycle():
+    '''The time to recycle pooled connection'''
+    return 3600
 
 @ioc.entity
 def alchemySessionCreator(): return sessionmaker(bind=alchemyEngine())
@@ -44,8 +46,8 @@ def alchemyEngine() -> Engine:
 @ioc.entity
 def metas(): return []
 
-# ---------------------------------
+# --------------------------------------------------------------------
 
-@app.populate(app.DEVEL, app.CHANGED, priority=1)
+@app.populate(app.DEVEL, app.CHANGED, priority=app.PRIORITY_FIRST)
 def createTables():
     for meta in metas(): meta.create_all(alchemyEngine())

@@ -16,6 +16,7 @@ from ._impl._setup import SetupEntity, SetupSource, SetupConfig, SetupFunction, 
     SetupEvent, SetupEventReplace, SetupSourceReplace, SetupStart, SetupEventCancel, \
     register, SetupConfigReplace, setupsOf
 from .error import SetupError
+from .impl.priority import Priority
 from functools import partial, update_wrapper
 from inspect import isclass, ismodule, getfullargspec, isfunction, cleandoc
 import logging
@@ -23,6 +24,12 @@ import logging
 # --------------------------------------------------------------------
 
 log = logging.getLogger(__name__)
+
+PRIORITY_FINAL = Priority()
+PRIORITY_LAST = Priority(PRIORITY_FINAL)
+PRIORITY_NORMAL = Priority(PRIORITY_LAST)
+PRIORITY_FIRST = Priority(PRIORITY_NORMAL)
+PRIORITY_TOP = Priority(PRIORITY_FIRST)
 
 # --------------------------------------------------------------------
 
@@ -138,18 +145,22 @@ def after(*setups, auto=True):
 def replace(setup):
     '''
     Decorator for setup functions that replace other setup functions in the underlying context.
+    The decorated function based on the replaced setup it can receive a single argument in which the original value will be
+    received.
     
     @param setup: SetupFunction
         The setup function to be replaced.
     '''
     assert isinstance(setup, SetupFunction), 'Invalid setup function %s' % setup
     def decorator(function):
-        hasType, type = process(function)
+        hasArg, hasType, type = processWithOneArg(function)
         if isinstance(setup, SetupConfig):
+            if hasArg: raise SetupError('No argument expected for function %s, when replacing a configuration' % function)
             if hasType: raise SetupError('No return type expected for function %s, when replacing a configuration' % function)
             return update_wrapper(register(SetupConfigReplace(function, setup), callerLocals()), function)
         
         if isinstance(setup, SetupEvent):
+            if hasArg: raise SetupError('No argument expected for function %s, when replacing an event' % function)
             if hasType: raise SetupError('No return type expected for function %s, when replacing an event' % function)
             return update_wrapper(register(SetupEventReplace(function, setup), callerLocals()), function)
         
@@ -159,20 +170,20 @@ def replace(setup):
             else: types = (type,)
         else: types = ()
 
-        return update_wrapper(register(SetupSourceReplace(function, setup, types), callerLocals()), function)
+        return update_wrapper(register(SetupSourceReplace(function, setup, hasArg, types), callerLocals()), function)
 
     return decorator
 
-def start(*args, priority=0):
+def start(*args, priority=PRIORITY_NORMAL):
     '''
     Decorator for setup functions that need to be called at IoC start.
     
-    @param priority: integer
-        Provides the priority, a higher value means the start function will be called earlier.
+    @param priority: Priority
+        The priority for the start call.
     '''
     if not args: return partial(start, priority=priority)
     assert len(args) == 1, 'Expected only one argument that is the decorator function, got %s arguments' % len(args)
-    assert isinstance(priority, int), 'Invalid priority %s' % priority
+    assert isinstance(priority, Priority), 'Invalid priority %s' % priority
     function = args[0]
     hasType, _type = process(function)
     if hasType: raise SetupError('No return type expected for function %s' % function)
@@ -265,3 +276,24 @@ def process(function):
         raise SetupError('The setup function %s cannot have any type of arguments' % function)
 
     return 'return' in fnArgs.annotations, fnArgs.annotations.get('return')
+
+def processWithOneArg(function):
+    '''
+    Processes and validates the function as a setup function with one argument allowed.
+    
+    @param function: function
+        The function to be processed.
+    @return: tuple(boolean, boolean, object)
+        A tuple with a boolean on the first position that indicates if the function has one argument (True) or no
+        arguments (False) in the second position a flag indicating if the function has a return type (True) or not, and
+        on the last position the return type if available or None.
+    '''
+    if not isfunction(function): raise SetupError('Expected a function as the argument, got %s' % function)
+    if function.__name__ == '<lambda>': raise SetupError('Lambda functions cannot be used %s' % function)
+    fnArgs = getfullargspec(function)
+    if fnArgs.args and len(fnArgs.args) > 1:
+        raise SetupError('The setup function %s can only have one argument' % function)
+    if fnArgs.varargs or fnArgs.varkw:
+        raise SetupError('The setup function %s cannot have any variable arguments' % function)
+
+    return len(fnArgs.args) > 0, 'return' in fnArgs.annotations, fnArgs.annotations.get('return')

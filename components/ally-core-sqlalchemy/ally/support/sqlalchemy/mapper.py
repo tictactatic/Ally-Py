@@ -14,9 +14,9 @@ from ally.api.operator.container import Model
 from ally.api.operator.descriptor import ContainerSupport, Reference
 from ally.api.operator.type import TypeModel, TypeModelProperty
 from ally.api.type import typeFor
-from ally.container.binder import indexAfter
 from ally.container.binder_op import INDEX_PROP, validateAutoId, \
     validateRequired, validateMaxLength, validateProperty, validateManaged
+from ally.container.impl.binder import indexAfter
 from ally.exception import Ref
 from ally.internationalization import _
 from ally.support.sqlalchemy.descriptor import PropertyAttribute, PropertyHybrid, \

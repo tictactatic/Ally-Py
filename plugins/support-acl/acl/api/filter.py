@@ -1,12 +1,12 @@
 '''
 Created on Jan 14, 2013
 
-@package: gateway acl
+@package: support acl
 @copyright: 2012 Sourcefabric o.p.s.
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
 
-API specifications for gateway filter.
+API specifications for exposed filter.
 '''
 
 from .domain_filter import modelFilter

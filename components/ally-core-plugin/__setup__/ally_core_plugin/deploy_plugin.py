@@ -10,8 +10,8 @@ Special module that is targeted by the application loader in order to deploy the
 '''
 
 from ally.container import aop, ioc, context, event, support
-from ally.container.config import load
 from ally.container.error import SetupError
+from ally.container.impl.config import load
 from ally.support.util_sys import isPackage
 from package_extender import PACKAGE_EXTENDER
 import logging
@@ -78,7 +78,7 @@ def excluded_plugins():
 
 # --------------------------------------------------------------------
 
-@ioc.start(priority=1)
+@ioc.start(priority=ioc.PRIORITY_FIRST)
 def deploy():
     openPlugins()
     
@@ -90,7 +90,7 @@ def repair():
     openPlugins()
     
     try:
-        for name, call in support.eventsFor(event.REPAIR):
+        for call, name, _trigger in support.eventsFor(event.REPAIR):
             log.info('Executing plugins repair event call \'%s\'', name)
             call()
     finally: context.deactivate()

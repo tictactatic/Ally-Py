@@ -17,13 +17,16 @@ from ._impl._entity import Wiring, WireConfig, Advent, Event
 from ._impl._setup import register, SetupConfig, setupsOf, setupFirstOf, \
     SetupStart, SetupEventControlled
 from ._impl._support import SetupEntityListen, SetupEntityListenAfterBinding, \
-    classesFrom, SetupEntityProxy, SetupEntityWire, SetupEntityCreate
+    classesFrom, SetupEntityWire, SetupEntityCreate
 from .error import ConfigError, SetupError
-from ally.container.config import Config
+from .event import ITrigger
+from .impl.config import Config
+from .impl.priority import sortByPriorities
+from .ioc import PRIORITY_LAST
+from collections import Iterable
 from copy import deepcopy
 from functools import partial
 from inspect import isclass, ismodule, getsource, isfunction, ismethod
-from ally.container.spec.trigger import ITrigger
 
 # --------------------------------------------------------------------
 
@@ -38,13 +41,10 @@ def nameEntity(clazz, module=None):
     @param module: string|module|None
         The group or setup module to consider as setup container, if not provided the calling module is considered.
     '''
-    if not module:
-        registry = callerGlobals()
-        assert '__name__' in registry, 'The name entity call needs to be made from a setup module function'
-        module = registry['__name__']
-    if ismodule(module): module = module.__name__
-    assert isinstance(module, str), 'Invalid module %s' % module
     assert isclass(clazz), 'Invalid class %s' % clazz
+    if module:
+        if ismodule(module): module = module.__name__
+        assert isinstance(module, str), 'Invalid module %s' % module
     
     try: types, name = clazz.__ally_setup__
     except AttributeError: types = name = None
@@ -54,7 +54,8 @@ def nameEntity(clazz, module=None):
             assert isclass(types[0]), 'Invalid class %s' % types[0]
             name = types[0].__name__
     
-    return '%s.%s' % (module, name)
+    if module: return '%s.%s' % (module, name)
+    return name
 
 def nameInEntity(clazz, name, module=None):
     '''
@@ -67,10 +68,6 @@ def nameInEntity(clazz, name, module=None):
     @param module: string|module|None
         The group or setup module to consider as setup container, if not provided the calling module is considered.
     '''
-    if not module:
-        registry = callerGlobals()
-        assert '__name__' in registry, 'The name in entity call needs to be made from a setup module function'
-        module = registry['__name__']
     if isfunction(name) or ismethod(name): name = name.__name__
     assert isinstance(name, str), 'Invalid name %s' % name
     
@@ -155,10 +152,12 @@ def createEntitySetup(*classes, module=None, nameEntity=nameEntity, nameInEntity
     
     wireClasses = []
     for clazz in classesFrom(classes):
-        if not hasattr(clazz, '__ally_setup__'): continue
-        types, _name = clazz.__ally_setup__
+        try: types, _name = clazz.__ally_setup__
+        except AttributeError: continue
+        
         wireClasses.append(clazz)
-        register(SetupEntityCreate(clazz, types, name=nameEntity(clazz, group), group=group), registry)
+        setupCreate = register(SetupEntityCreate(clazz, types, name=nameEntity(clazz, group), group=group), registry)
+        registry[nameEntity(clazz)] = setupCreate
 
     wireEntities(*wireClasses, module=module, nameInEntity=nameInEntity)
     eventEntities(*wireClasses, module=module, nameInEntity=nameInEntity)
@@ -294,32 +293,6 @@ def listenToEntities(*classes, listeners=None, beforeBinding=True, module=None, 
     else: setup = SetupEntityListenAfterBinding(group, classesFrom(classes), listeners)
     register(setup, registry)
 
-def bindToEntities(*classes, binders=None, module=None):
-    '''
-    Creates entity implementation proxies for the provided entities classes found in the provided module. The binding is
-    done at the moment of the entity creation so the binding is not dependent of the declared entity return type.
-
-    @param classes: arguments(string|class|AOPClasses)
-        The classes to be proxied.
-    @param binders: None|Callable|list[Callable]|tuple(Callable)
-        The binders to be invoked when a proxy is created. The binders Callable's will take one argument that is the newly
-        created proxy instance.
-    @param module: module|None
-        If the setup module is not provided than the calling module will be considered.
-    '''
-    if not binders: binders = []
-    elif not isinstance(binders, (list, tuple)): binders = [binders]
-    assert isinstance(binders, (list, tuple)), 'Invalid binders %s' % binders
-    if module:
-        assert ismodule(module), 'Invalid setup module %s' % module
-        registry = module.__dict__
-        group = module.__name__
-    else:
-        registry = callerLocals()
-        assert '__name__' in registry, 'The bind to entities call needs to be made directly from the setup module'
-        group = registry['__name__']
-    register(SetupEntityProxy(group, classesFrom(classes), binders), registry)
-
 def loadAllEntities(*classes, module=None):
     '''
     Loads all entities that have the type in the provided classes.
@@ -346,7 +319,7 @@ def loadAllEntities(*classes, module=None):
         group = registry['__name__']
 
     loader = partial(loadAll, group + '.', classesFrom(classes))
-    return register(SetupStart(loader, name='loader_%s' % id(loader)), registry)
+    return register(SetupStart(loader, PRIORITY_LAST, name='loader_%s' % id(loader)), registry)
 
 def include(module, inModule=None):
     '''
@@ -472,31 +445,38 @@ def entityFor(clazz, name=None, group=None, assembly=None):
     
 # --------------------------------------------------------------------
 
-def eventsFor(*triggers, assembly=None):
+def eventsFor(*triggers, source=None):
     '''
-    !Attention this function is only available in an open assembly if the assembly is not provided @see: ioc.open!
+    !Attention this function is only available in an open assembly if the source is not provided @see: ioc.open!
     Provides all the events for the assembly that match the provided event.
     
     @param triggers: arguments[object]
         The triggers to fetch for.
-    @return: Iterable(tuple(string, Callable))
-        An iterator that yields tuples having on the first position the event name and on the second position a call that
-        can be invoked to execute the event, the call will return True for a successful event execution, False otherwise. 
+    @param source: Assembly|Iterable(tuple(string, callable))|None
+        The source to provide the events for, it can be an assembly in which case the assembly calls are used as the source
+        or it can be an iterable providing tuples of name and call. If None then the current assembly calls are used.
+    @return: Iterable(tuple(Callable, string, ITrigger))
+        An iterator that yields tuples having on the first position the call will return True for a successful event execution,
+        False otherwise, on the second position the event name and on the last position the trigger.
     '''
     assert triggers, 'At least one trigger is required'
-    assembly = assembly or Assembly.current()
-    assert isinstance(assembly, Assembly), 'Invalid assembly %s' % assembly
+    if source is None: source = Assembly.current()
+    if isinstance(source, Assembly):
+        assembly = source
+        source = source.calls.items()
+    else: assembly = None
+    assert isinstance(source, Iterable), 'Invalid source %s' % source
     
     calls = []
-    for name, call in assembly.calls.items():
-        if isinstance(call, CallEventControlled):
-            assert isinstance(call, CallEventControlled)
-            if call.assembly == assembly:
-                for trigger in call.triggers:
-                    assert isinstance(trigger, ITrigger), 'Invalid trigger %s' % trigger
-                    if trigger.isTriggered(triggers):
-                        calls.append((name, call))
-    calls.sort(key=lambda pack: pack[1].priority, reverse=True)
+    for name, call in source:
+        if not isinstance(call, CallEventControlled): continue
+        assert isinstance(call, CallEventControlled)
+        if assembly is not None and call.assembly != assembly: continue
+        for trigger in call.triggers:
+            assert isinstance(trigger, ITrigger), 'Invalid trigger %s' % trigger
+            if trigger.isTriggered(triggers):
+                calls.append((call, name, trigger))
+    sortByPriorities(calls, priority=lambda item: item[0].priority, reverse=True)
     return calls
 
 # --------------------------------------------------------------------

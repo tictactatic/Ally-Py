@@ -10,7 +10,7 @@ API specifications for gateway data.
 '''
 
 from ally.api.config import model, service, call
-from ally.api.type import List, Iter, Scheme
+from ally.api.type import List, Iter
 
 # --------------------------------------------------------------------
 
@@ -71,7 +71,7 @@ class IGatewayService:
     '''
 
     @call
-    def getAnonymous(self, scheme:Scheme) -> Iter(Gateway):
+    def getAnonymous(self) -> Iter(Gateway):
         '''
         Get the gateway options that apply for an anonymous accesses for the provided scheme.
         '''

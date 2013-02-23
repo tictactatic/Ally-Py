@@ -14,7 +14,7 @@ from ..ally.prepare import OptionsCore
 from __setup__.ally_core_plugin.deploy_plugin import configurations_file_path, \
     loadPlugins
 from ally.container import ioc, aop, context
-from ally.container.config import load, save
+from ally.container.impl.config import load, save
 import application
 import os
 import sys

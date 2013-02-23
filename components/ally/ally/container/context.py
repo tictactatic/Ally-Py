@@ -13,6 +13,7 @@ from ._impl._aop import AOPModules
 from ._impl._assembly import Context, Assembly
 from ._impl._setup import CallStart
 from .error import SetupError
+from .impl.priority import sortByPriorities
 from inspect import ismodule
 import importlib
 import logging
@@ -91,7 +92,7 @@ def processStart(assembly=None):
         if isinstance(call, CallStart):
             assert isinstance(call, CallStart)
             if call.assembly == assembly: calls.append(call)
-    calls.sort(key=lambda call: call.priority, reverse=True)
+    sortByPriorities(calls, priority=lambda call: call.priority, reverse=True)
     for call in calls: assembly.processForName(call.name)
     
 def configurations(assembly=None, force=False):

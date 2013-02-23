@@ -10,7 +10,7 @@ Provides handlers for entities.
 '''
 
 from ..error import WireError, AventError
-from ally.container.spec.trigger import ITrigger
+from ..impl.priority import Priority
 from collections import Iterable
 from functools import partial
 from inspect import isclass
@@ -266,16 +266,17 @@ class Event:
         
         @param name: string
             The name of the method to be called for event.
-        @param priority: integer
+        @param priority: Priority
             The event priority.
         @param triggers: Iterable(ITrigger)
             The triggers to be associated.
         '''
         assert isinstance(name, str), 'Invalid name %s' % name
-        assert isinstance(priority, int), 'Invalid priority %s' % priority
+        assert isinstance(priority, Priority), 'Invalid priority %s' % priority
         assert isinstance(triggers, Iterable), 'Invalid triggers %s' % triggers
         triggers = triggers if isinstance(triggers, set) else set(triggers)
         if __debug__:
+            from ..event import ITrigger
             for trigger in triggers: assert isinstance(trigger, ITrigger), 'Invalid trigger %s' % trigger
         self.name = name
         self.priority = priority
