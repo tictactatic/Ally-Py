@@ -962,7 +962,10 @@ section.main-section {
 					.search-result-list > li.advertisement:first-child {
 						margin: 6px 0 0;
 						}
-	
+#colabs .search-result-list .creator{
+	color: #7D7D7D;
+}
+
 .result-content h3, .result-content p, .collaborators-content h3, .collaborators-content p  {
 	font-size:12px;
 	line-height:18px;
