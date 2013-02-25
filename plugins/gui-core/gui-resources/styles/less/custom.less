@@ -348,6 +348,8 @@ table thead tr th.desc {
 	min-height: 18px;
 	margin-left: 5px;
 	.clearfix();
+	/*margin-right:40px;*/
+	padding:3px 5px;
 }
 #timeline-view .post-list .actions
 {
@@ -429,11 +431,53 @@ table thead tr th.desc {
 }
 #timeline-view .flickr .result-content
 {
-	.clearfix()
+	.clearfix();
+	color:#787878;
 }
+#timeline-view .instagram .result-content,
+#timeline-view .youtube .result-content,
 #timeline-view .google .result-content
 {
 	margin: 10px 0;
+}
+
+#timeline-view .instagram .editable.annotation,
+#timeline-view .youtube .editable.annotation,
+#timeline-view .flickr .editable.annotation {
+	margin-left:0px;
+}
+
+#timeline-view .google-full-content,
+#timeline-view .youtube-full-content,
+#timeline-view .twitter-full-content,
+#timeline-view .flickr-full-content,
+#timeline-view .soundcloud .result-content,
+#timeline-view .instagram-full-content {
+	padding-left: 50px;
+}
+
+#timeline-view {
+	.post-info {
+		padding:3px 0 5px 50px; 
+		p[rel="author"] {
+			font-size:11px;
+			font-weight:bold;
+			color:#2d6aaf;
+			padding-right:10px;
+			border-right: 1px solid #484848;
+			margin:0 10px 0 0;
+			float:left;
+			line-height:14px;
+		}
+		time {
+			color: #686868;
+			font-size:11px;
+			font-weight:bold;
+			line-height:14px;
+			vertical-align:top;
+		}
+
+	} 
 }
 
 [contenteditable] .placeholder
