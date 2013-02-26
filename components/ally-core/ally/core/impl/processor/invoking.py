@@ -14,7 +14,7 @@ from ally.api.operator.type import TypeModelProperty
 from ally.api.type import Input
 from ally.core.spec.codes import INPUT_ERROR, INSERT_ERROR, INSERT_SUCCESS, \
     UPDATE_SUCCESS, UPDATE_ERROR, DELETE_SUCCESS, DELETE_ERROR
-from ally.core.spec.resources import Path, Invoker
+from ally.core.spec.resources import Invoker
 from ally.core.spec.transform.render import Object, List, Value
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
@@ -34,7 +34,6 @@ class Request(Context):
     The request context.
     '''
     # ---------------------------------------------------------------- Required
-    path = requires(Path)
     invoker = requires(Invoker)
     arguments = requires(dict)
 
@@ -45,7 +44,6 @@ class Response(Context):
     # ---------------------------------------------------------------- Defined
     code = defines(str)
     isSuccess = defines(bool)
-    errorMessage = defines(str)
     errorDetails = defines(Object)
     obj = defines(object, doc='''
     @rtype: object
@@ -56,11 +54,10 @@ class Response(Context):
 
 class InvokingHandler(HandlerProcessorProceed):
     '''
-    Implementation for a processor that makes the actual call to the request method corresponding invoke on the
-    resource path node. The invoking will use all the obtained arguments from the previous processors and perform
-    specific actions based on the requested method. In GET case it will provide to the request the invoke returned
-    object as to be rendered to the response, in DELETE case it will stop the execution chain and send as a response
-    a success code.
+    Implementation for a processor that makes the actual call to the request method corresponding invoke. The invoking will
+    use all the obtained arguments from the previous processors and perform specific actions based on the requested method.
+    In GET case it will provide to the request the invoke returned object as to be rendered to the response, in DELETE case
+    it will stop the execution chain and send as a response a success code.
     '''
 
     def __init__(self):
@@ -86,7 +83,6 @@ class InvokingHandler(HandlerProcessorProceed):
         assert isinstance(response, Response), 'Invalid response %s' % response
         if response.isSuccess is False: return  # Skip in case the response is in error
 
-        assert isinstance(request.path, Path), 'Invalid request path %s' % request.path
         assert isinstance(request.invoker, Invoker), 'Invalid invoker %s' % request.invoker
 
         callBack = self.invokeCallBack.get(request.invoker.method)

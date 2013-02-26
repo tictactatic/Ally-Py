@@ -134,7 +134,7 @@ class AOPModules(AOP):
         if __debug__:
             for path, value in paths.items():
                 assert isinstance(path, str), 'Invalid path %s' % path
-                assert value == path, 'Invalid value %s should be the same as path %r' % (value, path)
+                assert value == path, 'Invalid value %s should be the same as path \'%s\'' % (value, path)
         super().__init__(paths)
 
     def load(self):

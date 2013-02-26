@@ -18,7 +18,6 @@ from ally.container import wire
 from ally.container.ioc import injected
 from ally.container.support import setup
 from ally.core.impl.invoker import InvokerCall
-from ally.core.impl.node import MatchProperty, NodeProperty
 from ally.core.spec.resources import Invoker, INodeChildListener, \
     INodeInvokerListener, Path, Node
 from ally.design.bean import Bean, Attribute
@@ -115,7 +114,7 @@ class Solicitation(Context):
     '''
     # ---------------------------------------------------------------- Optional
     method = optional(int, doc='''
-    @rtype: integer|None
+    @rtype: integer
     The method to get the permissions one of (GET, INSERT, UPDATE, DELETE) or a combination of those using the
     "|" operator, if None then all methods are considered.
     ''')
@@ -123,17 +122,6 @@ class Solicitation(Context):
     rights = requires(Iterable, doc='''
     @rtype: Iterable(RightAcl)
     The rights that make the scope of the resource node association, this iterable gets trimmed of all processed rights.
-    ''')
-
-class SolicitationWithPermissions(Solicitation):
-    '''
-    The solicitation context with permissions.
-    '''
-    # ---------------------------------------------------------------- Defined
-    permissionsResource = defines(Iterable, doc='''
-    @rtype: Iterable(tuple(integer, Path, Invoker, dictionary{TypeProperty:Filter}))
-    The permissions tuples of (method, path, invoker, filters) for the provided node, rights and method.
-    The filters will always have the resource types found in the path.
     ''')
 
 class Reply(Context):
@@ -144,6 +132,43 @@ class Reply(Context):
     rightsAvailable = defines(Iterable, doc='''
     @rtype: Iterable(RightAcl)
     The rights that are available.
+    ''')
+
+class PermissionResource(Context):
+    '''
+    The permission context.
+    '''
+    # ---------------------------------------------------------------- Defined
+    method = defines(int, doc='''
+    @rtype: integer
+    The method of the permission.
+    ''')
+    path = defines(Path, doc='''
+    @rtype: Path
+    The path of the permission.
+    ''')
+    invoker = defines(Invoker, doc='''
+    @rtype: Invoker
+    The invoker of the permission.
+    ''')
+    filters = defines(list, doc='''
+    @rtype: list[Filter]
+    The filters for the permission.
+    ''')
+
+class SolicitationWithPermissions(Solicitation):
+    '''
+    The solicitation context with permissions.
+    '''
+    # ---------------------------------------------------------------- Optional
+    node = optional(Node, doc='''
+    @rtype: Node
+    The node to get the permissions for, if there is no None then the entire tree structure is used.
+    ''')
+    # ---------------------------------------------------------------- Defined
+    permissions = defines(Iterable, doc='''
+    @rtype: Iterable(Permission)
+    The solicitation permissions.
     ''')
 
 # --------------------------------------------------------------------
@@ -227,12 +252,13 @@ class IterateResourcePermissions(HandlerProcessorProceed):
         'Invalid repository node service %s' % self.repositoryNodeService
         super().__init__()
 
-    def process(self, solicitation:SolicitationWithPermissions, **keyargs):
+    def process(self, Permission:PermissionResource, solicitation:SolicitationWithPermissions, **keyargs):
         '''
         @see: HandlerProcessorProceed.process
         
         Provides the permissions.
         '''
+        assert issubclass(Permission, PermissionResource), 'Invalid permission class %s' % Permission
         assert isinstance(solicitation, SolicitationWithPermissions), 'Invalid solicitation %s' % solicitation
         assert isinstance(solicitation.rights, Iterable), 'Invalid rights %s' % solicitation.rights
         
@@ -246,6 +272,9 @@ class IterateResourcePermissions(HandlerProcessorProceed):
                 unprocessed.append(right)
             
         solicitation.rights = unprocessed
+        
+        if SolicitationWithPermissions.node in solicitation: nodeId = id(solicitation.node)
+        else: nodeId = None
         
         # Process the indexed structure for the structures
         indexed = {}
@@ -269,7 +298,12 @@ class IterateResourcePermissions(HandlerProcessorProceed):
                     isFirst = True
                 else: isFirst = False
                 indexInvokers, filters = invokersAndFilters
-                indexInvokers.update(structNodeInvokers.invokers)
+                
+                if nodeId:
+                    invoker = structNodeInvokers.invokers.get(nodeId)
+                    if invoker is None: continue
+                    indexInvokers[nodeId] = invoker
+                else: indexInvokers.update(structNodeInvokers.invokers)
                 
                 if Solicitation.method in solicitation:
                     if not solicitation.method & structCall.call.method: continue
@@ -291,16 +325,16 @@ class IterateResourcePermissions(HandlerProcessorProceed):
                             else: filters[resourceType] = resourceFilter
                 elif filters: filters.clear()  # Clear all the filters since this structure requires no filtering
         
-        permissions = self.iterPermissions(indexed)
+        permissions = self.iterPermissions(indexed, Permission)
         
-        if SolicitationWithPermissions.permissionsResource in solicitation:
-            solicitation.permissionsResource = chain(solicitation.permissionsResource, permissions)
+        if SolicitationWithPermissions.permissions in solicitation:
+            solicitation.permissions = chain(solicitation.permissions, permissions)
         else:
-            solicitation.permissionsResource = permissions
+            solicitation.permissions = permissions
                         
     # ----------------------------------------------------------------
     
-    def iterPermissions(self, indexed):
+    def iterPermissions(self, indexed, Permission):
         '''
         Iterates the permissions for the provided indexed structure.
         '''
@@ -313,16 +347,17 @@ class IterateResourcePermissions(HandlerProcessorProceed):
                         assert isinstance(path, Path)
                         # We need to check if the returned node has at least one filter in the path.
                         # TODO: check implementation, since this was done in a hurry
-                        available = []
-                        for resourceType, filter in filters.items():
-                            for match in path.matches:
-                                if isinstance(match, MatchProperty):
-                                    assert isinstance(match, MatchProperty)
-                                    assert isinstance(match.node, NodeProperty)
-                                    if resourceType in match.node.typesProperties:
-                                        available.append(filter)
-                                        break
-                        yield indexedMethod, path, structInvoker.invoker, available
+#                        available = []
+#                        for resourceType, filter in filters.items():
+#                            for match in path.matches:
+#                                if isinstance(match, MatchProperty):
+#                                    assert isinstance(match, MatchProperty)
+#                                    assert isinstance(match.node, NodeProperty)
+#                                    if resourceType in match.node.typesProperties:
+#                                        available.append(filter)
+#                                        break
+                        yield Permission(method=indexedMethod, path=path, invoker=structInvoker.invoker,
+                                         filters=list(filters.values()))
 
 # --------------------------------------------------------------------
 

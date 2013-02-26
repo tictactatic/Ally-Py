@@ -40,15 +40,22 @@ TO_HTTP_METHOD = {GET: HTTP_GET, DELETE: HTTP_DELETE, INSERT: HTTP_POST, UPDATE:
 
 # --------------------------------------------------------------------
 
+class PermissionResource(Context):
+    '''
+    The permission context.
+    '''
+    # ---------------------------------------------------------------- Required
+    method = requires(int)
+    path = requires(Path)
+    invoker = requires(Invoker)
+    filters = requires(list)
+    
 class Solicitation(Context):
     '''
     The solicitation context.
     '''
     # ---------------------------------------------------------------- Required
-    permissionsResource = requires(Iterable, doc='''
-    @rtype: Iterable(tuple(integer, Path, Invoker, dictionary{TypeProperty:Filter}))
-    The permissions tuples of (method, path, invoker, filters) to be processed to gateways.
-    ''')
+    permissions = requires(Iterable)
     provider = requires(Callable, doc='''
     @rtype: callable(TypeProperty) -> string|None
     Callable used for getting the authenticated value for the provided property type.
@@ -67,14 +74,14 @@ class Reply(Context):
 # --------------------------------------------------------------------
 
 @injected
-@setup(Handler, name='gatewaysFromResourcePermissions')
-class GatewaysFromResourcePermissions(HandlerProcessorProceed, INodeChildListener, INodeInvokerListener):
+@setup(Handler, name='gatewaysFromPermissions')
+class GatewaysFromPermissions(HandlerProcessorProceed, INodeChildListener, INodeInvokerListener):
     '''
     Provides the handler that creates gateways based on  resource permissions.
     '''
     
     resourcesRoot = Node; wire.entity('resourcesRoot')
-    # The root node to process the filters against.
+    # The root node to find the filters in.
     converterPath = ConverterPath; wire.entity('converterPath')
     # The converter path to be used.
     
@@ -95,41 +102,19 @@ class GatewaysFromResourcePermissions(HandlerProcessorProceed, INodeChildListene
         self._cacheFilters = {}
         self.resourcesRoot.addStructureListener(self)
 
-    def process(self, solicitation:Solicitation, reply:Reply, **keyargs):
+    def process(self, Permission:PermissionResource, solicitation:Solicitation, reply:Reply, **keyargs):
         '''
         @see: HandlerProcessorProceed.process
         
-        Filters the rights with permissions.
+        Construct the gateways for permissions.
         '''
+        assert issubclass(Permission, PermissionResource), 'Invalid permission class %s' % Permission
         assert isinstance(solicitation, Solicitation), 'Invalid solicitation %s' % solicitation
         assert isinstance(reply, Reply), 'Invalid reply %s' % reply
-        assert isinstance(solicitation.permissionsResource, Iterable), 'Invalid permissions %s' % solicitation.permissionsResource
+        assert isinstance(solicitation.permissions, Iterable), 'Invalid permissions %s' % solicitation.permissions
         assert callable(solicitation.provider), 'Invalid provider %s' % solicitation.provider
         
-        replacer, gateways = ReplacerWithMarkers(), []
-        
-        # Process gateways
-        gatewaysByPattern = {}
-        for method, path, invoker, filters in solicitation.permissionsResource:
-            assert isinstance(path, Path), 'Invalid path %s' % path
-            
-            pattern, types = self.processPattern(path, invoker, replacer)
-            filters = self.processFilters(types, filters, solicitation.provider, replacer, self.root_uri_resources)
-            
-            gateway = gatewaysByPattern.get(pattern)
-            if gateway and gateway.Filters == filters:
-                gateway.Methods.append(TO_HTTP_METHOD[method])
-            else:
-                gateway = Gateway()
-                gateway.Methods = [TO_HTTP_METHOD[method]]
-                gateway.Pattern = self.rootPatternResources % pattern
-                gateway.Filters = filters
-                
-                gatewaysByPattern[pattern] = gateway
-                gateways.append(gateway)
-        
-        gateways.sort(key=lambda gateway: (gateway.Pattern, gateway.Methods))
-        
+        gateways = self.processGateways(solicitation.permissions, solicitation.provider)
         if Reply.gateways in reply:
             reply.gateways = chain(reply.gateways, gateways)
         else:
@@ -150,6 +135,38 @@ class GatewaysFromResourcePermissions(HandlerProcessorProceed, INodeChildListene
         self._cacheFilters.clear()
         
     # ----------------------------------------------------------------
+    
+    def processGateways(self, permissions, provider):
+        '''
+        Process the gateways for the provided permissions.
+        
+        @param permissions: Iterable(PermissionResource)
+            The permissions to create the gateways for.
+        @param provider: callable
+            The callable used in solving the authenticated values.
+        @return: list[Gateway]
+            The created gateways objects.
+        '''
+        assert isinstance(permissions, Iterable), 'Invalid permissions %s' % permissions
+        replacer, gateways, gatewaysByPattern = ReplacerWithMarkers(), [], {}
+        for permission in permissions:
+            assert isinstance(permission, PermissionResource), 'Invalid permission resource %s' % permission
+            
+            pattern, types = self.processPattern(permission.path, permission.invoker, replacer)
+            filters = self.processFilters(types, permission.filters, provider, replacer)
+            
+            gateway = gatewaysByPattern.get(pattern)
+            if gateway and gateway.Filters == filters:
+                gateway.Methods.append(TO_HTTP_METHOD[permission.method])
+            else:
+                gateway = Gateway()
+                gateway.Methods = [TO_HTTP_METHOD[permission.method]]
+                gateway.Pattern = self.rootPatternResources % pattern
+                gateway.Filters = filters
+                
+                gatewaysByPattern[pattern] = gateway
+                gateways.append(gateway)
+        return gateways
     
     def processPattern(self, path, invoker, replacer):
         '''
@@ -180,7 +197,7 @@ class GatewaysFromResourcePermissions(HandlerProcessorProceed, INodeChildListene
         replacer.register(replaceMarkers)
         return ''.join(('\\/'.join(path.toPaths(self.converterPath, replacer)), '[\\/]?(?:\\.|$)')), types
     
-    def processFilters(self, types, filters, provider, replacer, root):
+    def processFilters(self, types, filters, provider, replacer):
         '''
         Process the filters into path filters.
         
@@ -189,33 +206,34 @@ class GatewaysFromResourcePermissions(HandlerProcessorProceed, INodeChildListene
             captured.
         @param filters: Iterable(Filter)
             The filters to process.
-        @param provider: IAuthenticatedProvider
-            The @see: IAuthenticatedProvider used in solving the filters paths.
+        @param provider: callable
+            The callable used in solving the authenticated values.
         @param replacer: ReplacerWithMarkers
             The replacer to use on the path.
-         @param root: string
-            The root URI string to use on the filters paths.
         @return: dictionary{TypeProperty, tuple(string, dictionary{TypeProperty: string}}
             A dictionary containing {resource type, (marked path, {authenticated type: marker}}
         '''
         assert isinstance(types, list), 'Invalid types %s' % types
         assert isinstance(filters, Iterable), 'Invalid filters %s' % filter
         assert isinstance(replacer, ReplacerWithMarkers), 'Invalid replacer %s' % replacer
-        assert isinstance(root, str), 'Invalid root %s' % root
         
         paths = None
         for rfilter in filters:
             assert isinstance(rfilter, Filter), 'Invalid filter %s' % rfilter
-            
-            try: index = types.index(rfilter.resource)
-            except ValueError:
-                log.error('Invalid gateway pattern type %s', rfilter.resource)
+            occurence = types.count(rfilter.resource)
+            if occurence > 1:
+                log.error('Ambiguous resource filter type \'%s\', has to many occurrences in path types: %s', rfilter.resource,
+                          ','.join(str(typ) for typ in types) if types else 'no types')
+                continue
+            elif occurence == 0:
+                assert log.debug('Invalid resource filter type \'%s\', is not present in the path types: %s', rfilter.resource,
+                                 ','.join(str(typ) for typ in types) if types else 'no types') or True
                 continue
             
-            path = self.processFilter(rfilter, provider, '{%s}' % (index + 1), replacer)
+            path = self.processFilter(rfilter, provider, '{%s}' % (types.index(rfilter.resource) + 1), replacer)
             if path is not None:
-                if paths is None: paths = [root % path]
-                else: paths.append(root % path)
+                if paths is None: paths = [self.root_uri_resources % path]
+                else: paths.append(self.root_uri_resources % path)
                 
         return paths
     

@@ -32,6 +32,7 @@ class Request(Context):
     '''
     # ---------------------------------------------------------------- Required
     uri = requires(str)
+    headers = requires(dict)
     parameters = requires(list)
     match = requires(Match)
 
@@ -80,6 +81,8 @@ class GatewayForwardHandler(HandlerBranching):
             parameters.extend(parse_qsl(url.query, True, False))
             parameters.extend(request.parameters)
             request.parameters = parameters
+        
+        if match.gateway.putHeaders: request.headers.update(match.gateway.putHeaders)
         
         assert log.debug('Forwarding request to \'%s\'', request.uri) or True
         chain.branch(processing)

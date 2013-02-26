@@ -24,6 +24,7 @@ from security.api.right_type import IRightTypeService, RightType
 class SynchronizerRights:
     '''
     Provides the synchronization of rights and right types for security with the ACL rights and rights types.
+    This synchronization is required for @see: RbacPopulateRights processor to work properly.
     '''
     
     acl = Acl; wire.entity('acl')

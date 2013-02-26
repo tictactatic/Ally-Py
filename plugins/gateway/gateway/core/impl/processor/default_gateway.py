@@ -74,6 +74,8 @@ class RegisterDefaultGateways(HandlerProcessorProceed):
                     a pattern like string of forms like '*', 'resources/*' or 'redirect/Model/{1}'. The pattern is allowed to
                     have place holders and also the '*' which stands for the actual called URI, also parameters are allowed
                     for navigate URI, the parameters will override the actual parameters.
+        PutHeaders -The headers to be put on the forwarded requests. The values are provided as 'Name:Value', the name is
+                    not allowed to contain ':'.
     ''')
     
     def __init__(self):
@@ -133,6 +135,9 @@ def gatewayFrom(config):
                 elif key == 'Host': assert isinstance(value, str), 'Invalid Host %s' % value
                 elif key == 'Protocol': assert isinstance(value, str), 'Invalid Protocol %s' % value
                 elif key == 'Navigate': assert isinstance(value, str), 'Invalid Navigate %s' % value
+                elif key == 'PutHeaders':
+                    assert isinstance(value, list), 'Invalid PutHeaders %s' % value
+                    for item in value: assert isinstance(item, str), 'Invalid PutHeaders value %s' % item
                     
             setattr(gateway, key, value)
             assert keys.add(key) or True

@@ -9,7 +9,7 @@ Created on Jan 12, 2012
 Provides the setup registry for the plugins.
 '''
 
-from __setup__.ally_core.resources import resourcesRegister
+from __setup__.ally_core.resources import services
 from ally.container.bind import processBinders
 from ally.container.impl.proxy import proxyWrapFor
 from functools import partial
@@ -21,14 +21,15 @@ def registerService(service, binders=None):
     A listener to register the service.
     
     @param service: object
-        The service to be registered.
+        The service instance to be registered.
     @param binders: list[Callable]|tuple(Callable)
         The binders used for the registered services.
     '''
-    proxy = proxyWrapFor(service)
     if binders:
-        for binder in binders: binder(proxy)
-    resourcesRegister().register(proxy)
+        service = proxyWrapFor(service)
+        if binders:
+            for binder in binders: binder(service)
+    services().append(service)
 
 def addService(*binders):
     '''

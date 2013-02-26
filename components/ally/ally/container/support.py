@@ -126,6 +126,12 @@ def setup(*types, name=None):
 
     return decorator
 
+def notCreated():
+    '''
+    Function that just raises a SetupError for when an expected entity created by 'createEntitySetup' is not present. 
+    '''
+    raise SetupError('No entity created for this name by \'createEntitySetup\' function')
+
 def createEntitySetup(*classes, module=None, nameEntity=nameEntity, nameInEntity=nameInEntity):
     '''
     For impl classes create the setup functions for the associated API classes. The name of the setup functions that will be generated

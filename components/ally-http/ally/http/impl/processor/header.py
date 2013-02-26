@@ -32,7 +32,6 @@ class HeaderConfigurations:
     # The separator used between attribute name and attribute value.
 
     def __init__(self):
-        
         assert isinstance(self.separatorMain, str), 'Invalid main separator %s' % self.separatorMain
         assert isinstance(self.separatorAttr, str), 'Invalid attribute separator %s' % self.separatorAttr
         assert isinstance(self.separatorValue, str), 'Invalid value separator %s' % self.separatorValue
@@ -129,14 +128,13 @@ class HeaderDecodeResponseHandler(HandlerProcessorProceed, HeaderConfigurations)
 
 class RequestEncode(Context):
     '''
-    The response context.
+    The request encode context.
     '''
-    # ---------------------------------------------------------------- Optional
-    headers = optional(dict, doc='''
-    @rtype: dictionary{string, string}
-    The raw headers for the request.
-    ''')
     # ---------------------------------------------------------------- Defined
+    headers = defines(dict, doc='''
+    @rtype: dictionary{string, string}
+    The raw headers for the request that the encoder will place values to.
+    ''')
     encoderHeader = defines(IEncoderHeader, doc='''
     @rtype: IEncoderPath
     The path encoder used for encoding headers that will be used in the request.

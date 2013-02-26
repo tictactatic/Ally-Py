@@ -86,6 +86,24 @@ class Processing:
                 assert isinstance(clazz, ContextMetaClass), 'Invalid context class %s for %s' % (clazz, key)
         self.ctx.__dict__.update(contexts)
         return self
+    
+    def fillIn(self, **keyargs):
+        '''
+        Updates the provided arguments with the rest of the contexts that this processing has. The fill in process is done
+        when a context name is not present in the provided arguments, the value added is being as follows:
+            - if the context name start with a capital letter then the class is provided as a value
+            - if the context names starts with a lower case then an instance is created for the class and used as a value.
+        
+        @param keyargs: key arguments
+            The key arguments to be filled in.
+        @return: dictionary{string: object}
+            The fill in key arguments.
+        '''
+        for name, clazz in self.contexts:
+            if name not in keyargs:
+                if name[:1].lower() == name[:1]: keyargs[name] = clazz()
+                else: keyargs[name] = clazz
+        return keyargs
 
 class Chain:
     '''

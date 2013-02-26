@@ -19,7 +19,7 @@ class Gateway:
     '''
     Provides the gateway data.
     '''
-    __slots__ = ('pattern', 'headers', 'methods', 'filters', 'errors', 'host', 'protocol', 'navigate')
+    __slots__ = ('pattern', 'headers', 'methods', 'filters', 'errors', 'host', 'protocol', 'navigate', 'putHeaders')
     
     def __init__(self, obj):
         '''
@@ -75,6 +75,16 @@ class Gateway:
         
         self.navigate = obj.get('Navigate')
         assert not self.navigate or isinstance(self.navigate, str), 'Invalid navigate %s' % self.navigate
+        
+        putHeaders = obj.get('PutHeaders', immut()).get('PutHeaders')
+        if putHeaders:
+            assert isinstance(putHeaders, list), 'Invalid put headers %s' % putHeaders
+            if __debug__:
+                for putHeader in putHeaders:
+                    assert isinstance(putHeader, str), 'Invalid put header value %s' % putHeader
+                    assert len(putHeader.split(':')), 'Invalid put header value %s' % putHeader
+            self.putHeaders = [putHeader.split(':') for putHeader in putHeaders]
+        else: self.putHeaders = None
 
 class Match:
     '''

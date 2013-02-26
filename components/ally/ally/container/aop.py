@@ -52,5 +52,8 @@ def classesIn(*paths):
             if k >= 0:
                 for modulePath in searchModules(path[:k]): modules[modulePath] = modulePath
             filter.append(path)
+        elif ismodule(path):
+            modules[path.__name__] = path.__name__
+            filter.append('%s.**' % path.__name__)
         else: raise AOPError('Cannot use path %s' % path)
     return AOPModules(modules).classes().filter(*filter)

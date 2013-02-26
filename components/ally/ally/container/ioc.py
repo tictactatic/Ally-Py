@@ -252,7 +252,7 @@ def entityOf(identifier, module=None):
             assert isinstance(setup, SetupSource)
             if setup.isOf(identifier): found.append(setup)
             
-    if not found: raise SetupError('No setup entity as found for "%s"' % identifier)
+    if not found: raise SetupError('No setup entity as found for \'%s\'' % identifier)
     if len(found) > 1: raise SetupError('To many setup entities found:\n%s\nfor: %s' % 
                                         ('\n'.join(str(setup) for setup in found), identifier))
     return found[0]

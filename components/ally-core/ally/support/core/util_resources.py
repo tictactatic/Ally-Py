@@ -273,18 +273,20 @@ def invokerCallOf(invoker):
         invoker = invoker.invoker
     if isinstance(invoker, InvokerCall): return invoker
 
-def propertyTypesOf(path, invoker):
+def propertyTypesOf(pathOrNode, invoker):
     '''
     Provides the list of property types that are associated with the provided path and invoker.
     Basically it extracts the property types that belong to the invoker and they appear into the path.
     
-    @param path: Path
-        The path to provide the property types for.
+    @param pathOrNode: Path|Node
+        The path or node to provide the property types for.
     @param invoker: Invoker
         The invoker to have the property types associated with the path.
     @return: list[TypePropertyModel]
         The list of model property types that are associated with the invoker.
     '''
+    if isinstance(pathOrNode, Node): path = pathForNode(pathOrNode)
+    else: path = pathOrNode
     assert isinstance(path, Path), 'Invalid path %s' % path
     assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
     types = []
