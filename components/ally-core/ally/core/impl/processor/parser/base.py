@@ -10,7 +10,7 @@ Provides the text base parser processor handler.
 '''
 
 from ally.container.ioc import injected
-from ally.core.spec.codes import CONTENT_BAD, CONTENT_ILLEGAL
+from ally.core.spec.codes import CONTENT_BAD, CONTENT_ILLEGAL, CONTENT_MISSING
 from ally.core.spec.transform.render import Value, List, Object
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
@@ -80,21 +80,26 @@ class ParseBaseHandler(HandlerProcessor):
         assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(requestCnt, RequestContent), 'Invalid request content %s' % requestCnt
         assert isinstance(response, Response), 'Invalid response %s' % response
-        assert callable(request.decoder), 'Invalid request decoder %s' % request.decoder
-        assert isinstance(request.decoderData, dict), 'Invalid request decoder data %s' % request.decoderData
-        assert isinstance(requestCnt.source, IInputStream), 'Invalid request content stream %s' % requestCnt.source
-        assert isinstance(requestCnt.charSet, str), 'Invalid request content character set %s' % requestCnt.charSet
+        
 
         # Check if the response is for this encoder
         if requestCnt.type in self.contentTypes:
-            try:
-                error = self.parse(request.decoder, request.decoderData, requestCnt.source, requestCnt.charSet)
-                if error:
-                    response.code, response.isSuccess = CONTENT_BAD
-                    response.errorMessage = error
-            except InputError as e:
-                response.code, response.isSuccess = CONTENT_ILLEGAL
-                response.errorDetails = self.processInputError(e)
+            if RequestContent.source not in requestCnt:
+                response.code, response.isSuccess = CONTENT_MISSING
+            else:
+                assert callable(request.decoder), 'Invalid request decoder %s' % request.decoder
+                assert isinstance(request.decoderData, dict), 'Invalid request decoder data %s' % request.decoderData
+                assert isinstance(requestCnt.source, IInputStream), 'Invalid request content stream %s' % requestCnt.source
+                assert isinstance(requestCnt.charSet, str), 'Invalid request content character set %s' % requestCnt.charSet
+    
+                try:
+                    error = self.parse(request.decoder, request.decoderData, requestCnt.source, requestCnt.charSet)
+                    if error:
+                        response.code, response.isSuccess = CONTENT_BAD
+                        response.errorMessage = error
+                except InputError as e:
+                    response.code, response.isSuccess = CONTENT_ILLEGAL
+                    response.errorDetails = self.processInputError(e)
             return  # We need to stop the chain if we have been able to provide the parsing
         else:
             assert log.debug('The content type \'%s\' is not for this %s parser', requestCnt.type, self) or True

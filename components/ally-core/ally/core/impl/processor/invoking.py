@@ -20,7 +20,6 @@ from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessorProceed
 from ally.exception import DevelError, InputError, Ref
-from collections import deque
 import logging
 
 # --------------------------------------------------------------------
@@ -88,8 +87,9 @@ class InvokingHandler(HandlerProcessorProceed):
         callBack = self.invokeCallBack.get(request.invoker.method)
         assert callBack is not None, \
         'Method cannot be processed for invoker \'%s\', something is wrong in the setups' % request.invoker.name
+        assert isinstance(request.arguments, dict), 'Invalid arguments %s' % request.arguments
 
-        arguments = deque()
+        arguments = []
         for inp in request.invoker.inputs:
             assert isinstance(inp, Input), 'Invalid input %s' % inp
             if inp.name in request.arguments: arguments.append(request.arguments[inp.name])
@@ -117,28 +117,28 @@ class InvokingHandler(HandlerProcessorProceed):
         '''
         assert isinstance(e, InputError), 'Invalid input error %s' % e
 
-        messages, names, models, properties = deque(), deque(), {}, {}
+        messages, names, models, properties = [], [], {}, {}
         for msg in e.message:
             assert isinstance(msg, Ref)
             if not msg.model:
                 messages.append(Value('message', msg.message))
             elif not msg.property:
                 messagesModel = models.get(msg.model)
-                if not messagesModel: messagesModel = models[msg.model] = deque()
+                if not messagesModel: messagesModel = models[msg.model] = []
                 messagesModel.append(Value('message', msg.message))
                 if msg.model not in names: names.append(msg.model)
             else:
                 propertiesModel = properties.get(msg.model)
-                if not propertiesModel: propertiesModel = properties[msg.model] = deque()
+                if not propertiesModel: propertiesModel = properties[msg.model] = []
                 propertiesModel.append(Value(msg.property, msg.message))
                 if msg.model not in names: names.append(msg.model)
 
-        errors = deque()
+        errors = []
         if messages: errors.append(List('error', *messages))
         for name in names:
             messagesModel, propertiesModel = models.get(name), properties.get(name)
 
-            props = deque()
+            props = []
             if messagesModel: props.append(List('error', *messagesModel))
             if propertiesModel: props.extend(propertiesModel)
 

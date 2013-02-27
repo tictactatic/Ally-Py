@@ -99,16 +99,18 @@ class Assembly(Container):
         except ValueError: raise AssemblyError('Invalid replaced processor %s' % replaced)
         self.processors[index] = self._processorFrom(replacer)
         
-    def remove(self, processor):
+    def remove(self, *processors):
         '''
         Removes from the assembly the provided processor.
         
-        @param processor: IProcessor|Container
+        @param processor: arguments[IProcessor|Container]
             The processor to be removed from the assembly.
         '''
-        try: index = self.processors.index(self._processorFrom(processor))
-        except ValueError: raise AssemblyError('Invalid processor %s to be removed' % processor)
-        del self.processors[index]
+        assert processors, 'At least one processor is required to be removed'
+        for processor in processors:
+            try: index = self.processors.index(self._processorFrom(processor))
+            except ValueError: raise AssemblyError('Invalid processor %s to be removed' % processor)
+            del self.processors[index]
 
     def create(self, **contexts):
         '''

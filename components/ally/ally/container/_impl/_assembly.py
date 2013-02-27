@@ -164,7 +164,10 @@ class Assembly:
         '''
         assert isinstance(name, str), 'Invalid name %s' % name
         call = self.calls.get(name)
-        if not call: raise SetupError('No IoC resource for name \'%s\'' % name)
+        if not call: raise SetupError('No IoC resource for name \'%s\', possible reasons:\n\t- the setup function you '
+        'are calling is not registered in the current assembly\n\t- you have added an \'after\' or \'before\' event to '
+        'a setup function that is from a different assembly\n\t  and when the event is triggered the setup function assembly '
+        'is no longer available' % name)
         if not callable(call): raise SetupError('Invalid call %s for name \'%s\'' % (call, name))
         return call
 

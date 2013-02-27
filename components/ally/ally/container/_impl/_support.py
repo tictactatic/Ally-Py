@@ -16,7 +16,7 @@ from ._entity import Wiring, WireConfig, WireEntity
 from ._setup import Setup, Assembly, SetupError, CallEntity, SetupSource
 from ally.support.util_sys import locationStack
 from functools import partial
-from inspect import isclass
+from inspect import isclass, ismodule
 import logging
 
 # --------------------------------------------------------------------
@@ -223,8 +223,11 @@ class SetupEntityProxy(Setup):
         if value is not None:
             for clazz in self._classes:
                 if isinstance(value, clazz):
-                    value = proxyWrapFor(value)
-                    for binder in self._binders: binder(value)
+                    valueProxy = proxyWrapFor(value)
+                    for binder in self._binders:
+                        assert log.debug('Binded %s to %s', binder, value) or True
+                        binder(valueProxy)
+                    value = valueProxy
                     break
             
         return value, followUp
@@ -308,7 +311,7 @@ def classesFrom(classes):
     assert isinstance(classes, (list, tuple)), 'Invalid classes %s' % classes
     clazzes = []
     for clazz in classes:
-        if isinstance(clazz, str):
+        if isinstance(clazz, str) or ismodule(clazz):
             clazzes.extend(classesIn(clazz).asList())
         elif isclass(clazz): clazzes.append(clazz)
         elif isinstance(clazz, AOPClasses):

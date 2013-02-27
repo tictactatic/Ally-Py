@@ -299,15 +299,15 @@ class IterateResourcePermissions(HandlerProcessorProceed):
                 else: isFirst = False
                 indexInvokers, filters = invokersAndFilters
                 
+                if Solicitation.method in solicitation:
+                    if not solicitation.method & structCall.call.method: continue
+                assert isinstance(structCall.call, Call)
+                
                 if nodeId:
                     invoker = structNodeInvokers.invokers.get(nodeId)
                     if invoker is None: continue
                     indexInvokers[nodeId] = invoker
                 else: indexInvokers.update(structNodeInvokers.invokers)
-                
-                if Solicitation.method in solicitation:
-                    if not solicitation.method & structCall.call.method: continue
-                assert isinstance(structCall.call, Call)
                 
                 # Processing filters
                 if structCall.filters:
@@ -343,21 +343,8 @@ class IterateResourcePermissions(HandlerProcessorProceed):
                 for indexInvokers, filters in indexedCalls.values():
                     for structInvoker in indexInvokers.values():
                         assert isinstance(structInvoker, StructInvoker)
-                        path = pathForNode(structInvoker.node)
-                        assert isinstance(path, Path)
-                        # We need to check if the returned node has at least one filter in the path.
-                        # TODO: check implementation, since this was done in a hurry
-#                        available = []
-#                        for resourceType, filter in filters.items():
-#                            for match in path.matches:
-#                                if isinstance(match, MatchProperty):
-#                                    assert isinstance(match, MatchProperty)
-#                                    assert isinstance(match.node, NodeProperty)
-#                                    if resourceType in match.node.typesProperties:
-#                                        available.append(filter)
-#                                        break
-                        yield Permission(method=indexedMethod, path=path, invoker=structInvoker.invoker,
-                                         filters=list(filters.values()))
+                        yield Permission(method=indexedMethod, path=pathForNode(structInvoker.node),
+                                         invoker=structInvoker.invoker, filters=list(filters.values()))
 
 # --------------------------------------------------------------------
 

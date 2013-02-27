@@ -137,7 +137,7 @@ def createEntitySetup(*classes, module=None, nameEntity=nameEntity, nameInEntity
     For impl classes create the setup functions for the associated API classes. The name of the setup functions that will be generated
     are formed based on the provided formatter. To create a setup function a class from the impl classes has to inherit the api class.
     
-    @param classes: arguments(string|class|AOPClasses)
+    @param classes: arguments(string|class|module|AOPClasses)
         The classes to be considered the implementations for the APIs.
     @param module: module|None
         If the setup module is not provided than the calling module will be considered.
@@ -173,7 +173,7 @@ def wireEntities(*classes, module=None, nameInEntity=nameInEntity):
     Creates entity wiring setups for the provided classes. The wiring setups consists of configurations found in the
     provided classes that will be published in the setup module.
     
-    @param classes: arguments(string|class|AOPClasses)
+    @param classes: arguments(string|class|module|AOPClasses)
         The classes to be wired.
     @param module: module|None
         If the setup module is not provided than the calling module will be considered.
@@ -227,7 +227,7 @@ def eventEntities(*classes, module=None, nameInEntity=nameInEntity):
     Creates entity event setups for the provided classes. The event setups consists of configurations found in the
     provided classes that will be published in the setup module.
     
-    @param classes: arguments(string|class|AOPClasses)
+    @param classes: arguments(string|class|module|AOPClasses)
         The classes to be processed for events.
     @param module: module|None
         If the setup module is not provided than the calling module will be considered.
@@ -261,7 +261,7 @@ def listenToEntities(*classes, listeners=None, beforeBinding=True, module=None, 
     Listens for entities defined in the provided module that are of the provided classes. The listening is done at the 
     moment of the entity creation so the listen is not dependent of the declared entity return type.
     
-    @param classes: arguments(string|class|AOPClasses)
+    @param classes: arguments(string|class|module|AOPClasses)
         The classes to listen to, this classes can be either the same class or a super class of the instances generated
         by the entity setup functions.
     @param listeners: None|Callable|list[Callable]|tuple(Callable)
@@ -303,7 +303,7 @@ def loadAllEntities(*classes, module=None):
     '''
     Loads all entities that have the type in the provided classes.
     
-    @param classes: arguments(string|class|AOPClasses)
+    @param classes: arguments(string|class|module|AOPClasses)
         The classes to have the entities loaded for.
     @param module: module|None
         If the setup module is not provided than the calling module will be considered.

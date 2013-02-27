@@ -16,12 +16,9 @@ from ally.container.support import setup
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessorProceed, Handler
-from ally.support.sqlalchemy.session import SessionSupport
 from collections import Iterable
 from itertools import chain
-from security.meta.right import RightMapped
-from security.meta.right_type import RightTypeMapped
-from security.rbac.core.spec import IRbacService
+from security.rbac.core.spec import IRbacSupport
 
 # --------------------------------------------------------------------
 
@@ -36,7 +33,7 @@ class Solicitation(Context):
     ''')
     types = requires(Iterable, doc='''
     @rtype: Iterable(TypeAcl)
-    The ACL types to add the default rights for.
+    The ACL types to provide rights for.
     ''')
     # ---------------------------------------------------------------- Defined
     rights = defines(Iterable, doc='''
@@ -48,16 +45,16 @@ class Solicitation(Context):
 
 @injected
 @setup(Handler, name='rbacPopulateRights')
-class RbacPopulateRights(HandlerProcessorProceed, SessionSupport):
+class RbacPopulateRights(HandlerProcessorProceed):
     '''
     Provides the handler that populates the rights based on RBAC structure.
     '''
     
-    rbacService = IRbacService; wire.entity('rbacService')
-    # Rbac service to use for complex role operations.
+    rbacSupport = IRbacSupport; wire.entity('rbacSupport')
+    # Rbac support to use for complex role operations.
     
     def __init__(self):
-        assert isinstance(self.rbacService, IRbacService), 'Invalid rbac service %s' % self.rbacService
+        assert isinstance(self.rbacSupport, IRbacSupport), 'Invalid rbac support %s' % self.rbacSupport
         super().__init__()
     
     def process(self, solicitation:Solicitation, **keyargs):
@@ -69,22 +66,15 @@ class RbacPopulateRights(HandlerProcessorProceed, SessionSupport):
         assert isinstance(solicitation, Solicitation), 'Invalid solicitation %s' % solicitation
         assert isinstance(solicitation.rbacId, int), 'Invalid rbac Id %s' % solicitation.rbacId
         
-        allTypes = {aclType.name: aclType for aclType in solicitation.types}
-        
-        sql = self.session().query(RightMapped.Name, RightTypeMapped.Name).join(RightTypeMapped)
-        sql = self.rbacService.rightsForRbacSQL(solicitation.rbacId, sql=sql)
-        
-        rights, types = [], {}
-        for name, typeName in sql.all():
-            aclType = types.get(typeName)
-            if not aclType:
-                aclType = allTypes.get(typeName)
-                if not aclType: continue
-                types[typeName] = aclType
+        allTypes, rights, types = {aclType.name: aclType for aclType in solicitation.types}, [], []
+        for typeName, names in self.rbacSupport.iterateTypeAndRightsNames(solicitation.rbacId):
+            aclType = allTypes.get(typeName)
+            if not aclType: continue
+            types.append(aclType)
             assert isinstance(aclType, TypeAcl)
-            rights.extend(aclType.rightsFor(name))
+            rights.extend(aclType.rightsFor(names))
             
-        solicitation.types = types.values()
+        solicitation.types = types
         if Solicitation.rights in solicitation:
             solicitation.rights = chain(solicitation.rights, rights)
         else:

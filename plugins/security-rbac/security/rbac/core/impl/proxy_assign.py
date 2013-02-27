@@ -44,5 +44,6 @@ class AssignRoleToRigh(IProxyHandler):
         if self._roleId is None: self._roleId = self.roleService.getByName(self.roleName).Id
         
         rightId = execution.invoke()
-        
         self.roleService.assignRight(self._roleId, rightId)
+        
+        return rightId
