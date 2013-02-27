@@ -10,27 +10,27 @@ Created on Jun 18, 2012
 from ally.container import ioc
 from ally.internationalization import NC_
 from gui.action.api.action import Action
-from ..gui_action.service import actionManagerService
+from ..gui_action.service import addAction
 from ..gui_action import defaults
-from ..gui_core.gui_core import getPublishedGui
+from ..gui_core.gui_core import publishedURI
 
 # --------------------------------------------------------------------
 
 @ioc.entity   
 def menuAction():
     return Action('sandbox', Parent=defaults.menuAction(), Label=NC_('Menu', 'Sandbox'),
-                  ScriptPath=getPublishedGui('superdesk/sandbox/scripts/js/menu-sandbox.js'))
+                  Script=publishedURI('superdesk/sandbox/scripts/js/menu-sandbox.js'))
 @ioc.entity   
 def subMenuAction():
     return Action('submenu', Parent=menuAction(), 
-                  ScriptPath=getPublishedGui('superdesk/sandbox/scripts/js/submenu-sandbox.js'))
+                  Script=publishedURI('superdesk/sandbox/scripts/js/submenu-sandbox.js'))
 
 @ioc.entity   
 def modulesAction():
-    return Action('sandbox', Parent=defaults.modulesAction(), ScriptPath=getPublishedGui('superdesk/sandbox/scripts/js/sandbox.js'))
+    return Action('sandbox', Parent=defaults.modulesAction(), Script=publishedURI('superdesk/sandbox/scripts/js/sandbox.js'))
 
 @ioc.start
 def registerActions():
-    actionManagerService().add(menuAction())
-    actionManagerService().add(subMenuAction())
-    actionManagerService().add(modulesAction())
+    addAction(menuAction())
+    addAction(subMenuAction())
+    addAction(modulesAction())

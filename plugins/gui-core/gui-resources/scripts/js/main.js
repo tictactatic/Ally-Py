@@ -1,7 +1,7 @@
 requirejs.config
 ({
 	baseUrl: config.content_url,
-//	urlArgs: "bust=" +  (new Date).getTime(),
+	//urlArgs: "v=4",
 	waitSeconds: 15,
     templatePaths:
 	{
@@ -27,41 +27,24 @@ requirejs.config
 	}
 });
 require(['concat'], function(){
-	require([config.cjs('views/menu.js'), 'jquery', 'jquery/superdesk', 'jquery/i18n', 'jqueryui/ext'], 
-	function(MenuView, $, superdesk)
+	require
+	([
+	  config.cjs('views/menu.js'), 
+	  config.cjs('views/auth.js'), 
+	  'jquery', 'jquery/superdesk', 'gizmo/superdesk/action', 'jquery/i18n', 'jqueryui/ext'
+	], 
+	function(MenuView, authView, $, superdesk, Action)
 	{
-		var makeMenu = function()
-		{ 
-		    var menuView = new MenuView;
-		}, 
-		authLock = function()
-		{
-			var args = arguments,
-				self = this;
-			require([config.core()+'scripts/js/views/auth'], function(AuthApp)
-			{
-				AuthApp.success = makeMenu;
-				AuthApp.require.apply(self, arguments); 
-			});
-		},
-		r = $.rest.prototype.doRequest;
-		$.rest.prototype.doRequest = function()
-		{
-			var ajax = r.apply(this, arguments),
-				self = this;
-			ajax.fail(function(resp){ (resp.status == 404 || resp.status == 401) && authLock.apply(self, arguments); });
-			return ajax;
-		};
-
-		$.rest.prototype.config.apiUrl = config.api_url;
-		$.restAuth.prototype.config.apiUrl = config.api_url;
-
-		if( localStorage.getItem('superdesk.login.id') )
-		{
-			$.restAuth.prototype.requestOptions.headers.Authorization = localStorage.getItem('superdesk.login.session');
-			superdesk.login = {Id: localStorage.getItem('superdesk.login.id'), Name: localStorage.getItem('superdesk.login.name'), EMail: localStorage.getItem('superdesk.login.email')}
-		}
-
-		$.superdesk.navigation.init(makeMenu);
+	    $(authView).on('logout login', function(){ Action.clearCache(); });
+        // initialize menu before auth because we have some events bound to auth there
+        var menu = new MenuView({ el: $('#navbar-top') });
+	    $(menu).on('path-clear', function()
+	    {
+	        $.superdesk.applyLayout('layouts/dashboard', {}, function(){ Action.initApps('modules.dashboard.*', $($.superdesk.layoutPlaceholder)); });
+	    });
+	    // initialize navigation authentication display
+        $.superdesk.navigation.init(function(){ authView.render(); });
+	    // apply layout
+	    $(superdesk.layoutPlaceholder).html(authView.el);
 	});
 });

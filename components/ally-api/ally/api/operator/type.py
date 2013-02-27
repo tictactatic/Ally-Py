@@ -12,7 +12,7 @@ Provides the operator types.
 from ..type import Type
 from .container import Model, Container, Query, Criteria
 from ally.api.operator.container import Service
-from ally.api.type import typeFor, TypeClass
+from ally.api.type import TypeClass, typeFor
 from inspect import isclass
 
 # --------------------------------------------------------------------
@@ -35,8 +35,20 @@ class TypeContainer(TypeClass):
         '''
         assert isinstance(container, Container), 'Invalid container provided %s' % container
         super().__init__(clazz, False, True)
-
         self.container = container
+        
+    def parents(self):
+        '''
+        Provides a list of container types for the inherited container classes.
+
+        @return: list[TypeContainer]
+            The inherited type containers in the inherited order.
+        '''
+        parents = []
+        for parent in self.clazz.__bases__:
+            parentType = typeFor(parent)
+            if isinstance(parentType, self.__class__): parents.append(parentType)
+        return parents
 
     def childTypes(self):
         '''
@@ -69,7 +81,6 @@ class TypeModel(TypeContainer):
         Constructs the model type for the provided model.
         @see: Type.__init__
         
-        @param clazz: class
             The model class associated with the model.
         @param container: Model
             The model that this type is constructed on.
@@ -80,10 +91,20 @@ class TypeModel(TypeContainer):
         assert isinstance(container, Model), 'Invalid model provided %s' % container
         super().__init__(clazz, container)
 
+    def hasId(self):
+        '''
+        Checks if it the model has a property id.
+        
+        @return: boolean
+            True if there is a property id type.
+        '''
+        return self.container.propertyId is not None
+    
     def childTypeId(self):
         '''
         Provides the child type property id.
         '''
+        assert self.container.propertyId is not None, 'The model %s has no property id' % self.container
         return self.childTypeFor(self.container.propertyId)
 
 class TypeCriteria(TypeContainer):
@@ -168,7 +189,6 @@ class TypeProperty(Type):
         @param property: string
             The property name that this type represents.
         @param type: Type|None
-            The type used by the property for validation, if not provided then it will use the type specified in the
             container.
         '''
         assert isinstance(parent, TypeContainer), 'Invalid container type %s' % parent
@@ -219,7 +239,6 @@ class TypeModelProperty(TypeProperty):
     '''
     This type is used to wrap a model property as types.
     '''
-    __slots__ = ()
 
     def __init__(self, parent, property, type=None):
         '''

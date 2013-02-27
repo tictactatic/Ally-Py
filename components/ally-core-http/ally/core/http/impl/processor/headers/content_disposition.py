@@ -10,11 +10,10 @@ Provides the content disposition header decoding.
 '''
 
 from ally.container.ioc import injected
-from ally.core.http.spec.codes import INVALID_HEADER_VALUE
-from ally.core.http.spec.server import IDecoderHeader
-from ally.core.spec.codes import Code
 from ally.design.context import Context, requires, defines
 from ally.design.processor import HandlerProcessorProceed
+from ally.http.spec.codes import INVALID_HEADER_VALUE
+from ally.http.spec.server import IDecoderHeader
 
 # --------------------------------------------------------------------
 
@@ -48,7 +47,8 @@ class Response(Context):
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    code = defines(Code)
+    code = defines(int)
+    isSuccess = defines(bool)
     text = defines(str)
     errorMessage = defines(str)
 
@@ -85,8 +85,9 @@ class ContentDispositionDecodeHandler(HandlerProcessorProceed):
         value = request.decoderHeader.decode(self.nameContentDisposition)
         if value:
             if len(value) > 1:
-                if Response.code in response and not response.code.isSuccess: return
-                response.code, response.text = INVALID_HEADER_VALUE, 'Invalid %s' % self.nameContentDisposition
+                if response.isSuccess is False: return  # Skip in case the response is in error
+                response.code, response.isSuccess = INVALID_HEADER_VALUE
+                response.text = 'Invalid %s' % self.nameContentDisposition
                 response.errorMessage = 'Invalid value \'%s\' for header \'%s\''\
                 ', expected only one value entry' % (value, self.nameContentDisposition)
                 return

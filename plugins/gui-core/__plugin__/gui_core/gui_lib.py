@@ -15,6 +15,7 @@ from ..plugin.registry import cdmGUI
 from .gui_core import getGuiPath, lib_folder_format, publishLib
 from ally.container import ioc
 from ally.support.util_io import openURI
+from distribution.container import app
 from io import BytesIO
 import logging
 
@@ -51,7 +52,7 @@ def server_url():
 
 # --------------------------------------------------------------------
 
-@ioc.start
+@app.populate
 def publish():
     publishLib('core')
 
@@ -66,12 +67,12 @@ def updateStartup():
 
     try: cdmGUI().remove(bootPath + js_bootstrap_file())
     except: pass
-    cdmGUI().publishFromFile(bootPath + js_bootstrap_file(), BytesIO(b'\n'.join([fi.read() for fi in fileList])))
+    cdmGUI().publishContent(bootPath + js_bootstrap_file(), BytesIO(b'\n'.join([fi.read() for fi in fileList])))
 
     for f in fileList: f.close()
 
 @ioc.after(publish)
-def updateDemoFile():
+def updateStartFile():
     if not publish_gui_resources(): return  # No publishing is allowed
     try:
         bootPath = lib_folder_format() % 'core/'
@@ -83,4 +84,4 @@ def updateDemoFile():
     except:
         log.exception('Error publishing demo client file')
     else:
-        assert log.debug('Client demo script published:', server_url() + getPublishedLib('core/' + ui_demo_file())) or True
+        assert log.debug('Client start script published:', server_url() + getPublishedLib('core/' + ui_demo_file())) or True

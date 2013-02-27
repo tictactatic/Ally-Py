@@ -2,8 +2,14 @@ setup.cfg
 setup.py
 __plugin__/__init__.py
 __plugin__/internationalization/__init__.py
+__plugin__/internationalization/acl.py
 __plugin__/internationalization/db_internationalization.py
 __plugin__/internationalization/service.py
+__unit_test__/__init__.py
+__unit_test__/internationalization/__init__.py
+__unit_test__/internationalization/core/__init__.py
+__unit_test__/internationalization/core/impl/__init__.py
+__unit_test__/internationalization/core/impl/po_file_manager.py
 internationalization/__init__.py
 internationalization/scanner.py
 internationalization.egg-info/PKG-INFO
@@ -36,9 +42,3 @@ internationalization/meta/source.py
 internationalization/support/__init__.py
 internationalization/support/babel/__init__.py
 internationalization/support/babel/util_babel.py
-test/__init__.py
-test/unit_testing/__init__.py
-test/unit_testing/internationalization/__init__.py
-test/unit_testing/internationalization/core/__init__.py
-test/unit_testing/internationalization/core/impl/__init__.py
-test/unit_testing/internationalization/core/impl/po_file_manager.py

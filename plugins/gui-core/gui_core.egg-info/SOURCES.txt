@@ -14,6 +14,9 @@ gui-resources/scripts/js/__init__.py
 gui-resources/scripts/js/dust/__init__.py
 gui-resources/scripts/js/dust/helpers/__init__.py
 gui-resources/scripts/js/gizmo/__init__.py
+gui-resources/scripts/js/gizmo/superdesk/__init__.py
+gui-resources/scripts/js/gizmo/superdesk/models/__init__.py
+gui-resources/scripts/js/gizmo/views/__init__.py
 gui-resources/scripts/js/history/__init__.py
 gui-resources/scripts/js/jquery/__init__.py
 gui-resources/scripts/js/jquery/bootstrap/__init__.py
@@ -28,6 +31,7 @@ gui-resources/styles/less/__init__.py
 gui-resources/templates/__init__.py
 gui-resources/templates/layouts/__init__.py
 gui/api/__init__.py
+gui/api/domain_gui.py
 gui_core.egg-info/PKG-INFO
 gui_core.egg-info/SOURCES.txt
 gui_core.egg-info/dependency_links.txt

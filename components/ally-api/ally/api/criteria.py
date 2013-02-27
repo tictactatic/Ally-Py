@@ -59,9 +59,7 @@ class AsEqualOrdered(AsEqual, AsOrdered):
     Provides the equal search and also the ordering.
     '''
 
-# --------------------------------------------------------------------
-
-@criteria(main='value')
+@criteria(main='value')  
 class AsBoolean:
     '''
     Provides query for properties that can be managed as booleans.

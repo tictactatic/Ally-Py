@@ -46,26 +46,29 @@ class Model(Container):
 
     __slots__ = ('propertyId', 'name', 'hints')
 
-    def __init__(self, properties, propertyId, name, hints={}):
+    def __init__(self, properties, name, propertyId=None, hints={}):
         '''
         Constructs a properties model.
         @see: Container.__init__
         
         @param name: string
             The name of the model.
+        @param propertyId: string|None
+            The property that represent the id of the model, if None then it means the model doesn't poses an id.
         @param hints: dictionary{string, object}
             The hints associated with the model.
         '''
         Container.__init__(self, properties)
 
         assert isinstance(name, str) and len(name) > 0, 'Invalid model name %s' % name
-        assert isinstance(propertyId, str) and propertyId in properties, 'Invalid id property %s' % propertyId
+        assert propertyId is None or isinstance(propertyId, str) and propertyId in properties, \
+        'Invalid id property %s' % propertyId
         assert isinstance(hints, dict), 'Invalid hints %s' % hints
         if __debug__:
             for hintn in hints: assert isinstance(hintn, str), 'Invalid hint name %s' % hintn
 
-        self.propertyId = propertyId
         self.name = name
+        self.propertyId = propertyId
         self.hints = hints
 
     def __hash__(self):
@@ -208,8 +211,9 @@ class Service:
         '''
         assert isinstance(calls, (list, tuple)), 'Invalid calls %s, needs to be a list' % calls
         if __debug__:
-            for call in calls: assert isinstance(call, Call), 'Invalid call %s' % call
-        self.calls = tuple(calls)
+            for call in calls:
+                assert isinstance(call, Call), 'Invalid call %s' % call
+        self.calls = {call.name:call for call in calls}
 
     def __str__(self):
-        return '<Service %s>' % [call.name for call in self.calls]
+        return '<Service %s>' % [name for name in self.calls]

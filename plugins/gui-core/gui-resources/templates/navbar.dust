@@ -10,7 +10,7 @@
 			<ul class="nav main">
 			{#superdesk.menu}
 				<li class="dropdown">
-					<a href="{?Href}{Href}{:else}#{/Href}" script-path="{ScriptPath}" 
+					<a href="{?NavBar}{NavBar}{:else}#{/NavBar}" script-path="{Script.href}" 
 						class="menu-{Name} dropdown-toggle" data-toggle="dropdown" {?Subs}data-loader="false"{/Subs}>
 						{Label} {?Subs}<b class="caret"></b>{/Subs}</a>
 					{?Subs}
@@ -27,7 +27,8 @@
 				</li>
 				<li class="divider-vertical"></li>
 				<li class="dropdown">
-					<a class="dropdown-toggle" data-toggle="dropdown" href="#" data-username-display="true">
+					<a class="dropdown-toggle" data-toggle="dropdown" href="#" data-username-display="true" 
+						data-logged-in="{?user}true{:else}false{/user}">
 						{?user}
 							{#user}{Name}{/user} <b class="caret"></b>
 						{:else}
@@ -35,6 +36,7 @@
 						{/user}
 						{~s}
 					</a>
+					{?user}
 					<ul class="dropdown-menu">
 						<!--
 						<li>
@@ -49,6 +51,7 @@
 							<a href="#" id="navbar-logout">Logout</a>
 						</li>
 					</ul>
+					{/user}
 				</li>
 				<li class="divider-vertical"></li>
 				<li>

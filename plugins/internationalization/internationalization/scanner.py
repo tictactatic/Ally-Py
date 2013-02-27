@@ -13,10 +13,12 @@ from admin.introspection.api.component import IComponentService, Component
 from admin.introspection.api.plugin import IPluginService, Plugin
 from ally.container import wire
 from ally.container.ioc import injected
+from ally.container.support import setup
 from babel.messages.extract import extract_nothing, extract_python, \
     _strip_comment_tags, empty_msgid_warning, extract_javascript
 from babel.util import pathmatch
 from datetime import datetime
+from distribution.support import IAnalyzer
 from functools import partial
 from internationalization.api.file import IFileService, QFile, File
 from internationalization.api.message import IMessageService, Message
@@ -58,7 +60,8 @@ COMMENT_TAGS = ('NOTE')
 # --------------------------------------------------------------------
 
 @injected
-class Scanner:
+@setup(IAnalyzer, name='scanner')
+class Scanner(IAnalyzer):
     '''
     The class that provides the scanner.
     '''
@@ -79,6 +82,15 @@ class Scanner:
         assert isinstance(self.fileService, IFileService), 'Invalid file service %s' % self.fileService
         assert isinstance(self.sourceService, ISourceService), 'Invalid source service %s' % self.sourceService
         assert isinstance(self.messageService, IMessageService), 'Invalid message service %s' % self.messageService
+        
+    def doAnalyze(self):
+        '''
+        @see: IAnalyzer.doAnalyze
+        '''
+        self.scanComponents()
+        self.scanPlugins()
+        
+    # ----------------------------------------------------------------
 
     def scanComponents(self):
         '''

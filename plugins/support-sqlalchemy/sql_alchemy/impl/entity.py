@@ -62,7 +62,7 @@ class EntitySupportAlchemy(SessionSupport):
             self.query = self.queryType = None
         self.QEntity = QEntity
 
-    def _getAll(self, filter=None, query=None, offset=None, limit=None, sqlQuery=None):
+    def _getAll(self, filter=None, query=None, offset=None, limit=None, sql=None):
         '''
         Provides all the entities for the provided filter, with offset and limit. Also if query is known to the
         service then also a query can be provided.
@@ -75,20 +75,20 @@ class EntitySupportAlchemy(SessionSupport):
             The offset to fetch elements from.
         @param limit: integer|None
             The limit of elements to get.
-        @param sqlQuery: SQL alchemy|None
+        @param sql: SQL alchemy|None
             The sql alchemy query to use.
         @return: list
             The list of all filtered and limited elements.
         '''
         if limit == 0: return []
-        sqlQuery = sqlQuery or self.session().query(self.Entity)
-        if filter is not None: sqlQuery = sqlQuery.filter(filter)
+        sql = sql or self.session().query(self.Entity)
+        if filter is not None: sql = sql.filter(filter)
         if query:
             assert self.QEntity, 'No query provided for the entity service'
             assert self.queryType.isValid(query), 'Invalid query %s, expected %s' % (query, self.QEntity)
-            sqlQuery = buildQuery(sqlQuery, query, self.Entity)
-        sqlQuery = buildLimits(sqlQuery, offset, limit)
-        return sqlQuery.all()
+            sql = buildQuery(sql, query, self.Entity)
+        sql = buildLimits(sql, offset, limit)
+        return sql.all()
 
     def _getAllWithCount(self, filter=None, query=None, offset=None, limit=None, sql=None):
         '''
@@ -115,7 +115,7 @@ class EntitySupportAlchemy(SessionSupport):
             assert self.queryType.isValid(query), 'Invalid query %s, expected %s' % (query, self.QEntity)
             sql = buildQuery(sql, query, self.Entity)
         sqlLimit = buildLimits(sql, offset, limit)
-        if limit == 0: return [], sql.count()
+        if limit == 0: return (), sql.count()
         return sqlLimit.all(), sql.count()
 
 # --------------------------------------------------------------------

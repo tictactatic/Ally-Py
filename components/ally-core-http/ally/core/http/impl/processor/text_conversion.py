@@ -15,11 +15,10 @@ from ally.api.type import Type, Percentage, Number, Date, DateTime, Time, \
     Boolean, List, Locale as TypeLocale
 from ally.container.ioc import injected
 from ally.core.http.spec.codes import INVALID_FORMATING
-from ally.core.http.spec.server import IDecoderHeader, IEncoderHeader
-from ally.core.spec.codes import Code
 from ally.core.spec.resources import Converter, Normalizer
 from ally.design.context import Context, defines, requires, optional
 from ally.design.processor import HandlerProcessorProceed
+from ally.http.spec.server import IDecoderHeader, IEncoderHeader
 from ally.internationalization import _
 from babel import numbers as bn, dates as bd
 from babel.core import Locale
@@ -54,11 +53,11 @@ class RequestDecode(Context):
     '''
     # ---------------------------------------------------------------- Required
     decoderHeader = requires(IDecoderHeader)
+    accLanguages = requires(list)
     # ---------------------------------------------------------------- Optional
     language = optional(str)
     argumentsOfType = optional(dict)
     # ---------------------------------------------------------------- Defined
-    accLanguages = defines(list)
     normalizer = defines(Normalizer, doc='''
     @rtype: Normalizer
     The normalizer to use for decoding request content.
@@ -73,7 +72,8 @@ class ResponseDecode(Context):
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    code = defines(Code)
+    code = defines(int)
+    isSuccess = defines(bool)
     text = defines(str)
     errorMessage = defines(str)
     language = defines(str, doc='''
@@ -157,8 +157,9 @@ class BabelConversionDecodeHandler(HandlerProcessorProceed):
         try: formats = self.processFormats(locale, formats)
         except FormatError as e:
             assert isinstance(e, FormatError)
-            if ResponseDecode.code in response and not response.code.isSuccess: return
-            response.code, response.text = INVALID_FORMATING, 'Bad request content formatting'
+            if response.isSuccess is False: return  # Skip in case the response is in error
+            response.code, response.isSuccess = INVALID_FORMATING
+            response.text = 'Bad request content formatting'
             response.errorMessage = 'Bad request content formatting, %s' % e.message
             return
 
@@ -200,8 +201,9 @@ class BabelConversionDecodeHandler(HandlerProcessorProceed):
         try: formats = self.processFormats(locale, formats)
         except FormatError as e:
             assert isinstance(e, FormatError)
-            if ResponseDecode.code in response and not response.code.isSuccess: return
-            response.code, response.text = INVALID_FORMATING, 'Bad content formatting for response'
+            if response.isSuccess is False: return  # Skip in case the response is in error
+            response.code, response.isSuccess = INVALID_FORMATING
+            response.text = 'Bad content formatting for response'
             response.errorMessage = 'Bad content formatting for response, %s' % e.message
             return
 

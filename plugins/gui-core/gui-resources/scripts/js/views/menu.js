@@ -1,69 +1,93 @@
 define
 ([
     'jquery','jquery/superdesk', 'gizmo/superdesk', 
-    config.lib_js_urn + 'views/auth',
+    'gizmo/superdesk/action',
+    config.cjs('views/auth.js'),
     'dust/core','jquery/tmpl','jquery/rest', 'bootstrap',  
     'tmpl!layouts/dashboard',
     'tmpl!navbar'
 ], 
-function($, superdesk, Gizmo, AuthApp)
+function($, superdesk, Gizmo, Action, authView)
 {
     var MenuView = Gizmo.View.extend
     ({
+        events: 
+        { 
+            "[data-logged-in]": { 'click' : 'loginHandler' },
+            "#navbar-logout": { 'click' : 'logoutHandler' },
+            '.brand': { 'click': 'home' }
+        },
+        
+        home: function(evt)
+        {
+            $.superdesk.navigation.home();
+            evt.preventDefault();
+        },
+        
+        /*!
+         * gets menu and renders
+         */
+        refresh: function()
+        {
+            this.getMenu(this.render);
+        },
+        
         getMenu: function(cb)
         {
-            this.displayMenu = [];
-            this.submenus = {};
-            
             var dfd = new $.Deferred,
                 self = this;
-            dfd.done(cb); // attach callback to deferred
-            
-            superdesk.getActions('menu.*')
-            .done(function(menu)
+                dfd.done(cb); 
+        
+            this.displayMenu = [];
+            this.submenus = {};
+                
+            // get first level of registered menus
+            Action.getMore('menu.*').done(function(mainMenus)
             {
-                $(menu).each(function()
+                self.displayMenu = [];
+                // get submenu level
+                Action.getMore('menu.*.*').done(function(subMenus)
                 {
-                    var Subs = null;
-                    if(this.ChildrenCount > 0)
+                    $(mainMenus).each(function()
                     {
-                        var Subs = 'data-submenu='+this.Path,
-                            Subz = '[data-submenu="'+this.Path+'"]';
+                        // check if main menus have submenus
+                        hasSubs = false;
+                        for( var i=0; i<subMenus.length; i++ )
+                            if( subMenus[i].get('Path').indexOf(this.get('Path')) === 0 ) hasSubs = true;
+                        if( hasSubs )
+                        {
+                            var Subs = 'data-submenu='+this.get('Path'),
+                                Subz = '[data-submenu="'+this.get('Path')+'"]';
+                            self.submenus[this.get('Path')] = this.get('Path') + '.*';
+                        }
                         
-                        self.submenus[this.Path] = this.Path + '.*';
-                    }
-                    self.displayMenu.push($.extend({}, this, 
-                    { 
-                        Path: this.Path.split('.'), 
-                        Name: this.Path.replace('.', '-'),
-                        Subs: Subs
-                    }));
+                        // set menu data
+                        self.displayMenu.push($.extend({}, this.feed(), 
+                        { 
+                            Path: this.get('Path').split('.'), 
+                            Name: this.get('Path').replace('.', '-'),
+                            Subs: Subs
+                        }));
+                    });
+                    dfd.resolve(self);
                 });
-                dfd.resolve(self);
-            });
+            }).
+            // we still resolve it so we can display something
+            fail(function(){ dfd.resolve(self); });
+            
             return this;
         },
+        /*!
+         * 
+         */
         init: function()
         {
             var self = this;
-            this.setElement($('#navbar-top'));
             this.displayMenu = [];
-            this.getMenu(this.render);
+            // refresh menu on login/logout
+            $(authView).on('login logout', function(evt){ self.refresh(); });
             
-            this.el.on('refresh-menu', function(){ self.getMenu(self.render); });
-            
-            $(AuthApp).on('authenticated', function(){ self.getMenu(self.render); });
-            $(AuthApp).on('authlock', function()
-            { 
-                $('[data-username-display="true"]', self.el).text(_('Login'))
-                    .on('click', function(evt)
-                    {
-                        $('#navbar-logout', self.el).trigger('click');
-                        return false;
-                    });
-            });
-            
-            $.superdesk.applyLayout('layouts/dashboard');
+            this.el.on('refresh-menu', function(){ self.getMenu(self.render, 'refresh'); });
         },
         /*!
          * Deferred callback
@@ -74,7 +98,7 @@ function($, superdesk, Gizmo, AuthApp)
             var self = view,
                 navData = {superdesk: {menu: self.displayMenu}};
             superdesk.login && $.extend(navData, {user: superdesk.login});
-            
+
             self.el
             .html('')
             .tmpl('navbar', navData, function()
@@ -85,12 +109,16 @@ function($, superdesk, Gizmo, AuthApp)
                 self.el.find('[data-submenu]').each(function()
                 {
                     var submenuElement = this;
-                    superdesk.getActions( self.submenus[$(this).attr('data-submenu')] )
+                    Action.initApps(self.submenus[$(this).attr('data-submenu')], submenuElement, self.el);
+                    
+                    return true;
+                    
+                    Action.getMore( self.submenus[$(this).attr('data-submenu')] )
                     .done(function(subs)
                     {
                         $(subs).each(function()
                         { 
-                            require([config.api_url + this.ScriptPath], function(submenuApp)
+                            require([this.get('Script').href], function(submenuApp)
                             { 
                                 submenuApp && submenuApp.init && submenuApp.init(submenuElement, self.el); 
                             }); 
@@ -109,7 +137,7 @@ function($, superdesk, Gizmo, AuthApp)
                 
                 var callback = function()
                 { 
-                    require([config.api_url + $(self).attr('script-path')], function(x){ x && x.init && x.init(); });
+                    require([$(self).attr('script-path')], function(x){ x && x.init && x.init(); });
                 };
                   
                 var href = $(self).attr('href').replace(/^\/+|\/+$/g, '');
@@ -123,31 +151,39 @@ function($, superdesk, Gizmo, AuthApp)
             
             /*!
              * redirect to current page on reload
+             * or trigger an event to notify the path is clear
              */
+            var navHasInit = false;
             if( superdesk.navigation.getStartPathname() != '')
+            {
                 self.el.find('li > a[href]').each(function()
                 {
-                    if( $(this).attr('href').replace(/^\/+|\/+$/g, '') == superdesk.navigation.getStartPathname()) 
-                        $(this).trigger('click'); 
+                    if( $(this).attr('href').replace(/^\/+|\/+$/g, '') == superdesk.navigation.getStartPathname())
+                    {
+                        navHasInit = true;
+                        superdesk.navigation.consumeStartPathname();
+                        $(this).trigger('click');
+                    }
                 });
-            
-            $('#navbar-logout', self.el) // TODO param.
-            .off('click.superdesk')
-            .on('click.superdesk', function()
-            {
-                if(!localStorage.getItem('superdesk.login.session'))
-                {
-                    AuthApp.require.call();
-                    return;
-                }
-                delete superdesk.login;
-                localStorage.removeItem('superdesk.login.name');
-                localStorage.removeItem('superdesk.login.id');
-                delete $.restAuth.prototype.requestOptions.headers.Authorization;
-                $(AuthApp).trigger('logout');
-                var gm = self.getMenu(self.render);
-            });
+                !navHasInit && $(self).trigger('path-clear'); 
+            }
+            else $(self).trigger('path-clear');
+        },
+        /*!
+         * login control
+         */
+        loginHandler: function(evt)
+        {
+            if( $(evt.currentTarget).attr('data-logged-in') == 'false' ) authView.renderPopup();
+        },
+        /*!
+         * 
+         */
+        logoutHandler: function(evt)
+        {
+            authView.logout();
         }
+        
         
     });
     

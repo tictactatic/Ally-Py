@@ -79,11 +79,25 @@ var superdesk =
 	 */
 	cache: {actions: {}, scripts: {}, test: {}},
 	ACTIONS_PATH_SEP: '.',
+	clearActions: function(path)
+	{
+	    if( !path ){ superdesk.cache.actions = {}; return; }
+	    
+	    var results = [], searchPath = path; 
+        if( path.lastIndexOf('*') === path.length-1 )
+            searchPath = path.substr(0, path.length-1);
+
+        for( var i in superdesk.cache.actions )
+            if( superdesk.cache.actions[i].Path.indexOf(searchPath) === 0 )
+                delete superdesk.cache.actions[i];
+	},
+	actionsUrl: 'GUI/Action',
+	actionsUseAuth: true,
 	/*!
 	 * @param string path 
 	 * @returns $.Deferred()
 	 */
-	getActions: function(path)
+	getActions: function(path, url)
 	{
 	    var dfd = $.Deferred(),
 	    searchCache = function()
@@ -101,25 +115,28 @@ var superdesk =
 	    var cachedResults = searchCache();
 	    if( cachedResults.length === 0 )
 		{
-			new $.rest('GUI/Action?path='+path)
+	        var restObj = superdesk.actionsUseAuth ? $.restAuth : $.rest;
+			var rest = new restObj((url || superdesk.actionsUrl)+'?path='+path)
 				.done(function(actions)
 				{ 
 				    for(var i in actions)
                         superdesk.cache.actions[actions[i].Path] = actions[i];
 					dfd.resolve(searchCache());
 				});
+			$(rest).on('failed', function(){ dfd.reject(); });
 			return dfd;
 		}
 		return dfd.resolve(cachedResults);
 	},
 	
-	getAction: function(path)
+	getAction: function(path, url)
 	{
 	    var dfd = $.Deferred();
         if( !superdesk.cache.actions[path] )
         {
-            var searchPath = path.substr(0, path.lastIndexOf(superdesk.ACTIONS_PATH_SEP)); 
-            new $.rest('GUI/Action?path='+searchPath+'.*')
+            var searchPath = path.substr(0, path.lastIndexOf(superdesk.ACTIONS_PATH_SEP)),
+                restObj = superdesk.actionsUseAuth ? $.restAuth : $.rest; 
+            new restObj((url || superdesk.actionsUrl)+'?path='+searchPath+'.*')
                 .done(function(actions)
                 { 
                     for(var i in actions)
@@ -139,6 +156,7 @@ var superdesk =
 	    _base: '',
 	    _startPathname: '',
 	    _titlePrefix: '',
+	    _homeTitle: '',
 	    getBase: function()
 	    {
 	        return this._base;
@@ -159,18 +177,16 @@ var superdesk =
         bind: function(href, callback, title)
         {
             var History = window.History;
-
+            
             if( $.trim(href) != '' && this._repository[href]  )
             {
                 History.replaceState({href: href}, 
                         title ? this._titlePrefix + title : null, 
                         this._base + (!config.server_tech ? '?'+href : href));
-                callback.call();
                 return callback;
             }
-            
             this._repository[href] = callback;
-            
+
             History.pushState({href: href}, 
                     title ? this._titlePrefix + title : null, 
                     this._base + (!config.server_tech ? '?'+href : href));
@@ -203,9 +219,14 @@ var superdesk =
             {
                 this._repository[''] = callback;
                 this._base = this._base;
+                this._homeTitle = $(document).prop('title');
                 History.pushState( {href: ''}, $(document).prop('title'), this._base );
                 !triggered && History.Adapter.trigger( window, 'statechange' );
             }
+        },
+        home: function()
+        {
+            History.replaceState( {href: ''}, this._homeTitle, this._base );
         }
 	},
 	/*!

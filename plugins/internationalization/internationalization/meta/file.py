@@ -18,9 +18,9 @@ from sqlalchemy.types import String, DateTime
 
 # --------------------------------------------------------------------
 
-component = Column('component', String(255), nullable=True, key='Component')
-plugin = Column('plugin', String(255), nullable=True, key='Plugin')
-path = Column('path', String(255), nullable=False, key='Path')
+component = Column('component', String(190), nullable=True, key='Component')
+plugin = Column('plugin', String(190), nullable=True, key='Plugin')
+path = Column('path', String(190), nullable=False, key='Path')
 
 table = Table('inter_file', meta,
               Column('id', INTEGER(unsigned=True), primary_key=True, key='Id'),

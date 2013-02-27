@@ -6,16 +6,16 @@ Created on Feb 23, 2012
 @license:  http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Mihai Balaceanu
 
-
+Provides the services setup.
 '''
-from ..gui_core import service
-from ally.container import ioc
+
+from ally.container import support
 from gui.action.api.action import IActionManagerService
-from gui.action.impl.action import ActionManagerService
 
 # --------------------------------------------------------------------
 
-@ioc.replace(ioc.getEntity(IActionManagerService, service))
-def actionManagerService() -> IActionManagerService:
-    b = ActionManagerService()
-    return b
+def addAction(action):
+    '''
+    Add a new action.
+    '''
+    support.entityFor(IActionManagerService).add(action)

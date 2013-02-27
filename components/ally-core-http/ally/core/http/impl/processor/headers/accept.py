@@ -10,7 +10,7 @@ Provides the accept headers handling.
 '''
 
 from ally.container.ioc import injected
-from ally.core.http.spec.server import IDecoderHeader
+from ally.http.spec.server import IDecoderHeader
 from ally.design.processor import HandlerProcessorProceed
 from ally.api.type import List, Locale
 from ally.design.context import Context, requires, optional, defines

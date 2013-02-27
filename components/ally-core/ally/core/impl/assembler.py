@@ -316,7 +316,7 @@ class AssembleOneByOne(AssembleBase):
 
     def assemble(self, root, invokers):
         '''
-        @see: Assembler.resolve
+        @see: Assembler.assemble
         '''
         assert isinstance(invokers, list), 'Invalid invokers %s' % invokers
         k = 0
@@ -329,7 +329,7 @@ class AssembleOneByOne(AssembleBase):
             except:
                 info = invoker.infoAPI or invoker.infoIMPL
                 assert isinstance(info, InvokerInfo)
-                raise AssembleError('Problems assembling invoker at:\n  File "%s", line %i, in %s' %
+                raise AssembleError('Problems assembling invoker at:\n  File "%s", line %i, in %s' % 
                                     (info.file, info.line, info.name))
 
     @abc.abstractmethod
@@ -415,7 +415,8 @@ class AssembleGet(AssembleOneByOne):
         assert isinstance(model, Model), 'Invalid model %s' % model
         assert isinstance(mandatory, list), 'Invalid mandatory list %s' % mandatory
         assert isinstance(optional, list), 'Invalid optional list %s' % optional
-
+        # TODO: refactor the assembler in order to do the combinations by creating a series of invokers that will be
+        # assembled separattelly
         nodes = []
         for extra in chain(*(combinations(optional, k) for k in range(0, len(optional) + 1))):
             types = list(mandatory)
@@ -584,17 +585,21 @@ class AssembleUpdateModel(AssembleUpdate):
         if len(modelTypes) == 1:
             typ, modelIndex = modelTypes[0]
             assert isinstance(typ, TypeModel)
-            typeId = typ.childTypeId()
-            if typeId not in types:
-                assert isinstance(typeId, TypeModelProperty)
-                inputs = list(invoker.inputs[:invoker.mandatory])
-                indexes = list(range(0, invoker.mandatory))
-
-                indexesSetValue = {modelIndex: {typeId.property:invoker.mandatory}}
-
-                inputs.append(Input('setId$%s' % typeId.property, typeId))
-                inputs.extend(invoker.inputs[invoker.mandatory:])
-                indexes.extend(range(invoker.mandatory + 1, len(inputs)))
-
-                return super().assembleInvoker(root, InvokerRestructuring(invoker, inputs, indexes, indexesSetValue))
+            if typ.hasId():
+                typeId = typ.childTypeId()
+                if typeId not in types:
+                    assert isinstance(typeId, TypeModelProperty)
+                    inputs = list(invoker.inputs[:invoker.mandatory])
+                    indexes = list(range(0, invoker.mandatory))
+    
+                    indexesSetValue = {modelIndex: {typeId.property:invoker.mandatory}}
+    
+                    inputs.append(Input('setId$%s' % typeId.property, typeId))
+                    inputs.extend(invoker.inputs[invoker.mandatory:])
+                    indexes.extend(range(invoker.mandatory + 1, len(inputs)))
+    
+                    invokerRestr = InvokerRestructuring(invoker, inputs, indexes, indexesSetValue)
+                    if super().assembleInvoker(root, invokerRestr): return True
+                    log.warn('Cannot assemble the exploded update invoker %s created based on invoker %s' 
+                             % (invokerRestr, invoker))
         return False

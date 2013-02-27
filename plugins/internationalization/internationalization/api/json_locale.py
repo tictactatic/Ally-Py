@@ -52,10 +52,10 @@ class IJSONLocaleFileService:
         Provides the messages for the given component and the given locale in JSON format.
         For format @see: IPOFileManager.getGlobalAsDict.
 
-        @param locale: string
-            The locale for which to return the translation.
         @param component: Component.Id
             The component for which to return the translation.
+        @param locale: string
+            The locale for which to return the translation.
         @return: string
             The path to the temporary JSON file.
         '''

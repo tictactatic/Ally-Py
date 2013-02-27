@@ -162,10 +162,8 @@ class MatchProperty(Match):
 
         for typ in self.node.typesProperties:
             assert isinstance(typ, TypeModelProperty)
-            if objType == typ.container:
-                self.value = getattr(obj, typ.property)
-                return True
-            if objType == typ.parent:
+            if objType == typ.container or objType == typ.parent:
+                assert typ.parent.isValid(obj), 'Invalid object \'%s\' for model %s' % (obj, typ.parent)
                 self.value = getattr(obj, typ.property)
                 return True
 

@@ -16,6 +16,7 @@ from ally.api.operator.type import TypeQuery, TypeContainer, TypeModel
 from inspect import isclass
 from ally.api.criteria import AsBoolean, AsLike, AsEqual, AsOrdered
 from itertools import chain
+from collections import Sized
 
 # --------------------------------------------------------------------
 
@@ -69,7 +70,7 @@ def namesForModel(model):
 
 # --------------------------------------------------------------------
 
-def copy(src, dest, exclude=[]):
+def copy(src, dest, exclude=()):
     '''
     Copies the container properties from the object source to object destination, attention only the common properties from
     source and destination will be transfered, the rest of properties will be ignored.
@@ -112,22 +113,18 @@ def trimIter(collection, size=None, offset=None, limit=None):
     '''
     assert offset is None or isinstance(offset, int), 'Invalid offset %s' % offset
     assert limit is None or isinstance(limit, int), 'Invalid limit %s' % limit
-    if isinstance(collection, list):
-        if not offset or offset < 0: offset = 0
-        if offset > len(collection): offset = len(collection)
-        if not limit or limit < 0: limit = 0
-        delta = len(collection) - offset
-        if limit > delta: limit = delta
-        return (collection[k] for k in range(offset, offset + limit))
-
-    assert isinstance(size, int), 'Invalid size %s' % size
-    if isinstance(collection, Iterable): collection = iter(collection)
-    assert isinstance(collection, Iterator), 'Invalid iterator %s' % collection
-
+    
+    if size is None and isinstance(collection, Sized): size = len(collection)
+    assert isinstance(size, int), 'Invalid size %s, size is required if the provided collection is not sized' % size
+    
     if offset is None: offset = 0
     else: assert isinstance(offset, int), 'Invalid offset %s' % offset
     if limit is None: limit = size
     else: assert isinstance(limit, int), 'Invalid limit %s' % limit
+    
+    if isinstance(collection, Iterable): collection = iter(collection)
+    assert isinstance(collection, Iterator), 'Invalid iterator %s' % collection
+
     for _k in zip(range(0, offset), collection): pass
     return (v for v, _k in zip(collection, range(0, limit)))
 

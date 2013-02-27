@@ -10,7 +10,7 @@ Provides the rendering processing.
 '''
 
 from ally.container.ioc import injected
-from ally.core.spec.codes import UNKNOWN_ENCODING, Code
+from ally.core.spec.codes import UNKNOWN_ENCODING
 from ally.design.context import Context, defines, optional
 from ally.design.processor import Assembly, Handler, Processing, NO_VALIDATION, \
     Chain, Function
@@ -33,7 +33,8 @@ class Response(Context):
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    code = defines(Code)
+    code = defines(int)
+    isSuccess = defines(bool)
     text = defines(str)
 
 class ResponseContent(Context):
@@ -78,7 +79,7 @@ class RenderingHandler(Handler):
         assert isinstance(renderingProcessing, Processing), 'Invalid processing %s' % renderingProcessing
         super().__init__(Function(renderingProcessing.contexts, self.process))
 
-        self.renderingProcessing = renderingProcessing
+        self._renderingProcessing = renderingProcessing
 
     def process(self, chain, request, response, responseCnt, **keyargs):
         '''
@@ -107,11 +108,11 @@ class RenderingHandler(Handler):
 
         resolved = False
         if ResponseContent.type in responseCnt:
-            renderChain = Chain(self.renderingProcessing)
+            renderChain = Chain(self._renderingProcessing)
             renderChain.process(request=request, response=response, responseCnt=responseCnt, **keyargs)
             if renderChain.doAll().isConsumed():
-                if Response.code not in response or response.code.isSuccess:
-                    response.code = UNKNOWN_ENCODING
+                if response.isSuccess is not False:
+                    response.code, response.isSuccess = UNKNOWN_ENCODING
                     response.text = 'Content type \'%s\' not supported for rendering' % responseCnt.type
             else: resolved = True
 
@@ -119,7 +120,7 @@ class RenderingHandler(Handler):
             # Adding None in case some encoder is configured as default.
             for contentType in itertools.chain(request.accTypes or (), self.contentTypeDefaults):
                 responseCnt.type = contentType
-                renderChain = Chain(self.renderingProcessing)
+                renderChain = Chain(self._renderingProcessing)
                 renderChain.process(request=request, response=response, responseCnt=responseCnt, **keyargs)
                 if not renderChain.doAll().isConsumed(): break
             else:

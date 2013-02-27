@@ -10,15 +10,15 @@ Provides the text base parser processor handler.
 '''
 
 from ally.container.ioc import injected
-from ally.core.spec.codes import Code, BAD_CONTENT
-from ally.support.util_io import IInputStream
+from ally.core.spec.codes import BAD_CONTENT
+from ally.core.spec.transform.render import Value, List, Object
 from ally.design.context import Context, requires, defines
 from ally.design.processor import HandlerProcessor, Chain
+from ally.exception import InputError, Ref
+from ally.support.util_io import IInputStream
 from collections import Callable, deque
 import abc
 import logging
-from ally.exception import InputError, Ref
-from ally.core.spec.transform.render import Value, List, Object
 
 # --------------------------------------------------------------------
 
@@ -48,7 +48,8 @@ class Response(Context):
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    code = defines(Code)
+    code = defines(int)
+    isSuccess = defines(bool)
     text = defines(str)
     errorMessage = defines(str)
     errorDetails = defines(Object)
@@ -87,9 +88,13 @@ class ParseBaseHandler(HandlerProcessor):
         if requestCnt.type in self.contentTypes:
             try:
                 error = self.parse(request.decoder, request.decoderData, requestCnt.source, requestCnt.charSet)
-                if error: response.code, response.text, response.errorMessage = BAD_CONTENT, 'Illegal content', error
+                if error:
+                    response.code, response.isSuccess = BAD_CONTENT
+                    response.text = 'Illegal content'
+                    response.errorMessage = error
             except InputError as e:
-                response.code, response.text = BAD_CONTENT, 'Bad content'
+                response.code, response.isSuccess = BAD_CONTENT
+                response.text = 'Bad content'
                 response.errorDetails = self.processInputError(e)
             return  # We need to stop the chain if we have been able to provide the parsing
         else:

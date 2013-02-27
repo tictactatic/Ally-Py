@@ -28,6 +28,7 @@ from functools import partial
 from inspect import isclass
 from sqlalchemy import event
 from sqlalchemy.ext.associationproxy import AssociationProxy
+from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.ext.declarative import DeclarativeMeta, declarative_base
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm.attributes import InstrumentedAttribute
@@ -35,7 +36,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm.mapper import Mapper
 from sqlalchemy.orm.properties import ColumnProperty
 from sqlalchemy.schema import Table, MetaData, Column, ForeignKey
-from sqlalchemy.sql.expression import Join
+from sqlalchemy.sql.expression import Executable, ClauseElement, Join
 from sqlalchemy.types import String
 import logging
 
@@ -133,7 +134,7 @@ class DeclarativeMetaModel(DeclarativeMeta):
     '''
 
     def __new__(cls, name, bases, namespace):
-        namespace['_ally_type'] = None # Makes the type None in order to avoid mistakes by inheriting the type from a model
+        namespace['_ally_type'] = None  # Makes the type None in order to avoid mistakes by inheriting the type from a model
         return DeclarativeMeta.__new__(cls, name, bases, namespace)
 
     def __init__(self, name, bases, namespace):
@@ -163,12 +164,12 @@ class DeclarativeMetaModel(DeclarativeMeta):
 
         self._ally_reference = {prop: Reference(TypeModelProperty(typeModel, prop, propType))
                                 for prop, propType in typeModel.container.properties.items()}
-        self._ally_listeners = {} # Provides the BindableSupport
-        self._ally_type = typeModel # Provides the TypeSupport
+        self._ally_listeners = {}  # Provides the BindableSupport
+        self._ally_type = typeModel  # Provides the TypeSupport
 
         DeclarativeMeta.__init__(self, name, bases, namespace)
 
-        #TODO: see if required: self.__clause_element__ = lambda: self.__table__
+        # TODO: see if required: self.__clause_element__ = lambda: self.__table__
 
         for prop in typeModel.container.properties:
             if typeFor(getattr(self, prop)) != typeFor(self._ally_reference[prop]):
@@ -294,6 +295,19 @@ def mappingsOf(metadata):
     except AttributeError: return {}
 
     return {typeFor(mapped).base.clazz:mapped for mapped in mappings}
+
+def tableFor(mapped):
+    '''
+    Provides the table of the provided mapped class.
+    
+    @param mapped: class
+        The mapped class.
+    @return: Rable
+        The associated table.
+    '''
+    assert isinstance(mapped, DeclarativeMetaModel), 'Invalid mapped class %s' % mapped
+
+    return mapped.__table__
 
 # --------------------------------------------------------------------
 
@@ -463,10 +477,10 @@ class MappedSupport(metaclass=MappedSupportMeta):
     '''
     Support class for mapped classes.
     '''
-    __mapper__ = Mapper # Contains the mapper that represents the model
+    __mapper__ = Mapper  # Contains the mapper that represents the model
 
 # --------------------------------------------------------------------
-#TODO: check if is still a problem in the new SQL alchemy version
+# TODO: SQL alchemy check if is still a problem in the new SQL alchemy version
 # This is a fix for the aliased models.
 def adapted(self, adapter):
     '''
@@ -478,3 +492,21 @@ def adapted(self, adapter):
     adapted.class_ = self.class_
     return adapted
 InstrumentedAttribute.adapted = adapted
+
+# TODO: SQL alchemy check if is still a problem in the new SQL alchemy version
+# patch from http://docs.sqlalchemy.org/en/rel_0_8/core/compiler.html#compiling-sub-elements-of-a-custom-expression-construct
+# in order to support INSERT INTO t1 (SELECT * FROM t2)
+
+class InsertFromSelect(Executable, ClauseElement):
+    def __init__(self, table, columns, select):
+        self.table = table
+        self.columns = columns
+        self.select = select
+
+@compiles(InsertFromSelect)
+def visit_insert_from_select(element, compiler, **kw):
+    return 'INSERT INTO %s (%s) %s' % (
+        compiler.process(element.table, asfrom=True),
+        element.columns,
+        compiler.process(element.select)
+    )

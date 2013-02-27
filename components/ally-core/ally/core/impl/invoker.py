@@ -124,7 +124,7 @@ class InvokerRestructuring(Invoker):
             position in the list represents in the index in the provided invoker inputs.
         @param indexesSetValue: dictionary{integer:dictionary{string, integer}}
             A dictionary of indexes to be used for setting values in objects. The key is the index of the invoker input
-            that contains the object to set the value to, as a value another dictionary that has as a value the property
+            that contains the object to set the value to, as a value another dictionary that has as a key the property
             name of the value to set on the object and as a value the index form the provided inputs.
         '''
         assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
@@ -160,7 +160,7 @@ class InvokerRestructuring(Invoker):
             else:
                 inp = self.inputs[index]
                 assert isinstance(inp, Input)
-                if not inp.hasDefault: raise DevelError('No value available for %r for %s' % (inp.name, self))
+                if not inp.hasDefault: raise DevelError('No value available for \'%s\' for %s' % (inp.name, self))
                 value = inp.default
 
             wargs.append(value)
@@ -171,6 +171,6 @@ class InvokerRestructuring(Invoker):
                 arg = args[fromIndex]
                 val = getattr(obj, prop)
                 if val is None: setattr(obj, prop, arg)
-                elif val != arg: raise DevelError('Cannot set value %s, expected value %s' % (val, arg))
+                elif val != arg: raise DevelError('Cannot set value %s for \'%s\', expected value %s' % (val, prop, arg))
 
         return self.invoker.invoke(*wargs)

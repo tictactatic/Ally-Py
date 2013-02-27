@@ -10,7 +10,7 @@ Provides the parsing chain processors.
 '''
 
 from ally.container.ioc import injected
-from ally.core.spec.codes import UNKNOWN_ENCODING, Code
+from ally.core.spec.codes import UNKNOWN_ENCODING
 from ally.design.context import Context, defines, requires
 from ally.design.processor import Assembly, Handler, Processing, \
     NO_MISSING_VALIDATION, Chain, Function
@@ -39,7 +39,8 @@ class Response(Context):
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    code = defines(Code)
+    code = defines(int)
+    isSuccess = defines(bool)
     text = defines(str)
 
 class ResponseContent(Context):
@@ -72,7 +73,7 @@ class ParsingHandler(Handler):
         assert isinstance(parsingProcessing, Processing), 'Invalid processing %s' % parsingProcessing
         super().__init__(Function(parsingProcessing.contexts, self.process))
 
-        self.parsingProcessing = parsingProcessing
+        self._parsingProcessing = parsingProcessing
 
     def process(self, chain, request, requestCnt, response, **keyargs):
         '''
@@ -84,8 +85,8 @@ class ParsingHandler(Handler):
 
         chain.proceed()
 
-        if Response.code in response and not response.code.isSuccess: return # Skip in case the response is in error
-        if Request.decoder not in request: return # Skip if there is no decoder.
+        if response.isSuccess is False: return  # Skip in case the response is in error
+        if Request.decoder not in request: return  # Skip if there is no decoder.
 
         if self.processParsing(request=request, requestCnt=requestCnt, response=response, **keyargs):
             # We process the chain without the request content anymore
@@ -110,9 +111,9 @@ class ParsingHandler(Handler):
         else: requestCnt.charSet = self.charSetDefault
         if RequestContent.type not in requestCnt: requestCnt.type = responseCnt.type
 
-        chain = Chain(self.parsingProcessing)
+        chain = Chain(self._parsingProcessing)
         chain.process(request=request, requestCnt=requestCnt, response=response, responseCnt=responseCnt, **keyargs)
         if not chain.doAll().isConsumed(): return True
-        if Response.code not in response or response.code.isSuccess:
-            response.code = UNKNOWN_ENCODING
+        if response.isSuccess is not False:
+            response.code, response.isSuccess = UNKNOWN_ENCODING
             response.text = 'Content type \'%s\' not supported for parsing' % requestCnt.type

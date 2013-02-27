@@ -12,9 +12,8 @@ Provides the no cache headers support for browsers like IE.
 from ..ally_core.processor import assemblyResources
 from ..ally_core_http.processor import uri, updateAssemblyResourcesForHTTP
 from ally.container import ioc
-from ally.core.http.impl.processor.headers.set_fixed import \
-    HeaderSetEncodeHandler
 from ally.design.processor import Handler
+from ally.http.impl.processor.headers.set_fixed import HeaderSetEncodeHandler
 
 # --------------------------------------------------------------------
 

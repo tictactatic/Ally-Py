@@ -10,7 +10,7 @@ Provides the multi part form-data conversion to url encoded content.
 '''
 
 from ally.container.ioc import injected
-from ally.core.spec.codes import Code, BAD_CONTENT
+from ally.core.spec.codes import BAD_CONTENT
 from ally.design.context import Context, requires, defines
 from ally.design.processor import HandlerProcessor, Chain
 from ally.support.util_io import IInputStream
@@ -46,7 +46,8 @@ class Response(Context):
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    code = defines(Code)
+    code = defines(int)
+    isSuccess = defines(bool)
     text = defines(str)
     errorMessage = defines(str)
 
@@ -107,7 +108,8 @@ class ParseFormDataHandler(HandlerProcessor):
         content, parameters = requestCnt, deque()
         while True:
             if content.disposition != self.contentDisposition:
-                response.code, response.text = BAD_CONTENT, 'Invalid multi part form data'
+                response.code, response.isSuccess = BAD_CONTENT
+                response.text = 'Invalid multi part form data'
                 response.errorMessage = 'Invalid multi part form data content disposition \'%s\'' % content.disposition
                 return
 
@@ -118,7 +120,8 @@ class ParseFormDataHandler(HandlerProcessor):
 
             name = content.dispositionAttr.pop(self.attrContentDispositionName, None)
             if not name:
-                response.code, response.text = BAD_CONTENT, 'No name in content disposition'
+                response.code, response.isSuccess = BAD_CONTENT
+                response.text = 'No name in content disposition'
                 response.errorMessage = 'Missing the content disposition header attribute name'
                 return
 

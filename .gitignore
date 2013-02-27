@@ -1,12 +1,14 @@
+/distribution/.settings/org.eclipse.core.resources.prefs
 /distribution/test.py
 /distribution/plugins.properties.bck
 /distribution/application.properties.bck
 
 /plugins/internationalization/test/internationalization/core/impl/repo/
 /distribution/workspace/
+/distribution/components
+/distribution/plugins
 
 *.pyc
-*.egg
 *.properties
 *.properties.bak
 

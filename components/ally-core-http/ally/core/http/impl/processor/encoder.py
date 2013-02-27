@@ -13,8 +13,7 @@ from ally.api.operator.container import Model
 from ally.api.operator.type import TypeModel, TypeModelProperty
 from ally.api.type import Type, TypeReference
 from ally.container.ioc import injected
-from ally.core.http.spec.codes import INVALID_HEADER_VALUE
-from ally.core.http.spec.server import IEncoderPath, IDecoderHeader
+from ally.core.http.spec.server import IEncoderPath
 from ally.core.http.spec.transform.support_model import DataModel, NO_MODEL_PATH, \
     IFetcher
 from ally.core.impl.processor import encoder
@@ -24,8 +23,11 @@ from ally.core.spec.resources import Path, Normalizer, Invoker
 from ally.core.spec.transform.exploit import handleExploitError
 from ally.core.spec.transform.render import IRender
 from ally.design.context import requires, defines
-from ally.support.core.util_resources import pathLongName
-from ally.support.util import lastCheck, firstOf
+from ally.http.spec.codes import INVALID_HEADER_VALUE
+from ally.http.spec.server import IDecoderHeader
+from ally.support.core.util_resources import pathLongName, findGetModel, \
+    findGetAllAccessible
+from ally.support.util import lastCheck
 from collections import deque, OrderedDict
 
 # --------------------------------------------------------------------
@@ -127,7 +129,7 @@ class CreateEncoderPathHandler(CreateEncoderHandler):
         error = self.processFilter(encodeModel, data, value, response.normalizer)
         if error:
             response.text, response.errorMessage = error
-            response.code = INVALID_HEADER_VALUE
+            response.code, response.isSuccess = INVALID_HEADER_VALUE
             return
         self.processFilterDefault(encodeModel, data, showAll)
 
@@ -140,22 +142,25 @@ class CreateEncoderPathHandler(CreateEncoderHandler):
         data = DataModel()
         if path:
             assert isinstance(path, Path), 'Invalid request path %s' % path
-            data.path = path.findGetModel(encode.modelType)
+            data.path = findGetModel(path, encode.modelType)
+            data.modelPaths[encode.modelType] = data.path
             if inCollection: data.accessiblePath = data.path
             else: data.accessiblePath = path
-            if showAccessible: self.processAccessible(data)
+            if showAccessible: self.processAccessible(encode, data)
 
         for nameProp, encodeProp in encode.properties.items():
             if isinstance(encodeProp, EncodeModel):
                 assert isinstance(encodeProp, EncodeModel)
-                data.datas[nameProp] = self.createDataModel(encodeProp, path.findGetModel(encodeProp.modelType), False, False)
+                data.datas[nameProp] = self.createDataModel(encodeProp, findGetModel(path, encodeProp.modelType),
+                                                            False, False)
 
         return data
 
-    def processAccessible(self, data):
+    def processAccessible(self, encode, data):
         '''
         Process the accessible paths for the provided data.
         '''
+        assert isinstance(encode, EncodeModel), 'Invalid encode model %s' % encode
         assert isinstance(data, DataModel), 'Invalid data model %s' % data
 
         if data.accessibleIsProcessed: return
@@ -163,16 +168,31 @@ class CreateEncoderPathHandler(CreateEncoderHandler):
         if data.accessiblePath is None: return
         assert isinstance(data.accessiblePath, Path), 'Invalid path %s' % data.accessiblePath
 
-        accessible = data.accessiblePath.findGetAllAccessible()
+        #TODO: Make sure when placing the accessible paths that there isn't already an accessible path
+        # that already returns the inherited model see the example for MetaData and ImageData in relation
+        # with MetaInfo and ImageInfo
+        accessible = list(findGetAllAccessible(data.accessiblePath))
+        # These paths will get updated in the encode model when the data model path is updated
+        # because they are extended from the base path.
+        assert isinstance(encode.modelType, TypeModel)
+        for parentType in encode.modelType.parents():
+            parentPath = findGetModel(data.accessiblePath, parentType)
+            if parentPath:
+                accessiblePaths = findGetAllAccessible(parentPath)
+                if accessiblePaths:
+                    data.modelPaths[parentType] = parentPath
+                    accessible.extend(accessiblePaths)
+
         if accessible:
-            accessible = [(pathLongName(acc), acc) for acc in accessible]
-            accessible.sort(key=firstOf)
-            data.accessible = OrderedDict(accessible)
+            data.accessible = OrderedDict()
+            for acc in accessible:
+                pathName = pathLongName(acc)
+                if pathName not in data.accessible: data.accessible[pathName] = acc
 
     def processFilter(self, encode, data, value, normalizer):
         '''
         Process the filtering for the encoded models.
-        
+
         @return: tuple(text, errorMessage)
             In case of error.
         '''
@@ -219,7 +239,7 @@ class CreateEncoderPathHandler(CreateEncoderHandler):
                             fdata, fexploits = self.processFetch(fencode, fdata, reference, normalizer, cache)
                             entry = fexploits.get(name)
                         elif not data.accessibleIsProcessed:
-                            self.processAccessible(data)
+                            self.processAccessible(encode, data)
                             fexploits = self.exploitsFor(fencode, fdata, normalizer)
                             entry = fexploits.get(name)
 
@@ -247,7 +267,7 @@ class CreateEncoderPathHandler(CreateEncoderHandler):
 
     def processFilterDefault(self, encode, data, showAll):
         '''
-        Process the default properties to be presented if none specified by filtering. 
+        Process the default properties to be presented if none specified by filtering.
         '''
         if encode is None: return
         assert isinstance(encode, EncodeModel), 'Invalid encode model %s' % encode
@@ -322,7 +342,7 @@ class CreateEncoderPathHandler(CreateEncoderHandler):
         '''
         assert isinstance(ofType, TypeModelProperty), 'Invalid type model property %s' % ofType
 
-        exploit = exploit or EncodeModelProperty(self, ofType.parent, getter, ofType)
+        exploit = exploit or EncodeModelProperty(self, ofType.parent, ofType.property, getter)
         return super().encoderProperty(ofType, getter, exploit)
 
     def encoderModel(self, ofType, getter=None, exploit=None, **keyargs):
@@ -338,9 +358,9 @@ class EncodeModel(EncodeObject):
     '''
     Exploit for model encoding.
     '''
-    __slots__ = ('encoder', 'modelType', 'updateType')
+    __slots__ = ('encoder', 'modelType')
 
-    def __init__(self, encoder, modelType, getter=None, updateType=None):
+    def __init__(self, encoder, modelType, getter=None):
         '''
         Create a encode exploit for a model with a path.
         @see: EncodeObject.__init__
@@ -349,8 +369,6 @@ class EncodeModel(EncodeObject):
             The encoder that created the model encode.
         @param modelType: TypeModel
             The model type of the encoded model.
-        @param updateType: object
-            The type to use in updating the path with the value, if not provided the modelType will be used.
         '''
         assert isinstance(encoder, CreateEncoderPathHandler), 'Invalid encoder %s' % encoder
         assert isinstance(modelType, TypeModel), 'Invalid model type %s' % modelType
@@ -358,7 +376,6 @@ class EncodeModel(EncodeObject):
 
         self.encoder = encoder
         self.modelType = modelType
-        self.updateType = updateType or modelType
 
     def __call__(self, value, render, normalizer, encoderPath, name=None, dataModel=None, fetcher=None, **data):
         assert isinstance(render, IRender), 'Invalid render %s' % render
@@ -384,14 +401,15 @@ class EncodeModel(EncodeObject):
                     return dataModel.fetchEncode(value=valueModel, name=name, dataModel=dataModel.fetchData, **data)
                 attrs = {normalizer.normalize(self.encoder.nameXFilter): self.encoder.valueDenied}
 
-        data.update(value=value)
-        if dataModel.path and not dataModel.flag & NO_MODEL_PATH:
-            assert isinstance(dataModel.path, Path), 'Invalid path model %s' % dataModel.path
+        data.update(value=value)  # Here we actually also update the accessible paths.
+        if DataModel.modelPaths in dataModel:
+            # We update the model paths with the currently encoded model
+            self._updateModelPaths(dataModel.modelPaths, value)
 
-            dataModel.path.update(value, self.updateType)
-            if dataModel.path.isValid():
-                if attrs is None: attrs = {}
-                attrs[normalizer.normalize(self.encoder.nameRef)] = encoderPath.encode(dataModel.path)
+        if not dataModel.flag & NO_MODEL_PATH and dataModel.path and dataModel.path.isValid():
+            assert isinstance(dataModel.path, Path), 'Invalid path model %s' % dataModel.path
+            if attrs is None: attrs = {}
+            attrs[normalizer.normalize(self.encoder.nameRef)] = encoderPath.encode(dataModel.path)
 
         render.objectStart(normalizer.normalize(name or self.name), attrs)
 
@@ -412,18 +430,34 @@ class EncodeModel(EncodeObject):
 
         render.objectEnd()
 
+    def _updateModelPaths(self, modelPaths, value):
+        '''
+        Update the provided model paths dictionary with the provided model instance value.
+        '''
+        for modelType, path in modelPaths.items():
+            if path:
+                assert isinstance(modelType, TypeModel), 'Invalid model type %s' % modelType
+                assert isinstance(path, Path), 'Invalid path %s' % path
+                path.update(value, modelType)
+
 class EncodeModelProperty(EncodeModel):
     '''
     Exploit for model encoding that represents only a property.
     '''
-    __slots__ = ()
+    __slots__ = ('property',)
 
-    def __init__(self, encoder, modelType, getter=None, updateType=None):
+    def __init__(self, encoder, modelType, property, getter=None):
         '''
         Create a encode exploit for a model with a path and a single property.
         @see: EncodeModel.__init__
+
+        @param property: string
+            The name of the property that this encode represents
         '''
-        super().__init__(encoder, modelType, getter, updateType)
+        assert isinstance(property, str), 'Invalid property %s' % property
+        super().__init__(encoder, modelType, getter)
+
+        self.property = property
 
     if __debug__:
 
@@ -432,6 +466,16 @@ class EncodeModelProperty(EncodeModel):
             (tuple(self.properties.keys()), self.modelType)
 
             return super().__call__(**data)
+
+    def _updateModelPaths(self, modelPaths, value):
+        '''
+        Update the provided model paths dictionary with the provided property instance value.
+        '''
+        for modelType, path in modelPaths.items():
+            if path:
+                assert isinstance(modelType, TypeModel), 'Invalid model type %s' % modelType
+                assert isinstance(path, Path), 'Invalid path %s' % path
+                path.update(value, modelType.childTypeFor(self.property))
 
 class EncodePath:
     '''
@@ -442,7 +486,7 @@ class EncodePath:
     def __init__(self, nameRef, getter=None):
         '''
         Create a encode exploit for a path.
-        
+
         @param nameRef: string
             The name for the reference attribute.
         @param getter: callable(object) -> object|None

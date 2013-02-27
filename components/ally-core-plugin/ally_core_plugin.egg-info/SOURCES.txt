@@ -9,6 +9,7 @@ __plugin__/plugin/registry.py
 __setup__/__init__.py
 __setup__/ally_core_plugin/__init__.py
 __setup__/ally_core_plugin/deploy_plugin.py
+__setup__/ally_core_plugin/logging.py
 ally_core_plugin.egg-info/PKG-INFO
 ally_core_plugin.egg-info/SOURCES.txt
 ally_core_plugin.egg-info/dependency_links.txt

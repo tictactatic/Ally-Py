@@ -10,6 +10,7 @@ Provides the setup registry for the plugins.
 '''
 
 from ..cdm.local_cdm import contentDeliveryManager
+from __setup__.ally_core.resources import resourcesRegister
 from ally.container import ioc
 from ally.container.proxy import proxyWrapFor
 from cdm.spec import ICDM
@@ -29,7 +30,7 @@ def registerService(service, binders=None):
     proxy = proxyWrapFor(service)
     if binders:
         for binder in binders: binder(proxy)
-    services().append(proxy)
+    resourcesRegister().register(proxy)
 
 def addService(*binders):
     '''
@@ -49,9 +50,3 @@ def cdmGUI() -> ICDM:
     '''
     return contentDeliveryManager()
 
-@ioc.entity
-def services():
-    '''
-    The plugins services that will be registered automatically.
-    '''
-    return []

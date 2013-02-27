@@ -11,7 +11,6 @@ Provides the multipart content parsing based on RFC1341.
 '''
 
 from ally.container.ioc import injected
-from ally.core.http.spec.codes import INVALID_HEADER_VALUE
 from ally.core.impl.processor.parsing import ParsingHandler, Request, \
     RequestContent, Response
 from ally.core.spec.codes import BAD_CONTENT
@@ -19,6 +18,7 @@ from ally.design.context import requires, defines, Context
 from ally.design.processor import Chain, Assembly, Processing, \
     NO_MISSING_VALIDATION
 from ally.exception import DevelError
+from ally.http.spec.codes import INVALID_HEADER_VALUE
 from ally.support.util_io import IInputStream, IClosable
 from collections import Callable
 from io import BytesIO
@@ -144,26 +144,28 @@ class ParsingMultiPartHandler(ParsingHandler, DataMultiPart):
 
         chain.proceed()
 
-        if Response.code in response and not response.code.isSuccess: return # Skip in case the response is in error
+        if response.isSuccess is False: return  # Skip in case the response is in error
 
         isMultipart = requestCnt.type and self._reMultipart.match(requestCnt.type)
         if isMultipart:
             assert log.debug('Content type %s is multi part', requestCnt.type) or True
             boundary = requestCnt.typeAttr.pop(self.attrBoundary, None)
             if not boundary:
-                response.code, response.text = INVALID_HEADER_VALUE, 'Multi part boundary expected'
+                response.code, response.isSuccess = INVALID_HEADER_VALUE
+                response.text = 'Multi part boundary expected'
                 return
 
             assert isinstance(requestCnt.source, IInputStream), 'Invalid request content source %s' % requestCnt.source
             stream = StreamMultiPart(self, requestCnt.source, boundary)
             requestCnt = NextContent(requestCnt, response, self.populateProcessing, self, stream)()
             if requestCnt is None:
-                response.code, response.text = BAD_CONTENT, 'No boundary found in multi part content'
+                response.code, response.isSuccess = BAD_CONTENT
+                response.text = 'No boundary found in multi part content'
                 return
 
         if Request.decoder not in request:
             if isMultipart: chain.update(requestCnt=requestCnt)
-            return # Skip if there is no decoder.
+            return  # Skip if there is no decoder.
 
         if self.processParsing(request=request, requestCnt=requestCnt, response=response, **keyargs):
             # We process the chain without the request content anymore
@@ -321,7 +323,7 @@ class StreamMultiPart(IInputStream, IClosable):
         while True:
             data.extend(self._readToHeader(self._data.packageSize))
             if self._flag & FLAG_HEADER_END:
-                self._flag ^= FLAG_HEADER_END # Clearing the header flag
+                self._flag ^= FLAG_HEADER_END  # Clearing the header flag
                 break
             if self._flag & FLAG_CONTENT_END: raise DevelError('No empty line after multi part header')
 

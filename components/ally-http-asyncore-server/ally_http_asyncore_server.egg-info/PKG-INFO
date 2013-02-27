@@ -7,5 +7,5 @@ Author: Gabriel Nistor
 Author-email: gabriel.nistor@sourcefabric.org
 License: GPL v3
 Description: It provides asyncore HTTP server support
-Keywords: Ally REST framework
+Keywords: Ally HTTP framework
 Platform: all
