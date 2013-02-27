@@ -245,7 +245,7 @@ def registerValidation(mapped, exclude=None):
 
                 if column.primary_key and column.autoincrement:
                     if prop != model.propertyId:
-                        raise MappingError('The primary key is expected to be %s, but got SQL primary key for %s' %
+                        raise MappingError('The primary key is expected to be %s, but got SQL primary key for %s' % 
                                            (model.propertyId, prop))
                     validateAutoId(propRef)
                 elif not column.nullable:
