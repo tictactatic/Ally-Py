@@ -19,7 +19,7 @@ from ally.container.ioc import injected
 from ally.container.support import setup
 from ally.core.spec.resources import Node, ConverterPath, Path, \
     INodeChildListener, INodeInvokerListener, Invoker
-from ally.design.processor.attribute import defines, requires
+from ally.design.processor.attribute import defines, requires, optional
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessorProceed, Handler
 from ally.http.spec.server import HTTP_GET, HTTP_DELETE, HTTP_POST, HTTP_PUT
@@ -44,6 +44,8 @@ class PermissionResource(Context):
     '''
     The permission context.
     '''
+    # ---------------------------------------------------------------- Optional
+    values = optional(dict)
     # ---------------------------------------------------------------- Required
     method = requires(int)
     path = requires(Path)
@@ -77,7 +79,7 @@ class Reply(Context):
 @setup(Handler, name='gatewaysFromPermissions')
 class GatewaysFromPermissions(HandlerProcessorProceed, INodeChildListener, INodeInvokerListener):
     '''
-    Provides the handler that creates gateways based on  resource permissions.
+    Provides the handler that creates gateways based on resource permissions.
     '''
     
     resourcesRoot = Node; wire.entity('resourcesRoot')
@@ -148,11 +150,12 @@ class GatewaysFromPermissions(HandlerProcessorProceed, INodeChildListener, INode
             The created gateways objects.
         '''
         assert isinstance(permissions, Iterable), 'Invalid permissions %s' % permissions
+        
         replacer, gateways, gatewaysByPattern = ReplacerWithMarkers(), [], {}
         for permission in permissions:
             assert isinstance(permission, PermissionResource), 'Invalid permission resource %s' % permission
             
-            pattern, types = self.processPattern(permission.path, permission.invoker, replacer)
+            pattern, types = self.processPattern(permission.path, permission.invoker, replacer, permission.values)
             filters = self.processFilters(types, permission.filters, provider, replacer)
             
             gateway = gatewaysByPattern.get(pattern)
@@ -168,7 +171,7 @@ class GatewaysFromPermissions(HandlerProcessorProceed, INodeChildListener, INode
                 gateways.append(gateway)
         return gateways
     
-    def processPattern(self, path, invoker, replacer):
+    def processPattern(self, path, invoker, replacer, values=None):
         '''
         Process the gateway pattern creating groups for all property types present in the path.
         
@@ -178,6 +181,8 @@ class GatewaysFromPermissions(HandlerProcessorProceed, INodeChildListener, INode
             The invoker to process the pattern based on.
         @param replacer: ReplacerWithMarkers
             The replacer to use for marking the pattern with groups.
+        @param values: dictionary{TypeProperty: string}
+            The static values to be placed on the path, as a key the type property that has the value.
         @return: tuple(string, list[TypeProperty])
             Returns the gateway pattern and the property types that the pattern has capturing groups for.
         '''
@@ -189,6 +194,14 @@ class GatewaysFromPermissions(HandlerProcessorProceed, INodeChildListener, INode
         for propertyType in propertyTypesOf(path, invoker):
             assert isinstance(propertyType, TypeProperty), 'Invalid property type %s' % propertyType
             
+            if values:
+                assert isinstance(values, dict), 'Invalid values %s' % values
+                value = values.get(propertyType)
+                if value is not None:
+                    assert isinstance(value, str), 'Invalid value %s' % value
+                    replaceMarkers.append(re.escape(value))
+                    continue
+                
             if propertyType.isOf(int): replaceMarkers.append('([0-9\\-]+)')
             elif propertyType.isOf(str): replaceMarkers.append('([^\\/]+)')
             else: raise Exception('Unusable type \'%s\'' % propertyType)

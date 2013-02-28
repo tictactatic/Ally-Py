@@ -23,8 +23,8 @@ from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessorProceed, Handler
 from ally.support.core.util_resources import propertyTypesOf
 from collections import Iterable
+from weakref import WeakKeyDictionary
 import logging
-import weakref
 
 # --------------------------------------------------------------------
 
@@ -146,7 +146,6 @@ class ProcessorModelFilters:
                 
                 if permission.invoker.method == INSERT and rfilter.resource.container.propertyId == rfilter.resource.property:
                     # If the filtered resource is the property id and we are in INSERT has no sense for filtering.
-                    yield permission
                     continue
                 
                 # We remove this filter since we added it to the model filters
@@ -217,6 +216,7 @@ class AuthenticatedForPermissions(HandlerProcessorProceed):
         '''
         assert issubclass(Permission, PermissionResource), 'Invalid permission class %s' % Permission
         assert isinstance(solicitation, Solicitation), 'Invalid solicitation %s' % solicitation
+        assert isinstance(solicitation.permissions, Iterable), 'Invalid permissions %s' % solicitation.permissions
         
         solicitation.permissions = self.processorModelFilters.processPermissions(solicitation.permissions)
         
@@ -248,6 +248,7 @@ class ModelFiltersForPermissions(HandlerProcessorProceed):
         assert issubclass(Permission, PermissionResource), 'Invalid permission class %s' % Permission
         assert issubclass(ModelFilter, ModelFilterResource), 'Invalid model filter class %s' % ModelFilter
         assert isinstance(solicitation, Solicitation), 'Invalid solicitation %s' % solicitation
+        assert isinstance(solicitation.permissions, Iterable), 'Invalid permissions %s' % solicitation.permissions
         
         solicitation.permissions = self.processorModelFilters.processPermissions(solicitation.permissions, ModelFilter)
 
@@ -257,24 +258,21 @@ class Strucutre(INodeInvokerListener):
     '''
     The general structure.
     '''
-    __slots__ = ('structNodes', 'typesPaths', 'nodesRefs')
+    __slots__ = ('structNodes', 'typesPaths')
     
     def __init__(self):
         '''
         Construct the structure.
         '''
-        self.structNodes = {}
-        self.typesPaths = {}
-        self.nodesRefs = {}
+        self.structNodes = WeakKeyDictionary()
+        self.typesPaths = WeakKeyDictionary()
         
     def onInvokerChange(self, node, old, new):
         '''
         @see: INodeInvokerListener.onInvokerChange
         '''
-        nodeId = id(node)
-        self.structNodes.pop(nodeId, None)
-        self.typesPaths.pop(nodeId, None)
-        self.nodesRefs.pop(nodeId, None)
+        self.structNodes.pop(node, None)
+        self.typesPaths.pop(node, None)
         
     # ----------------------------------------------------------------
         
@@ -291,20 +289,14 @@ class Strucutre(INodeInvokerListener):
         '''
         assert isinstance(node, Node), 'Invalid node %s' % node
         
-        nodeId = id(node)
-        nodeRef = self.nodesRefs.get(nodeId)
-        if nodeRef is None or nodeRef() is None:
-            structNode = self.structNodes.get(nodeId)
-            typesPath = self.typesPaths.get(nodeId)
-        else:
-            self.nodesRefs[nodeId] = weakref.ref(node)
-            structNode = typesPath = None
-        
-        if structNode is None: structNode = self.structNodes[nodeId] = StructNode()
+        structNode = self.structNodes.get(node)
+        if structNode is None: structNode = self.structNodes[node] = StructNode()
         assert isinstance(structNode, StructNode)
         data = structNode.process(invoker)
         if data is None: return
-        if typesPath is None: typesPath = self.typesPaths[nodeId] = (propertyTypesOf(node, invoker),)
+        
+        typesPath = self.typesPaths.get(node)
+        if typesPath is None: typesPath = self.typesPaths[node] = (propertyTypesOf(node, invoker),)
         return typesPath + data
 
 class StructNode:

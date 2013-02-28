@@ -70,10 +70,9 @@ class RepositoryNodeService(INodeChildListener, INodeInvokerListener):
             The node structure.
         '''
         assert isinstance(structure, Structure), 'Invalid structure %s' % structure
-        structureId = id(structure)
-        structNode = self._structures.get(structureId)
+        structNode = self._structures.get(structure)
         if not structNode:
-            structNode = self._structures[structureId] = StructNode()
+            structNode = self._structures[structure] = StructNode()
             for node in iterateNodes(self.resourcesRoot):
                 assert isinstance(node, Node), 'Invalid node %s' % node
     
@@ -101,9 +100,8 @@ class RepositoryNodeService(INodeChildListener, INodeInvokerListener):
                     structNodeInvokers = structNode.calls.get(structCall)
                     if not structNodeInvokers: structNodeInvokers = structNode.calls[structCall] = StructNodeInvokers()
                     
-                    nodeId = id(node)
-                    structInvoker = structNodeInvokers.invokers.get(nodeId)
-                    if not structInvoker: structNodeInvokers.invokers[nodeId] = StructInvoker(invoker=original, node=node)
+                    structInvoker = structNodeInvokers.invokers.get(node)
+                    if not structInvoker: structNodeInvokers.invokers[node] = StructInvoker(invoker=original, node=node)
         return structNode
 
 # --------------------------------------------------------------------
@@ -273,9 +271,6 @@ class IterateResourcePermissions(HandlerProcessorProceed):
             
         solicitation.rights = unprocessed
         
-        if SolicitationWithPermissions.node in solicitation: nodeId = id(solicitation.node)
-        else: nodeId = None
-        
         # Process the indexed structure for the structures
         indexed = {}
         for structure in structures:
@@ -303,10 +298,10 @@ class IterateResourcePermissions(HandlerProcessorProceed):
                     if not solicitation.method & structCall.call.method: continue
                 assert isinstance(structCall.call, Call)
                 
-                if nodeId:
-                    invoker = structNodeInvokers.invokers.get(nodeId)
+                if SolicitationWithPermissions.node in solicitation:
+                    invoker = structNodeInvokers.invokers.get(solicitation.node)
                     if invoker is None: continue
-                    indexInvokers[nodeId] = invoker
+                    indexInvokers[solicitation.node] = invoker
                 else: indexInvokers.update(structNodeInvokers.invokers)
                 
                 # Processing filters

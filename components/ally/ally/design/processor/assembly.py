@@ -134,6 +134,8 @@ class Assembly(Container):
         attributes.validate()
         attributes.solve(extensions)
         processing = Processing(calls, create(attributes))
+        reportAss = report.open('Assembly \'%s\'' % self.name)
+        reportAss.add(attributes)
         
         lines = report.report()
         if lines: log.info('\n%s\n' % '\n'.join(lines))
