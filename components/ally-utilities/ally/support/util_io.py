@@ -21,6 +21,7 @@ import abc
 import os
 from tempfile import TemporaryDirectory
 from stat import S_IEXEC
+from io import StringIO
 
 # --------------------------------------------------------------------
 
@@ -233,7 +234,7 @@ def convertToBytes(iterable, charSet, encodingError):
         assert isinstance(value, str), 'Invalid value %s received' % value
         yield value.encode(encoding=charSet, errors=encodingError)
 
-def openURI(path):
+def openURI(path, byteMode=True):
     '''
     Returns a read file object for the given path.
 
@@ -243,12 +244,14 @@ def openURI(path):
         A file like object that delivers bytes.
     '''
     path = normOSPath(path)
-    if isfile(path):
-        return open(path, 'rb')
+    mode = 'rb' if byteMode else 'rt'
+    if isfile(path): return open(path, mode)
     zipFilePath, inZipPath = getZipFilePath(path)
     zipFile = ZipFile(zipFilePath)
     if inZipPath in zipFile.NameToInfo and not inZipPath.endswith(ZIPSEP) and inZipPath != '':
-        return zipFile.open(inZipPath)
+        f = zipFile.open(inZipPath)
+        if byteMode: return f
+        else: return StringIO(f.read().decode())
     raise IOError('Invalid file path %s' % path)
 
 def timestampURI(path):
