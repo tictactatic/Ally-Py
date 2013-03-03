@@ -21,6 +21,7 @@ from .type import typeFor
 from abc import ABCMeta, abstractmethod
 from ally.api.type import List
 from ally.exception import DevelError
+from ally.support.util_sys import locationStack
 from inspect import isclass, isfunction
 from re import match
 import logging
@@ -397,11 +398,8 @@ def service(*generic):
         calls = []
         for name, function in clazz.__dict__.items():
             if isfunction(function):
-                if not hasattr(function, '_ally_call'):
-                    fnc = function.__code__
-                    raise DevelError('No call for method at:\nFile "%s", line %i, in %s' % 
-                                     (fnc.co_filename, fnc.co_firstlineno, name))
-                calls.append(function._ally_call)
+                try: calls.append(function._ally_call)
+                except AttributeError: raise DevelError('No call for method at:\n%s' % locationStack(function))
                 del function._ally_call
     
         services = [typeFor(base) for base in clazz.__bases__]

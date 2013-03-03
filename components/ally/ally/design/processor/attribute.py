@@ -13,6 +13,7 @@ from .spec import IAttribute, AttrError, ContextMetaClass
 from ally.support.util_sys import locationStack
 from inspect import isclass
 from collections import Iterable
+from ally.support.util_spec import IGet, ISet
 
 # --------------------------------------------------------------------
 
@@ -294,9 +295,8 @@ class Descriptor:
         @param types: tuple(class)
             The types to validate the values for.
         '''
-        assert descriptor is not None, 'A descriptor is required'
-        assert hasattr(descriptor, '__get__'), 'Invalid descriptor %s has no __get__ method' % descriptor
-        assert hasattr(descriptor, '__set__'), 'Invalid descriptor %s has no __set__ method' % descriptor
+        assert isinstance(descriptor, IGet), 'Invalid descriptor %s' % descriptor
+        assert isinstance(descriptor, ISet), 'Invalid descriptor %s' % descriptor
         assert isinstance(types, tuple), 'Invalid types %s' % types
         assert types, 'At least a type is required'
         if __debug__:

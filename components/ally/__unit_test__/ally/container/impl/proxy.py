@@ -16,7 +16,7 @@ if True:
 
 # --------------------------------------------------------------------
 
-from ally.container.proxy import ProxyFilter, createProxy, ProxyWrapper, \
+from ally.container.impl.proxy import ProxyFilter, createProxy, ProxyWrapper, \
     registerProxyHandler
 import unittest
 

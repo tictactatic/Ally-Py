@@ -17,6 +17,7 @@ from ally.container.impl.proxy import IProxyHandler
 from security.api.right import IRightService
 from security.rbac.api.rbac import IRoleService
 from security.rbac.core.impl.proxy_assign import AssignRoleToRigh
+from ally.support.util import ref
 
 # --------------------------------------------------------------------
 
@@ -30,6 +31,6 @@ def proxyAssignRoleToRigh() -> IProxyHandler:
 # Here we actually add a listener to the insert method of the IRightService to assign all created rights to the root role.
 @ioc.before(binders)
 def updateBindersForAssignToRole():
-    binders().append(intercept(IRightService, IRightService.insert, handlers=proxyAssignRoleToRigh))
+    binders().append(intercept(ref(IRightService).insert, handlers=proxyAssignRoleToRigh))
 
 # --------------------------------------------------------------------

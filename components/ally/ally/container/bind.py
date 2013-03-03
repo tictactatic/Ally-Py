@@ -15,8 +15,9 @@ from ._impl._setup import register, SetupSource
 from ._impl._support import classesFrom, SetupEntityProxy
 from .impl.proxy import IProxyHandler, registerProxyHandler
 from ally.container.error import SetupError
+from ally.support.util import iterRefClass
 from collections import Iterable
-from inspect import ismodule, isclass, isfunction
+from inspect import ismodule
 
 # --------------------------------------------------------------------
 
@@ -45,34 +46,27 @@ def bindToEntities(*classes, binders=None, module=None):
         group = registry['__name__']
     register(SetupEntityProxy(group, classesFrom(classes), binders), registry)
 
-def intercept(clazz, *methods, handlers=None):
+def intercept(*references, handlers=None):
     '''
     Create an intercept binder that will only add the proxy handlers for the specified class and optionally the methods.
     
-    @param clazz: class
-        The class to add the binders for.
-    @param methods: arguments[string|function]
-        The name of the methods to add handlers for, if None provided then all methods are considered.
+    @param references: arguments[class|tuple(class, string)]
+        The class function references add the binders for.
     @param handlers: IProxyHandler|callable|Iterable(IProxyHandler)|Iterable(callable)
         The proxy handlers to be registered for the class and methods, also callable (setup functions) are allowed that 
         provide the proxy handler(s) and take no arguments, the callable's will be invoked only at the binding process.
     '''
-    assert isclass(clazz), 'Invalid class %s' % clazz
     assert handlers, 'At least one proxy handler is required'
-    
-    methodsList = []
-    for method in methods:
-        if isfunction(method): method = method.__name__
-        assert isinstance(method, str), 'Invalid method name %s' % method
-        methodsList.append(method)
-        
+    classWithFn = iterRefClass(references)
+    assert classWithFn, 'At least one reference or class is required'
     def binderIntercept(proxy):
-        if isinstance(proxy, clazz):
-            for handler in processHandlers(handlers):
-                if methodsList:
-                    for method in methodsList: registerProxyHandler(handler, getattr(proxy, method))
-                else:
-                    registerProxyHandler(handler, proxy)
+        for clazz, methods in classWithFn.items():
+            if isinstance(proxy, clazz):
+                for handler in processHandlers(handlers):
+                    if methods:
+                        for method in methods: registerProxyHandler(handler, getattr(proxy, method))
+                    else:
+                        registerProxyHandler(handler, proxy)
     return binderIntercept
 
 # --------------------------------------------------------------------

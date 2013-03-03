@@ -328,7 +328,7 @@ class StructNode:
                 assert isinstance(inp, Input), 'Invalid input %s' % inp
                 if isinstance(inp.type, TypeModel):
                     assert isinstance(inp.type, TypeModel)
-                    for typeProperty in inp.type.childTypes():
+                    for typeProperty in inp.type.propertyTypes():
                         assert isinstance(typeProperty, TypeProperty), 'Invalid property type %s' % typeProperty
                         typesModel.append(typeProperty)
                         locations.append((inp.name, typeProperty.property))

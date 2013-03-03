@@ -9,8 +9,9 @@ Created on Jun 9, 2011
 Provides implementations that provide general behavior or functionality.
 '''
 
-from collections import Iterator, namedtuple
-from inspect import isclass
+from collections import Iterable, Iterator, namedtuple
+from inspect import isclass, isfunction
+from weakref import WeakKeyDictionary
 import sys
 
 # --------------------------------------------------------------------
@@ -32,8 +33,6 @@ class Uninstantiable:
         '''
         raise Exception('Cannot create an instance of \'%s\' class' % cls.__name__)
 
-# --------------------------------------------------------------------
-
 class Singletone:
     '''
     Extending this class will always return the same instance.
@@ -46,8 +45,6 @@ class Singletone:
         try: return cls._ally_singletone
         except AttributeError: cls._ally_singletone = super().__new__(cls)
         return cls._ally_singletone
-
-# --------------------------------------------------------------------
 
 class MetaClassUnextendable(type):
     '''
@@ -71,6 +68,98 @@ def tupleify(*names):
         assert isclass(clazz), 'Invalid class %s' % clazz
         return namedtuple(clazz.__name__, names)
     return decorator
+
+class Referencer:
+    '''
+    Creates a referencer for the provided class. The referencer can be used in order to get class function references.
+    '''
+    
+    __slots__ = ('_ally_referencer_class',)
+    
+    def __init__(self, clazz):
+        '''
+        Construct the referencer.
+                
+        @param clazz: class
+            The class to create the referencer for.
+        '''
+        assert isclass(clazz), 'Invalid class %s' % clazz
+        self._ally_referencer_class = clazz
+    
+    def __getattr__(self, name):
+        '''
+        Provides the reference for the function name.
+        
+        @param name: string
+            The function name to provide the reference for.
+        @return: tuple(class, string)
+            The reference tuple.
+        '''
+        function = getattr(self._ally_referencer_class, name)
+        if not isfunction(function): raise AttributeError('Invalid function name \'%s\'' % name)
+        return self._ally_referencer_class, name
+
+def ref(clazz):
+    '''
+    Creates a referencer for the provided class. The referencer can be used in order to get class function references.
+    example:
+        ref(MyClass).doSomething = tuple(MyClass, 'doSomething')
+        
+    @param clazz: class
+        The class to create the referencer for.
+    @return: Referencer
+        The referencer for the provided class.
+    '''
+    references = globals().get('_ally_referenceres')
+    if references is None: references = globals()['_ally_referenceres'] = WeakKeyDictionary()
+    referencer = references.get(clazz)
+    if referencer is None: referencer = references[clazz] = Referencer(clazz)
+    return referencer
+
+def iterRef(refs):
+    '''
+    Iterates the provided references by grouping based on class.
+    
+    @param refs: Iterable(tuple(class, string))
+        The references to group by class.
+    @return: dictionary{class: list[string]}
+        The dictionary that has as a key the class then the list with the function names for that class.
+    '''
+    assert isinstance(refs, Iterable), 'Invalid references %s' % refs
+    indexed = {}
+    for ref in refs:
+        assert isinstance(ref, tuple), 'Invalid reference %s' % ref
+        clazz, name = ref
+        assert isclass(clazz), 'Invalid reference class %s' % clazz
+        assert isinstance(name, str), 'Invalid reference function name %s' % name
+        names = indexed.get(clazz)
+        if names is None: names = indexed[clazz] = []
+        names.append(name)
+    return indexed
+
+def iterRefClass(refsClass):
+    '''
+    Iterates the provided references or classes by grouping based on class.
+    
+    @param refsClass: Iterable(class|tuple(class, string))
+        The references or classes to group by class.
+    @return: dictionary{class: list[string]|None}
+        The dictionary that provides hat has as a key the class then the list with the function names for that class.
+        If there are no functions for the class then instead of the list a None value will be provided.
+    '''
+    assert isinstance(refsClass, Iterable), 'Invalid references %s' % refsClass
+    refs, classes = [], set()
+    for ref in refsClass:
+        if isclass(ref): classes.add(ref)
+        else: refs.append(ref)
+    indexed = iterRef(refs)
+    if not classes.isdisjoint(indexed):
+        for clazz, ref in indexed.items():
+            if clazz in classes:
+                raise ValueError('Cannot have also reference and also a simple class for %s, please either '
+                                 'remove reference %s or the class' % (clazz, ref))
+    indexed.update((clazz, None) for clazz in classes)
+    return indexed
 
 # --------------------------------------------------------------------
 

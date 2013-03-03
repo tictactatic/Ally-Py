@@ -9,7 +9,7 @@ Created on Jan 15, 2013
 Provides the acl setup.
 '''
 
-from acl.right_sevice import RightService
+from acl.right_sevice import RightService, Alternate
 from acl.spec import Acl, TypeAcl
 from ally.container import ioc
 from ally.internationalization import NC_
@@ -26,6 +26,7 @@ def aclRight(name, description) -> RightService:
 
 @ioc.entity
 def acl() -> Acl: return Acl()
+setup = ioc.before(acl)
 
 @ioc.entity
 def aclType() -> TypeAcl:
@@ -34,6 +35,9 @@ def aclType() -> TypeAcl:
     acl().add(b)
     return b
 
+@ioc.entity
+def alternate() -> Alternate: return Alternate()
+setupAlternate = ioc.before(alternate)
+
 # --------------------------------------------------------------------
 
-setup = ioc.before(acl)

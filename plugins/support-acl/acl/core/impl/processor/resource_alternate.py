@@ -11,28 +11,22 @@ the client side implementation since they can use the same resources but the gat
 resource that is allowed by permissions.
 '''
 
-from acl.api.filter import IAclFilter
-from acl.spec import Filter
-from ally.api.config import GET, DELETE, INSERT, UPDATE
-from ally.api.operator.type import TypeService, TypeProperty, TypeModel
+from acl.right_sevice import Alternate
+from ally.api.operator.type import TypeModel
 from ally.api.type import typeFor
 from ally.container import wire
 from ally.container.ioc import injected
 from ally.container.support import setup
-from ally.core.spec.resources import Node, ConverterPath, Path, \
-    INodeChildListener, INodeInvokerListener, Invoker
-from ally.design.processor.attribute import defines, requires, optional
+from ally.core.impl.invoker import InvokerCall
+from ally.core.spec.resources import Node, Path, INodeChildListener, \
+    INodeInvokerListener, Invoker
+from ally.design.processor.attribute import defines, requires
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessorProceed, Handler
-from ally.http.spec.server import HTTP_GET, HTTP_DELETE, HTTP_POST, HTTP_PUT
-from ally.support.core.util_resources import findNodesFor, propertyTypesOf, \
-    ReplacerWithMarkers, pathForNode, iterateNodes, METHOD_NODE_ATTRIBUTE
-from collections import Callable, Iterable
-from gateway.api.gateway import Gateway
-from itertools import chain
+from ally.support.core.util_resources import propertyTypesOf, iterateNodes, \
+    METHOD_NODE_ATTRIBUTE, invokerCallOf
+from collections import Iterable, deque
 import logging
-import re
-from collections import deque
 
 # --------------------------------------------------------------------
 
@@ -79,12 +73,15 @@ class GatewaysAlternateForPermissions(HandlerProcessorProceed, INodeChildListene
     
     resourcesRoot = Node; wire.entity('resourcesRoot')
     # The root node to find the resources that can have alternate gateways.
+    alternate = Alternate; wire.entity('alternate')
+    # The alternate to use.
 
     def __init__(self):
         assert isinstance(self.resourcesRoot, Node), 'Invalid root node %s' % self.resourcesRoot
+        assert isinstance(self.alternate, Alternate), 'Invalid alternate repository %s' % self.alternate
         super().__init__()
         
-        self._alternate = None
+        self._alternates = None
         self.resourcesRoot.addStructureListener(self)
     
     def process(self, Permission:PermissionResource, solicitation:Solicitation, reply:Reply, **keyargs):
@@ -126,27 +123,28 @@ class GatewaysAlternateForPermissions(HandlerProcessorProceed, INodeChildListene
         '''
         @see: INodeChildListener.onChildAdded
         '''
-        self._alternate = None
+        self._alternates = None
     
     def onInvokerChange(self, node, old, new):
         '''
         @see: INodeInvokerListener.onInvokerChange
         '''
-        self._alternate = None
+        self._alternates = None
         
     # ----------------------------------------------------------------
     
     def alternates(self):
         '''
-        Provides the alternate invokers.
+        Provides the alternates.
         
         @return: dictionary{tuple(Node, Invoker): list[tuple(Node, Invoker, set(TypeProperty))]}
             The alternates dictionary, as a key a tuple with the node and invoker and as a value a set of the same tuples
             with the required property types and contains the possible alternates for the key.
         '''
-        if self._alternate is None:
-            self._alternate = {}
-            
+        if self._alternates is None:
+            self._alternates = {}
+            alternatesRepository = {(typeService, call): set(alternates)
+                                    for typeService, call, alternates in self.alternate.iterate()}            
             # First we process the node and invoker keys
             keys = []
             for node in iterateNodes(self.resourcesRoot):
@@ -177,7 +175,7 @@ class GatewaysAlternateForPermissions(HandlerProcessorProceed, INodeChildListene
                     if modelTypes is None:
                         modelTypes = [inp.type for inp in invoker.inputs if isinstance(inp.type, TypeModel)]
                         modelTypesByKey[key] = modelTypes
-
+    
                     modelTypesAlt = modelTypesByKey.get(keyAlt)
                     if modelTypesAlt is None:
                         modelTypesAlt = [inp.type for inp in invokerAlt.inputs if isinstance(inp.type, TypeModel)]
@@ -193,10 +191,46 @@ class GatewaysAlternateForPermissions(HandlerProcessorProceed, INodeChildListene
                     required = set(pathTypes)
                     for pathType in pathTypesAlt:
                         try: required.remove(pathType)
-                        except KeyError: break  # If a type is not found it means that they are not compatible
-                    else:
-                        alternate = self._alternate.get(key)
-                        if alternate is None: alternate = self._alternate[key] = []
-                        alternate.append(keyAlt + (required,))
-                
-        return self._alternate
+                        except KeyError:  # If a type is not found it means that they are not compatible
+                            required.clear()
+                            break  
+                    if not required: continue  # There must be at least one type required
+                    
+                    # Now we check with the alternates repository configurations
+                    if self.processWithRepository(alternatesRepository, invoker, invokerAlt):
+                        alternates = self._alternates.get(key)
+                        if alternates is None: alternates = self._alternates[key] = []
+                        alternates.append(keyAlt + (required,))
+                        assert log.debug('Added alternate on %s for %s', invoker, invokerAlt) or True
+                        
+            for serviceCall, alternates in alternatesRepository.items():
+                if alternates:
+                    alternates = ('\t%s for %s' % serviceCallAlt for serviceCallAlt in alternates)
+                    service, call = serviceCall
+                    log.error('Invalid alternate configuration on %s for %s with:\n%s\n', service, call, '\n'.join(alternates))
+            
+        return self._alternates
+
+    def processWithRepository(self, alternatesRepository, invoker, invokerAlt):
+        '''
+        Process the invoker and alternate invoker against the alternates repository.
+        
+        @return: boolean
+            True if the invoker and alternate invoker are configured in the repository.
+        '''
+        assert isinstance(alternatesRepository, dict), 'Invalid alternates repository %s' % alternatesRepository
+        if invoker == invokerAlt: return True  # If the invoker is the same with the alternate it is valid by default
+        
+        invokerCall, invokerCallAlt = invokerCallOf(invoker), invokerCallOf(invokerAlt)
+        if not invoker or not invokerCallAlt: return False  # If there are no invoker call then we cannot add them
+        
+        assert isinstance(invokerCall, InvokerCall)
+        assert isinstance(invokerCallAlt, InvokerCall)
+        
+        alternates = alternatesRepository.get((typeFor(invokerCallAlt.implementation), invokerCallAlt.call))
+        if alternates is None: return False  # There is no alternate repository configuration for the invoker
+        
+        try: alternates.remove((typeFor(invokerCall.implementation), invokerCall.call))
+        except KeyError: return False  # Not found in the repository alternate
+        
+        return True

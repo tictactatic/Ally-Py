@@ -50,18 +50,18 @@ class TypeContainer(TypeClass):
             if isinstance(parentType, self.__class__): parents.append(parentType)
         return parents
 
-    def childTypes(self):
+    def propertyTypes(self):
         '''
-        Provides the child properties types.
+        Provides the properties types of the container.
         
         @return: list[TypeProperty]
             The properties types.
         '''
-        return tuple(self.childTypeFor(name) for name in self.container.properties)
+        return tuple(self.propertyTypeFor(name) for name in self.container.properties)
 
-    def childTypeFor(self, name):
+    def propertyTypeFor(self, name):
         '''
-        Provides the child type property for the provided name.
+        Provides the type property for the provided name.
         
         @param name: string
             The name of the type property to provide.
@@ -100,12 +100,12 @@ class TypeModel(TypeContainer):
         '''
         return self.container.propertyId is not None
     
-    def childTypeId(self):
+    def propertyTypeId(self):
         '''
-        Provides the child type property id.
+        Provides the type property id.
         '''
         assert self.container.propertyId is not None, 'The model %s has no property id' % self.container
-        return self.childTypeFor(self.container.propertyId)
+        return self.propertyTypeFor(self.container.propertyId)
 
 class TypeCriteria(TypeContainer):
     '''
@@ -151,18 +151,18 @@ class TypeQuery(TypeClass):
         self.query = query
         self.owner = owner
 
-    def childTypes(self):
+    def criteriaEntryTypes(self):
         '''
-        Provides the child criteria entry types.
+        Provides the criteria entry types for the query.
         
         @return: list[TypeCriteriaEntry]
             The criteria entry types.
         '''
-        return tuple(self.childTypeFor(name) for name in self.query.criterias)
+        return tuple(self.criteriaEntryTypeFor(name) for name in self.query.criterias)
 
-    def childTypeFor(self, name):
+    def criteriaEntryTypeFor(self, name):
         '''
-        Provides the child criteria entry type for the provided name.
+        Provides the criteria entry type for the provided name.
         
         @param name: string
             The name of the type property to provide.
@@ -287,25 +287,25 @@ class TypeCriteriaEntry(TypeClass):
         if self == typeFor(type): return True
         return False
 
-    def childTypes(self):
+    def propertyTypes(self):
         '''
-        Provides the child criteria entry types.
+        Provides the criteria entry properties types.
         
         @return: list[TypeProperty]
             The criteria entry types.
         '''
-        return self.criteriaType.childTypes()
+        return self.criteriaType.propertyTypes()
 
-    def childTypeFor(self, name):
+    def propertyTypeFor(self, name):
         '''
-        Provides the child criteria entry type for the provided name.
+        Provides the criteria entry type for the provided name.
         
         @param name: string
             The name of the type property to provide.
         @return: TypeProperty
             The criteria entry type for the name.
         '''
-        return self.criteriaType.childTypeFor(name)
+        return self.criteriaType.propertyTypeFor(name)
 
     def __hash__(self):
         '''

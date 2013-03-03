@@ -180,11 +180,11 @@ class CreateEncoderHandler(HandlerProcessorProceed):
         '''
         assert isinstance(ofType, TypeModel), 'Invalid type model %s' % ofType
 
-        typesProps = list(ofType.childTypes())
-        if ofType.hasId(): typesProps.remove(ofType.childTypeId())
+        typesProps = list(ofType.propertyTypes())
+        if ofType.hasId(): typesProps.remove(ofType.propertyTypeId())
         typesProps.sort(key=lambda typeProp: typeProp.property)
         typesProps.sort(key=self.sortTypePropertyKey)
-        if ofType.hasId(): typesProps.insert(0, ofType.childTypeId())
+        if ofType.hasId(): typesProps.insert(0, ofType.propertyTypeId())
 
         exploit = exploit or EncodeObject(ofType.container.name, getter)
         assert isinstance(exploit, EncodeObject), 'Invalid encode object %s' % exploit
@@ -274,7 +274,7 @@ class CreateEncoderHandler(HandlerProcessorProceed):
             encoder = self.encoderId(typeProp.type, getter)
         elif isinstance(typeProp.type, TypeModel):
             assert isinstance(typeProp.type, TypeModel)
-            encoder = self.encoderProperty(typeProp.type.childTypeId(), getter)
+            encoder = self.encoderProperty(typeProp.type.propertyTypeId(), getter)
         else:
             encoder = self.encoderPrimitive(typeProp.type, getter)
         exploit.properties[typeProp.property] = encoder

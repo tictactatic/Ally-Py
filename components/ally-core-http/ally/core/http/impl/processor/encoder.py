@@ -477,7 +477,7 @@ class EncodeModelProperty(EncodeModel):
             if path:
                 assert isinstance(modelType, TypeModel), 'Invalid model type %s' % modelType
                 assert isinstance(path, Path), 'Invalid path %s' % path
-                path.update(value, modelType.childTypeFor(self.property))
+                path.update(value, modelType.propertyTypeFor(self.property))
 
 class EncodePath:
     '''

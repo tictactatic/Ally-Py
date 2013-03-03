@@ -316,17 +316,17 @@ class ParameterHandler(HandlerProcessorProceed, INodeInvokerListener):
         '''
         assert isinstance(typeEntry, TypeCriteriaEntry), 'Invalid entry type %s' % typeEntry
         assert callable(getterQuery), 'Invalid getter %s' % getterQuery
-        assert isinstance(typeEntry.parent, TypeQuery)
 
         def exploit(path, target, value, **data):
             assert isinstance(path, deque), 'Invalid path %s' % path
+            assert isinstance(typeEntry.parent, TypeQuery)
             if path: return False
             # Only if there are no other elements in path we process the exploit
             query = getterQuery(target)
             assert typeEntry.parent.isValid(query), 'Invalid query object %s' % query
             # We first find the biggest priority in the query
             priority = 0
-            for etype in typeEntry.parent.childTypes():
+            for etype in typeEntry.parent.criteriaEntryTypes():
                 assert isinstance(etype, TypeCriteriaEntry)
                 if etype == typeEntry: continue
                 if not etype.isOf(AsOrdered): continue
@@ -416,7 +416,7 @@ class ParameterHandler(HandlerProcessorProceed, INodeInvokerListener):
                     childrenQuery[nameEntry] = self.decodeCriteria(typeFor(classCriteria), getter)
 
                     if issubclass(classCriteria, AsOrdered):
-                        orderedQuery[nameEntry] = self.decodeSetOrder(typeInp.childTypeFor(nameEntry), getterQuery)
+                        orderedQuery[nameEntry] = self.decodeSetOrder(typeInp.criteriaEntryTypeFor(nameEntry), getterQuery)
 
                 isUpdated = False
                 if invoker.output.isOf(typeInp.owner):
@@ -540,7 +540,7 @@ class ParameterHandler(HandlerProcessorProceed, INodeInvokerListener):
         children, childrenMain = OrderedDict(), OrderedDict()
         for prop, typeProp in sorted(criteria.properties.items(), key=lambda item: item[0]):
             if prop in exclude: continue
-            propEncode = self.encodePrimitive(typeProp, getterOnObjIfIn(prop, typeCriteria.childTypeFor(prop)))
+            propEncode = self.encodePrimitive(typeProp, getterOnObjIfIn(prop, typeCriteria.propertyTypeFor(prop)))
             if prop in criteria.main: childrenMain[prop] = propEncode
             else: children[prop] = propEncode
 
@@ -680,11 +680,11 @@ class ParameterHandler(HandlerProcessorProceed, INodeInvokerListener):
                 childrenQuery, orderedQuery, getterQuery = OrderedDict(), OrderedDict(), getterOnDict(inp.name)
                 for nameEntry, classCriteria in typeInp.query.criterias.items():
 
-                    getter = getterChain(getterQuery, getterOnObjIfIn(nameEntry, typeInp.childTypeFor(nameEntry)))
+                    getter = getterChain(getterQuery, getterOnObjIfIn(nameEntry, typeInp.criteriaEntryTypeFor(nameEntry)))
                     childrenQuery[nameEntry] = self.encodeCriteria(typeFor(classCriteria), getter)
 
                     if issubclass(classCriteria, AsOrdered):
-                        orderedQuery[nameEntry] = self.encodeGetOrder(typeInp.childTypeFor(nameEntry), getterQuery)
+                        orderedQuery[nameEntry] = self.encodeGetOrder(typeInp.criteriaEntryTypeFor(nameEntry), getterQuery)
 
                 isUpdated = False
                 if invoker.output.isOf(typeInp.owner):

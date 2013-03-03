@@ -145,7 +145,7 @@ class CreateDecoderHandler(HandlerProcessorProceed):
         exploit = exploit or DecodeObject(ofType.container.name, getter)
         assert isinstance(exploit, DecodeObject), 'Invalid decode object %s' % exploit
 
-        for typeProp in ofType.childTypes():
+        for typeProp in ofType.propertyTypes():
             assert isinstance(typeProp, TypeModelProperty)
 
             self.registerProperty(typeProp.property, typeProp, exploit)
@@ -235,9 +235,9 @@ class CreateDecoderHandler(HandlerProcessorProceed):
             expectedType = typeProp.type
         elif isinstance(typeProp.type, TypeModel):
             assert isinstance(typeProp.type, TypeModel)
-            decoder = DecodeDelegate(self.decoderId(propertyName, typeProp.type.childTypeId().type),
-                                     self.decoderProperty(propertyName, typeProp.type.childTypeId()))
-            expectedType = typeProp.type.childTypeId().type
+            decoder = DecodeDelegate(self.decoderId(propertyName, typeProp.type.propertyTypeId().type),
+                                     self.decoderProperty(propertyName, typeProp.type.propertyTypeId()))
+            expectedType = typeProp.type.propertyTypeId().type
         else:
             decoder = self.decoderPrimitive(propertyName, typeProp.type)
             expectedType = typeProp.type

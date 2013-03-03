@@ -9,8 +9,8 @@ Created on Feb 21, 2013
 Processor that associates a resources node with ACL rights.
 '''
 
-from acl.right_sevice import Structure, StructMethod, StructService, StructCall, \
-    RightService
+from acl.right_sevice import StructureRight, StructMethod, StructService, \
+    StructCall, RightService
 from acl.spec import Filter, RightAcl
 from ally.api.operator.container import Call
 from ally.api.type import typeFor
@@ -20,7 +20,6 @@ from ally.container.support import setup
 from ally.core.impl.invoker import InvokerCall
 from ally.core.spec.resources import Invoker, INodeChildListener, \
     INodeInvokerListener, Path, Node
-from ally.design.bean import Bean, Attribute
 from ally.design.processor.attribute import defines, requires, optional
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessorProceed, Handler
@@ -32,10 +31,10 @@ from itertools import chain
 # --------------------------------------------------------------------
 
 @injected
-@setup(name='repositoryNodeService')
-class RepositoryNodeService(INodeChildListener, INodeInvokerListener):
+@setup(name='structureAssociate')
+class StructureAssociate(INodeChildListener, INodeInvokerListener):
     '''
-    Provides the cached services for the association of a resource node with ACL rights.
+    The association structure.
     '''
     
     resourcesRoot = Node; wire.entity('resourcesRoot')
@@ -44,35 +43,36 @@ class RepositoryNodeService(INodeChildListener, INodeInvokerListener):
     def __init__(self):
         assert isinstance(self.resourcesRoot, Node), 'Invalid root node %s' % self.resourcesRoot
         
-        self._structures = {}
-    
+        self.callInvokers = {}
+        self.resourcesRoot.addStructureListener(self)
+        
     def onChildAdded(self, node, child):
         '''
         @see: INodeChildListener.onChildAdded
         '''
-        self._structures.clear()
+        self.callInvokers.clear()
     
     def onInvokerChange(self, node, old, new):
         '''
         @see: INodeInvokerListener.onInvokerChange
         '''
-        self._structures.clear()
+        self.callInvokers.clear()
         
     # ----------------------------------------------------------------
-    
-    def process(self, structure):
-        '''
-        Process the structure for the node.
         
-        @param structure: Structure
-            The structure to process a node structure for.
-        @return: StructNode
-            The node structure.
+    def associate(self, structure):
         '''
-        assert isinstance(structure, Structure), 'Invalid structure %s' % structure
-        structNode = self._structures.get(structure)
-        if not structNode:
-            structNode = self._structures[structure] = StructNode()
+        Associate the structure with the resource root node.
+        
+        @param structure: StructureRight
+            The structure to associate with.
+        @return: StructCallInvokers
+            The associated structure with the call invokers.
+        '''
+        assert isinstance(structure, StructureRight), 'Invalid structure %s' % structure
+        callInvokers = self.callInvokers.get(structure)
+        if not callInvokers:
+            callInvokers = self.callInvokers[structure] = StructCallInvokers()
             for node in iterateNodes(self.resourcesRoot):
                 assert isinstance(node, Node), 'Invalid node %s' % node
     
@@ -95,14 +95,68 @@ class RepositoryNodeService(INodeChildListener, INodeInvokerListener):
                     
                     structCall = structService.calls.get(invoker.call.name)
                     if not structCall: continue
-                    assert isinstance(structCall, StructCall)
                     
-                    structNodeInvokers = structNode.calls.get(structCall)
-                    if not structNodeInvokers: structNodeInvokers = structNode.calls[structCall] = StructNodeInvokers()
-                    
-                    structInvoker = structNodeInvokers.invokers.get(node)
-                    if not structInvoker: structNodeInvokers.invokers[node] = StructInvoker(invoker=original, node=node)
-        return structNode
+                    callInvokers.push(structCall, node, original)
+        return callInvokers
+
+class StructCallInvokers:
+    '''
+    The structure for call with invokers.
+    '''
+    __slots__ = ('invokersByCall',)
+    
+    def __init__(self):
+        '''
+        Construct the association for call with invokers structure.
+        
+        @ivar invokersByCall: dictionary{StructCall, StructInvokers}
+            The structure invokers indexed by the structure call.
+        '''
+        self.invokersByCall = {}
+    
+    def push(self, structCall, node, invoker):
+        '''
+        Pushes the call structure with the node and invoker.
+        
+        @param structCall: StructCall
+            The structure call to push for.
+        @param node: Node
+            The node to push for.
+        @param invoker: Invoker
+            The invoker to push for.
+        '''
+        assert isinstance(structCall, StructCall), 'Invalid structure call %s' % structCall
+        structInvokers = self.invokersByCall.get(structCall)
+        if not structInvokers: structInvokers = self.invokersByCall[structCall] = StructInvokers()
+        structInvokers.push(node, invoker)
+
+class StructInvokers:
+    '''
+    The structure for node invoker.
+    '''
+    __slots__ = ('invokers',)
+    
+    def __init__(self):
+        '''
+        Construct the association for call with invokers structure.
+        
+        @ivar invokers: dictionary{Node, Invoker}
+            The invoker structure indexed by the node.
+        '''
+        self.invokers = {}
+    
+    def push(self, node, invoker):
+        '''
+        Pushes the invoker for the node.
+        
+        @param node: Node
+            The node to push for.
+        @param invoker: Invoker
+            The invoker to push for.
+        '''
+        assert isinstance(node, Node), 'Invalid node %s' % node
+        assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
+        self.invokers[node] = invoker
 
 # --------------------------------------------------------------------
 
@@ -122,7 +176,7 @@ class Solicitation(Context):
     The rights that make the scope of the resource node association, this iterable gets trimmed of all processed rights.
     ''')
 
-class Reply(Context):
+class ReplyAvailable(Context):
     '''
     The reply context.
     '''
@@ -178,22 +232,22 @@ class CheckResourceAvailableRights(HandlerProcessorProceed):
     Provides the handler that filters the rights and keeps only those that have permissions.
     '''
     
-    repositoryNodeService = RepositoryNodeService; wire.entity('repositoryNodeService')
-    # The repository node service to use for extracting the node structures.
+    structureAssociate = StructureAssociate; wire.entity('structureAssociate')
+    # The structure associate to be used.
 
     def __init__(self):
-        assert isinstance(self.repositoryNodeService, RepositoryNodeService), \
-        'Invalid repository node service %s' % self.repositoryNodeService
+        assert isinstance(self.structureAssociate, StructureAssociate), \
+        'Invalid structure association %s' % self.StructureAssociate
         super().__init__()
 
-    def process(self, solicitation:Solicitation, reply:Reply, **keyargs):
+    def process(self, solicitation:Solicitation, reply:ReplyAvailable, **keyargs):
         '''
         @see: HandlerProcessorProceed.process
         
         Filters the rights with permissions.
         '''
         assert isinstance(solicitation, Solicitation), 'Invalid solicitation %s' % solicitation
-        assert isinstance(reply, Reply), 'Invalid reply %s' % reply
+        assert isinstance(reply, ReplyAvailable), 'Invalid reply %s' % reply
         assert isinstance(solicitation.rights, Iterable), 'Invalid rights %s' % solicitation.rights
         
         serviceRights, unprocessed = [], []
@@ -208,7 +262,7 @@ class CheckResourceAvailableRights(HandlerProcessorProceed):
         solicitation.rights = unprocessed
         
         available = self.iterAvailableRights(serviceRights, solicitation.method)
-        if Reply.rightsAvailable in reply:
+        if ReplyAvailable.rightsAvailable in reply:
             reply.rightsAvailable = chain(reply.rightsAvailable, available)
         else:
             reply.rightsAvailable = available
@@ -222,16 +276,16 @@ class CheckResourceAvailableRights(HandlerProcessorProceed):
         for right in serviceRights:
             assert isinstance(right, RightService)
             
-            structNode = self.repositoryNodeService.process(right.structure)
-            assert isinstance(structNode, StructNode)
-            if not structNode.calls: continue
+            callInvokers = self.structureAssociate.associate(right.structure)
+            assert isinstance(callInvokers, StructCallInvokers)
+            if not callInvokers.invokersByCall: continue
             
             if method is None:
                 yield right
                 continue
             
             assert isinstance(method, int), 'Invalid method %s' % method
-            for structCall in structNode.calls:
+            for structCall in callInvokers.invokersByCall:
                 assert isinstance(structCall, StructCall)
                 if method & structCall.call.method: yield right
 
@@ -242,12 +296,12 @@ class IterateResourcePermissions(HandlerProcessorProceed):
     Provides the handler that iterates the permissions.
     '''
     
-    repositoryNodeService = RepositoryNodeService; wire.entity('repositoryNodeService')
-    # The repository node service to use for extracting the node structures.
+    structureAssociate = StructureAssociate; wire.entity('structureAssociate')
+    # The structure associate to be used.
 
     def __init__(self):
-        assert isinstance(self.repositoryNodeService, RepositoryNodeService), \
-        'Invalid repository node service %s' % self.repositoryNodeService
+        assert isinstance(self.structureAssociate, StructureAssociate), \
+        'Invalid structure association %s' % self.StructureAssociate
         super().__init__()
 
     def process(self, Permission:PermissionResource, solicitation:SolicitationWithPermissions, **keyargs):
@@ -274,11 +328,11 @@ class IterateResourcePermissions(HandlerProcessorProceed):
         # Process the indexed structure for the structures
         indexed = {}
         for structure in structures:
-            structNode = self.repositoryNodeService.process(structure)
-            assert isinstance(structNode, StructNode), 'Invalid structure node %s' % structNode
-            for structCall, structNodeInvokers in structNode.calls.items():
+            callInvokers = self.structureAssociate.associate(structure)
+            assert isinstance(callInvokers, StructCallInvokers), 'Invalid call invokers structure %s' % callInvokers
+            for structCall, structInvokers in callInvokers.invokersByCall.items():
                 assert isinstance(structCall, StructCall)
-                assert isinstance(structNodeInvokers, StructNodeInvokers)
+                assert isinstance(structInvokers, StructInvokers)
                 
                 # Processing invokers
                 indexedServices = indexed.get(structCall.call.method)
@@ -299,10 +353,10 @@ class IterateResourcePermissions(HandlerProcessorProceed):
                 assert isinstance(structCall.call, Call)
                 
                 if SolicitationWithPermissions.node in solicitation:
-                    invoker = structNodeInvokers.invokers.get(solicitation.node)
+                    invoker = structInvokers.invokers.get(solicitation.node)
                     if invoker is None: continue
                     indexInvokers[solicitation.node] = invoker
-                else: indexInvokers.update(structNodeInvokers.invokers)
+                else: indexInvokers.update(structInvokers.invokers)
                 
                 # Processing filters
                 if structCall.filters:
@@ -336,43 +390,6 @@ class IterateResourcePermissions(HandlerProcessorProceed):
         for indexedMethod, indexedServices in indexed.items():
             for indexedCalls in indexedServices.values():
                 for indexInvokers, filters in indexedCalls.values():
-                    for structInvoker in indexInvokers.values():
-                        assert isinstance(structInvoker, StructInvoker)
-                        yield Permission(method=indexedMethod, path=pathForNode(structInvoker.node),
-                                         invoker=structInvoker.invoker, filters=list(filters.values()))
-
-# --------------------------------------------------------------------
-
-class StructNode(Bean):
-    '''
-    The structure for node.
-    '''
-    
-    calls = dict; calls = Attribute(calls, factory=dict, doc='''
-    @rtype: dictionary{StructCall, StructNodeInvokers}
-    The structure node invokers indexed by the structure call.
-    ''')
-
-class StructNodeInvokers(Bean):
-    '''
-    The structure for node invokers.
-    '''
-    
-    invokers = dict; invokers = Attribute(invokers, factory=dict, doc='''
-    @rtype: dictionary{integer, StructInvoker}
-    The invoker structure indexed by the node id.
-    ''')       
-    
-class StructInvoker(Bean):
-    '''
-    The structure for invoker.
-    '''
-
-    invoker = Invoker; invoker = Attribute(invoker, doc='''
-    @rtype: Invoker
-    The invoker.
-    ''')
-    node = Node; node = Attribute(node, doc='''
-    @rtype: Node
-    The invoker node.
-    ''')
+                    for node, invoker in indexInvokers.items():
+                        yield Permission(method=indexedMethod, path=pathForNode(node), invoker=invoker,
+                                         filters=list(filters.values()))

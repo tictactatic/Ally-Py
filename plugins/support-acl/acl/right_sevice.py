@@ -14,6 +14,7 @@ from ally.api.config import GET, INSERT, UPDATE, DELETE
 from ally.api.operator.container import Service, Call
 from ally.api.operator.type import TypeService
 from ally.api.type import typeFor
+from ally.support.util import iterRef
 from inspect import isfunction
 
 # --------------------------------------------------------------------
@@ -34,34 +35,34 @@ class RightService(RightAcl):
         @see: RightAcl.__init__
         '''
         super().__init__(name, description)
-        self.structure = Structure()
+        self.structure = StructureRight()
     
     # ----------------------------------------------------------------
     
-    def byName(self, service, *names, filter=None):
+    def add(self, *references, filter=None):
         '''
         Used for adding to the right the service calls.
         
-        @param service: service type
-            The service type to be used.
-        @param names: arguments[string]
-            The names of the service call to associate with the right.
+        @param references: arguments[tuple(class, string)]
+            The references of the service call to associate with the right.
         @param filter: Filter|None
             The filter to be used with the added calls, for more details about filter policy.
         @return: self
             The self object for chaining purposes.
         '''
-        typ = typeFor(service)
-        assert isinstance(typ, TypeService), 'Invalid service %s' % service
-        assert names, 'At least a name is required'
-        assert isinstance(typ.service, Service)
-        for name in names:
-            if isfunction(name): name = name.__name__
-            assert name in typ.service.calls, 'Invalid call name \'%s\' for service %s' % (name, typ)
-            call = typ.service.calls[name]
-            assert isinstance(call, Call)
-            structCall = self.structure.obtainCall(typ, call)
-            if filter: structCall.pushFilter(filter)
+        indexed = iterRef(references)
+        assert indexed, 'At least one reference is required'
+        for service, names in indexed.items():
+            typ = typeFor(service)
+            assert isinstance(typ, TypeService), 'Invalid service %s' % service
+            assert isinstance(typ.service, Service)
+            for name in names:
+                if isfunction(name): name = name.__name__
+                assert name in typ.service.calls, 'Invalid call name \'%s\' for service %s' % (name, typ)
+                call = typ.service.calls[name]
+                assert isinstance(call, Call)
+                structCall = self.structure.obtainCall(typ, call)
+                if filter: structCall.pushFilter(filter)
         return self
         
     def allFor(self, method, *services, filter=None):
@@ -169,10 +170,65 @@ class RightService(RightAcl):
             The self object for chaining purposes.
         '''
         return self.allFor(GET | INSERT | UPDATE | DELETE, *services, filter=filter)
-            
+
 # --------------------------------------------------------------------
 
-class Structure:
+class Alternate:
+    '''
+    Provides the services alternates mappings.
+    '''
+    
+    def __init__(self):
+        '''
+        Construct the alternates repository.
+        '''
+        self._alternates = {}
+        
+    def add(self, forRef, theRef):
+        '''
+        Adds 'theRef' reference as an alternate 'forRef' reference.
+        
+        @param forRef: tuple(class, string)
+            The call reference for which the alternate is specified.
+        @param theRef: tuple(class, string)
+            The call reference which is an alternative the for reference.
+        @return: self
+            This instance for chaining purposes.
+        '''
+        assert isinstance(forRef, tuple), 'Invalid for reference %s' % forRef
+        assert isinstance(theRef, tuple), 'Invalid the reference %s' % theRef
+        clazz, forName = forRef
+        forService = typeFor(clazz)
+        assert isinstance(forService, TypeService), 'Invalid service class %s' % clazz
+        assert isinstance(forService.service, Service)
+        assert forName in forService.service.calls, 'Invalid service call name %s' % forName
+        
+        clazz, theName = theRef
+        theService = typeFor(clazz)
+        assert isinstance(theService, TypeService), 'Invalid service class %s' % clazz
+        assert isinstance(theService.service, Service)
+        assert theName in theService.service.calls, 'Invalid service call name %s' % theName
+        
+        key = (forService, forService.service.calls[forName])
+        alternates = self._alternates.get(key)
+        if alternates is None: alternates = self._alternates[key] = set()
+        alternates.add((theService, theService.service.calls[theName]))
+        
+        return self
+    
+    def iterate(self):
+        '''
+        Iterates the alternates configured in this repository.
+        
+        @return: Iterable(tuple(TypeService, Call, Iterable(TypeService, Call)))
+            The iterable containing the type service, call and the iterable of alternates also as type service and call.
+        '''
+        for serviceAndCall, alternates in self._alternates.items():
+            yield serviceAndCall + (iter(alternates),)
+      
+# --------------------------------------------------------------------
+
+class StructureRight:
     '''
     The structure root.
     '''
