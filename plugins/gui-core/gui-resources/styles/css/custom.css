@@ -1339,6 +1339,7 @@ section.main-section {
 		}
 		.form-horizontal .form-actions {
 			padding-left: 200px;
+			background: none;
 			}
 		.form-horizontal .middle-block {
 			margin-bottom: 9px;
@@ -1575,6 +1576,33 @@ bootstrap.css (line 1929)
 }
 
 
+.popup-close {
+	text-indent: -9999px;
+	display: inline-block;
+	width: 14px;
+	height: 14px;
+	float:right;
+	margin-top: 5px;
+	line-height: 14px;
+	vertical-align: text-top;
+	background-image: url("../../images/glyphicons-halflings.png");
+	background-repeat: no-repeat;
+	background-position: -312px 0;
+	opacity: 0.1;
+	-moz-opacity:0.1;
+	filter: alpha(opacity=10);
+}
+.popup-close:hover {
+	opacity: 0.25;
+	-moz-opacity:0.25;
+	filter: alpha(opacity=25);
+	cursor: pointer;
+}
+
+.popup-close[data-dismiss="alert"] {
+	margin:0 -28px 0 0;
+}
+
 .close.image {
 	width:12px;
 	height:18px;
@@ -1593,6 +1621,7 @@ bootstrap.css (line 1929)
 		-moz-opacity:0.7;
 		filter: alpha(opacity=70);
 		}
+
 
 .unpublish.image {
 	margin-top: -2px;
@@ -1719,7 +1748,7 @@ li.google .config-notif, li.ads .config-notif, li.flickr .config-notif, li.youtu
 }
 
 .modal-body-min {
-	min-height: 390px;
+	min-height: 400px;
 	position: relative;
 }
 .fullwidth-input {
@@ -1825,7 +1854,7 @@ ul.blogpost-selection {
 	-webkit-border-radius: 2px;
   	-moz-border-radius: 2px;
   	border-radius: 2px;
-  	width:520px;
+  	width:514px;
   	height: 180px;
   	padding: 2px;
   	margin: 5px 0 10px;
@@ -2588,6 +2617,7 @@ a.collaborator-name-large  {
 	.blogpost-selection label.checkbox {
 		margin:0;
 		font-weight: bold;
+		padding-left: 0!important;
 	}
 		.blogpost-selection label.checkbox:hover {
 			text-decoration: underline;
