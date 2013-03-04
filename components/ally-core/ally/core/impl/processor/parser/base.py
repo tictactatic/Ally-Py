@@ -84,7 +84,7 @@ class ParseBaseHandler(HandlerProcessor):
 
         # Check if the response is for this encoder
         if requestCnt.type in self.contentTypes:
-            if RequestContent.source not in requestCnt:
+            if requestCnt.source is None:
                 response.code, response.isSuccess = CONTENT_MISSING
             else:
                 assert callable(request.decoder), 'Invalid request decoder %s' % request.decoder

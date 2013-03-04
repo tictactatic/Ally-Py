@@ -210,9 +210,9 @@ class ContentTypeResponseEncodeHandler(HandlerProcessorProceed, ContentTypeConfi
         assert isinstance(responseCnt, ResponseContentEncode), 'Invalid response content %s' % responseCnt
         assert isinstance(response.encoderHeader, IEncoderHeader), 'Invalid header encoder %s' % response.encoderHeader
 
-        if ResponseContentEncode.type in responseCnt:
+        if responseCnt.type:
             value = responseCnt.type
-            if ResponseContentEncode.charSet in responseCnt:
+            if ResponseContentEncode.charSet in responseCnt and responseCnt.charSet:
                 if responseCnt.charSet: value = (value, (self.attrContentTypeCharSet, responseCnt.charSet))
 
             response.encoderHeader.encode(self.nameContentType, value)

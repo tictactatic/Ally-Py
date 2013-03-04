@@ -113,7 +113,7 @@ class ContentDeliveryHandler(HandlerProcessorProceed):
         assert isinstance(responseCnt, ResponseContent), 'Invalid response content %s' % responseCnt
 
         if request.method != HTTP_GET:
-            if Response.allows in response: response.allows.append(HTTP_GET)
+            if response.allows is not None: response.allows.append(HTTP_GET)
             else: response.allows = [HTTP_GET]
             response.code, response.status, response.isSuccess = METHOD_NOT_AVAILABLE
         else:

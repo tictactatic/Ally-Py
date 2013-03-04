@@ -93,7 +93,7 @@ class GatewayFilterHandler(HandlerBranchingProceed):
         assert isinstance(processing, Processing), 'Invalid processing %s' % processing
         assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(response, Response), 'Invalid response %s' % response
-        if Request.match not in request: return  # No filtering is required if there is no match on request
+        if not request.match: return  # No filtering is required if there is no match on request
         
         assert isinstance(request.repository, IRepository), 'Invalid request repository %s' % request.repository
         match = request.match
@@ -164,8 +164,11 @@ class GatewayFilterHandler(HandlerBranchingProceed):
         assert isinstance(response, ResponseHTTP), 'Invalid response %s' % response
         assert isinstance(responseCnt, ResponseContentHTTP), 'Invalid response content %s' % responseCnt
         
-        if responseCnt.source is None or not isSuccess(response.status):
-            return None, response.status, response.text or response.code
+        if ResponseHTTP.text in response and response.text: text = response.text
+        elif ResponseHTTP.code in response and response.code: text = response.code
+        else: text = None
+        if ResponseContentHTTP.source not in responseCnt or responseCnt.source is None or not isSuccess(response.status):
+            return None, response.status, text
         
         if isinstance(responseCnt.source, IInputStream):
             source = responseCnt.source
@@ -174,4 +177,4 @@ class GatewayFilterHandler(HandlerBranchingProceed):
             for bytes in responseCnt.source: source.write(bytes)
             source.seek(0)
         allowed = json.load(codecs.getreader(self.encodingJson)(source))
-        return allowed['HasAccess'] == 'True', response.status, response.text or response.code
+        return allowed['HasAccess'] == 'True', response.status, text

@@ -59,7 +59,7 @@ class MethodInvokerHandler(HandlerProcessorProceed):
 
         if request.invoker is None:
             response.code, response.status, response.isSuccess = METHOD_NOT_AVAILABLE
-            if not Response.allows in response: response.allows = []
+            if response.allows is None: response.allows = []
             
             if node.get is not None: response.allows.append(HTTP_GET)
             if node.insert is not None: response.allows.append(HTTP_POST)

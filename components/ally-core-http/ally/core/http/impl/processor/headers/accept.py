@@ -59,4 +59,5 @@ class AcceptDecodeHandler(AcceptRequestDecodeHandler):
         value = request.decoderHeader.decode(self.nameAcceptLanguage)
         if value:
             request.accLanguages = list(val for val, _attr in value)
-            if Request.argumentsOfType in request: request.argumentsOfType[LIST_LOCALE] = request.accLanguages
+            if Request.argumentsOfType in request and request.argumentsOfType is not None:
+                request.argumentsOfType[LIST_LOCALE] = request.accLanguages

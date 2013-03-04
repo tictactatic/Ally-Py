@@ -65,7 +65,7 @@ class DeliverOkForMethodHandler(HandlerProcessor):
             response.code, response.status, response.isSuccess = PATH_FOUND
             return
 
-        if Response.allows in response: response.allows.append(self.forMethod)
+        if response.allows is not None: response.allows.append(self.forMethod)
         else: response.allows = [self.forMethod]
         
         chain.proceed()

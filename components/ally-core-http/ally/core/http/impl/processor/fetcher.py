@@ -14,7 +14,7 @@ from ally.api.type import Input, typeFor, TypeClass, Type
 from ally.container.ioc import injected
 from ally.core.http.spec.transform.support_model import DataModel, IFetcher
 from ally.core.spec.resources import Path, Node, Invoker, INodeInvokerListener
-from ally.design.processor.attribute import requires, optional
+from ally.design.processor.attribute import requires
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessorProceed
 from weakref import WeakKeyDictionary
@@ -42,8 +42,7 @@ class Response(Context):
     # ---------------------------------------------------------------- Required
     encoderData = requires(dict)
     encoderDataModel = requires(DataModel)
-    # ---------------------------------------------------------------- Optional
-    isSuccess = optional(bool)
+    isSuccess = requires(bool)
 
 # --------------------------------------------------------------------
 
@@ -73,7 +72,7 @@ class FetcherHandler(HandlerProcessorProceed, INodeInvokerListener):
         assert isinstance(response, Response), 'Invalid response %s' % response
 
         if response.isSuccess is False: return  # Skip in case the response is in error
-        if Response.encoderDataModel not in response: return
+        if response.encoderDataModel is None: return
         invokerMain = request.invoker
         assert isinstance(invokerMain, Invoker), 'Invalid invoker %s' % invokerMain
         assert isinstance(response.encoderData, dict), 'Invalid encoder data %s' % response.encoderData
@@ -129,7 +128,7 @@ class FetcherHandler(HandlerProcessorProceed, INodeInvokerListener):
                 fetcher.inputs.append(Input('$response', self.typeResponse, True, None))
 
             request.invoker = fetcher
-            if Request.arguments not in request: request.arguments = {}
+            if request.arguments is None: request.arguments = {}
             request.arguments['$response'] = response
 
     def extractFetch(self, data, fetch=None):

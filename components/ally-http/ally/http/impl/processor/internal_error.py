@@ -10,7 +10,7 @@ Provide the internal error representation. This is usually when the server fails
 '''
 
 from ally.container.ioc import injected
-from ally.design.processor.attribute import defines, optional
+from ally.design.processor.attribute import defines
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain
 from ally.design.processor.handler import Handler
@@ -44,7 +44,7 @@ class ResponseContent(Context):
     The response content context.
     '''
     # ---------------------------------------------------------------- Optional
-    source = optional(IInputStream, Iterable)
+    source = defines(IInputStream, Iterable)
 
 # --------------------------------------------------------------------
 
@@ -113,7 +113,7 @@ class InternalErrorHandler(Handler):
         assert isinstance(responseCnt, ResponseContent), 'Invalid response content %s' % responseCnt
         
         # If there is an explanation for the error occurred, we do not need to make another one
-        if ResponseContent.source in responseCnt: return
+        if responseCnt.source is not None: return
         
         log.exception('Exception occurred while processing the chain')
         error = StringIO()

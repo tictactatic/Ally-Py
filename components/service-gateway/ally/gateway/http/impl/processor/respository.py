@@ -151,7 +151,11 @@ class GatewayRepositoryHandler(HandlerBranchingProceed):
         assert isinstance(response, ResponseHTTP), 'Invalid response %s' % response
         assert isinstance(responseCnt, ResponseContentHTTP), 'Invalid response content %s' % responseCnt
         
-        if responseCnt.source is None: return None, response.status, response.text or response.code
+        if ResponseHTTP.text in response and response.text: text = response.text
+        elif ResponseHTTP.code in response and response.code: text = response.code
+        else: text = None
+        if ResponseContentHTTP.source not in responseCnt or responseCnt.source is None or not isSuccess(response.status):
+            return None, response.status, text
         
         if isinstance(responseCnt.source, IInputStream):
             source = responseCnt.source
@@ -159,7 +163,7 @@ class GatewayRepositoryHandler(HandlerBranchingProceed):
             source = BytesIO()
             for bytes in responseCnt.source: source.write(bytes)
             source.seek(0)
-        return json.load(codecs.getreader(self.encodingJson)(source)), response.status, response.text or response.code
+        return json.load(codecs.getreader(self.encodingJson)(source)), response.status, text
 
     # ----------------------------------------------------------------
     

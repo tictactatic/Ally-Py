@@ -280,14 +280,17 @@ class RequestHandler(dispatcher, BaseHTTPRequestHandler):
             assert isinstance(response, ResponseHTTP), 'Invalid response %s' % response
             assert isinstance(responseCnt, ResponseContentHTTP), 'Invalid response content %s' % responseCnt
     
-            if ResponseHTTP.headers in response:
+            if ResponseHTTP.headers in response and response.headers is not None:
                 for name, value in response.headers.items(): self.send_header(name, value)
     
             assert isinstance(response.status, int), 'Invalid response status code %s' % response.status
-            self.send_response(response.status, response.text or response.code)
+            if ResponseHTTP.text in response and response.text: text = response.text
+            elif ResponseHTTP.code in response and response.code: text = response.code
+            else: text = None
+            self.send_response(response.status, text)
             self.end_headers()
     
-            if responseCnt.source is not None:
+            if ResponseContentHTTP.source in responseCnt and responseCnt.source is not None:
                 if isinstance(responseCnt.source, IInputStream): source = readGenerator(responseCnt.source, self.bufferSize)
                 else: source = responseCnt.source
                 self._writeq.append((WRITE_ITER, iter(source)))
@@ -300,7 +303,7 @@ class RequestHandler(dispatcher, BaseHTTPRequestHandler):
             if not chain.do():
                 self._next(3)  # Now we proceed to write stage
                 break
-            if RequestContentHTTPAsyncore.contentReader in requestCnt:
+            if RequestContentHTTPAsyncore.contentReader in requestCnt and requestCnt.contentReader is not None:
                 self._next(2)  # Now we proceed to read stage
                 self._reader = requestCnt.contentReader
                 break

@@ -65,7 +65,7 @@ class InternalDevelErrorHandler(InternalErrorHandler):
         assert isinstance(responseCnt, ResponseContent), 'Invalid response content %s' % responseCnt
         
         # If there is an explanation for the error occurred, we do not need to make another one
-        if ResponseContent.source in responseCnt: return
+        if ResponseContent.source in responseCnt and responseCnt.source is not None: return
 
         exc = sys.exc_info()[1]
         if isinstance(exc, DevelError):

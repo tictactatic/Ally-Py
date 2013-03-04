@@ -52,5 +52,5 @@ class AllowEncodeHandler(HandlerProcessorProceed):
         assert isinstance(response.encoderHeader, IEncoderHeader), \
         'Invalid response header encoder %s' % response.encoderHeader
 
-        if METHOD_NOT_AVAILABLE.status == response.status and Response.allows in response:
+        if METHOD_NOT_AVAILABLE.status == response.status and response.allows:
             response.encoderHeader.encode(self.nameAllow, *response.allows)

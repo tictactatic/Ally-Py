@@ -9,23 +9,22 @@ Created on Feb 18, 2013
 Module containing report implementations.
 '''
 
-from .spec import IReport, Attributes
-from ally.design.processor.spec import IAttribute
+from .spec import IReport, Resolvers, IResolver
 
 # --------------------------------------------------------------------
 
 class ReportUnused(IReport):
     '''
-    Implementation for @see: IReport that reports the unused attributes.
+    Implementation for @see: IReport that reports the unused attributes resolvers.
     '''
-    __slots__ = ('_reports', '_attributes')
+    __slots__ = ('_reports', '_resolvers')
     
     def __init__(self):
         '''
         Construct the report.
         '''
         self._reports = {}
-        self._attributes = []
+        self._resolvers = []
         
     def open(self, name):
         '''
@@ -36,12 +35,12 @@ class ReportUnused(IReport):
         if not report: report = self._reports[name] = ReportUnused()
         return report
         
-    def add(self, attributes):
+    def add(self, resolvers):
         '''
         @see: IReport.add
         '''
-        assert isinstance(attributes, Attributes), 'Invalid attributes %s' % attributes
-        self._attributes.append(attributes)
+        assert isinstance(resolvers, Resolvers), 'Invalid resolvers %s' % resolvers
+        self._resolvers.append(resolvers)
         
     def report(self):
         '''
@@ -51,14 +50,14 @@ class ReportUnused(IReport):
             The list of string lines.
         '''
         st, reported = [], set()
-        for attributes in self._attributes:
-            assert isinstance(attributes, Attributes)
-            for key, attribute in attributes.iterate():
-                assert isinstance(attribute, IAttribute)
-                if not attribute.isUsed():
+        for resolvers in self._resolvers:
+            assert isinstance(resolvers, Resolvers)
+            for key, resolver in resolvers.iterate():
+                assert isinstance(resolver, IResolver)
+                if not resolver.isUsed():
                     if key not in reported:
                         reported.add(key)
-                        st.append(('%s.%s for %s' % (key + (attribute,))).strip())
+                        st.append(('%s.%s for %s' % (key + (resolver,))).strip())
         if st: st.insert(0, 'Unused attributes:')
             
         for name, report in self._reports.items():

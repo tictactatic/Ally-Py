@@ -163,7 +163,7 @@ class ProcessorModelFilters:
         '''
         assert isinstance(permission, PermissionWithAuthenticated), 'Invalid permission %s' % permission
         assert isinstance(rfilter, Filter), 'Invalid filter %s' % rfilter
-        if PermissionWithAuthenticated.modelsAuthenticated not in permission: permission.modelsAuthenticated = set()
+        if permission.modelsAuthenticated is None: permission.modelsAuthenticated = set()
         permission.modelsAuthenticated.add(rfilter.authenticated)
         
     def processModelFilters(self, permission, rfilter, ModelFilter, inputName, propertyName):
@@ -175,7 +175,7 @@ class ProcessorModelFilters:
         
         # Adding the filter to filter models.
         processed = False
-        if PermissionWithModelFilters.filtersModels not in permission: permission.filtersModels = []
+        if permission.filtersModels is None: permission.filtersModels = []
         else:
             assert isinstance(permission.filtersModels, list), 'Invalid model filters %s' % permission.filtersModels
             for modelFilter in permission.filtersModels:

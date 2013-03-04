@@ -169,13 +169,13 @@ class ParsingMultiPartHandler(ParsingHandler, DataMultiPart):
                 response.code, response.status, response.isSuccess = MUTLIPART_NO_BOUNDARY
                 return
 
-        if Request.decoder not in request:
+        if not request.decoder:
             if isMultipart: chain.update(requestCnt=requestCnt)
             return  # Skip if there is no decoder.
 
         if self.processParsing(parsing, request=request, requestCnt=requestCnt, response=response, **keyargs):
             # We process the chain without the request content anymore
-            if RequestContentMultiPart.fetchNextContent in requestCnt:
+            if requestCnt.fetchNextContent is not None:
                 nextContent = requestCnt.fetchNextContent()
                 if nextContent is not None:
                     assert isinstance(nextContent, RequestContentMultiPart), 'Invalid request content %s' % nextContent

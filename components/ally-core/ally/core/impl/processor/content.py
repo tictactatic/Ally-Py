@@ -131,7 +131,8 @@ class ContentData(Content):
         if self._closed: raise ValueError('I/O operation on a closed content file')
 
         self._closed = True
-        if RequestContent.fetchNextContent in self._content: content = self._content.fetchNextContent()
+        if RequestContent.fetchNextContent in self._content and self._content.fetchNextContent is not None:
+            content = self._content.fetchNextContent()
         else: content = None
 
         if content is not None: return ContentData(content)

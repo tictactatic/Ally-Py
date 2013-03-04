@@ -55,9 +55,9 @@ class RequestDecode(Context):
     # ---------------------------------------------------------------- Required
     decoderHeader = requires(IDecoderHeader)
     # ---------------------------------------------------------------- Optional
+    argumentsOfType = optional(dict)
     accLanguages = optional(list)
     language = optional(str)
-    argumentsOfType = optional(dict)
     # ---------------------------------------------------------------- Defined
     normalizer = defines(Normalizer, doc='''
     @rtype: Normalizer
@@ -148,12 +148,12 @@ class BabelConversionDecodeHandler(HandlerProcessorProceed):
             if value: formats[clsTyp] = value
 
         locale = None
-        if RequestDecode.language in request:
+        if RequestDecode.language in request and request.language is not None:
             try: locale = Locale.parse(request.language, sep='-')
             except: assert log.debug('Invalid request content language %s', request.language) or True
 
         if locale is None:
-            request.language = self.languageDefault
+            if RequestDecode.language in request: request.language = self.languageDefault
             locale = Locale.parse(self.languageDefault)
 
         try: formats = self.processFormats(locale, formats)
@@ -174,12 +174,12 @@ class BabelConversionDecodeHandler(HandlerProcessorProceed):
             if value: formats[clsTyp] = value
 
         locale = None
-        if ResponseDecode.language in response:
+        if response.language:
             try: locale = Locale.parse(response.language, sep='-')
             except: assert log.debug('Invalid response content language %s', response.language) or True
 
         if locale is None:
-            if RequestDecode.accLanguages in request:
+            if RequestDecode.accLanguages in request and request.accLanguages is not None:
                 for lang in request.accLanguages:
                     try: locale = Locale.parse(lang, sep='-')
                     except:
@@ -190,14 +190,19 @@ class BabelConversionDecodeHandler(HandlerProcessorProceed):
 
             if locale is None:
                 locale = Locale.parse(self.languageDefault)
-                if RequestDecode.accLanguages in request: request.accLanguages.insert(0, self.languageDefault)
-                else: request.accLanguages = [self.languageDefault]
-                if RequestDecode.argumentsOfType in request: request.argumentsOfType[LIST_LOCALE] = request.accLanguages
+                if RequestDecode.accLanguages in request:
+                    if request.accLanguages is not None:
+                        request.accLanguages.insert(0, self.languageDefault)
+                        accLanguages = request.accLanguages
+                    else: accLanguages = request.accLanguages = [self.languageDefault]
+                else: accLanguages = [self.languageDefault]
+                if RequestDecode.argumentsOfType in request and request.argumentsOfType is not None:
+                    request.argumentsOfType[LIST_LOCALE] = accLanguages
                 assert log.debug('No language specified for the response, set default %s', locale) or True
 
             response.language = str(locale)
 
-            if RequestDecode.argumentsOfType in request:
+            if RequestDecode.argumentsOfType in request and request.argumentsOfType is not None:
                 request.argumentsOfType[TypeLocale] = response.language
 
         try: formats = self.processFormats(locale, formats)

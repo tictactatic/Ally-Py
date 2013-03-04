@@ -12,8 +12,8 @@ Module containing processors.
 from .assembly import Assembly
 from .context import create
 from .execution import Chain, Processing
-from .spec import AttrError, AssemblyError, IProcessor, ContextMetaClass, \
-    ProcessorError, Attributes, IReport
+from .spec import AssemblyError, IProcessor, ContextMetaClass, ProcessorError, \
+    Resolvers, IReport, ResolverError
 from ally.support.util_sys import locationStack
 from collections import Iterable
 from inspect import ismethod, isfunction, getfullargspec
@@ -48,13 +48,13 @@ class Processor(IProcessor):
         self.contexts = contexts
         self.call = call
 
-    def register(self, sources, attributes, extensions, calls, report):
+    def register(self, sources, resolvers, extensions, calls, report):
         '''
         @see: IProcessor.register
         '''
-        assert isinstance(attributes, Attributes), 'Invalid attributes %s' % attributes
+        assert isinstance(resolvers, Resolvers), 'Invalid resolvers %s' % resolvers
         assert isinstance(calls, list), 'Invalid calls %s' % calls
-        attributes.merge(self.contexts)
+        resolvers.merge(self.contexts)
         calls.append(self.call)
         
     # ----------------------------------------------------------------
@@ -106,15 +106,15 @@ class Contextual(Processor):
         
         super().__init__(contexts, self.processCall(function))
     
-    def register(self, sources, attributes, extensions, calls, report):
+    def register(self, sources, resolvers, extensions, calls, report):
         '''
         @see: IProcessor.register
         '''
-        assert isinstance(attributes, Attributes), 'Invalid attributes %s' % attributes
+        assert isinstance(resolvers, Resolvers), 'Invalid resolvers %s' % resolvers
         assert isinstance(calls, list), 'Invalid calls %s' % calls
         
-        try: attributes.merge(self.contexts)
-        except AttrError: raise AssemblyError('Cannot merge contexts at:%s' % locationStack(self.function))
+        try: resolvers.merge(self.contexts)
+        except ResolverError: raise AssemblyError('Cannot merge contexts at:%s' % locationStack(self.function))
         calls.append(self.call)
         
     # ----------------------------------------------------------------
@@ -177,16 +177,16 @@ class IBranch(metaclass=abc.ABCMeta):
     __slots__ = ()
     
     @abc.abstractmethod
-    def process(self, processor, sources, attributes, extensions, report):
+    def process(self, processor, sources, resolvers, extensions, report):
         '''
         Process the branch for the current contexts and attributes.
         
-        @param sources: Attributes
-            The sources attributes that need to be solved by processors.
-        @param attributes: Attributes
-            The attributes solved so far by processors.
-        @param extensions: Attributes
-            The attributes that are not part of the main stream attributes but they are rather extension for the created
+        @param sources: Resolvers
+            The sources attributes resolvers that need to be solved by processors.
+        @param resolvers: Resolvers
+            The attributes resolvers solved so far by processors.
+        @param extensions: Resolvers
+            The resolvers that are not part of the main stream attributes resolvers but they are rather extension for the created
             contexts.
         @param report: IReport
             The report to be used in the registration process.
@@ -214,7 +214,7 @@ class Brancher(Contextual):
         self.branches = branches
         super().__init__(function, proceed)
     
-    def register(self, sources, attributes, extensions, calls, report):
+    def register(self, sources, resolvers, extensions, calls, report):
         '''
         @see: IProcessor.register
         '''
@@ -223,8 +223,8 @@ class Brancher(Contextual):
         self.processings = []
         for branch in self.branches:
             assert isinstance(branch, IBranch), 'Invalid branch %s' % branch
-            try: processing = branch.process(self, sources, attributes, extensions, report)
-            except AttrError: raise AssemblyError('Cannot create processing at:%s' % locationStack(self.function))
+            try: processing = branch.process(self, sources, resolvers, extensions, report)
+            except ResolverError: raise AssemblyError('Cannot create processing at:%s' % locationStack(self.function))
             assert isinstance(processing, Processing), 'Invalid processing %s' % processing
             self.processings.append(processing)
         calls.append(self.call)
@@ -275,40 +275,40 @@ class Routing(IBranch):
         self.assembly = assembly
         self.merged = merged
         
-    def process(self, processor, sources, attributes, extensions, report):
+    def process(self, processor, sources, resolvers, extensions, report):
         '''
         @see: IBrach.process
         '''
         assert isinstance(processor, Processor), 'Invalid processor %s' % processor
-        assert isinstance(sources, Attributes), 'Invalid sources %s' % sources
-        assert isinstance(attributes, Attributes), 'Invalid attributes %s' % attributes
+        assert isinstance(sources, Resolvers), 'Invalid sources %s' % sources
+        assert isinstance(resolvers, Resolvers), 'Invalid resolvers %s' % resolvers
         assert isinstance(report, IReport), 'Invalid report %s' % report
         
         report = report.open('Routing \'%s\'' % self.assembly.name)
         try:
-            calls, rattrs, rextens = [], Attributes(), Attributes()
+            calls, rresolvs, rextens = [], Resolvers(), Resolvers()
             for rproc in self.assembly.processors:
                 assert isinstance(rproc, IProcessor), 'Invalid processor %s' % rproc
-                rproc.register(sources, rattrs, rextens, calls, report)
-        except (AttrError, AssemblyError): raise AssemblyError('Cannot process Routing for %s' % self.assembly.name)
+                rproc.register(sources, rresolvs, rextens, calls, report)
+        except (ResolverError, AssemblyError): raise AssemblyError('Cannot process Routing for %s' % self.assembly.name)
         
         try:
-            rattrs.solve(processor.contexts)
-            attributes.merge(rattrs.copy(sources.iterateNames()))
-            rattrs.solve(sources)
-            rattrs.validate()
-            rattrs.solve(rextens)
+            rresolvs.solve(processor.contexts)
+            resolvers.merge(rresolvs.copy(sources.iterateNames()))
+            rresolvs.solve(sources)
+            rresolvs.validate()
+            rresolvs.solve(rextens)
             
             if self.merged:
-                assert isinstance(extensions, Attributes), 'Invalid extensions %s' % extensions
-                extensions.merge(rattrs)
+                assert isinstance(extensions, Resolvers), 'Invalid extensions %s' % extensions
+                extensions.merge(rresolvs)
                 return Processing(calls)
             
-            report.add(rattrs)
-            return Processing(calls, create(rattrs))
-        except AttrError:
-            raise AssemblyError('Attributes problems on Routing for %s\n, with processors %s\n'
-                                ', and extensions %s' % (self.assembly.name, rattrs, rextens))
+            report.add(rresolvs)
+            return Processing(calls, create(rresolvs))
+        except ResolverError:
+            raise AssemblyError('Resolvers problems on Routing for %s\n, with processors %s\n'
+                                ', and extensions %s' % (self.assembly.name, rresolvs, rextens))
  
 class Using(IBranch):
     '''
@@ -335,16 +335,16 @@ class Using(IBranch):
         self.contexts = contexts
         self.useSources = set()
     
-    def process(self, processor, sources, attributes, extensions, report):
+    def process(self, processor, sources, resolvers, extensions, report):
         '''
         @see: IBrach.process
         '''
         assert isinstance(processor, Processor), 'Invalid processor %s' % processor
-        assert isinstance(sources, Attributes), 'Invalid sources %s' % sources
-        assert isinstance(attributes, Attributes), 'Invalid attributes %s' % attributes
+        assert isinstance(sources, Resolvers), 'Invalid sources %s' % sources
+        assert isinstance(resolvers, Resolvers), 'Invalid resolvers %s' % resolvers
         assert isinstance(report, IReport), 'Invalid report %s' % report
         
-        attributes.merge(processor.contexts)
+        resolvers.merge(processor.contexts)
         report = report.open('Using \'%s\'' % self.assembly.name)
         
         try:
@@ -353,23 +353,23 @@ class Using(IBranch):
                 if self.contexts: usrcs.merge(self.contexts)
                 usrcs.lock()
             else:
-                usrcs = Attributes(True, self.contexts)
+                usrcs = Resolvers(True, self.contexts)
             
-            calls, uattrs, uextens = [], Attributes(), Attributes()
+            calls, uresolvs, uextens = [], Resolvers(), Resolvers()
             for uproc in self.assembly.processors:
                 assert isinstance(uproc, IProcessor), 'Invalid processor %s' % uproc
-                uproc.register(usrcs, uattrs, uextens, calls, report)
-        except (AttrError, AssemblyError): raise AssemblyError('Cannot process Using for %s' % self.assembly.name)
+                uproc.register(usrcs, uresolvs, uextens, calls, report)
+        except (ResolverError, AssemblyError): raise AssemblyError('Cannot process Using for %s' % self.assembly.name)
         
         try:
-            uattrs.solve(usrcs)
-            uattrs.validate()
-            uattrs.solve(uextens)
-            report.add(uattrs)
-            return Processing(calls, create(uattrs))
-        except AttrError:
-            raise AssemblyError('Attributes problems on Using for %s\n, with sources %s\n, with processors %s\n'
-                                ', and extensions %s' % (self.assembly.name, usrcs, uattrs, uextens))
+            uresolvs.solve(usrcs)
+            uresolvs.validate()
+            uresolvs.solve(uextens)
+            report.add(uresolvs)
+            return Processing(calls, create(uresolvs))
+        except ResolverError:
+            raise AssemblyError('Resolvers problems on Using for %s\n, with sources %s\n, with processors %s\n'
+                                ', and extensions %s' % (self.assembly.name, usrcs, uresolvs, uextens))
             
     # ----------------------------------------------------------------
     
@@ -406,26 +406,26 @@ class Included(IBranch):
         self.assembly = assembly
         self.contextsUsing = {}
     
-    def process(self, processor, sources, attributes, extensions, report):
+    def process(self, processor, sources, resolvers, extensions, report):
         '''
         @see: IBrach.process
         '''
         assert isinstance(processor, Processor), 'Invalid processor %s' % processor
-        assert isinstance(attributes, Attributes), 'Invalid attributes %s' % attributes
-        assert isinstance(extensions, Attributes), 'Invalid extensions %s' % extensions
+        assert isinstance(resolvers, Resolvers), 'Invalid resolvers %s' % resolvers
+        assert isinstance(extensions, Resolvers), 'Invalid extensions %s' % extensions
         assert isinstance(report, IReport), 'Invalid report %s' % report
         
         report = report.open('Included \'%s\'' % self.assembly.name)
         
         try:
-            calls, iattrs, iextens = [], Attributes(), Attributes()
+            calls, iresolvs, iextens = [], Resolvers(), Resolvers()
             for iproc in self.assembly.processors:
                 assert isinstance(iproc, IProcessor), 'Invalid processor %s' % iproc
-                iproc.register(sources, iattrs, iextens, calls, report)
+                iproc.register(sources, iresolvs, iextens, calls, report)
             
             if self.contextsUsing:
-                uattrs = iattrs.extract(self.contextsUsing)
-                assert isinstance(uattrs, Attributes)
+                uattrs = iresolvs.extract(self.contextsUsing)
+                assert isinstance(uattrs, Resolvers)
                 uattrs.solve(self.contextsUsing)
                 uattrs.validate()
                 uattrs.solve(iextens.extract(self.contextsUsing))
@@ -433,12 +433,12 @@ class Included(IBranch):
                 contexts = create(uattrs)
             else: contexts = None
             
-            iattrs.solve(processor.contexts)
-            attributes.merge(iattrs)
+            iresolvs.solve(processor.contexts)
+            resolvers.merge(iresolvs)
             extensions.solve(iextens)
             return Processing(calls, contexts=contexts)
         
-        except (AttrError, AssemblyError): raise AssemblyError('Cannot process Included for %s' % self.assembly.name)
+        except (ResolverError, AssemblyError): raise AssemblyError('Cannot process Included for %s' % self.assembly.name)
     
     # ----------------------------------------------------------------
     

@@ -83,7 +83,7 @@ class CreateDecoderHandler(HandlerProcessorProceed):
         assert isinstance(response, Response), 'Invalid response %s' % response
 
         if response.isSuccess is False: return  # Skip in case the response is in error
-        if Request.decoder in request: return  # There is already a decoder no need to create another one
+        if request.decoder: return  # There is already a decoder no need to create another one
         assert isinstance(request.invoker, Invoker), 'Invalid request invoker %s' % request.invoker
 
         for inp in request.invoker.inputs:

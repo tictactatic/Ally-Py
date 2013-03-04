@@ -11,6 +11,7 @@ the client side implementation since they can use the same resources but the gat
 resource that is allowed by permissions.
 '''
 
+from .resource_gateway import GatewayResourceSupport
 from acl.right_sevice import Alternate
 from ally.api.operator.type import TypeModel
 from ally.api.type import typeFor
@@ -20,12 +21,12 @@ from ally.container.support import setup
 from ally.core.impl.invoker import InvokerCall
 from ally.core.spec.resources import Node, Path, INodeChildListener, \
     INodeInvokerListener, Invoker
-from ally.design.processor.attribute import defines, requires
+from ally.design.processor.attribute import requires, definesIf
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessorProceed, Handler
 from ally.support.core.util_resources import propertyTypesOf, iterateNodes, \
-    METHOD_NODE_ATTRIBUTE, invokerCallOf
-from collections import Iterable, deque
+    METHOD_NODE_ATTRIBUTE, invokerCallOf, pathForNode, ReplacerWithMarkers
+from collections import Iterable
 import logging
 
 # --------------------------------------------------------------------
@@ -38,6 +39,11 @@ class PermissionResource(Context):
     '''
     The permission context.
     '''
+    # ---------------------------------------------------------------- Defined
+    navigate = definesIf(str, doc='''
+    @rtype: string
+    The permission navigation.
+    ''')
     # ---------------------------------------------------------------- Required
     method = requires(int)
     path = requires(Path)
@@ -52,21 +58,11 @@ class Solicitation(Context):
     # ---------------------------------------------------------------- Required
     permissions = requires(Iterable)
 
-class Reply(Context):
-    '''
-    The reply context.
-    '''
-    # ---------------------------------------------------------------- Defined
-    gateways = defines(Iterable, doc='''
-    @rtype: Iterable(Gateway)
-    The alternate generated gateways.
-    ''')
-
 # --------------------------------------------------------------------
 
 @injected
-@setup(Handler, name='gatewaysAlternateForPermissions')
-class GatewaysAlternateForPermissions(HandlerProcessorProceed, INodeChildListener, INodeInvokerListener):
+@setup(Handler, name='alternateNavigationPermissions')
+class AlternateNavigationPermissions(HandlerProcessorProceed, INodeChildListener, INodeInvokerListener):
     '''
     Provides the handler that creates alternate gateways based on resource permissions.
     '''
@@ -75,16 +71,20 @@ class GatewaysAlternateForPermissions(HandlerProcessorProceed, INodeChildListene
     # The root node to find the resources that can have alternate gateways.
     alternate = Alternate; wire.entity('alternate')
     # The alternate to use.
+    gatewayResourceSupport = GatewayResourceSupport; wire.entity('gatewayResourceSupport')
+    # The gateway resource support used in creating the navigation.
 
     def __init__(self):
         assert isinstance(self.resourcesRoot, Node), 'Invalid root node %s' % self.resourcesRoot
         assert isinstance(self.alternate, Alternate), 'Invalid alternate repository %s' % self.alternate
+        assert isinstance(self.gatewayResourceSupport, GatewayResourceSupport), \
+        'Invalid gateway resource support %s' % self.gatewayResourceSupport
         super().__init__()
         
         self._alternates = None
         self.resourcesRoot.addStructureListener(self)
     
-    def process(self, Permission:PermissionResource, solicitation:Solicitation, reply:Reply, **keyargs):
+    def process(self, Permission:PermissionResource, solicitation:Solicitation, **keyargs):
         '''
         @see: HandlerProcessorProceed.process
         
@@ -92,30 +92,9 @@ class GatewaysAlternateForPermissions(HandlerProcessorProceed, INodeChildListene
         '''
         assert issubclass(Permission, PermissionResource), 'Invalid permission class %s' % Permission
         assert isinstance(solicitation, Solicitation), 'Invalid solicitation %s' % solicitation
-        assert isinstance(reply, Reply), 'Invalid reply %s' % reply
         assert isinstance(solicitation.permissions, Iterable), 'Invalid permissions %s' % solicitation.permissions
         
-        if not isinstance(solicitation.permissions, (tuple, list, deque)):
-            permissions = list(solicitation.permissions)
-            solicitation.permissions = permissions
-        
-        for permission in solicitation.permissions:
-            assert isinstance(permission, PermissionResource), 'Invalid permission %s' % permission
-            if PermissionResource.values not in permission: continue  # No values to work with
-            
-            # The alternates need to be manually configured either call to call or service to service
-            # they will be handled by the resource node associate
-            # create an alternate model(s) whith which you can configure this
-            # refactor the structs in node associate so they will not use Bean
-            # TODO: remove
-            print('=' * 100)
-            for key, alternates in self.alternates().items():
-                for node, invoker, required in alternates:
-                    assert isinstance(required, set)
-                    if required.issubset(permission.values):
-                        print(key[1])
-                        print('\t', ', '.join(str(typ) for typ in required), ':', invoker)
-                    
+        solicitation.permissions = self.processPermissions(solicitation.permissions, Permission)
 
     # ----------------------------------------------------------------
     
@@ -132,6 +111,41 @@ class GatewaysAlternateForPermissions(HandlerProcessorProceed, INodeChildListene
         self._alternates = None
         
     # ----------------------------------------------------------------
+    
+    def processPermissions(self, permissions, Permission):
+        '''
+        Process the permissions alternate navigation.
+        '''
+        replacer = None
+        for permission in permissions:
+            assert isinstance(permission, PermissionResource), 'Invalid permission %s' % permission
+            yield permission
+            
+            if not permission.values: continue  # No values to work with
+            
+            assert isinstance(permission.path, Path), 'Invalid path %s' % permission.path
+            
+            alternates = self.alternates().get((permission.path.node, permission.invoker))
+            if not alternates: continue  # No alternates to work with
+            
+            for node, invoker, required in alternates:
+                assert isinstance(required, set)
+                if required.issubset(permission.values):
+                    permissionAlt = Permission()
+                    assert isinstance(permissionAlt, PermissionResource)
+                    
+                    permissionAlt.method = permission.method
+                    permissionAlt.path = pathForNode(node)
+                    permissionAlt.invoker = invoker
+                    permissionAlt.filters = permission.filters
+                    permissionAlt.values = permission.values
+                    if PermissionResource.navigate in permissionAlt:
+                        if replacer is None: replacer = ReplacerWithMarkers()
+                        path, _types = self.gatewayResourceSupport.processPath(permission.path, permission.invoker,
+                                                                               replacer, permission.values)
+                        permissionAlt.navigate = path
+                    
+                    yield permissionAlt
     
     def alternates(self):
         '''

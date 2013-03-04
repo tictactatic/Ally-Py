@@ -85,14 +85,15 @@ class RequestHandler:
         assert isinstance(responseCnt, ResponseContentHTTP), 'Invalid response content %s' % responseCnt
 
         responseHeaders = dict(self.defaultHeaders)
-        if ResponseHTTP.headers in response: responseHeaders.update(response.headers)
+        if ResponseHTTP.headers in response and response.headers is not None: responseHeaders.update(response.headers)
         
         assert isinstance(response.status, int), 'Invalid response status code %s' % response.status
-        if ResponseHTTP.text in response: status = '%s %s' % (response.status, response.text)
+        if ResponseHTTP.text in response and response.text: status = '%s %s' % (response.status, response.text)
+        elif ResponseHTTP.code in response and response.code: status = '%s %s' % (response.status, response.code)
         else: status = str(response.status)
         respond(status, list(responseHeaders.items()))
 
-        if responseCnt.source is not None:
+        if ResponseContentHTTP.source in responseCnt and responseCnt.source is not None:
             if isinstance(responseCnt.source, IInputStream): return readGenerator(responseCnt.source)
             return responseCnt.source
         return ()

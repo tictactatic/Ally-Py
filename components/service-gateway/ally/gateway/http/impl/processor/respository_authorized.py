@@ -91,10 +91,8 @@ class GatewayAuthorizedRepositoryHandler(GatewayRepositoryHandler):
             repository = self._repositories[authentication] = Repository(robj)
         self._lastAccess[authentication] = datetime.now()
         
-        if Request.repository in request:
-            request.repository = RepositoryJoined(repository, request.repository)
-        else:
-            request.repository = repository
+        if request.repository: request.repository = RepositoryJoined(repository, request.repository)
+        else: request.repository = repository
     
     # ----------------------------------------------------------------
     

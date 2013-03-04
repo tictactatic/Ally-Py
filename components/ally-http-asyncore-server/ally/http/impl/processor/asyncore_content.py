@@ -10,7 +10,7 @@ Provides the asyncore handling of content.
 '''
 
 from ally.container.ioc import injected
-from ally.design.processor.attribute import defines, requires, optional
+from ally.design.processor.attribute import defines, requires
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain
 from ally.design.processor.handler import HandlerProcessor
@@ -47,7 +47,7 @@ class Response(Context):
     The response context.
     '''
     # ---------------------------------------------------------------- Optional
-    isSuccess = optional(bool)
+    isSuccess = requires(bool)
     
 # --------------------------------------------------------------------
 
@@ -91,7 +91,7 @@ class AsyncoreContentHandler(HandlerProcessor):
         if response.isSuccess is False: return  # Skip in case the response is in error
         
         if request.method in self.contentMethods:
-            if RequestContent.length in requestCnt:
+            if requestCnt.length is not None:
                 if requestCnt.length == 0: return
                 
                 if requestCnt.length > self.dumpRequestsSize:

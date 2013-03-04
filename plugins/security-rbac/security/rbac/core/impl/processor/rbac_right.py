@@ -75,7 +75,5 @@ class RbacPopulateRights(HandlerProcessorProceed):
             rights.extend(aclType.rightsFor(names))
             
         solicitation.types = types
-        if Solicitation.rights in solicitation:
-            solicitation.rights = chain(solicitation.rights, rights)
-        else:
-            solicitation.rights = rights
+        if solicitation.rights is not None: solicitation.rights = chain(solicitation.rights, rights)
+        else: solicitation.rights = rights

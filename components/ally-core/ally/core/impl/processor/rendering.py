@@ -90,21 +90,22 @@ class RenderingHandler(HandlerBranchingProceed):
         assert isinstance(responseCnt, ResponseContent), 'Invalid response content %s' % responseCnt
         
         # Resolving the character set
-        if ResponseContent.charSet in responseCnt:
+        if responseCnt.charSet:
             try: codecs.lookup(responseCnt.charSet)
             except LookupError: responseCnt.charSet = None
         else: responseCnt.charSet = None
 
-        if responseCnt.charSet is None:
-            for charSet in request.accCharSets or ():
-                try: codecs.lookup(charSet)
-                except LookupError: continue
-                responseCnt.charSet = charSet
-                break
-            else: responseCnt.charSet = self.charSetDefault
+        if not responseCnt.charSet:
+            if Request.accCharSets in request and request.accCharSets is not None:
+                for charSet in request.accCharSets:
+                    try: codecs.lookup(charSet)
+                    except LookupError: continue
+                    responseCnt.charSet = charSet
+                    break
+            if not responseCnt.charSet: responseCnt.charSet = self.charSetDefault
 
         resolved = False
-        if ResponseContent.type in responseCnt:
+        if responseCnt.type:
             renderChain = Chain(rendering)
             renderChain.process(request=request, response=response, responseCnt=responseCnt, **keyargs)
             if renderChain.doAll().isConsumed():
@@ -115,7 +116,10 @@ class RenderingHandler(HandlerBranchingProceed):
 
         if not resolved:
             # Adding None in case some encoder is configured as default.
-            for contentType in itertools.chain(request.accTypes or (), self.contentTypeDefaults):
+            if Request.accTypes in request and request.accTypes is not None:
+                contentTypes = itertools.chain(request.accTypes, self.contentTypeDefaults)
+            else: contentTypes = self.contentTypeDefaults
+            for contentType in contentTypes:
                 responseCnt.type = contentType
                 renderChain = Chain(rendering)
                 renderChain.process(request=request, response=response, responseCnt=responseCnt, **keyargs)

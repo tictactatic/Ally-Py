@@ -48,8 +48,7 @@ class Response(Context):
     converterId = requires(Converter)
     converter = requires(Converter)
     normalizer = requires(Normalizer)
-    # ---------------------------------------------------------------- Optional
-    isSuccess = optional(bool)
+    isSuccess = requires(bool)
     # ---------------------------------------------------------------- Defined
     encoder = defines(Callable, doc='''
     @rtype: Callable
@@ -97,7 +96,7 @@ class CreateEncoderHandler(HandlerProcessorProceed):
         assert isinstance(response, Response), 'Invalid response %s' % response
 
         if response.isSuccess is False: return  # Skip in case the response is in error
-        if Response.encoder in response: return  # There is already an encoder no need to create another one
+        if response.encoder: return  # There is already an encoder no need to create another one
         assert isinstance(request.invoker, Invoker), 'Invalid request invoker %s' % request.invoker
 
         response.encoder = self.encoderFor(request.invoker.output)

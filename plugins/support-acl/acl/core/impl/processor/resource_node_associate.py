@@ -212,11 +212,6 @@ class SolicitationWithPermissions(Solicitation):
     '''
     The solicitation context with permissions.
     '''
-    # ---------------------------------------------------------------- Optional
-    node = optional(Node, doc='''
-    @rtype: Node
-    The node to get the permissions for, if there is no None then the entire tree structure is used.
-    ''')
     # ---------------------------------------------------------------- Defined
     permissions = defines(Iterable, doc='''
     @rtype: Iterable(Permission)
@@ -261,15 +256,16 @@ class CheckResourceAvailableRights(HandlerProcessorProceed):
             
         solicitation.rights = unprocessed
         
-        available = self.iterAvailableRights(serviceRights, solicitation.method)
-        if ReplyAvailable.rightsAvailable in reply:
-            reply.rightsAvailable = chain(reply.rightsAvailable, available)
+        if Solicitation.method in solicitation:
+            available = self.iterAvailableRights(serviceRights, solicitation.method)
         else:
-            reply.rightsAvailable = available
+            available = self.iterAvailableRights(serviceRights)
+        if reply.rightsAvailable is not None: reply.rightsAvailable = chain(reply.rightsAvailable, available)
+        else: reply.rightsAvailable = available
         
     # ----------------------------------------------------------------
     
-    def iterAvailableRights(self, serviceRights, method):
+    def iterAvailableRights(self, serviceRights, method=None):
         '''
         Iterates the rights that have permissions.
         '''
@@ -348,15 +344,10 @@ class IterateResourcePermissions(HandlerProcessorProceed):
                 else: isFirst = False
                 indexInvokers, filters = invokersAndFilters
                 
-                if Solicitation.method in solicitation:
+                if Solicitation.method in solicitation and solicitation.method is not None:
                     if not solicitation.method & structCall.call.method: continue
                 assert isinstance(structCall.call, Call)
-                
-                if SolicitationWithPermissions.node in solicitation:
-                    invoker = structInvokers.invokers.get(solicitation.node)
-                    if invoker is None: continue
-                    indexInvokers[solicitation.node] = invoker
-                else: indexInvokers.update(structInvokers.invokers)
+                indexInvokers.update(structInvokers.invokers)
                 
                 # Processing filters
                 if structCall.filters:
@@ -376,10 +367,8 @@ class IterateResourcePermissions(HandlerProcessorProceed):
         
         permissions = self.iterPermissions(indexed, Permission)
         
-        if SolicitationWithPermissions.permissions in solicitation:
-            solicitation.permissions = chain(solicitation.permissions, permissions)
-        else:
-            solicitation.permissions = permissions
+        if solicitation.permissions is not None: solicitation.permissions = chain(solicitation.permissions, permissions)
+        else: solicitation.permissions = permissions
                         
     # ----------------------------------------------------------------
     

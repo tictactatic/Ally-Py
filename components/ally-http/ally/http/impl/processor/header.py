@@ -79,9 +79,10 @@ class HeaderDecodeRequestHandler(HandlerProcessorProceed, HeaderConfigurations):
         '''
         assert isinstance(request, RequestDecode), 'Invalid request %s' % request
 
-        if RequestDecode.decoderHeader not in request:  # Only add the decoder if one is not present
-            request.decoderHeader = DecoderHeader(self, request.headers, request.parameters
-                                                  if RequestDecode.parameters in request and self.useParameters else None)
+        if not request.decoderHeader:  # Only add the decoder if one is not present
+            if self.useParameters and RequestDecode.parameters in request and request.parameters:
+                request.decoderHeader = DecoderHeader(self, request.headers, request.parameters)
+            else: request.decoderHeader = DecoderHeader(self, request.headers)
 
 # --------------------------------------------------------------------
 
@@ -91,8 +92,6 @@ class ResponseDecode(Context):
     '''
     # ---------------------------------------------------------------- Required
     headers = requires(dict)
-    # ---------------------------------------------------------------- Optional
-    isSuccess = optional(bool)
     # ---------------------------------------------------------------- Defined
     decoderHeader = defines(IDecoderHeader, doc='''
     @rtype: IDecoderHeader
@@ -118,9 +117,8 @@ class HeaderDecodeResponseHandler(HandlerProcessorProceed, HeaderConfigurations)
         Provide the response headers decoders.
         '''
         assert isinstance(response, ResponseDecode), 'Invalid response %s' % response
-        if response.isSuccess is False: return  # Skip in case the response is in error
 
-        if ResponseDecode.decoderHeader not in response and ResponseDecode.headers in response: 
+        if not response.decoderHeader and response.headers is not None: 
             # Only add the decoder if one is not present or there are no headers
             response.decoderHeader = DecoderHeader(self, response.headers)
 
@@ -160,7 +158,7 @@ class HeaderEncodeRequestHandler(HandlerProcessorProceed, HeaderConfigurations):
         '''
         assert isinstance(request, RequestEncode), 'Invalid request %s' % request
 
-        if RequestEncode.encoderHeader not in request:  # Only add the encoder if one is not present
+        if not request.encoderHeader:  # Only add the encoder if one is not present
             request.encoderHeader = EncoderHeader(self)
         
             if request.headers: request.encoderHeader.headers.update(request.headers)
@@ -202,7 +200,7 @@ class HeaderEncodeResponseHandler(HandlerProcessorProceed, HeaderConfigurations)
         '''
         assert isinstance(response, ResponseEncode), 'Invalid response %s' % response
 
-        if ResponseEncode.encoderHeader not in response:  # Only add the encoder if one is not present
+        if not response.encoderHeader:  # Only add the encoder if one is not present
             response.encoderHeader = EncoderHeader(self)
         
             if response.headers: response.encoderHeader.headers.update(response.headers)

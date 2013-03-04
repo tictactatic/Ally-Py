@@ -59,7 +59,8 @@ class ContentLanguageDecodeHandler(HandlerProcessorProceed):
         value = request.decoderHeader.retrieve(self.nameContentLanguage)
         if value:
             request.language = value
-            if RequestDecode.argumentsOfType in request: request.argumentsOfType[Locale] = request.language
+            if RequestDecode.argumentsOfType in request and request.argumentsOfType is not None:
+                request.argumentsOfType[Locale] = request.language
 
 # --------------------------------------------------------------------
 
@@ -96,5 +97,4 @@ class ContentLanguageEncodeHandler(HandlerProcessorProceed):
         assert isinstance(response.encoderHeader, IEncoderHeader), \
         'Invalid response header encoder %s' % response.encoderHeader
 
-        if ResponseEncode.language in response:
-            response.encoderHeader.encode(self.nameContentLanguage, response.language)
+        if response.language: response.encoderHeader.encode(self.nameContentLanguage, response.language)

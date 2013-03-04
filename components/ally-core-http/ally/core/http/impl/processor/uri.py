@@ -141,9 +141,10 @@ class URIHandler(HandlerProcessorProceed):
         request.converterParameters = self.converterPath
         request.normalizerParameters = self.converterPath
 
-        if Request.argumentsOfType in request: request.argumentsOfType[Scheme] = request.scheme
+        if Request.argumentsOfType in request and request.argumentsOfType is not None:
+            request.argumentsOfType[Scheme] = request.scheme
 
-        if Response.encoderPath in response:
+        if Response.encoderPath in response and response.encoderPath:
             response.encoderPath = EncoderPathURI(response.encoderPath, self.converterPath, self.resourcesRootURI, extension)
 
         response.code, response.status, response.isSuccess = PATH_FOUND

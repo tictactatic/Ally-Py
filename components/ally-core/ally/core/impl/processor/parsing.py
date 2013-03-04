@@ -87,7 +87,7 @@ class ParsingHandler(HandlerBranching):
         chain.proceed()
 
         if response.isSuccess is False: return  # Skip in case the response is in error
-        if Request.decoder not in request: return  # Skip if there is no decoder.
+        if request.decoder is None: return  # Skip if there is no decoder.
 
         if self.processParsing(parsing, request=request, requestCnt=requestCnt, response=response, **keyargs):
             # We process the chain without the request content anymore
@@ -107,11 +107,11 @@ class ParsingHandler(HandlerBranching):
         assert isinstance(responseCnt, ResponseContent), 'Invalid response content %s' % responseCnt
 
         # Resolving the character set
-        if RequestContent.charSet in requestCnt:
+        if requestCnt.charSet:
             try: codecs.lookup(requestCnt.charSet)
             except LookupError: requestCnt.charSet = self.charSetDefault
         else: requestCnt.charSet = self.charSetDefault
-        if RequestContent.type not in requestCnt: requestCnt.type = responseCnt.type
+        if not requestCnt.type: requestCnt.type = responseCnt.type
 
         chain = Chain(parsing)
         chain.process(request=request, requestCnt=requestCnt, response=response, responseCnt=responseCnt, **keyargs)

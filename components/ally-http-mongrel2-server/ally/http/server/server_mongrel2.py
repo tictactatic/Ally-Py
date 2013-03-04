@@ -17,6 +17,7 @@ from ally.http.spec.server import RequestHTTP, ResponseHTTP, RequestContentHTTP,
     ResponseContentHTTP, HTTP
 from ally.support.util_io import IInputStream, IClosable
 from collections import Iterable
+from http.server import BaseHTTPRequestHandler
 from io import BytesIO
 from os import path, remove
 from urllib.parse import parse_qsl
@@ -88,12 +89,17 @@ class RequestHandler:
         assert isinstance(responseCnt, ResponseContentHTTP), 'Invalid response content %s' % responseCnt
         
         responseHeaders = dict(self.defaultHeaders)
-        if ResponseHTTP.headers in response: responseHeaders.update(response.headers)
+        if ResponseHTTP.headers in response and response.headers is not None: responseHeaders.update(response.headers)
         
         assert isinstance(response.status, int), 'Invalid response status code %s' % response.status
-        self._respond(request, response.status, response.text, responseHeaders)
+        if ResponseHTTP.text in response and response.text: text = response.text
+        elif ResponseHTTP.code in response and response.code: text = response.code
+        else:
+            try: text, _long = BaseHTTPRequestHandler.responses[response.status]
+            except KeyError: text = '???'
+        self._respond(request, response.status, text, responseHeaders)
         
-        if responseCnt.source is not None: request.push(responseCnt.source)
+        if ResponseContentHTTP.source in responseCnt and responseCnt.source is not None: request.push(responseCnt.source)
         self._end(request)
 
     # ----------------------------------------------------------------

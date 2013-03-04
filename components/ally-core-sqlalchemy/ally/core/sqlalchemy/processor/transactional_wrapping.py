@@ -47,8 +47,10 @@ class TransactionWrappingHandler(HandlerProcessor):
             '''
             Handle the finalization
             '''
-            if response.isSuccess is True: endSessions(commit)
-            else: endSessions(rollback)
+            if Response.isSuccess in response:
+                if response.isSuccess is True: endSessions(commit)
+                else: endSessions(rollback)
+            else: endSessions(commit) # Commit if there is no success flag
 
         def onError():
             '''

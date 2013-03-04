@@ -85,7 +85,7 @@ class ContentLengthDecodeHandler(HandlerProcessorProceed):
                 ', expected an integer value' % (value, self.nameContentLength)
                 return
             else:
-                if RequestContentDecode.source in requestCnt:
+                if RequestContentDecode.source in requestCnt and requestCnt.source is not None:
                     requestCnt.source = StreamLimitedLength(requestCnt.source, requestCnt.length)
 
 class StreamLimitedLength(IInputStream, IClosable):
@@ -179,5 +179,5 @@ class ContentLengthEncodeHandler(HandlerProcessorProceed):
         assert isinstance(response.encoderHeader, IEncoderHeader), \
         'Invalid response header encoder %s' % response.encoderHeader
 
-        if ResponseContentEncode.length in responseCnt:
+        if responseCnt.length is not None:
             response.encoderHeader.encode(self.nameContentLength, str(responseCnt.length))

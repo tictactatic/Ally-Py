@@ -19,6 +19,11 @@ class AttrError(Exception):
     '''
     Raised when there is an attribute problem.
     '''
+    
+class ResolverError(Exception):
+    '''
+    Raised when there is an resolver problem.
+    '''
 
 class ProcessorError(Exception):
     '''
@@ -29,127 +34,175 @@ class AssemblyError(Exception):
     '''
     Raised when there is an assembly problem.
     '''
-    
+
 # --------------------------------------------------------------------
 
+class IResolver(metaclass=abc.ABCMeta):
+    '''
+    The attribute resolver specification.
+    '''
+    
+    @abc.abstractmethod
+    def push(self, resolvers):
+        '''
+        Pushes a resolver that reflects this resolver into the provided resolvers repository.
+        
+        @param resolvers: Resolvers
+            The repository to push the resolver to.
+        '''
+
+    @abc.abstractmethod
+    def merge(self, other, isFirst=True):
+        '''
+        Merges this attribute resolver with the other attribute resolver.
+        
+        @param other: IResolver
+            The attribute resolver to merge with.
+        @param isFirst: boolean
+            Flag indicating that if this attribute resolver is the first one in the merging process, in many cases is very 
+            important who gets merged with whom.
+        @return: IResolver
+            The attribute resolver obtained by combining this attribute resolver and the other attribute resolver.
+        '''
+        
+    @abc.abstractmethod
+    def solve(self, other):
+        '''
+        Solve this attribute resolver with the other attribute resolver. The solving it differs from merging because the 
+        resolvers need to complete each other.
+        
+        @param other: IResolver
+            The attribute resolver to solve with.
+        @return: IResolver
+            The attribute resolver obtained by solving this attribute resolver with the other attribute resolver.
+        '''
+    
+    @abc.abstractmethod
+    def isAvailable(self):
+        '''
+        Checks if there is an attribute available to generate.
+        
+        @return: boolean
+            True if it can generate an attribute, False otherwise.
+        '''
+        
+    @abc.abstractmethod
+    def isUsed(self):
+        '''
+        Checks if the attribute resolver will generated a used attribute.
+        
+        @return: boolean
+            True if the generated attribute is used, False otherwise.
+        '''
+    
+    @abc.abstractmethod
+    def create(self, attributes):
+        '''
+        Create the attributes to be used on a new context. The 'isAvailable' method should be checked first.
+        
+        @param attributes: dictionary{string: IAttribute}
+            The attributes dictionary where to place the resolver attribute.
+        '''
+     
 class IAttribute(metaclass=abc.ABCMeta):
     '''
     The attribute specification.
     '''
     
     @abc.abstractmethod
-    def merge(self, other, isFirst=True):
+    def place(self, clazz, name):
         '''
-        Merges this attribute with the other attribute.
-        
-        @param other: IAttribute
-            The attribute to merge with.
-        @param isFirst: boolean
-            Flag indicating that if this attribute is the first one in the merging process, in many cases is very important
-            who gets merged with whom.
-        @return: IAttribute
-            The attribute obtained by combining this attribute and the other attribute.
-        '''
-        
-    @abc.abstractmethod
-    def solve(self, other):
-        '''
-        Solve this attribute with the other attribute. The solving it differs from merging because the attributes need to
-        complete each other.
-        
-        @param other: IAttribute
-            The attribute to solve with.
-        @return: IAttribute
-            The attribute obtained by solving this attribute with the other attribute.
-        '''
-    
-    @abc.abstractmethod
-    def place(self, clazz, name, asDefinition):
-        '''
-        Places the appropriate descriptor on the provided class based on this attribute. Attention the placed descriptors
-        are required to contain a '__name__' and '__objclass__' attributes in order to be usable in the '__contains__'
-        context method. When placing for an Object context then a check for an already existing descriptor must be done
-        since usually '__slots__' is used for Object contexts.
+        Places the appropriate descriptor on the provided class based on this attribute. Attention the placed definition 
+        descriptors are required to contain a '__name__' and '__objclass__' attributes in order to be usable in the '__contains__'
+        context method.
         
         @param clazz: class
             The class to place the descriptor on.
         @param name: string
             The name of the descriptor to place.
-        @param asDefinition: boolean
-            Flag indicating that the attribute is as definition only and no instances for the provided class will be created.
         '''
     
     @abc.abstractmethod
-    def isCreatable(self):
+    def push(self, name, resolvers):
         '''
-        Checks if this attribute can be used for contexts that can have object created.
+        Pushes a resolver for this attribute into the provided resolvers repository.
         
-        @return: boolean
-            True if it can be added on context with objects, False otherwise.
+        @param name: string
+            The context name to associate with the resolver.
+        @param resolvers: Resolvers
+            The repository to push the resolver to.
         '''
     
     @abc.abstractmethod
-    def isAvailable(self, clazz, name):
+    def isValid(self, clazz):
         '''
-        Checks if this attribute is in for the provided class as the attribute name.
+        Checks if the provided class is valid for this attribute.
         
         @param clazz: class
             The class to check.
-        @param name: string
-            The name of the attribute.
         @return: boolean
             True if the attribute is valid, False if the attribute is not known for the provided class.
         '''
         
     @abc.abstractmethod
-    def isValid(self, value):
+    def isIn(self, clazz):
         '''
-        Checks if this value is valid for this attribute.
+        Checks if the provided class contains this attribute.
         
-        @param value: object
-            The value to check.
+        @param clazz: class
+            The class to check.
         @return: boolean
-            True if the value is valid, False otherwise.
+            True if the attribute is contained, False if the attribute is not known for the provided class.
         '''
-        
-    @abc.abstractmethod
-    def isUsed(self):
-        '''
-        Checks if the attribute is not used.
-        
-        @return: boolean
-            True if the attribute is used, False otherwise.
-        '''
-    
-class IDefiner(metaclass=abc.ABCMeta):
+
+class IReport(metaclass=abc.ABCMeta):
     '''
-    The context definer specification, the implementations for this specification will be used in constructing the context
-    classes.
+    Provides the reporting support.
     '''
     
-    @abc.abstractmethod
-    def process(self, name, bases, namespace):
+    def open(self, name):
         '''
-        Process the provided context definition parameters.
+        Open a new report for the provided name.
         
         @param name: string
-            The class name.
-        @param bases: tuple(class)
-            The inherited classes.
-        @param namespace: dictionary{string, object}
-            The context name space definition.
-        @return: tuple(string, tuple(classes), dictionary{string, object})
-            The name, basses and namespace to use in construccting the context class.
+            The name for the created report.
+        @return: IReport
+            The report for name.
         '''
+        
+    def add(self, resolvers):
+        '''
+        Adds the provided resolvers to be reported on.
+        
+        @param resolvers: Resolvers
+            The resolvers repository to be reported.
+        '''
+
+class IProcessor(metaclass=abc.ABCMeta):
+    '''
+    The processor specification.
+    '''
     
     @abc.abstractmethod
-    def finalize(self, clazz):
+    def register(self, sources, resolvers, extensions, calls, report):
         '''
-        Finalizes the context class definition.
+        Register the processor call. The processor needs to alter the attributes and extensions dictionaries based on the
+        processor.
         
-        @param clazz: ContextMetaClass
-            The context meta class to finalize the definition for.
+        @param sources: Resolvers
+            The sources attributes resolvers that need to be solved by processors.
+        @param resolvers: Resolvers
+            The attributes resolvers solved so far by processors.
+        @param extensions: Resolvers
+            The attributes resolvers that are not part of the main stream resolvers but they are rather extension for the created
+            contexts.
+        @param calls: list[callable]
+            The list of callable objects to register the processor call into.
+        @param report: IReport
+            The report to be used in the registration process.
         '''
+
+# --------------------------------------------------------------------
 
 class ContextMetaClass(abc.ABCMeta):
     '''
@@ -175,233 +228,215 @@ class ContextMetaClass(abc.ABCMeta):
             assert isinstance(first, ContextMetaClass)
             definer = first.__definer__
         
-        assert isinstance(definer, IDefiner), 'Invalid definer %s' % definer
+        assert callable(definer), 'Invalid definer %s' % definer
         
-        self = super().__new__(cls, *definer.process(name, bases, namespace))
-        definer.finalize(self)
+        self = super().__new__(cls, *definer(name, bases, namespace))
+        
+        for name, attribute in self.__attributes__.items():
+            assert isinstance(attribute, IAttribute)
+            attribute.place(self, name)
         
         return self
     
     def __str__(self):
         return '<context \'%s.%s(%s)\'>' % (self.__module__, self.__name__, ', '.join(self.__attributes__))
 
-# --------------------------------------------------------------------
-
-class Attributes:
+class Resolvers:
     '''
-    Contextual attributes repository.
+    Attributes resolvers repository.
     '''
-    __slots__ = ('_attributes', '_locked')
+    __slots__ = ('_resolvers', '_locked')
     
     def __init__(self, locked=False, contexts=None):
         '''
-        Construct the attributes repository.
+        Construct the resolvers attributes repository.
 
         @param locked: boolean
-            If True then the attributes cannot be modified.
+            If True then the resolvers cannot be modified.
         @param contexts: dictionary{string, ContextMetaClass)|None
-            The contexts to have the attributes created based on.
+            The contexts to have the resolvers created based on.
         '''
         assert isinstance(locked, bool), 'Invalid locked flag %s' % locked
-        self._attributes = {}
-        self._locked = locked
+        self._resolvers = {}
+        self._locked = False
         
         if contexts is not None:
             assert isinstance(contexts, dict), 'Invalid contexts %s' % contexts
-            for nameContext, context in contexts.items():
-                assert isinstance(nameContext, str), 'Invalid context name %s' % nameContext
+            for name, context in contexts.items():
+                assert isinstance(name, str), 'Invalid context name %s' % name
                 assert isinstance(context, ContextMetaClass), 'Invalid context class %s' % context
         
-                for nameAttribute, attribute in context.__attributes__.items():
+                for attribute in context.__attributes__.values():
                     assert isinstance(attribute, IAttribute), 'Invalid attribute %s' % attribute
-                    self._attributes[(nameContext, nameAttribute)] = attribute
+                    attribute.push(name, self)
+                    
+        if locked: self.lock()
                     
     def lock(self):
         '''
-        Locks this attributes repository.
+        Locks this resolvers repository.
         '''
         self._locked = True
+        
+    def add(self, name, attribute, resolver):
+        '''
+        Adds a new resolver to this repository.
+        
+        @param name: string
+            The context name represented by the resolver.
+        @param attribute: string
+            The attribute name represented by the resolver.
+        @param resolver: IResolver
+            The resolver to add to the repository.
+        '''
+        if self._locked: raise ResolverError('Resolvers are locked')
+        assert isinstance(name, str), 'Invalid name %s' % name
+        assert isinstance(attribute, str), 'Invalid attribute %s' % attribute
+        assert isinstance(resolver, IResolver), 'Invalid resolver %s' % resolver
+        self._resolvers[(name, attribute)] = resolver
                     
     def merge(self, other, joined=True):
         '''
-        Merges into this attributes the provided attributes.
+        Merges into this resolvers repository the provided resolvers or contexts.
         
-        @param other: Attributes|dictionary{string, ContextMetaClass)
-            The attributes or dictionary of context to merge with.
+        @param other: Resolvers|dictionary{string, ContextMetaClass)
+            The resolvers or dictionary of context to merge with.
         @param joined: boolean
-            If True then the other attributes that are not found in this attributes repository will be added, if False
-            the merging is done only on existing attributes in this repository.
+            If True then the other resolvers that are not found in this resolvers repository will be added, if False
+            the merging is done only on existing resolvers in this repository.
         '''
-        if self._locked: raise AttrError('Attributes locked')
-        if not isinstance(other, Attributes): other = Attributes(True, other)
-        assert isinstance(other, Attributes), 'Invalid other attributes %s' % other
+        if self._locked: raise ResolverError('Resolvers are locked')
+        if not isinstance(other, Resolvers): other = Resolvers(True, other)
+        assert isinstance(other, Resolvers), 'Invalid other resolvers %s' % other
         assert isinstance(joined, bool), 'Invalid joined flag %s' % joined
     
-        for key, attribute in other._attributes.items():
-            assert isinstance(attribute, IAttribute), 'Invalid attribute %s' % attribute
+        for key, resolver in other._resolvers.items():
+            assert isinstance(resolver, IResolver), 'Invalid resolver %s' % resolver
             assert isinstance(key, tuple), 'Invalid key %s' % key
     
-            attr = self._attributes.get(key)
-            if attr is None:
-                if joined: self._attributes[key] = attribute
+            resolv = self._resolvers.get(key)
+            if resolv is None:
+                if joined: resolver.push(self)
             else:
-                assert isinstance(attr, IAttribute), 'Invalid attribute %s' % attr 
-                self._attributes[key] = attr.merge(attribute)
+                assert isinstance(resolv, IResolver), 'Invalid resolver %s' % resolv 
+                resolv.merge(resolver).push(self)
                 
     def solve(self, other, joined=True):
         '''
-        Solves into this attributes the provided attributes.
+        Solves into this resolver repository the provided resolvers or contexts.
         
-        @param other: Attributes|dictionary{string, ContextMetaClass)
-            The attributes or dictionary of context to solve with.
+        @param other: Resolvers|dictionary{string, ContextMetaClass)
+            The resolvers or dictionary of context to solve with.
         @param joined: boolean
-            If True then the other attributes that are not found in this attributes repository will be added, if False
-            the solving is done only on existing attributes in this repository.
+            If True then the other resolvers that are not found in this resolvers repository will be added, if False
+            the solving is done only on existing resolvers in this repository.
         '''
-        if self._locked: raise AttrError('Attributes locked')
-        if not isinstance(other, Attributes): other = Attributes(True, other)
-        assert isinstance(other, Attributes), 'Invalid other attributes %s' % other
+        if self._locked: raise ResolverError('Resolvers are locked')
+        if not isinstance(other, Resolvers): other = Resolvers(True, other)
+        assert isinstance(other, Resolvers), 'Invalid other resolvers %s' % other
         assert isinstance(joined, bool), 'Invalid joined flag %s' % joined
     
-        for key, attribute in other._attributes.items():
-            assert isinstance(attribute, IAttribute), 'Invalid attribute %s' % attribute
+        for key, resolver in other._resolvers.items():
+            assert isinstance(resolver, IResolver), 'Invalid resolver %s' % resolver
             assert isinstance(key, tuple), 'Invalid key %s' % key
             
-            attr = self._attributes.get(key)
-            if attr is None:
-                if joined: self._attributes[key] = attribute
-            else: self._attributes[key] = attribute.solve(attr)
+            resolv = self._resolvers.get(key)
+            if resolv is None:
+                if joined: resolver.push(self)
+            else:
+                resolver.solve(resolv).push(self)
     
     # ----------------------------------------------------------------
     
     def copy(self, names=None):
         '''
-        Creates a copy for this attributes repository, if this repository has the locked flag it will no be passed on to the copy.
+        Creates a copy for this resolvers repository, if this repository has the locked flag it will no be passed on to the copy.
         
         @param names: Iterable(string|tuple(string, string))|None
-            The context or attribute names to copy the attributes for, if None then all attributes are copied.
-        @return: Attributes
-            The cloned attributes repository.
+            The context or attribute names to copy the resolvers for, if None then all resolvers are copied.
+        @return: Resolvers
+            The cloned resolvers repository.
         '''
-        copy = Attributes()
+        copy = Resolvers()
         if names:
             assert isinstance(names, Iterable), 'Invalid names %s' % names
             for name in names:
                 if isinstance(name, tuple):
-                    attr = self._attributes.get(name)
-                    if attr: copy._attributes[name] = attr
+                    resolver = self._resolvers.get(name)
+                    if resolver:
+                        assert isinstance(resolver, IResolver), 'Invalid resolver %s' % resolver
+                        resolver.push(copy)
                 else:
                     assert isinstance(name, str), 'Invalid context or attribute name %s' % name
-                    for key, attr in self._attributes.items():
-                        if key[0] == name: copy._attributes[key] = attr
+                    for key, resolver in self._resolvers.items():
+                        assert isinstance(resolver, IResolver), 'Invalid resolver %s' % resolver
+                        if key[0] == name: resolver.push(copy)
         else:
-            copy._attributes.update(self._attributes)
+            for resolver in self._resolvers.values():
+                assert isinstance(resolver, IResolver), 'Invalid resolver %s' % resolver
+                resolver.push(copy)
             
         return copy
     
     def extract(self, names):
         '''
-        Extracts from this attributes repository all the attributes for the provided context or attribute names.
+        Extracts from this resolvers repository all the resolvers for the provided context or attribute names.
         
         @param names: Iterable(string|tuple(string, string))
-            The context or attribute names to extract the attributes for.
-        @return: Attributes
-            The extracted attributes repository.
+            The context or attribute names to extract the resolvers for.
+        @return: Resolvers
+            The extracted resolvers repository.
         '''
-        if self._locked: raise AttrError('Attributes locked')
+        if self._locked: raise ResolverError('Resolvers are locked')
         assert isinstance(names, Iterable), 'Invalid names %s' % names
         
         toExtract = []
         for name in names:
             if isinstance(name, tuple):
-                if name in self._attributes: toExtract.append(name)
+                if name in self._resolvers: toExtract.append(name)
             else:
                 assert isinstance(name, str), 'Invalid context or attribute name %s' % name
-                for key in self._attributes:
+                for key in self._resolvers:
                     if key[0] == name: toExtract.append(key)
                 
-        extracted = Attributes()
-        for key in toExtract: extracted._attributes[key] = self._attributes.pop(key)
+        extracted = Resolvers()
+        for key in toExtract:
+            resolver = self._resolvers.pop(key)
+            assert isinstance(resolver, IResolver), 'Invalid resolver %s' % resolver
+            resolver.push(extracted)
         
         return extracted
     
     # ----------------------------------------------------------------
-    
+
     def validate(self):
         '''
-        Validates the attributes in this repository.
+        Validates the resolvers in this repository.
         '''
-        for key, attribute in self._attributes.items():
-            assert isinstance(attribute, IAttribute), 'Invalid attribute %s' % attribute
-            if not attribute.isCreatable(): raise AttrError('The \'%s.%s\' unsolved for %s' % (key + (attribute,)))
+        for key, resolver in self._resolvers.items():
+            assert isinstance(resolver, IResolver), 'Invalid resolver %s' % resolver
+            if not resolver.isAvailable(): raise ResolverError('The \'%s.%s\' is not available for %s' % (key + (resolver,)))
     
     def iterateNames(self):
         '''
-        Iterates the attributes names for this attributes repository.
+        Iterates the resolvers names for this resolvers repository.
         
         @return: Iterable(tuple(string, string))
-            The attributes names iterator.
+            The resolvers names iterator.
         '''
-        return self._attributes.keys()
+        return self._resolvers.keys()
     
     def iterate(self):
         '''
-        Iterates the attributes for this attributes repository.
+        Iterates the resolvers for this resolvers repository.
         
-        @return: Iterable(tuple(string, string), IAttribute)
-            The attributes iterator.
+        @return: Iterable(tuple(string, string), IResolver)
+            The resolvers iterator.
         '''
-        return self._attributes.items()
+        return self._resolvers.items()
     
     # ----------------------------------------------------------------
     
     def __str__(self):
         return '%s:\n%s' % (self.__class__.__name__,
-                    ''.join('%s.%s with %s' % (key + (attr,)) for key, attr in sorted(self._attributes.items(), key=firstOf)))
-            
-class IReport(metaclass=abc.ABCMeta):
-    '''
-    Provides the reporting support.
-    '''
-    
-    def open(self, name):
-        '''
-        Open a new report for the provided name.
-        
-        @param name: string
-            The name for the created report.
-        @return: IReport
-            The report for name.
-        '''
-        
-    def add(self, attributes):
-        '''
-        Adds the provided attributes to be reported on.
-        
-        @param attributes: Attributes
-            The attributes to be reported.
-        '''
-
-class IProcessor(metaclass=abc.ABCMeta):
-    '''
-    The processor specification.
-    '''
-    
-    @abc.abstractmethod
-    def register(self, sources, attributes, extensions, calls, report):
-        '''
-        Register the processor call. The processor needs to alter the attributes and extensions dictionaries based on the
-        processor.
-        
-        @param sources: Attributes
-            The sources attributes that need to be solved by processors.
-        @param attributes: Attributes
-            The attributes solved so far by processors.
-        @param extensions: Attributes
-            The attributes that are not part of the main stream attributes but they are rather extension for the created
-            contexts.
-        @param report: IReport
-            The report to be used in the registration process.
-        @param calls: list[callable]
-            The list of callable objects to register the processor call into.
-        '''
+                    ''.join('%s.%s with %s' % (key + (attr,)) for key, attr in sorted(self._resolvers.items(), key=firstOf)))

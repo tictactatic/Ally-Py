@@ -97,7 +97,7 @@ class ParseFormDataHandler(HandlerProcessorProceed):
         assert isinstance(requestCnt, RequestContent), 'Invalid request content %s' % requestCnt
         assert isinstance(response, Response), 'Invalid response %s' % response
 
-        if RequestContent.previousContent not in requestCnt: return
+        if requestCnt.previousContent is None: return
         # If there is no previous content it means that this is not a multi part request content.
         multiCnt = requestCnt.previousContent
         assert isinstance(multiCnt, RequestContent), 'Invalid request content %s' % multiCnt

@@ -11,7 +11,7 @@ Contains the assembly support.
 
 from .context import create
 from .execution import Processing
-from .spec import IProcessor, AssemblyError, Attributes
+from .spec import IProcessor, AssemblyError, Resolvers
 from abc import ABCMeta
 from ally.design.processor.report import ReportUnused
 from collections import Iterable
@@ -125,17 +125,17 @@ class Assembly(Container):
             A text containing the report for the processing creation
         '''
         report = ReportUnused()
-        calls, sources, attributes, extensions = [], Attributes(True, contexts), Attributes(), Attributes()
+        calls, sources, resolvers, extensions = [], Resolvers(True, contexts), Resolvers(), Resolvers()
         for processor in self.processors:
             assert isinstance(processor, IProcessor), 'Invalid processor %s' % processor
-            processor.register(sources, attributes, extensions, calls, report)
+            processor.register(sources, resolvers, extensions, calls, report)
             
-        attributes.solve(sources)
-        attributes.validate()
-        attributes.solve(extensions)
-        processing = Processing(calls, create(attributes))
+        resolvers.solve(sources)
+        resolvers.validate()
+        resolvers.solve(extensions)
+        processing = Processing(calls, create(resolvers))
         reportAss = report.open('Assembly \'%s\'' % self.name)
-        reportAss.add(attributes)
+        reportAss.add(resolvers)
         
         lines = report.report()
         if lines: log.info('\n%s\n' % '\n'.join(lines))

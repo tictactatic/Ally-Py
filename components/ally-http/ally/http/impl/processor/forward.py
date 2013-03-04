@@ -94,7 +94,7 @@ class ForwardHTTPHandler(HandlerProcessorProceed):
         assert isinstance(responseCnt, ResponseContent), 'Invalid response content %s' % responseCnt
         assert request.scheme == HTTP, 'Cannot forward for scheme %s' % request.scheme
         
-        if RequestContent.source in requestCnt:
+        if requestCnt.source is not None:
             if isinstance(requestCnt.source, Iterable):
                 body = writeGenerator(requestCnt.source, BytesIO()).getvalue()
             else:
@@ -102,7 +102,7 @@ class ForwardHTTPHandler(HandlerProcessorProceed):
                 body = requestCnt.source.read()
         else: body = None
         
-        if Request.parameters in request: parameters = urlencode(request.parameters)
+        if request.parameters: parameters = urlencode(request.parameters)
         else: parameters = None
         
         connection = HTTPConnection(self.externalHost, self.externalPort)

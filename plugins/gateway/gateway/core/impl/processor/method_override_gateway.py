@@ -66,7 +66,7 @@ class RegisterMethodOverride(HandlerProcessorProceed):
         Adds the default gateways.
         '''
         assert isinstance(reply, Reply), 'Invalid reply %s' % reply
-        if Reply.gateways not in reply: return
+        if reply.gateways is None: return
         
         reply.gateways = self.register(reply.gateways)
             

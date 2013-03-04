@@ -60,7 +60,7 @@ class GatewayForwardHandler(HandlerBranching):
         assert isinstance(chain, Chain), 'Invalid chain %s' % chain
         assert isinstance(processing, Processing), 'Invalid processing %s' % processing
         assert isinstance(request, Request), 'Invalid request %s' % request
-        if Request.match not in request:
+        if not request.match:
             # No forwarding if there is no match on response
             chain.proceed()
             return  

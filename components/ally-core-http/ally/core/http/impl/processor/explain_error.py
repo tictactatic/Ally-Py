@@ -71,14 +71,16 @@ class ExplainErrorHandler(HandlerProcessorProceed):
         assert isinstance(response, Response), 'Invalid response %s' % response
         assert isinstance(responseCnt, ResponseContent), 'Invalid response content %s' % responseCnt
 
-        if response.isSuccess is False and Response.renderFactory in response:
+        if response.isSuccess is False and response.renderFactory is not None:
             errors = [Value('code', str(response.status))]
-            if Response.errorMessage in response:
+            if Response.errorMessage in response and response.errorMessage:
                 errors.append(Value('message', response.errorMessage))
+            elif Response.text in response and response.text:
+                errors.append(Value('message', response.text))
             else:
-                errors.append(Value('message', response.text or response.code))
+                errors.append(Value('message', response.code))
 
-            if Response.errorDetails in response:
+            if Response.errorDetails in response and response.errorDetails:
                 errors.append(Object('details', response.errorDetails))
 
             output = BytesIO()

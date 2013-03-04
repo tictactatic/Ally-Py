@@ -65,7 +65,7 @@ class GatewaySelectorHandler(HandlerProcessorProceed):
             allows = request.repository.allowsFor(request.headers, request.uri)
             if allows:
                 response.code, response.status, response.isSuccess = METHOD_NOT_AVAILABLE
-                if Response.allows not in response: response.allows = list(allows)
+                if response.allows is None: response.allows = list(allows)
                 else: response.allows.extend(allows)
             else:
                 response.code, response.status, response.isSuccess = PATH_NOT_FOUND

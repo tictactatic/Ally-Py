@@ -52,14 +52,12 @@ class RegisterDefaultRights(HandlerProcessorProceed):
         Adds the default rights.
         '''
         assert isinstance(solicitation, Solicitation), 'Invalid solicitation %s' % solicitation
-        if Solicitation.types not in solicitation: return
+        if solicitation.types is None: return
         
         rights = []
         for typeAcl in solicitation.types:
             assert isinstance(typeAcl, TypeAcl), 'Invalid ACL type %s' % typeAcl
             rights.extend(typeAcl.defaults)
         
-        if Solicitation.rights in solicitation:
-            solicitation.rights = chain(solicitation.rights, rights)
-        else:
-            solicitation.rights = rights
+        if solicitation.rights is not None: solicitation.rights = chain(solicitation.rights, rights)
+        else: solicitation.rights = rights

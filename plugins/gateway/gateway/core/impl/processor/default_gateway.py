@@ -96,10 +96,8 @@ class RegisterDefaultGateways(HandlerProcessorProceed):
         '''
         assert isinstance(reply, Reply), 'Invalid reply %s' % reply
 
-        if Reply.gateways in reply:
-            reply.gateways = chain(self._gateways, reply.gateways)
-        else:
-            reply.gateways = self._gateways
+        if reply.gateways is not None: reply.gateways = chain(self._gateways, reply.gateways)
+        else: reply.gateways = self._gateways
 
 # --------------------------------------------------------------------
 

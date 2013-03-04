@@ -83,6 +83,6 @@ class ErrorPopulator(HandlerProcessorProceed):
         
         response.code, response.status, response.isSuccess = self.statusToCode.get(status, PATH_NOT_FOUND)
         
-        if Response.allows not in response: response.allows = allows
+        if response.allows is None: response.allows = allows
         else: response.allows.extend(allows)
         

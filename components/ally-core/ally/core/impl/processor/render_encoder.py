@@ -34,8 +34,7 @@ class Response(Context):
     encoder = requires(Callable)
     encoderData = requires(dict)
     obj = requires(object)
-    # ---------------------------------------------------------------- Optional
-    isSuccess = optional(bool)
+    isSuccess = requires(bool)
 
 class ResponseContent(Context):
     '''
@@ -46,8 +45,7 @@ class ResponseContent(Context):
     @rtype: Iterable
     The generator containing the response content.
     ''')
-    # ---------------------------------------------------------------- Optional
-    length = optional(int)
+    length = defines(int)
 
 # --------------------------------------------------------------------
 
@@ -77,7 +75,7 @@ class RenderEncoderHandler(HandlerProcessorProceed):
         assert isinstance(responseCnt, ResponseContent), 'Invalid response content %s' % responseCnt
 
         if response.isSuccess is False: return  # Skip in case the response is in error
-        if Response.encoder not in response: return  # Skip in case there is no encoder to render
+        if response.encoder is None: return  # Skip in case there is no encoder to render
         assert callable(response.renderFactory), 'Invalid response renderer factory %s' % response.renderFactory
 
         output = BytesIO()
@@ -86,7 +84,7 @@ class RenderEncoderHandler(HandlerProcessorProceed):
 
         resolve = Resolve(response.encoder).request(value=response.obj, render=render, **response.encoderData or {})
 
-        if not self.allowChunked and ResponseContent.length not in responseCnt:
+        if not self.allowChunked and responseCnt.length is None:
     
             while resolve.has(): resolve.do()
             content = output.getvalue()
