@@ -31,10 +31,22 @@ def markers():
             for key, value in load(f).items(): markers['__plugin__.%s' % key] = value
     return markers
 
+def persistMarkers(used):
+    ''' Persist the markers of the executed events'''
+    assert isinstance(used, set), 'Invalid used %s' % used
+    plen = len('__plugin__.')
+    configs = {}
+    for name, value in markers().items():
+        if name in used: group = 'current markers'
+        else: group = 'unused markers'
+        configs[name[plen:]] = Config(name, value, group)
+    with open(distribution_file_path(), 'w') as f: save(configs, f)
+
 # --------------------------------------------------------------------
 
 @ioc.start(priority=ioc.PRIORITY_FINAL)
 def deploy():
+    used = set()
     try:
         triggers = [app.DEPLOY, app.POPULATE]
         if application_mode() == APP_NORMAL: triggers.append(app.NORMAL)
@@ -46,6 +58,7 @@ def deploy():
                 log.debug('Executing event call \'%s\'', name)
                 call()
             elif app.POPULATE.isTriggered(trigger):
+                used.add(name)
                 executed = markers().get(name)
                 if app.DEVEL.isTriggered(trigger): executed = None  # If in devel then we execute regardless
                 if executed is None:
@@ -64,7 +77,4 @@ def deploy():
             elif app.DEVEL.isTriggered(trigger):
                 log.debug('Executing development only deploy event call \'%s\'', name)
                 call()
-    finally:
-        plen = len('__plugin__.')
-        with open(distribution_file_path(), 'w') as f:
-            save({name[plen:]: Config(name, value) for name, value in markers().items()}, f)
+    finally: persistMarkers(used)
