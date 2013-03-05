@@ -16,8 +16,8 @@ if True:
 
 # --------------------------------------------------------------------
 
-from ally.container.binder import bindLock, clearBindings
-from ally.container.proxy import createProxy, ProxyWrapper
+from ally.container.impl.binder import bindLock, clearBindings
+from ally.container.impl.proxy import createProxy, ProxyWrapper
 import unittest
 
 # --------------------------------------------------------------------

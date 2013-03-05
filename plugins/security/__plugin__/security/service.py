@@ -20,7 +20,7 @@ SERVICES = 'security.api.**.I*Service', 'security.**.api.**.I*Service'
 @ioc.entity
 def binders(): return [bindSecuritySession]
 @ioc.entity
-def bindersService(): return list(chain(binders(), (bindSecurityValidations,)))
+def bindersService(): return list(chain((bindSecurityValidations,), binders()))
 
 bind.bindToEntities('security.impl.**.*Alchemy', 'security.**.impl.**.*Alchemy', binders=binders)
 support.createEntitySetup('security.impl.**.*', 'security.**.impl.**.*')

@@ -20,15 +20,18 @@ from ally.container import ioc
 from ally.core.impl.processor.text_conversion import ConversionSetHandler
 from ally.core.spec.resources import Normalizer, Converter
 from ally.design.processor.attribute import defines
-from ally.design.processor.context import Object
+from ally.design.processor.context import Context, create
 from ally.design.processor.execution import Chain
+from ally.design.processor.spec import Resolvers
 import unittest
 
 # --------------------------------------------------------------------
 
-class Content(Object):
+class Content(Context):
     normalizer = defines(Normalizer)
     converter = defines(Converter)
+ctx = create(Resolvers(contexts=dict(Content=Content)))
+Content = ctx['Content']
 
 # --------------------------------------------------------------------
 

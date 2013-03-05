@@ -17,7 +17,8 @@ if True:
 # --------------------------------------------------------------------
 
 from ally.design.processor.attribute import requires, defines, optional
-from ally.design.processor.context import Object, Context
+from ally.design.processor.context import Context, create
+from ally.design.processor.spec import Resolvers
 import unittest
 
 # --------------------------------------------------------------------
@@ -27,25 +28,25 @@ class A(Context):
     p2 = defines(int)
 
 class B(Context):
-    p1 = optional(str)
+    p1 = defines(str)
 
 class C(Context):
-    p2 = requires(int)
+    p2 = defines(int)
 
 class D(Context):
-    p2 = requires(str)
+    p2 = defines(str)
     
 class F(D):
-    p3 = requires(str)
+    p3 = defines(str)
     
 class E(F, D):
     p2 = optional(str)
     p3 = optional(str)
 
-class I(Object):
-    p1 = optional(str)
-    p2 = optional(str)
-    p3 = optional(str)
+resolvers = Resolvers(contexts=dict(I=B))
+resolvers.merge(dict(I=F))
+ctx = create(resolvers)
+I = ctx['I']
 
 # --------------------------------------------------------------------
 
@@ -61,7 +62,7 @@ class TestDesign(unittest.TestCase):
         self.assertIsInstance(i, F)
         self.assertIsInstance(i, E)
         
-        self.assertFalse(B.p1 in i)
+        self.assertTrue(B.p1 in i)
 
         self.assertRaises(AssertionError, setattr, i, 'p1', 12)
         i.p1 = 'astr'

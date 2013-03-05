@@ -21,14 +21,15 @@ from ally.core.http.impl.processor.method_invoker import MethodInvokerHandler
 from ally.core.impl.node import NodeRoot
 from ally.core.spec.resources import Invoker, Path
 from ally.design.processor.attribute import defines
-from ally.design.processor.context import Object
+from ally.design.processor.context import Context, create
 from ally.design.processor.execution import Chain
+from ally.design.processor.spec import Resolvers
 from ally.http.spec.server import HTTP_GET
 import unittest
 
 # --------------------------------------------------------------------
 
-class Request(Object):
+class Request(Context):
     '''
     The request context.
     '''
@@ -41,7 +42,7 @@ class Request(Object):
     The invoker to be used for calling the service.
     ''')
 
-class Response(Object):
+class Response(Context):
     '''
     The response context.
     '''
@@ -53,6 +54,8 @@ class Response(Object):
     @rtype: list[string]
     Contains the allow list for the methods.
     ''')
+ctx = create(Resolvers(contexts=dict(Request=Request, Response=Response)))
+Request, Response = ctx['Request'], ctx['Response']
 
 # --------------------------------------------------------------------
 
@@ -61,9 +64,8 @@ class TestMethodInvoker(unittest.TestCase):
     def testMethodInvoker(self):
         handler = MethodInvokerHandler()
         ioc.initialize(handler)
-
         request, response = Request(), Response()
-
+        
         node = NodeRoot()
         request.method, request.path = HTTP_GET, Path([], node)
 
