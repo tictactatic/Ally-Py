@@ -902,7 +902,7 @@ section.main-section {
 							}
 
 
-                .search-result-list > div > li, .post-list > li, .search-result-list > li 
+                .search-result-list > div > li, .search-result-list > li 
                 {
                     background: #FFFFFF;
                     border: 1px solid #ebebeb;
@@ -911,6 +911,21 @@ section.main-section {
                     padding: 5px 8px 8px;
                     position:relative;
                 }
+                
+                .post-list > li {
+                	background: #FFFFFF;
+                    border: 1px solid #fff;
+                    border-top-width:0;
+                    border-bottom-color:#d8d8d8; 
+                    list-style: none outside none;
+                    margin: 0;
+                    padding: 8px 8px 10px 17px !important;
+                    position:relative;
+                }
+                .post-list > li:first-child {
+                	border-top-width:1px;
+                }
+
                 .search-result-list > li, li.ui-draggable-dragging {
                     overflow:hidden;
                     background: #FFFFFF;
@@ -975,6 +990,58 @@ section.main-section {
 	line-height:18px;
 	margin:0;
 	}
+.youtube .result-content h3 {
+	margin-top: 5px;
+	line-height: 18px;
+} 
+.link .result-content h3 {
+	padding-left: 10px;
+}
+.normal .result-content .result-text {
+	line-height: 16px !important;
+}
+.quote .result-content,
+.advertisement .result-content,
+.normal .result-content {
+	margin-left: 60px !important;
+}
+.soundcloud .attributes {
+	margin-top: 5px;
+}
+.advertisement .source-icon,
+.link .source-icon,
+.normal .source-icon {
+	display: none !important;
+}
+.link .result-content .link-preview h3 {
+	padding-left: 0;
+}
+.link .link-preview .source-icon {
+	display: inline-block !important;
+}
+.link time {
+	padding-left: 10px;
+}
+.link .link-preview time {
+	padding-left: 0;
+}
+
+.link figure.link-thumbnail {
+    max-width: 48px;
+    max-height: 48px;
+    margin: 0 10px 0 0;
+    padding: 0;
+    float:left;
+}
+.link figure.link-thumbnail img {
+    max-width: 48px;
+    max-height: 48px;
+}
+.quote .result-content .result-text,
+.normal .result-content .result-text {
+	display: inline-block !important;
+}
+
 .result-content time {
 	font-size:11px;
 	color:#7d7d7d;
@@ -985,7 +1052,7 @@ section.main-section {
 	margin-left:50px;
 	}
 	.post-list .result-content {
-		margin-right:35px;
+		/*margin-right:35px;*/
 		}
 	.with-avatar .result-content h3, .with-avatar .result-content .result-text  {
 		display:inline;
@@ -1009,17 +1076,21 @@ section.main-section {
 		}
 	.author-name {
 		display:inline-block;
-		padding-right:5px;
-		margin-right:5px;
-		border-right:1px solid #ebebeb;
 		font-size:11px;
+		}
+		.soundcloud .author-name,
+		.youtube .author-name {
+			margin-right:5px;
+			padding-right: 5px;
+			border-right: 1px solid #ccc;
+			line-height: 14px; 
 		}
 	.attributes .source-icon, .source-icon {
 		display:inline-block;
 		height:16px;
 		width:16px;
 		margin-right:4px;
-		vertical-align: middle;
+		vertical-align: top;
 		}
 		.twitter .source-icon {
 			background-image:url(../../images/twitter-16px.png);
@@ -1162,13 +1233,13 @@ section.main-section {
 	}	
 	
 .post-list > li.draggable:hover {
-	border-color: #c0c0c0;
+	border-color: #d8d8d8;
 	border-left-color:#969696;
 	cursor:move;
 	}
 	.post-list > li.advertisement.draggable:hover {
-		border-width: 1px;
-		border-left-color:#969696;
+		/*border-width: 1px;
+		border-left-color:#969696;*/
 		/*padding: 5px 8px 8px 7px;*/
 		}		
 .post-list > li .tool-box-right {
@@ -1185,12 +1256,13 @@ section.main-section {
 		}
 	.post-list > li.advertisement {
 		display:block;
-		border-width:1px;
-		border-color:#007FB3;
+		
+		background-color:#effaff;
 		}
 		.post-list > li.advertisement a {
 			width:95%;
 			display:inline-block;
+			line-height: 16px;
 			}
 			
 		
@@ -1235,7 +1307,7 @@ section.main-section {
 		
 .drag-bar {
 	position: absolute;
-	left: -10px; 
+	left: 0px; 
 	top: -1px;
 	bottom: -1px;
 	width:9px;
