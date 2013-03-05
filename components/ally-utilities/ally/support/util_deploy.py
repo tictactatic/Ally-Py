@@ -11,9 +11,10 @@ Contains ZIP utils
 
 from os.path import join, isdir
 from ally.support.util_io import synchronizeURIToDir
-from ally.zip.util_zip import getZipFilePath
+from ally.zip.util_zip import getZipFilePath, validateInZipPath
 from platform import system, machine, system_alias, release, version, \
     linux_distribution
+from zipfile import ZipFile
 
 # --------------------------------------------------------------------
 
@@ -62,20 +63,18 @@ def deploy(source, destination, systemName=None, machineName=None):
     if not systemName: systemName, rel, ver = systemInfo()
     machineName = machineName if machineName else machine()
 
-    systems = {SYSTEM_ALL:False} if systemName == SYSTEM_ALL else {systemName:True, SYSTEM_ALL:False}
-    machines = {MACHINE_ALL:False} if machineName == MACHINE_ALL else {machineName:True, MACHINE_ALL:False}
+    systems = (SYSTEM_ALL) if systemName == SYSTEM_ALL else (systemName, SYSTEM_ALL)
+    machines = (MACHINE_ALL) if machineName == MACHINE_ALL else (machineName, MACHINE_ALL)
 
     deployed = False
-    for systemName, _systemRequired in systems.items():
-        for machineName, _machineRequired in machines.items():
+    for systemName in systems:
+        for machineName in machines:
             srcDir = join(source, systemName, machineName)
             if not isdir(srcDir):
-                try: getZipFilePath(srcDir)
-                except IOError: continue
-#                    if systemRequired and machineRequired:
-#                        raise IOError('Cannot locate required dependency \'%s\' for system %s with architecture %s'
-#                                      % (srcDir, systemName, machineName))
-#                    else: continue
+                try:
+                    zipPath, inPath = getZipFilePath(srcDir)
+                    validateInZipPath(ZipFile(zipPath), inPath)
+                except (IOError, KeyError): continue
             synchronizeURIToDir(srcDir, destination)
             deployed = True
 
