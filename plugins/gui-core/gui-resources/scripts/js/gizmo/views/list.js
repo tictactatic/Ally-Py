@@ -182,6 +182,10 @@ function($, superdesk, giz)
             return {limit: this.page.limit, offset: this.page.offset};
         },
         /*!
+         * where to render it
+         */
+        renderPlaceholder: superdesk.layoutPlaceholder,
+        /*!
          * activate view
          * does of refresh of data then places the rendered element in the layout
          * and resets events
@@ -191,7 +195,7 @@ function($, superdesk, giz)
             var self = this;
             return this.refresh().done(function()
             {
-                $(superdesk.layoutPlaceholder).html(self.el);
+                $(self.renderPlaceholder).html(self.el);
                 if( self._resetEvents ) self.resetEvents();
                 self._resetEvents = true;
             });
