@@ -11,7 +11,7 @@ Contains ZIP utils
 
 from os.path import join, isdir
 from ally.support.util_io import synchronizeURIToDir
-from ally.zip.util_zip import getZipFilePath, validateInZipPath
+from ally.zip.util_zip import getZipFilePath, validateInZipPath, ZIPSEP
 from platform import system, machine, system_alias, release, version, \
     linux_distribution
 from zipfile import ZipFile
@@ -73,7 +73,7 @@ def deploy(source, destination, systemName=None, machineName=None):
             if not isdir(srcDir):
                 try:
                     zipPath, inPath = getZipFilePath(srcDir)
-                    validateInZipPath(ZipFile(zipPath), inPath)
+                    validateInZipPath(ZipFile(zipPath), inPath + ZIPSEP)
                 except (IOError, KeyError): continue
             synchronizeURIToDir(srcDir, destination)
             deployed = True
