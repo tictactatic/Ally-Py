@@ -346,9 +346,7 @@ table thead tr th.desc {
 {
 	border: 1px dotted #ccc;
 	min-height: 18px;
-	margin-left: 5px;
 	.clearfix();
-	/*margin-right:40px;*/
 	padding:3px 5px;
 }
 #timeline-view .post-list .actions
@@ -410,7 +408,7 @@ table thead tr th.desc {
 }
 #timeline-view .twitter .twitter-quote
 {
-	margin: 5px 0 5px 5px;
+	margin: 5px 0;
 	padding: 5px 8px 8px;
 	min-height: 50px;
 	border: 1px solid #e5e5e5;
@@ -436,10 +434,14 @@ table thead tr th.desc {
 {
 	.clearfix();
 	color:#787878;
+	margin-left:0px;
 }
 #timeline-view .instagram .result-content,
-#timeline-view .youtube .result-content,
-#timeline-view .google .result-content
+#timeline-view .google .result-content {
+	margin: 0 0 10px 0;
+}
+
+#timeline-view .youtube .result-content
 {
 	margin: 10px 0;
 }
@@ -468,7 +470,7 @@ table thead tr th.desc {
 	padding-bottom: 5px;
 }
 
-#timeline-view {
+#timeline-view, #own-posts-holder {
 	.post-info {
 		padding:3px 0 5px 50px; 
 		p[rel="author"] {
@@ -490,6 +492,19 @@ table thead tr th.desc {
 		}
 
 	} 
+}
+
+#own-posts-holder {
+	li {
+		.post-info {
+			padding-bottom:0;
+		}
+		.result-content {
+			h3 {
+				display:none;
+			}
+		}
+	}
 }
 
 [contenteditable] .placeholder

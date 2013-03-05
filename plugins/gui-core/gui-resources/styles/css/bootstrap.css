@@ -6154,10 +6154,7 @@ table thead tr th.desc {
 #timeline-view .post-list .editable.annotation {
   border: 1px dotted #ccc;
   min-height: 18px;
-  margin-left: 5px;
   *zoom: 1;
-  /*margin-right:40px;*/
-
   padding: 3px 5px;
 }
 #timeline-view .post-list .editable.annotation:before,
@@ -6212,7 +6209,7 @@ table thead tr th.desc {
   margin-top: 10px;
 }
 #timeline-view .twitter .twitter-quote {
-  margin: 5px 0 5px 5px;
+  margin: 5px 0;
   padding: 5px 8px 8px;
   min-height: 50px;
   border: 1px solid #e5e5e5;
@@ -6233,6 +6230,7 @@ table thead tr th.desc {
 #timeline-view .flickr .result-content {
   *zoom: 1;
   color: #787878;
+  margin-left: 0px;
 }
 #timeline-view .flickr .result-content:before,
 #timeline-view .flickr .result-content:after {
@@ -6243,8 +6241,10 @@ table thead tr th.desc {
   clear: both;
 }
 #timeline-view .instagram .result-content,
-#timeline-view .youtube .result-content,
 #timeline-view .google .result-content {
+  margin: 0 0 10px 0;
+}
+#timeline-view .youtube .result-content {
   margin: 10px 0;
 }
 #timeline-view .instagram .editable.annotation,
@@ -6267,10 +6267,12 @@ table thead tr th.desc {
   line-height: 18px;
   padding-bottom: 5px;
 }
-#timeline-view .post-info {
+#timeline-view .post-info,
+#own-posts-holder .post-info {
   padding: 3px 0 5px 50px;
 }
-#timeline-view .post-info p[rel="author"] {
+#timeline-view .post-info p[rel="author"],
+#own-posts-holder .post-info p[rel="author"] {
   font-size: 11px;
   font-weight: bold;
   color: #2d6aaf;
@@ -6280,12 +6282,19 @@ table thead tr th.desc {
   float: left;
   line-height: 14px;
 }
-#timeline-view .post-info time {
+#timeline-view .post-info time,
+#own-posts-holder .post-info time {
   color: #686868;
   font-size: 11px;
   font-weight: bold;
   line-height: 14px;
   vertical-align: top;
+}
+#own-posts-holder li .post-info {
+  padding-bottom: 0;
+}
+#own-posts-holder li .result-content h3 {
+  display: none;
 }
 [contenteditable] .placeholder {
   opacity: 0.65;
