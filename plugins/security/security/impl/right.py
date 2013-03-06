@@ -20,6 +20,7 @@ from security.meta.right_type import RightTypeMapped
 from sql_alchemy.impl.entity import EntityGetServiceAlchemy, \
     EntityCRUDServiceAlchemy, EntitySupportAlchemy
 from sqlalchemy.orm.exc import NoResultFound
+from ally.internationalization import _
 
 # --------------------------------------------------------------------
 
@@ -38,7 +39,7 @@ class RightServiceAlchemy(EntityGetServiceAlchemy, EntityCRUDServiceAlchemy, IRi
         @see: IRightService.getByName
         '''
         assert isinstance(nameType, str), 'Invalid type name %s' % nameType
-        assert isinstance(nameType, str), 'Invalid name %s' % name
+        assert isinstance(name, str), 'Invalid name %s' % name
 
         sql = self.session().query(RightMapped).join(RightTypeMapped)
         sql = sql.filter(RightTypeMapped.Name == nameType).filter(RightMapped.Name == name)

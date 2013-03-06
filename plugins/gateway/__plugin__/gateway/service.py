@@ -17,13 +17,18 @@ from gateway.core.impl.processor.default_gateway import RegisterDefaultGateways
 
 # --------------------------------------------------------------------
 
+registerDefaultGateways = support.notCreated  # Just to avoid errors
+
+# --------------------------------------------------------------------
+
 SERVICES = 'gateway.api.**.I*Service'
 
 support.createEntitySetup('gateway.impl.**.*', RegisterDefaultGateways)
 support.listenToEntities(SERVICES, listeners=registerService)
 support.loadAllEntities(SERVICES)
 
-global registerDefaultGateways
+# --------------------------------------------------------------------
+
 default_gateways = ioc.entityOf(nameInEntity(RegisterDefaultGateways, 'default_gateways'))
 
 # --------------------------------------------------------------------

@@ -46,65 +46,67 @@ class SetupEntityWire(Setup):
         assert isinstance(group, str), 'Invalid group %s' % group
         self.group = group
         self._wirings = {}
-        self._formatters = {}
+        self._mappings = {}
 
-    def update(self, wirings, nameInEntity):
+    def update(self, name, wiring, mapping):
         '''
         Updates the wiring of this entity setup wiring.
         
-        @param wirings: dictionary(class, Wiring)
-            The classes with their wirings to performed wiring for.
-        @param nameInEntity: callable(string, class, string)
-            The callable used for formatting the setup names for the wirings inside the entity.
+        @param name: string
+            The entity setup name to bind with the provided wiring.
+        @param wiring: Wiring
+            The wiring to be used for the provided entity setup name.
+        @param mapping: dictionary{string: string}
+            The name mappings, as a key the wired configuration name and as a value the setup function name where to get
+            the configuration value from.
         '''
-        assert isinstance(wirings, dict), 'Invalid wirings %s' % wirings
-        assert callable(nameInEntity), 'Invalid name in entity formatter %s' % nameInEntity
-        for clazz, wiring in wirings.items():
-            assert isclass(clazz), 'Invalid class %s' % clazz
-            assert isinstance(wiring, Wiring), 'Invalid wiring %s' % wiring
-            self._formatters[clazz] = nameInEntity
-        self._wirings.update(wirings)
+        assert isinstance(name, str), 'Invalid name %s' % name
+        assert isinstance(wiring, Wiring), 'Invalid wiring %s' % wiring
+        assert isinstance(mapping, dict), 'Invalid mapping %s' % mapping
+        assert name not in self._wirings, 'There is already a wiring for \'%s\'' % name
+        
+        self._wirings[name] = wiring
+        self._mappings[name] = mapping
 
     def assemble(self, assembly):
         '''
         @see: Setup.assemble
         '''
         assert isinstance(assembly, Assembly), 'Invalid assembly %s' % assembly
-        prefix = '%s.' % self.group
         for name, call in assembly.calls.items():
-            if name.startswith(prefix) and isinstance(call, CallEntity):
+            wiring = self._wirings.get(name)
+            if wiring is not None and isinstance(call, CallEntity):
                 assert isinstance(call, CallEntity)
                 if call.marks.count(self) == 0:
-                    call.addInterceptor(partial(self._intercept, assembly))
+                    call.addInterceptor(partial(self._intercept, assembly, wiring, self._mappings[name]))
                     call.marks.append(self)
 
-    def _intercept(self, assembly, value, followUp):
+    def _intercept(self, assembly, wiring, mapping, value, followUp):
         '''
         FOR INTERNAL USE!
         This is the interceptor method used in performing the wiring.
         '''
         assert isinstance(assembly, Assembly), 'Invalid assembly %s' % assembly
+        assert isinstance(wiring, Wiring), 'Invalid wiring %s' % wiring
+        assert isinstance(mapping, dict), 'Invalid mapping %s' % mapping
         if value is not None:
-            clazz = value.__class__
-            wiring = self._wirings.get(clazz)
-            if wiring:
-                def followWiring():
-                    from ally.container.support import entityFor
-                    assert isinstance(wiring, Wiring)
-                    for wentity in wiring.entities:
-                        assert isinstance(wentity, WireEntity)
-                        if wentity.name not in value.__dict__:
-                            try: setattr(value, wentity.name, entityFor(wentity.type, wentity.name))
-                            except: raise SetupError('Cannot solve wiring \'%s\' at: %s' % 
-                                                     (wentity.name, locationStack(value.__class__)))
-                    nameInEntity = self._formatters[clazz]
-                    for wconfig in wiring.configurations:
-                        assert isinstance(wconfig, WireConfig)
-                        if wconfig.name not in value.__dict__:
-                            name = nameInEntity(clazz, wconfig.name, self.group)
-                            setattr(value, wconfig.name, assembly.processForName(name))
-                    if followUp: followUp()
-                return value, followWiring
+            def followWiring():
+                from ally.container.support import entityFor
+                for wentity in wiring.entities:
+                    assert isinstance(wentity, WireEntity)
+                    if wentity.name not in value.__dict__:
+                        try: setattr(value, wentity.name, entityFor(wentity.type, wentity.name))
+                        except: raise SetupError('Cannot solve wiring \'%s\' at: %s' % 
+                                                 (wentity.name, locationStack(value.__class__)))
+                
+                for wconfig in wiring.configurations:
+                    assert isinstance(wconfig, WireConfig)
+                    if wconfig.name not in value.__dict__:
+                        name = mapping.get(wconfig.name )
+                        if name is not None: setattr(value, wconfig.name, assembly.processForName(name))
+                        
+                if followUp: followUp()
+            return value, followWiring
         return value, followUp
     
     def __str__(self): return '%s for:%s' % (self.__class__.__name__,

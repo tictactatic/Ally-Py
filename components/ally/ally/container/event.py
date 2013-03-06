@@ -11,13 +11,14 @@ Provides the IoC (Inversion of Control or dependency injection) events base noti
 
 from . import ioc
 from ..support.util_sys import callerLocals
-from ._impl._entity import Advent
+from ._impl._assembly import Assembly
+from ._impl._entity import Advent, Event
 from ._impl._setup import SetupEventControlled, register
 from .error import SetupError
 from .impl.priority import Priority
 from collections import Iterable
-from functools import update_wrapper
-from inspect import getargspec
+from functools import partial, update_wrapper
+from inspect import getargspec, isclass, isfunction, ismethod
 import abc
 
 # --------------------------------------------------------------------
@@ -99,8 +100,6 @@ class Trigger(ITrigger):
 REPAIR = Trigger('repair')
 # Trigger used for controlled event setup functions that repair the application.
 
-# --------------------------------------------------------------------
-
 def on(*triggers, priority=ioc.PRIORITY_NORMAL):
     '''
     Decorator for setup functions that need to be executed as controlled events, used also for defining an event on entity
@@ -113,6 +112,36 @@ def on(*triggers, priority=ioc.PRIORITY_NORMAL):
         The priority to associate with the event.
     '''
     return onDecorator(triggers, priority, callerLocals())
+
+# --------------------------------------------------------------------
+
+def dispatch(*classes):
+    '''
+    Decorator for setup functions that need to have the events dispatched. Attention you need to decorate an already decorated
+    setup function, as an example:
+        
+        @event.dispatch(MyClassWitEventImpl)
+        @ioc.entity
+        def myEntity() -> IMyClassAPI:
+            return MyClassWitEventImpl()
+    
+    @param clazz: class
+        The class that contains the events to be associated with the entity of the decorated setup function.
+    '''
+    assert classes, 'At least one class is expected'
+    if __debug__:
+        for clazz in classes: assert isclass(clazz), 'Invalid class %s' % clazz
+    def decorator(setup):
+        from .support import nameEntity, nameInEntity
+        registry = callerLocals()
+        assert '__name__' in registry, 'The wire call needs to be made directly from the setup module'
+        group = registry['__name__']
+        for clazz in classes:
+            if not createEvents(clazz, setup, group, registry, nameEntity, nameInEntity):
+                raise SetupError('Invalid class %s, has no events' % clazz)
+        return setup
+    
+    return decorator
 
 # --------------------------------------------------------------------
 
@@ -141,3 +170,65 @@ def onDecorator(triggers, priority, registry):
         
         return update_wrapper(register(SetupEventControlled(function, priority, triggers), registry), function)
     return decorator
+
+def createEvents(clazz, target, group, registry, nameEntity, nameInEntity):
+    '''
+    Create event setups for the provided parameters.
+    
+    @param clazz: class
+        The class that contains the events.
+    @param target: object
+        The target setup to perform the events on.
+    @param group: string
+        The group used for the events setups.
+    @param registry: dictionary{string: object}
+        The registry where the events setups are placed.
+    @param nameEntity: callable like @see: nameEntity in support
+        The call to use in getting the setups functions names.
+    @param nameInEntity: callable like @see: nameInEntity in support
+        The call to use in getting the setups functions names based on entity properties.
+    @return: boolean
+        True if events have been created, False otherwise.
+    '''
+    assert isclass(clazz), 'Invalid class %s' % clazz
+    assert target is not None, 'A target is required'
+    assert isinstance(group, str), 'Invalid group %s' % group
+    assert isinstance(registry, dict), 'Invalid registry %s' % registry
+    assert callable(nameEntity), 'Invalid entity name call %s' % nameEntity
+    assert callable(nameInEntity), 'Invalid name in entity call %s' % nameInEntity
+    
+    advent = Advent.adventOf(clazz)
+    if not advent: return False
+    assert isinstance(advent, Advent)
+    for event in advent.events:
+        assert isinstance(event, Event)
+        eventCall = partial(callerEntityEvent, nameEntity(clazz, location=target), event.name)
+        register(SetupEventControlled(eventCall, event.priority, event.triggers,
+                                      name=nameInEntity(clazz, event.name, location=target), group=group), registry)
+    return True
+
+def callerEntityEvent(name, nameEvent, assembly=None):
+    '''
+    !Attention this function is only available in an open assembly if the assembly is not provided @see: ioc.open!
+    Calls a inner entity event.
+    
+    @param name: string
+        The setup name of the entity having the event function.
+    @param nameEvent: string|function
+        The name of the event function.
+    @param assembly: Assembly|None
+        The assembly to find the entity in, if None the current assembly will be considered.
+    '''
+    assert isinstance(name, str), 'Invalid setup name %s' % name
+    if isfunction(nameEvent) or ismethod(nameEvent): nameEvent = nameEvent.__name__
+    assert isinstance(nameEvent, str), 'Invalid event name %s' % nameEvent
+    
+    assembly = assembly or Assembly.current()
+    assert isinstance(assembly, Assembly), 'Invalid assembly %s' % assembly
+    
+    Assembly.stack.append(assembly)
+    entity = assembly.processForName(name)
+    try: caller = getattr(entity, nameEvent)
+    except AttributeError: raise SetupError('Invalid call name \'%s\' for entity %s' % (name, entity))
+    else: return caller()
+    finally: Assembly.stack.pop()

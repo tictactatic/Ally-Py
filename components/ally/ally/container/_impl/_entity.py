@@ -226,9 +226,9 @@ class Wiring:
         '''
         wentity = WireEntity(name, type)
         if wentity.name in self._entities:
-            raise WireError('There is already a entity attribute with name %r registered' % wentity.name)
+            raise WireError('There is already a entity attribute with name \'%s\' registered' % wentity.name)
         if wentity.name in self._configurations:
-            raise WireError('There is already a configuration attribute with name %r registered' % wentity.name)
+            raise WireError('There is already a configuration attribute with name \'%s\' registered' % wentity.name)
         self._entities[wentity.name] = wentity
 
     def addConfiguration(self, name, type=None, hasValue=False, value=None, description=None):
@@ -248,9 +248,9 @@ class Wiring:
         '''
         wconfig = WireConfig(name, type, hasValue, value, description)
         if wconfig.name in self._configurations:
-            raise WireError('There is already a configuration attribute with name %r registered' % wconfig.name)
+            raise WireError('There is already a configuration attribute with name \'%s\' registered' % wconfig.name)
         if wconfig.name in self._entities:
-            raise WireError('There is already a entity attribute with name %r registered' % wconfig.name)
+            raise WireError('There is already a entity attribute with name \'%s\' registered' % wconfig.name)
         self._configurations[wconfig.name] = wconfig
 
 # --------------------------------------------------------------------

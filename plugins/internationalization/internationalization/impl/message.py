@@ -21,7 +21,7 @@ from ally.api.extension import IterPart
 # --------------------------------------------------------------------
 
 @injected
-@setup(IMessageService)
+@setup(IMessageService, name='messageService')
 class MessageServiceAlchemy(EntityGetCRUDServiceAlchemy, IMessageService):
     '''
     Alchemy implementation for @see: IMessageService

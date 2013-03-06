@@ -13,38 +13,40 @@ from ..support.util_sys import callerLocals, callerGlobals
 from ._impl._aop import AOPResources
 from ._impl._assembly import Assembly
 from ._impl._call import CallEntity, CallConfig, CallEventControlled
-from ._impl._entity import Wiring, WireConfig, Advent, Event
-from ._impl._setup import register, SetupConfig, setupsOf, setupFirstOf, \
-    SetupStart, SetupEventControlled
+from ._impl._setup import register, SetupConfig, SetupStart, SetupFunction
 from ._impl._support import SetupEntityListen, SetupEntityListenAfterBinding, \
-    classesFrom, SetupEntityWire, SetupEntityCreate
-from .error import ConfigError, SetupError
-from .event import ITrigger
+    classesFrom, SetupEntityCreate
+from .error import SetupError
+from .event import ITrigger, createEvents
 from .impl.config import Config
 from .impl.priority import sortByPriorities
 from .ioc import PRIORITY_LAST
+from .wire import createWirings
 from collections import Iterable
-from copy import deepcopy
 from functools import partial
 from inspect import isclass, ismodule, getsource, isfunction, ismethod
 
 # --------------------------------------------------------------------
 
-def nameEntity(clazz, module=None):
+def nameEntity(clazz, location=None):
     '''
-    Creates the setup names to be used setup modules based on a setup class and name.
+    Provides the setup names to be used setup modules based on a setup target and name.
     
     @param clazz: class
-        The class that is considered the entity.
-    @param name: string|function
-        The name of the property or function to create a name for.
-    @param module: string|module|None
-        The group or setup module to consider as setup container, if not provided the calling module is considered.
+        The target class that is considered the entity source.
+    @param location: string|module|SetupFunction|None
+        The group, setup or setup module to consider as setup container, if not provided then the name is provided
+        without location.
     '''
-    assert isclass(clazz), 'Invalid class %s' % clazz
-    if module:
-        if ismodule(module): module = module.__name__
-        assert isinstance(module, str), 'Invalid module %s' % module
+    if location:
+        if ismodule(location): location = location.__name__
+        elif isinstance(location, SetupEntityCreate):
+            # For entity setup create we do not need to add also the class name
+            return location.name
+        elif isinstance(location, SetupFunction):
+            assert isinstance(location, SetupFunction)
+            location = location.name
+        assert isinstance(location, str), 'Invalid location %s' % location
     
     try: types, name = clazz.__ally_setup__
     except AttributeError: types = name = None
@@ -53,54 +55,27 @@ def nameEntity(clazz, module=None):
         else:
             assert isclass(types[0]), 'Invalid class %s' % types[0]
             name = types[0].__name__
+        name = 'entity.%s' % name
     
-    if module: return '%s.%s' % (module, name)
+    if location: return '%s.%s' % (location, name)
     return name
 
-def nameInEntity(clazz, name, module=None):
+def nameInEntity(clazz, name, location=None):
     '''
-    Creates the setup names to be used setup modules based on a setup class and name.
+    Provides the setup names to be used setup modules based on a setup target and name.
     
-    @param clazz: class
-        The class that is considered the entity.
+    @param target: class|SetupFunction
+        The target that is considered the entity source.
     @param name: string|function
         The name of the property or function to create a name for.
-    @param module: string|module|None
-        The group or setup module to consider as setup container, if not provided the calling module is considered.
+    @param location: string|module|SetupFunction|None
+        The group, setup or setup module to consider as setup container, if not provided then the name is provided
+        without location.
     '''
     if isfunction(name) or ismethod(name): name = name.__name__
     assert isinstance(name, str), 'Invalid name %s' % name
     
-    return '%s.%s' % (nameEntity(clazz, module), name)
-
-# --------------------------------------------------------------------
-
-def callEntityEvent(name, nameEvent, assembly=None):
-    '''
-    !Attention this function is only available in an open assembly if the assembly is not provided @see: ioc.open!
-    Calls a inner entity event.
-    
-    @param name: string
-        The setup name of the entity having the event function.
-    @param clazz: class
-        The class of the entity to call the event for.
-    @param nameEvent: string|function
-        The name of the event function.
-    @param assembly: Assembly|None
-        The assembly to find the entity in, if None the current assembly will be considered.
-    '''
-    assert isinstance(name, str), 'Invalid setup name %s' % name
-    if isfunction(nameEvent) or ismethod(nameEvent): nameEvent = nameEvent.__name__
-    assert isinstance(nameEvent, str), 'Invalid event name %s' % nameEvent
-    
-    assembly = assembly or Assembly.current()
-    assert isinstance(assembly, Assembly), 'Invalid assembly %s' % assembly
-    
-    Assembly.stack.append(assembly)
-    entity = assembly.processForName(name)
-    try: return getattr(entity, nameEvent)()
-    except AttributeError: raise SetupError('Invalid call name \'%s\' for entity %s' % (name, entity))
-    finally: Assembly.stack.pop()
+    return '%s.%s' % (nameEntity(clazz, location), name)
 
 # --------------------------------------------------------------------
 
@@ -129,20 +104,28 @@ def notCreated():
     '''
     raise SetupError('No entity created for this name by \'createEntitySetup\' function')
 
-def createEntitySetup(*classes, module=None, nameEntity=nameEntity, nameInEntity=nameInEntity):
+def createEntitySetup(*classes, module=None, wire=True, dispatch=True, nameEntity=nameEntity, nameInEntity=nameInEntity):
     '''
-    For impl classes create the setup functions for the associated API classes. The name of the setup functions that will be generated
-    are formed based on the provided formatter. To create a setup function a class from the impl classes has to inherit the api class.
+    For impl classes create the setup functions for the associated API classes. The name of the setup functions that will
+    be generated are formed based on the names calls. To create a setup function the class needs to be decorated
+    with @see: setup.
     
     @param classes: arguments(string|class|module|AOPClasses)
-        The classes to be considered the implementations for the APIs.
+        The classes to be considered for creating entity setups for.
     @param module: module|None
         If the setup module is not provided than the calling module will be considered.
+    @param wire: boolean
+        Flag indicating that the created entity setup function should also be wired, @see: wire from wire module.
+    @param dispatch: boolean
+        Flag indicating that the created entity setup function should also have the events dispatched,
+        @see: dispatch from event module.
     @param nameEntity: callable like @see: nameEntity
         The formatter to use in creating the entity setup function name.
     @param nameInEntity: callable like @see: nameInEntity
         The formatter to use in creating the setup function names based on entity properties.
     '''
+    assert isinstance(wire, bool), 'Invalid wire flag %s' % wire
+    assert isinstance(dispatch, bool), 'Invalid dispatch flag %s' % dispatch
     if module:
         assert ismodule(module), 'Invalid setup module %s' % module
         registry = module.__dict__
@@ -161,96 +144,8 @@ def createEntitySetup(*classes, module=None, nameEntity=nameEntity, nameInEntity
         wireClasses.append(clazz)
         setupCreate = register(SetupEntityCreate(clazz, types, name=nameEntity(clazz, group), group=group), registry)
         registry[nameEntity(clazz)] = setupCreate
-
-    wireEntities(*wireClasses, module=module, nameInEntity=nameInEntity)
-    eventEntities(*wireClasses, module=module, nameInEntity=nameInEntity)
-
-def wireEntities(*classes, module=None, nameInEntity=nameInEntity):
-    '''
-    Creates entity wiring setups for the provided classes. The wiring setups consists of configurations found in the
-    provided classes that will be published in the setup module.
-    
-    @param classes: arguments(string|class|module|AOPClasses)
-        The classes to be wired.
-    @param module: module|None
-        If the setup module is not provided than the calling module will be considered.
-    @param nameInEntity: callable like @see: nameInEntity
-        The formatter to use in creating the setup function names based on entity properties.
-    '''
-    if module:
-        assert ismodule(module), 'Invalid setup module %s' % module
-        registry = module.__dict__
-        group = module.__name__
-    else:
-        registry = callerLocals()
-        assert '__name__' in registry, 'The create wiring call needs to be made directly from the setup module'
-        group = registry['__name__']
-    assert callable(nameInEntity), 'Invalid name in entity formatter %s' % nameInEntity
-    
-    def processConfig(clazz, wconfig):
-        assert isclass(clazz), 'Invalid class %s' % clazz
-        assert isinstance(wconfig, WireConfig), 'Invalid wire configuration %s' % wconfig
-        value = clazz.__dict__.get(wconfig.name, None)
-        if value and not isclass(value): return deepcopy(value)
-        if wconfig.hasValue: return deepcopy(wconfig.value)
-        raise ConfigError('A configuration value is required for \'%s\' in class %s' % (wconfig.name, clazz.__name__))
-
-    wirings = {}
-    for clazz in classesFrom(classes):
-        wiring = Wiring.wiringOf(clazz)
-        if wiring:
-            wirings[clazz] = wiring
-            assert isinstance(wiring, Wiring)
-            for wconfig in wiring.configurations:
-                assert isinstance(wconfig, WireConfig)
-                name = nameInEntity(clazz, wconfig.name, group)
-                for setup in setupsOf(registry, SetupConfig):
-                    assert isinstance(setup, SetupConfig)
-                    if setup.name == name: break
-                else:
-                    configCall = partial(processConfig, clazz, wconfig)
-                    configCall.__doc__ = wconfig.description
-                    if wconfig.type is not None: types = (wconfig.type,)
-                    else: types = ()
-                    register(SetupConfig(configCall, types=types, name=name, group=group), registry)
-    if wirings:
-        wire = setupFirstOf(registry, SetupEntityWire)
-        if not wire: wire = register(SetupEntityWire(group), registry)
-        assert isinstance(wire, SetupEntityWire)
-        wire.update(wirings, nameInEntity)
-
-def eventEntities(*classes, module=None, nameInEntity=nameInEntity):
-    '''
-    Creates entity event setups for the provided classes. The event setups consists of configurations found in the
-    provided classes that will be published in the setup module.
-    !!! Currently this works only with 'createEntitySetup'.
-    
-    @param classes: arguments(string|class|module|AOPClasses)
-        The classes to be processed for events.
-    @param module: module|None
-        If the setup module is not provided than the calling module will be considered.
-    @param nameInEntity: callable like @see: nameInEntity
-        The formatter to use in creating the setup function names based on event calls.
-    '''
-    if module:
-        assert ismodule(module), 'Invalid setup module %s' % module
-        registry = module.__dict__
-        group = module.__name__
-    else:
-        registry = callerLocals()
-        assert '__name__' in registry, 'The event entities call needs to be made directly from the setup module'
-        group = registry['__name__']
-    assert callable(nameInEntity), 'Invalid name in entity formatter %s' % nameInEntity
-    
-    for clazz in classesFrom(classes):
-        advent = Advent.adventOf(clazz)
-        if advent:
-            assert isinstance(advent, Advent)
-            for event in advent.events:
-                assert isinstance(event, Event)
-                name = nameInEntity(clazz, event.name, group)
-                eventCall = partial(callEntityEvent, name, event.name)
-                register(SetupEventControlled(eventCall, event.priority, event.triggers, name=name, group=group), registry)
+        if wire: createWirings(clazz, setupCreate, group, registry, nameEntity, nameInEntity)
+        if dispatch: createEvents(clazz, setupCreate, group, registry, nameEntity, nameInEntity)
 
 # --------------------------------------------------------------------
 

@@ -10,9 +10,13 @@ Provides the IoC auto wiring.
 '''
 
 from ._impl._entity import Wiring, WireEntity, WireConfig
-from ._impl._setup import normalizeConfigType
-from .error import WireError
+from ._impl._setup import normalizeConfigType, setupsOf, SetupConfig, register, \
+    setupFirstOf
+from ._impl._support import SetupEntityWire
+from .error import WireError, ConfigError, SetupError
 from ally.support.util_sys import callerLocals
+from copy import deepcopy
+from functools import partial
 from inspect import isclass
     
 # --------------------------------------------------------------------
@@ -72,6 +76,36 @@ def config(name, type=None, doc=None):
 
 # --------------------------------------------------------------------
 
+def wire(*classes):
+    '''
+    Decorator for setup functions that need to be wired. Attention you need to decorate an already decorated setup function.
+    example:
+        
+        @wire.wire(MyClassImpl)
+        @ioc.entity
+        def myEntity() -> IMyClassAPI:
+            return MyClassImpl()
+    
+    @param classes: arguments[class]
+        The class(es) that contains the wirings to be associated with the entity of the decorated setup function.
+    '''
+    assert classes, 'At least one class is expected'
+    if __debug__:
+        for clazz in classes: assert isclass(clazz), 'Invalid class %s' % clazz
+    def decorator(setup):
+        from .support import nameEntity, nameInEntity
+        registry = callerLocals()
+        assert '__name__' in registry, 'The wire call needs to be made directly from the setup module'
+        group = registry['__name__']
+        for clazz in classes:
+            if not createWirings(clazz, setup, group, registry, nameEntity, nameInEntity):
+                raise SetupError('Invalid class %s, has no wirings' % clazz)
+        return setup
+    
+    return decorator
+
+# --------------------------------------------------------------------
+
 def validateWiring(entity):
     '''
     Validates the wiring for the provided entity. Basically take all wirings and see if there is a valid value in the
@@ -98,3 +132,68 @@ def validateWiring(entity):
                                 (v, wconfig.type, wconfig.name))
         elif not wconfig.hasValue:
             raise WireError('No configuration value for %r' % wconfig.name)
+
+def createWirings(clazz, target, group, registry, nameEntity, nameInEntity):
+    '''
+    Create wiring bindings and setups for the provided parameters.
+    
+    @param clazz: class
+        The class that contains the wirings.
+    @param target: object
+        The target setup to perform the wiring on.
+    @param group: string
+        The group used for the wiring setups.
+    @param registry: dictionary{string: object}
+        The registry where the wiring setups are placed.
+    @param nameEntity: callable like @see: nameEntity in support
+        The call to use in getting the setups functions names.
+    @param nameInEntity: callable like @see: nameInEntity in support
+        The call to use in getting the setups functions names based on entity properties.
+    @return: boolean
+        True if wirings have been created, False otherwise.
+    '''
+    assert isclass(clazz), 'Invalid class %s' % clazz
+    assert target is not None, 'A target is required'
+    assert isinstance(group, str), 'Invalid group %s' % group
+    assert isinstance(registry, dict), 'Invalid registry %s' % registry
+    assert callable(nameEntity), 'Invalid entity name call %s' % nameEntity
+    assert callable(nameInEntity), 'Invalid name in entity call %s' % nameInEntity
+    
+    wiring = Wiring.wiringOf(clazz)
+    if not wiring: return False
+    mapping = {}
+    assert isinstance(wiring, Wiring)
+    for wconfig in wiring.configurations:
+        assert isinstance(wconfig, WireConfig)
+        name = nameInEntity(clazz, wconfig.name, location=target)
+        for setup in setupsOf(registry, SetupConfig):
+            assert isinstance(setup, SetupConfig)
+            if setup.name == name: break
+        else:
+            mapping[wconfig.name] = name
+            configCall = partial(wrapperWiredConfiguration, clazz, wconfig)
+            configCall.__doc__ = wconfig.description
+            if wconfig.type is not None: types = (wconfig.type,)
+            else: types = ()
+            register(SetupConfig(configCall, types=types, name=name, group=group), registry)
+    wire = setupFirstOf(registry, SetupEntityWire)
+    if not wire: wire = register(SetupEntityWire(group), registry)
+    assert isinstance(wire, SetupEntityWire)
+    wire.update(nameEntity(clazz, location=target), wiring, mapping)
+    return True
+        
+def wrapperWiredConfiguration(clazz, wconfig):
+    '''
+    Wraps the wired configuration and behaves like a configuration function so it can be used for setup.
+    
+    @param clazz: class
+        The class containing the wired configuration.
+    @param wconfig: WireConfig
+        The wired configuration to wrap.
+    '''
+    assert isclass(clazz), 'Invalid class %s' % clazz
+    assert isinstance(wconfig, WireConfig), 'Invalid wire configuration %s' % wconfig
+    value = clazz.__dict__.get(wconfig.name, None)
+    if value and not isclass(value): return deepcopy(value)
+    if wconfig.hasValue: return deepcopy(wconfig.value)
+    raise ConfigError('A configuration value is required for \'%s\' in class %s' % (wconfig.name, clazz.__name__))

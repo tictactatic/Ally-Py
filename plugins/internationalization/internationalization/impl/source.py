@@ -18,7 +18,7 @@ from ally.container.support import setup
 # --------------------------------------------------------------------
 
 @injected
-@setup(ISourceService)
+@setup(ISourceService, name='sourceService')
 class SourceServiceAlchemy(EntityServiceAlchemy, ISourceService):
     '''
     Alchemy implementation for @see: ISourceService
