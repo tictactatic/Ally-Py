@@ -9,9 +9,7 @@ Created on Mar 6, 2013
 Provides the path encoder that can handle the resources path.
 '''
 
-from ally.api.type import Type
 from ally.container.ioc import injected
-from ally.core.impl.node import NodeProperty
 from ally.core.spec.resources import ConverterPath, Path
 from ally.design.processor.attribute import defines, optional
 from ally.design.processor.context import Context
