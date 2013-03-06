@@ -39,6 +39,7 @@ from ally.core.spec.resources import ConverterPath
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.handler import Handler
 from ally.http.impl.processor.status import StatusHandler
+from ally.core.http.impl.processor.path_encoder_resource import ResourcePathEncoderHandler
 
 # --------------------------------------------------------------------
 # Creating the processors used in handling the request
@@ -94,6 +95,12 @@ def contentLanguageEncode() -> Handler: return ContentLanguageEncodeHandler()
 def uri() -> Handler:
     b = URIHandler()
     b.resourcesRoot = resourcesRoot()
+    b.converterPath = converterPath()
+    return b
+
+@ioc.entity
+def encoderPathResource() -> Handler:
+    b = ResourcePathEncoderHandler()
     b.resourcesRootURI = root_uri_resources()
     b.converterPath = converterPath()
     return b
@@ -165,7 +172,7 @@ def assemblyRedirect() -> Assembly:
 @ioc.before(assemblyResources)
 def updateAssemblyResources():
     assemblyResources().add(internalDevelError(), headerDecodeRequest(), encoderPath(),
-                            argumentsPrepare(), uri(), methodInvoker(), headerEncodeResponse(), redirect(),
+                            argumentsPrepare(), uri(), encoderPathResource(), methodInvoker(), headerEncodeResponse(), redirect(),
                             contentTypeRequestDecode(), contentLengthDecode(), contentLanguageDecode(), acceptDecode(),
                             renderer(), conversion(), createDecoder(), createEncoderWithPath(), parserMultiPart(), content(),
                             parameter(), fetcher(), argumentsBuild(), invoking(), renderEncoder(),

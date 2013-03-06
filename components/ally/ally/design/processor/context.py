@@ -169,8 +169,40 @@ def create(resolvers):
     @param resolvers: Resolvers
         The resolvers to create the context for.
     '''
+    contexts = {}
+    for nameContext, forContext in groupResolversByContext(resolvers).items():
+        attributes = {}
+        for resolver in forContext.values(): resolver.create(attributes)
+        namespace = dict(__module__=__name__, __attributes__=attributes)
+        contexts[nameContext] = type('Object$%s%s' % (nameContext[0].upper(), nameContext[1:]), (Object,), namespace)
+
+    return contexts
+
+def createDefinition(resolvers):
+    '''
+    Creates the definition contexts for the provided resolvers.
+    
+    @param resolvers: Resolvers
+        The resolvers to create the context for.
+    '''
+    contexts = {}
+    for nameContext, forContext in groupResolversByContext(resolvers).items():
+        namespace = dict(__module__=__name__)
+        for resolver in forContext.values(): resolver.createDefinition(namespace)
+        contexts[nameContext] = type('Context%s%s' % (nameContext[0].upper(), nameContext[1:]), (Context,), namespace)
+
+    return contexts
+
+def groupResolversByContext(resolvers):
+    '''
+    Groups the resolvers from the provided resolvers repository based on context.
+    
+    @param resolvers: Resolvers
+        The resolvers to group by.
+    @return: dictionary{string: dictionary{string: IResolver}}
+        The grouped resolvers, first dictionary key is the context name and second dictionary key is the attribute name.
+    '''
     assert isinstance(resolvers, Resolvers), 'Invalid resolvers %s' % resolvers
-    resolvers.validate()
     
     resolversByContext = {}
     for key, resolver in resolvers.iterate():
@@ -181,14 +213,7 @@ def create(resolvers):
         if byContext is None: byContext = resolversByContext[nameContext] = {}
         byContext[nameAttribute] = resolver
         
-    contexts = {}
-    for nameContext, forContext in resolversByContext.items():
-        attributes = {}
-        for resolver in forContext.values(): resolver.create(attributes)
-        namespace = dict(__module__=__name__, __attributes__=attributes)
-        contexts[nameContext] = type('Object$%s%s' % (nameContext[0].upper(), nameContext[1:]), (Object,), namespace)
-
-    return contexts
+    return resolversByContext
 
 def asData(context, *classes):
     '''

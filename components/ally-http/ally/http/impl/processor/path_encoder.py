@@ -131,6 +131,10 @@ class EncoderPathHost(IEncoderPath):
     def encode(self, path, parameters=None):
         '''
         @see: IEncoderPath.encode
+        
+        @param parameters: Iterable(tuple(string, string))
+            A iterable of tuples containing on the first position the parameter string name and on the second the string
+            parameter value as to be represented in the request path.
         '''
         assert isinstance(path, str), 'Invalid path %s' % path
         url = urlsplit(path)

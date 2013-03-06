@@ -158,15 +158,15 @@ class IEncoderPath(metaclass=abc.ABCMeta):
     '''
 
     @abc.abstractmethod
-    def encode(self, path, parameters=None):
+    def encode(self, path, **keyargs):
         '''
         Encodes the provided path to a full request path.
         
         @param path: object
             The path to be encoded, the type depends on the implementation.
-        @param parameters: Iterable(tuple(string, string))
-            A iterable of tuples containing on the first position the parameter string name and on the second the string
-            parameter value as to be represented in the request path.
+        @param keyargs: key arguments
+            Key arguments containing specific data that can be handled by the encoder, if unknown or invalid data is provided 
+            then the encoder has the duty to report that.
         @return: string
             The full compiled request path.
         '''

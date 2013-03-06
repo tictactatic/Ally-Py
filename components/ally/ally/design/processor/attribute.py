@@ -431,6 +431,14 @@ class Resolver(IResolver):
         if self.status & OPTIONAL: return  # If is optional then no need to create it
         if self.nameAttribute in attributes: return  # There is already an attribute
         attributes[self.nameAttribute] = Attribute(self.status, self.types, self.doc, Descriptor)
+        
+    def createDefinition(self, attributes):
+        '''
+        @see: IResolver.createDefinition
+        '''
+        assert isinstance(attributes, dict), 'Invalid attributes %s' % attributes
+        if self.nameAttribute in attributes: return  # There is already an attribute
+        attributes[self.nameAttribute] = Attribute(self.status, self.types, self.doc, Definition)
 
     def __str__(self):
         status = []

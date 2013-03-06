@@ -134,8 +134,8 @@ class RequestEncode(Context):
     The raw headers for the request that the encoder will place values to.
     ''')
     encoderHeader = defines(IEncoderHeader, doc='''
-    @rtype: IEncoderPath
-    The path encoder used for encoding headers that will be used in the request.
+    @rtype: IEncoderHeader
+    The header encoder used for encoding headers that will be used in the request.
     ''')
 
 # --------------------------------------------------------------------
@@ -176,8 +176,8 @@ class ResponseEncode(Context):
     The raw headers for the response.
     ''')
     encoderHeader = defines(IEncoderHeader, doc='''
-    @rtype: IEncoderPath
-    The path encoder used for encoding headers that will be rendered in the response.
+    @rtype: IEncoderHeader
+    The header encoder used for encoding headers that will be rendered in the response.
     ''')
 
 # --------------------------------------------------------------------

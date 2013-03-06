@@ -9,8 +9,8 @@ Created on Feb 11, 2013
 Module containing processors.
 '''
 
-from .assembly import Assembly
-from .context import create
+from .assembly import Assembly, Container
+from .context import create, createDefinition
 from .execution import Chain, Processing
 from .spec import AssemblyError, IProcessor, ContextMetaClass, ProcessorError, \
     Resolvers, IReport, ResolverError
@@ -58,6 +58,12 @@ class Processor(IProcessor):
         calls.append(self.call)
         
     # ----------------------------------------------------------------
+    
+    def clone(self):
+        '''
+        Clones the processor.
+        '''
+        return Processor(dict(self.contexts), self.call)
 
     def __eq__(self, other):
         if not isinstance(other, self.__class__): return False
@@ -118,6 +124,12 @@ class Contextual(Processor):
         calls.append(self.call)
         
     # ----------------------------------------------------------------
+    
+    def clone(self):
+        '''
+        @see: Processor.clone
+        '''
+        return Contextual(self.function, self.proceed)
      
     def processArguments(self, arguments, annotations):
         '''
@@ -230,6 +242,12 @@ class Brancher(Contextual):
         calls.append(self.call)
         
     # ----------------------------------------------------------------
+    
+    def clone(self):
+        '''
+        @see: Processor.clone
+        '''
+        return Brancher(self.function, *self.branches, proceed=self.proceed)
         
     def processArguments(self, arguments, annotations):
         '''
@@ -458,3 +476,63 @@ class Included(IBranch):
                 assert isinstance(clazz, ContextMetaClass), 'Invalid context class %s' % clazz
         self.contextsUsing.update(**contexts)
         return self
+
+# --------------------------------------------------------------------
+
+def restructure(processor, *mapping):
+    '''
+    Handler that restructures the context names for the provided handler or processor.
+    
+    @param processor: Container|Processor
+        Restructures the provided processor.
+    @param mapping: arguments[tuple(string, string)]
+        The mapping to restructure by. The mapping(s) are provided as tuples having on the first position the name of the 
+        restructured processor context and as a second value to name of the context to use.
+    @return: Handler
+        The handler that has the restructured processor.
+    '''
+    if isinstance(processor, Container):
+        assert isinstance(processor, Container)
+        assert len(processor.processors) == 1, 'Container %s, is required to have only one processor' % processor
+        processor = processor.processors[0]
+    assert isinstance(processor, Processor), 'Invalid processor %s' % processor
+    assert mapping, 'At least one mapping is required'
+    
+    clone = processor.clone()
+    assert isinstance(clone, Processor), 'Invalid clone %s' % clone
+    
+    mappings = {}
+    for nameFrom, nameTo in mapping:
+        assert nameFrom in clone.contexts, 'Invalid name %s for contexts %s' % (nameFrom, clone.contexts)
+        names = mappings.get(nameTo)
+        if names is None: mappings[nameTo] = names = set()
+        names.add(nameFrom)
+    
+    restructured = dict(clone.contexts)
+    for nameTo, names in mappings.items():
+        for nameFrom in names: restructured.pop(nameFrom, None) 
+        # Just making sure that the restructured doens't contain the class anymore
+        if len(names) > 1:
+            resolvers = None
+            for nameFrom in names:
+                if resolvers is None: resolvers = Resolvers(contexts={nameTo: clone.contexts[nameFrom]})
+                else: resolvers.solve({nameTo: clone.contexts[nameFrom]})
+            restructured[nameTo] = createDefinition(resolvers)[nameTo]
+        else:
+            nameFrom = next(iter(names))
+            restructured[nameTo] = clone.contexts[nameFrom]
+
+    originalCall = clone.call
+    def restructurer(*args, **keyargs):
+        for nameTo, names in mappings.items():
+            try: value = keyargs.pop(nameTo)
+            except KeyError: continue
+            for nameFrom in names: keyargs[nameFrom] = value
+            
+        originalCall(*args, **keyargs)
+        
+    clone.contexts = restructured
+    clone.call = restructurer
+    
+    from .handler import Handler
+    return Handler(clone)

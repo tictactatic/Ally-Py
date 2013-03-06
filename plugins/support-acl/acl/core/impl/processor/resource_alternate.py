@@ -11,8 +11,8 @@ the client side implementation since they can use the same resources but the gat
 resource that is allowed by permissions.
 '''
 
-from .resource_gateway import GatewayResourceSupport
 from acl.right_sevice import Alternate
+from acl.support.core.util_resources import processPath
 from ally.api.operator.type import TypeModel
 from ally.api.type import typeFor
 from ally.container import wire
@@ -21,11 +21,12 @@ from ally.container.support import setup
 from ally.core.impl.invoker import InvokerCall
 from ally.core.spec.resources import Node, Path, INodeChildListener, \
     INodeInvokerListener, Invoker
-from ally.design.processor.attribute import requires, definesIf
+from ally.design.processor.attribute import requires, definesIf, optional
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessorProceed, Handler
+from ally.http.spec.server import IEncoderPath
 from ally.support.core.util_resources import propertyTypesOf, iterateNodes, \
-    METHOD_NODE_ATTRIBUTE, invokerCallOf, pathForNode, ReplacerWithMarkers
+    METHOD_NODE_ATTRIBUTE, invokerCallOf, pathForNode
 from collections import Iterable
 import logging
 
@@ -55,6 +56,8 @@ class Solicitation(Context):
     '''
     The solicitation context.
     '''
+    # ---------------------------------------------------------------- Optional
+    encoderPath = optional(IEncoderPath)
     # ---------------------------------------------------------------- Required
     permissions = requires(Iterable)
 
@@ -71,14 +74,10 @@ class AlternateNavigationPermissions(HandlerProcessorProceed, INodeChildListener
     # The root node to find the resources that can have alternate gateways.
     alternate = Alternate; wire.entity('alternate')
     # The alternate to use.
-    gatewayResourceSupport = GatewayResourceSupport; wire.entity('gatewayResourceSupport')
-    # The gateway resource support used in creating the navigation.
 
     def __init__(self):
         assert isinstance(self.resourcesRoot, Node), 'Invalid root node %s' % self.resourcesRoot
         assert isinstance(self.alternate, Alternate), 'Invalid alternate repository %s' % self.alternate
-        assert isinstance(self.gatewayResourceSupport, GatewayResourceSupport), \
-        'Invalid gateway resource support %s' % self.gatewayResourceSupport
         super().__init__()
         
         self._alternates = None
@@ -94,7 +93,10 @@ class AlternateNavigationPermissions(HandlerProcessorProceed, INodeChildListener
         assert isinstance(solicitation, Solicitation), 'Invalid solicitation %s' % solicitation
         assert isinstance(solicitation.permissions, Iterable), 'Invalid permissions %s' % solicitation.permissions
         
-        solicitation.permissions = self.processPermissions(solicitation.permissions, Permission)
+        if Solicitation.encoderPath in solicitation: encoder = solicitation.encoderPath
+        else: encoder = None
+        
+        solicitation.permissions = self.processPermissions(solicitation.permissions, Permission, encoder)
 
     # ----------------------------------------------------------------
     
@@ -112,11 +114,13 @@ class AlternateNavigationPermissions(HandlerProcessorProceed, INodeChildListener
         
     # ----------------------------------------------------------------
     
-    def processPermissions(self, permissions, Permission):
+    def processPermissions(self, permissions, Permission, encoder):
         '''
         Process the permissions alternate navigation.
+        
+        @param encoder: IEncoderPath|None
+            The encoder path to be used for the gateways resource paths and patterns.
         '''
-        replacer = None
         for permission in permissions:
             assert isinstance(permission, PermissionResource), 'Invalid permission %s' % permission
             yield permission
@@ -140,9 +144,8 @@ class AlternateNavigationPermissions(HandlerProcessorProceed, INodeChildListener
                     permissionAlt.filters = permission.filters
                     permissionAlt.values = permission.values
                     if PermissionResource.navigate in permissionAlt:
-                        if replacer is None: replacer = ReplacerWithMarkers()
-                        path, _types = self.gatewayResourceSupport.processPath(permission.path, permission.invoker,
-                                                                               replacer, permission.values)
+                        assert isinstance(encoder, IEncoderPath), 'Invalid encoder path %s' % encoder
+                        path, _types = processPath(permission.path, permission.invoker, encoder, permission.values)
                         permissionAlt.navigate = path
                     
                     yield permissionAlt

@@ -98,10 +98,19 @@ class IResolver(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def create(self, attributes):
         '''
-        Create the attributes to be used on a new context. The 'isAvailable' method should be checked first.
+        Create the attributes to be used on a new object context. The 'isAvailable' method should be checked first.
         
         @param attributes: dictionary{string: IAttribute}
-            The attributes dictionary where to place the resolver attribute.
+            The attributes dictionary where to place the resolver object attribute.
+        '''
+        
+    @abc.abstractmethod
+    def createDefinition(self, attributes):
+        '''
+        Create the attributes to be used on a new definition context.
+        
+        @param attributes: dictionary{string: IAttribute}
+            The attributes dictionary where to place the resolver definition attribute.
         '''
      
 class IAttribute(metaclass=abc.ABCMeta):

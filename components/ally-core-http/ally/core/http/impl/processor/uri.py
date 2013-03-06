@@ -9,7 +9,7 @@ Created on Jun 28, 2011
 Provides the URI request path handler.
 '''
 
-from ally.api.type import Scheme
+from ally.api.type import Scheme, Type
 from ally.container.ioc import injected
 from ally.core.spec.resources import ConverterPath, Path, Converter, Normalizer, \
     Node
@@ -17,10 +17,10 @@ from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessorProceed
 from ally.http.spec.codes import PATH_FOUND, PATH_NOT_FOUND
-from ally.http.spec.server import IEncoderPath
 from ally.support.core.util_resources import findPath
-from urllib.parse import quote, unquote
+from urllib.parse import unquote
 import logging
+from ally.core.impl.node import NodeProperty
 
 # --------------------------------------------------------------------
 
@@ -37,6 +37,10 @@ class Request(Context):
     # ---------------------------------------------------------------- Optional
     argumentsOfType = optional(dict)
     # ---------------------------------------------------------------- Defined
+    extension = defines(str, doc='''
+    @rtype: string
+    The extension of the requested URI.
+    ''')
     path = defines(Path, doc='''
     @rtype: Path
     The path to the resource node.
@@ -58,11 +62,6 @@ class Response(Context):
     '''
     The response context.
     '''
-    # ---------------------------------------------------------------- Optional
-    encoderPath = optional(IEncoderPath, doc='''
-    @rtype: IEncoderPath
-    The path encoder used for encoding resource paths that will be rendered in the response.
-    ''')
     # ---------------------------------------------------------------- Defined
     code = defines(str)
     status = defines(int)
@@ -94,15 +93,11 @@ class URIHandler(HandlerProcessorProceed):
 
     resourcesRoot = Node
     # The resources node that will be used for finding the resource path.
-    resourcesRootURI = None
-    # The prefix to append to the resources Path encodings.
     converterPath = ConverterPath
     # The converter path used for handling the URL path.
 
     def __init__(self):
         assert isinstance(self.resourcesRoot, Node), 'Invalid resources node %s' % self.resourcesRoot
-        assert self.resourcesRootURI is None or isinstance(self.resourcesRootURI, str), \
-        'Invalid root URI %s' % self.resourcesRootURI
         assert isinstance(self.converterPath, ConverterPath), 'Invalid ConverterPath object %s' % self.converterPath
         super().__init__()
 
@@ -121,20 +116,36 @@ class URIHandler(HandlerProcessorProceed):
         paths = request.uri.split('/')
         i = paths[-1].rfind('.') if len(paths) > 0 else -1
         if i < 0:
-            extension = None
+            clearExtension = True
+            request.extension = None
         else:
-            extension = paths[-1][i + 1:].lower()
+            clearExtension = i == 0
+            request.extension = paths[-1][i + 1:].lower()
             paths[-1] = paths[-1][0:i]
+        
         paths = [unquote(p) for p in paths if p]
 
-        if extension: responseCnt.type = extension
+        if request.extension: responseCnt.type = request.extension
         request.path = findPath(self.resourcesRoot, paths, self.converterPath)
         assert isinstance(request.path, Path), 'Invalid path %s' % request.path
-        if not request.path.node:
+        node = request.path.node
+        if not node:
             # we stop the chain processing
             response.code, response.status, response.isSuccess = PATH_NOT_FOUND
             assert log.debug('No resource found for URI %s', request.uri) or True
             return
+        
+        if not clearExtension:
+            # We need to check if the last path element is not a string property ant there might be confusion with the extension
+            if isinstance(node, NodeProperty):
+                assert isinstance(node, NodeProperty)
+                assert isinstance(node.type, Type)
+                if node.type.isOf(str):
+                    response.code, response.status, response.isSuccess = PATH_NOT_FOUND
+                    response.text = 'Missing trailing slash'
+                    assert log.debug('Unclear extension for URI %s', request.uri) or True
+                    return
+                
         assert log.debug('Found resource for URI %s', request.uri) or True
 
         request.converterId = self.converterPath
@@ -144,65 +155,5 @@ class URIHandler(HandlerProcessorProceed):
         if Request.argumentsOfType in request and request.argumentsOfType is not None:
             request.argumentsOfType[Scheme] = request.scheme
 
-        if Response.encoderPath in response and response.encoderPath:
-            response.encoderPath = EncoderPathURI(response.encoderPath, self.converterPath, self.resourcesRootURI, extension)
-
         response.code, response.status, response.isSuccess = PATH_FOUND
         response.converterId = self.converterPath
-
-# --------------------------------------------------------------------
-
-class EncoderPathURI(IEncoderPath):
-    '''
-    Provides encoding for the URI paths generated by the URI processor.
-    '''
-
-    __slots__ = ('_wrapped', '_converterPath', '_rootURI', '_extension')
-
-    def __init__(self, wrapped, converterPath, rootURI=None, extension=None):
-        '''
-        Construct the Path encoder.
-
-        @param wrapped: IEncoderPath|None
-            The wrapped encoder that provides string based path encodings.
-        @param converterPath: ConverterPath
-            The converter path to be used on Path objects to get the URI.
-        @param rootURI: string|None
-            The root URI to be considered for constructing a request path, basically the relative path root. None if the path
-            is not relative.
-        @param extension: string|None
-            The extension to use on the encoded paths.
-        '''
-        assert isinstance(wrapped, IEncoderPath), 'Invalid wrapped encoder %s' % wrapped
-        assert isinstance(converterPath, ConverterPath), 'Invalid converter path %s' % converterPath
-        assert rootURI is None or isinstance(rootURI, str), 'Invalid root URI %s' % rootURI
-        assert extension is None or isinstance(extension, str), 'Invalid extension %s' % extension
-        
-        self._wrapped = wrapped
-        self._converterPath = converterPath
-        self._rootURI = rootURI
-        self._extension = extension
-
-    def encode(self, path, parameters=None):
-        '''
-        @see: EncoderPath.encode
-        '''
-        if isinstance(path, Path):
-            assert isinstance(path, Path)
-
-            uri = []
-            paths = path.toPaths(self._converterPath)
-            uri.append('/'.join(paths))
-            if self._extension:
-                uri.append('.')
-                uri.append(self._extension)
-            elif path.node.isGroup:
-                uri.append('/')
-            elif paths[-1].count('.') > 0:
-                uri.append('/')  # Added just in case the last entry has a dot in it and not to be consfused as a extension
-            
-            uri = quote(''.join(uri))
-            if self._rootURI: uri = self._rootURI % uri
-            
-            return self._wrapped.encode(uri, parameters)
-        return self._wrapped.encode(path, parameters)
