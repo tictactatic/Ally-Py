@@ -1,7 +1,7 @@
 '''
 Created on Feb 6, 2013
 
-@package: ally core plugin
+@package: ally plugin
 @copyright: 2012 Sourcefabric o.p.s.
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor

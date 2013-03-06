@@ -1,7 +1,7 @@
 '''
 Created on Nov 7, 2012
 
-@package: ally core
+@package: ally plugin
 @copyright: 2011 Sourcefabric o.p.s.
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
@@ -11,7 +11,7 @@ Special module that is used in deploying the application.
  
 from ..ally.deploy import dumpAssembly, test, openSetups
 from ..ally.prepare import OptionsCore
-from __setup__.ally_core_plugin.deploy_plugin import configurations_file_path, \
+from __setup__.ally_plugin.deploy_plugin import configurations_file_path, \
     loadPlugins
 from ally.container import ioc, aop, context
 from ally.container.impl.config import load, save

@@ -1,7 +1,7 @@
 '''
 Created on Feb 6, 2013
 
-@package: ally core plugin
+@package: ally plugin
 @copyright: 2012 Sourcefabric o.p.s.
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
@@ -9,7 +9,7 @@ Created on Feb 6, 2013
 Provides the distribution controlled events for the plugins.
 '''
 
-from __setup__.ally_core_plugin.distribution import distribution_file_path, \
+from __setup__.ally_plugin.distribution import distribution_file_path, \
     application_mode, APP_DEVEL, APP_NORMAL
 from ally.container import ioc, support, app
 from ally.container.impl.config import load, save, Config

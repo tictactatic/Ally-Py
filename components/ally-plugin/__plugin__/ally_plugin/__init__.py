@@ -1,19 +1,19 @@
 '''
 Created on Jul 15, 2011
 
-@package: ally core plugin
+@package: ally plugin
 @copyright: 2012 Sourcefabric o.p.s.
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
 
-The plugin support for REST.
+The plugin support.
 '''
 
-from .. import ally_api
+from __setup__ import ally
 
 # --------------------------------------------------------------------
 
-NAME = 'ally core plugin'
-GROUP = ally_api.GROUP
+NAME = 'ally plugin'
+GROUP = ally.GROUP
 VERSION = '1.0'
 DESCRIPTION = 'Provides the plugin support'
