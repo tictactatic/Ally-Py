@@ -57,7 +57,7 @@ class Reference(TypeSupport):
         typ = self._ally_type.type
         if isinstance(typ, TypeContainer):
             assert isinstance(typ, TypeContainer)
-            return Reference(typ.childTypeFor(name), self)
+            return Reference(typ.propertyTypeFor(name), self)
         raise AttributeError('\'%s\' object has no attribute \'%s\'' % (self.__class__.__name__, name))
 
     def __hash__(self):
@@ -78,6 +78,8 @@ class Reference(TypeSupport):
         r.append(str(self._ally_type.type))
         r.append(')')
         return ''.join(r)
+
+# --------------------------------------------------------------------
 
 class Property(IGet, IContained, ISet, IDelete):
     '''
@@ -247,8 +249,10 @@ class CriteriaEntry(TypeSupport):
         
         @param name: string
             The property to get from the contained criteria.
+        @return: object
+            The object for name.
         '''
-        return Reference(self._ally_type.childTypeFor(name), self)
+        return Reference(self._ally_type.propertyTypeFor(name), self)
 
     def __hash__(self):
         return hash(self._ally_type)

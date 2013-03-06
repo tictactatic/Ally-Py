@@ -19,16 +19,16 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
-try: from .. import cdm
+try: from .. import ally_cdm
 except ImportError: log.info('No local CDM service to stop from delivering content')
 else:
-    cdm = cdm  # Just to avoid the import warning
+    ally_cdm = ally_cdm  # Just to avoid the import warning
     # ----------------------------------------------------------------
     
-    from ..cdm.processor import server_provide_content
-
+    from ..ally_cdm.server import server_provide_content
+    
     ioc.doc(server_provide_content, '''
-    !!!Attention, if the mongrel2 server is selected this option will always be "false"
+    !Attention, if the mongrel2 server is selected this option will always be "false"
     ''')
     
     @ioc.before(server_provide_content, auto=False)

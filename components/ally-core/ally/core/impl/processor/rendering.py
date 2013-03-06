@@ -10,10 +10,13 @@ Provides the rendering processing.
 '''
 
 from ally.container.ioc import injected
-from ally.core.spec.codes import UNKNOWN_ENCODING
-from ally.design.context import Context, defines, optional
-from ally.design.processor import Assembly, Handler, Processing, NO_VALIDATION, \
-    Chain, Function
+from ally.core.spec.codes import ENCODING_UNKNOWN
+from ally.design.processor.assembly import Assembly
+from ally.design.processor.attribute import defines, optional
+from ally.design.processor.context import Context
+from ally.design.processor.execution import Chain, Processing
+from ally.design.processor.handler import HandlerBranchingProceed
+from ally.design.processor.processor import Included
 from ally.exception import DevelError
 import codecs
 import itertools
@@ -33,7 +36,7 @@ class Response(Context):
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    code = defines(int)
+    code = defines(str)
     isSuccess = defines(bool)
     text = defines(str)
 
@@ -54,7 +57,7 @@ class ResponseContent(Context):
 # --------------------------------------------------------------------
 
 @injected
-class RenderingHandler(Handler):
+class RenderingHandler(HandlerBranchingProceed):
     '''
     Implementation for a processor that provides the support for creating the renderer. If a processor is successful
     in the render creation process it has to stop the chain execution.
@@ -73,54 +76,52 @@ class RenderingHandler(Handler):
         assert isinstance(self.contentTypeDefaults, (list, tuple)), \
         'Invalid default content type %s' % self.contentTypeDefaults
         assert isinstance(self.charSetDefault, str), 'Invalid default character set %s' % self.charSetDefault
+        super().__init__(Included(self.renderingAssembly))
 
-        renderingProcessing = self.renderingAssembly.create(NO_VALIDATION, request=Request,
-                                                            response=Response, responseCnt=ResponseContent)
-        assert isinstance(renderingProcessing, Processing), 'Invalid processing %s' % renderingProcessing
-        super().__init__(Function(renderingProcessing.contexts, self.process))
-
-        self._renderingProcessing = renderingProcessing
-
-    def process(self, chain, request, response, responseCnt, **keyargs):
+    def process(self, rendering, request:Request, response:Response, responseCnt:ResponseContent, **keyargs):
         '''
+        @see: HandlerBranchingProceed.process
+        
         Create the render for the response object.
         '''
-        assert isinstance(chain, Chain), 'Invalid processors chain %s' % chain
+        assert isinstance(rendering, Processing), 'Invalid processing %s' % rendering
         assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(response, Response), 'Invalid response %s' % response
         assert isinstance(responseCnt, ResponseContent), 'Invalid response content %s' % responseCnt
-
-        chain.proceed()
         
         # Resolving the character set
-        if ResponseContent.charSet in responseCnt:
+        if responseCnt.charSet:
             try: codecs.lookup(responseCnt.charSet)
             except LookupError: responseCnt.charSet = None
         else: responseCnt.charSet = None
 
-        if responseCnt.charSet is None:
-            for charSet in request.accCharSets or ():
-                try: codecs.lookup(charSet)
-                except LookupError: continue
-                responseCnt.charSet = charSet
-                break
-            else: responseCnt.charSet = self.charSetDefault
+        if not responseCnt.charSet:
+            if Request.accCharSets in request and request.accCharSets is not None:
+                for charSet in request.accCharSets:
+                    try: codecs.lookup(charSet)
+                    except LookupError: continue
+                    responseCnt.charSet = charSet
+                    break
+            if not responseCnt.charSet: responseCnt.charSet = self.charSetDefault
 
         resolved = False
-        if ResponseContent.type in responseCnt:
-            renderChain = Chain(self._renderingProcessing)
+        if responseCnt.type:
+            renderChain = Chain(rendering)
             renderChain.process(request=request, response=response, responseCnt=responseCnt, **keyargs)
             if renderChain.doAll().isConsumed():
                 if response.isSuccess is not False:
-                    response.code, response.isSuccess = UNKNOWN_ENCODING
+                    response.code, response.isSuccess = ENCODING_UNKNOWN
                     response.text = 'Content type \'%s\' not supported for rendering' % responseCnt.type
             else: resolved = True
 
         if not resolved:
             # Adding None in case some encoder is configured as default.
-            for contentType in itertools.chain(request.accTypes or (), self.contentTypeDefaults):
+            if Request.accTypes in request and request.accTypes is not None:
+                contentTypes = itertools.chain(request.accTypes, self.contentTypeDefaults)
+            else: contentTypes = self.contentTypeDefaults
+            for contentType in contentTypes:
                 responseCnt.type = contentType
-                renderChain = Chain(self._renderingProcessing)
+                renderChain = Chain(rendering)
                 renderChain.process(request=request, response=response, responseCnt=responseCnt, **keyargs)
                 if not renderChain.doAll().isConsumed(): break
             else:

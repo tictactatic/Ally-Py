@@ -1,7 +1,7 @@
 '''
 Created on Jul 14, 2011
 
-@package: cdm
+@package: service CDM
 @copyright: 2012 Sourcefabric o.p.s.
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Mugur Rus
@@ -9,14 +9,13 @@ Created on Jul 14, 2011
 Provides the content delivery handler.
 '''
 
-from ally.api.config import GET
 from ally.container.ioc import injected
-from ally.core.spec.codes import METHOD_NOT_AVAILABLE, RESOURCE_FOUND, \
-    RESOURCE_NOT_FOUND
-from ally.design.context import Context, requires, defines
-from ally.design.processor import Chain, Function, Assembly, NO_VALIDATION, \
-    Processing, Handler
-from ally.http.spec.server import METHOD_GET
+from ally.design.processor.attribute import requires, defines
+from ally.design.processor.context import Context
+from ally.design.processor.handler import HandlerProcessorProceed
+from ally.http.spec.codes import METHOD_NOT_AVAILABLE, PATH_NOT_FOUND, \
+    PATH_FOUND
+from ally.http.spec.server import HTTP_GET
 from ally.support.util_io import IInputStream
 from ally.zip.util_zip import normOSPath, normZipPath
 from mimetypes import guess_type
@@ -40,19 +39,19 @@ class Request(Context):
     # ---------------------------------------------------------------- Required
     scheme = requires(str)
     uri = requires(str)
-    methodName = requires(str)
+    method = requires(str)
 
 class Response(Context):
     '''
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    code = defines(int)
+    code = defines(str)
+    status = defines(int)
     isSuccess = defines(bool)
-    text = defines(str)
-    allows = defines(int, doc='''
-    @rtype: integer
-    Contains the allow flags for the methods.
+    allows = defines(list, doc='''
+    @rtype: list[string]
+    Contains the allow list for the methods.
     ''')
 
 class ResponseContent(Context):
@@ -76,7 +75,7 @@ class ResponseContent(Context):
 # --------------------------------------------------------------------
 
 @injected
-class ContentDeliveryHandler(Handler):
+class ContentDeliveryHandler(HandlerProcessorProceed):
     '''
     Implementation for a processor that delivers the content based on the URL.
     '''
@@ -91,8 +90,6 @@ class ContentDeliveryHandler(Handler):
     # Marker used in the link file to indicate that a link is inside a zip file.
     _fsHeader = 'FS'
     # Marker used in the link file to indicate that a link is file system
-    errorAssembly = Assembly
-    # The error processors, this are used when the content is not available.
 
     def __init__(self):
         assert isinstance(self.repositoryPath, str), 'Invalid repository path value %s' % self.repositoryPath
@@ -101,38 +98,29 @@ class ContentDeliveryHandler(Handler):
         if not os.path.exists(self.repositoryPath): os.makedirs(self.repositoryPath)
         assert isdir(self.repositoryPath) and os.access(self.repositoryPath, os.R_OK), \
             'Unable to access the repository directory %s' % self.repositoryPath
-        assert isinstance(self.errorAssembly, Assembly), 'Invalid error assembly %s' % self.errorAssembly
-        
-        errorProcessing = self.errorAssembly.create(NO_VALIDATION, request=Request, response=Response,
-                                                    responseCnt=ResponseContent)
-        assert isinstance(errorProcessing, Processing), 'Invalid processing %s' % errorProcessing
-        super().__init__(Function(errorProcessing.contexts, self.process))
+        super().__init__()
 
-        self._errorProcessing = errorProcessing
         self._linkTypes = {self._fsHeader:self._processLink, self._zipHeader:self._processZiplink}
 
-    def process(self, chain, request, response, responseCnt, **keyargs):
+    def process(self, request:Request, response:Response, responseCnt:ResponseContent, **keyargs):
         '''
-        @see: HandlerProcessor.process
+        @see: HandlerProcessorProceed.process
         
         Provide the file content as a response.
         '''
-        assert isinstance(chain, Chain), 'Invalid processors chain %s' % chain
         assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(response, Response), 'Invalid response %s' % response
         assert isinstance(responseCnt, ResponseContent), 'Invalid response content %s' % responseCnt
 
-        if request.methodName != METHOD_GET:
-            response.allows = GET
-            response.code, response.isSuccess = METHOD_NOT_AVAILABLE
-            response.text = 'Path only available for GET'
+        if request.method != HTTP_GET:
+            if response.allows is not None: response.allows.append(HTTP_GET)
+            else: response.allows = [HTTP_GET]
+            response.code, response.status, response.isSuccess = METHOD_NOT_AVAILABLE
         else:
-            chain.proceed()
             # Make sure the given path points inside the repository
             entryPath = normOSPath(join(self.repositoryPath, normZipPath(unquote(request.uri))))
             if not entryPath.startswith(self.repositoryPath):
-                response.code, response.isSuccess = RESOURCE_NOT_FOUND
-                response.text = 'Out of repository path'
+                response.code, response.status, response.isSuccess = PATH_NOT_FOUND
             else:
                 # Initialize the read file handler with None value
                 # This will be set upon successful file open
@@ -160,18 +148,14 @@ class ContentDeliveryHandler(Handler):
                         linkPath = subLinkPath
         
                 if rf is None:
-                    response.code, response.isSuccess = METHOD_NOT_AVAILABLE
-                    response.text = 'Invalid content resource'
+                    response.code, response.status, response.isSuccess = PATH_NOT_FOUND
                 else:
-                    response.code, response.isSuccess = RESOURCE_FOUND
-                    response.text = 'Resource found'
+                    response.code, response.status, response.isSuccess = PATH_FOUND
                     responseCnt.source = rf
                     responseCnt.length = size
                     responseCnt.type, _encoding = guess_type(entryPath)
                     if not responseCnt.type: responseCnt.type = self.defaultContentType
                     return
-        
-        chain.branch(self._errorProcessing)
 
     # ----------------------------------------------------------------
 

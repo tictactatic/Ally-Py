@@ -12,11 +12,11 @@ Provides the invokers implementations.
 from ally.api.operator.container import Call
 from ally.api.operator.type import TypeService
 from ally.api.type import Input, typeFor
+from ally.container.impl.proxy import proxiedClass
 from ally.core.spec.resources import Invoker, InvokerInfo
 from ally.exception import DevelError
-from inspect import isclass, getdoc
 from ally.support.util_sys import getAttrAndClass
-from ally.container.proxy import proxiedClass
+from inspect import isclass, getdoc
 
 # --------------------------------------------------------------------
 

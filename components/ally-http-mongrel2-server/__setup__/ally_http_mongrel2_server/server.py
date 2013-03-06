@@ -10,7 +10,7 @@ Runs the Mongrel2 web server.
 '''
 
 from ..ally_http import server_host, server_port, server_type, server_version
-from ..ally_http.server import pathAssemblies
+from ..ally_http.server import assemblyServer
 from ally.container import ioc
 from threading import Thread
 
@@ -64,11 +64,23 @@ ioc.doc(server_port, '''
 # --------------------------------------------------------------------
 
 @ioc.entity
-def requestHandler():
+def serverMongrel2RequestHandler():
     from ally.http.server.server_mongrel2 import RequestHandler
     b = RequestHandler(); yield b
-    b.pathAssemblies = pathAssemblies()
     b.serverVersion = server_version()
+    b.assembly = assemblyServer()
+
+@ioc.entity
+def serverMongrel2():
+    from ally.http.server import server_mongrel2
+    b = server_mongrel2.Mongrel2Server()
+    b.workspacePath = workspace_path()
+    b.sendIdent = send_ident()
+    b.sendSpec = send_spec()
+    b.recvIdent = recv_ident()
+    b.recvSpec = recv_spec()
+    b.requestHandler = serverMongrel2RequestHandler()
+    return b
 
 # --------------------------------------------------------------------
 
@@ -76,5 +88,4 @@ def requestHandler():
 def runServer():
     if server_type() == 'mongrel2':
         from ally.http.server import server_mongrel2
-        args = (workspace_path(), requestHandler(), send_ident(), send_spec(), recv_ident(), recv_spec())
-        Thread(target=server_mongrel2.run, args=args).start()
+        Thread(target=server_mongrel2.run, args=(serverMongrel2(),)).start()

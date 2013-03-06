@@ -11,17 +11,17 @@ Implementation for the PO file management.
 
 from admin.introspection.api.component import IComponentService
 from admin.introspection.api.plugin import IPluginService, Plugin
+from ally.cdm.spec import ICDM, PathNotFound
 from ally.container import wire
 from ally.container.ioc import injected
 from ally.container.support import setup
 from ally.exception import InputError
 from ally.internationalization import _
-from cdm.spec import ICDM, PathNotFound
 from datetime import datetime
 from internationalization.api.json_locale import IJSONLocaleFileService
 from internationalization.core.spec import IPOFileManager, InvalidLocaleError
-from json.encoder import JSONEncoder
 from io import BytesIO
+from json.encoder import JSONEncoder
 from sys import getdefaultencoding
 
 # --------------------------------------------------------------------

@@ -9,24 +9,19 @@ Created on Jan 5, 2012
 Provides support for SQL alchemy automatic session handling.
 '''
 
-from ally.container.binder import registerProxyBinder, bindBeforeListener, \
-    bindAfterListener, bindExceptionListener, indexAfter, INDEX_LOCK_BEGIN, \
-    indexBefore, INDEX_LOCK_END
+from ally.container.impl.proxy import IProxyHandler, Execution, \
+    registerProxyHandler
 from ally.exception import DevelError
 from collections import deque
+from inspect import isgenerator
 from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.orm.session import Session
-import logging
 from threading import current_thread
+import logging
 
 # --------------------------------------------------------------------
 
 log = logging.getLogger(__name__)
-
-INDEX_SESSION_BEGIN = indexAfter('sql_session_begin', INDEX_LOCK_BEGIN)
-# The sql session begin index.
-INDEX_SESSION_END = indexBefore('sql_session_end', INDEX_LOCK_END)
-# The sql session end index.
 
 # --------------------------------------------------------------------
 
@@ -169,39 +164,6 @@ def rollback(session):
     session.rollback()
     assert log.debug('Improper SQL Alchemy session, rolled back transactions') or True
 
-# --------------------------------------------------------------------
-
-def bindSession(proxy, sessionCreator):
-    '''
-    Binds a session creator wrapping for the provided proxy.
-    
-    @param proxy: @see: registerProxyBinder
-        The proxy to bind the session creator to.
-    @param sessionCreator: class
-        The session creator class that will create the session.
-    '''
-    assert issubclass(sessionCreator, Session), 'Invalid session creator %s' % sessionCreator
-    registerProxyBinder(proxy)
-
-    def begin(*args):
-        beginWith(sessionCreator)
-
-    def end(returned):
-        if hasSession():
-            session = openSession()
-            session.flush()
-            session.expunge_all()
-        endCurrent(commit)
-
-    def exception(exception):
-        endCurrent(rollback)
-
-    bindBeforeListener(proxy, begin, index=INDEX_SESSION_BEGIN)
-    bindAfterListener(proxy, end, index=INDEX_SESSION_END)
-    bindExceptionListener(proxy, exception, index=INDEX_SESSION_END)
-
-# --------------------------------------------------------------------
-
 def commitNow():
     '''
     Commits the current session right now.
@@ -221,4 +183,72 @@ def commitNow():
         commit(session)
         return True
 
+# --------------------------------------------------------------------
 
+def bindSession(proxy, sessionCreator):
+    '''
+    Binds a session creator wrapping for the provided proxy.
+    
+    @param proxy: Proxy
+        The proxy to wrap with session creator.
+    @param sessionCreator: class
+        The session creator class that will create the session.
+    '''
+    registerProxyHandler(SessionBinder(sessionCreator), proxy)
+
+# --------------------------------------------------------------------
+
+class SessionBinder(IProxyHandler):
+    '''
+    Implementation for @see: IProxyHandler for binding sql alchemy session.
+    '''
+    __slots__ = ('sessionCreator',)
+    
+    def __init__(self, sessionCreator):
+        '''
+        Binds a session creator wrapping for the provided proxy.
+    
+        @param sessionCreator: class
+            The session creator class that will create the session.
+        '''
+        assert issubclass(sessionCreator, Session), 'Invalid session creator %s' % sessionCreator
+        self.sessionCreator = sessionCreator
+    
+    def handle(self, execution):
+        '''
+        @see: IProxyHandler.handle
+        '''
+        assert isinstance(execution, Execution), 'Invalid execution %s' % execution
+        
+        beginWith(self.sessionCreator)
+        try: returned = execution.invoke()
+        except:
+            endCurrent(rollback)
+            raise
+        else:
+            if hasSession():
+                session = openSession()
+                session.flush()
+                session.expunge_all()
+                endCurrent(commit)
+            elif isgenerator(returned):
+                # If the returned value is a generator we need to wrap it in order to provide session support when the actual
+                # generator is used
+                return self.wrapGenerator(returned)
+            return returned
+
+    # ----------------------------------------------------------------
+    
+    def wrapGenerator(self, generator):
+        '''
+        Wraps the generator with the session creator.
+        '''
+        assert isgenerator(generator), 'Invalid generator %s' % generator
+        beginWith(self.sessionCreator)
+        try:
+            for item in generator: yield item
+        except:
+            endCurrent(rollback)
+            raise
+        else:
+            endCurrent(commit)

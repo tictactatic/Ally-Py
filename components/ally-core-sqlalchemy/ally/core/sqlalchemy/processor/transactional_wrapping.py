@@ -9,8 +9,10 @@ Created on Jan 5, 2012
 Provides support for SQL alchemy a processor for automatic session handling.
 '''
 
-from ally.design.context import Context, optional
-from ally.design.processor import Chain, HandlerProcessor
+from ally.design.processor.attribute import optional
+from ally.design.processor.context import Context
+from ally.design.processor.execution import Chain
+from ally.design.processor.handler import HandlerProcessor
 from ally.support.sqlalchemy.session import rollback, commit, setKeepAlive, \
     endSessions
 
@@ -45,8 +47,10 @@ class TransactionWrappingHandler(HandlerProcessor):
             '''
             Handle the finalization
             '''
-            if response.isSuccess is True: endSessions(commit)
-            else: endSessions(rollback)
+            if Response.isSuccess in response:
+                if response.isSuccess is True: endSessions(commit)
+                else: endSessions(rollback)
+            else: endSessions(commit) # Commit if there is no success flag
 
         def onError():
             '''

@@ -8,6 +8,7 @@
 /distribution/components
 /distribution/plugins
 
+*.pyo
 *.pyc
 *.properties
 *.properties.bak

@@ -14,10 +14,11 @@ from ally.api.operator.type import TypeModel
 from ally.api.type import Type, Percentage, Number, Date, DateTime, Time, \
     Boolean, List, Locale as TypeLocale
 from ally.container.ioc import injected
-from ally.core.http.spec.codes import INVALID_FORMATING
+from ally.core.http.spec.codes import FORMATING_ERROR
 from ally.core.spec.resources import Converter, Normalizer
-from ally.design.context import Context, defines, requires, optional
-from ally.design.processor import HandlerProcessorProceed
+from ally.design.processor.attribute import requires, defines, optional
+from ally.design.processor.context import Context
+from ally.design.processor.handler import HandlerProcessorProceed
 from ally.http.spec.server import IDecoderHeader, IEncoderHeader
 from ally.internationalization import _
 from babel import numbers as bn, dates as bd
@@ -53,10 +54,10 @@ class RequestDecode(Context):
     '''
     # ---------------------------------------------------------------- Required
     decoderHeader = requires(IDecoderHeader)
-    accLanguages = requires(list)
     # ---------------------------------------------------------------- Optional
-    language = optional(str)
     argumentsOfType = optional(dict)
+    accLanguages = optional(list)
+    language = optional(str)
     # ---------------------------------------------------------------- Defined
     normalizer = defines(Normalizer, doc='''
     @rtype: Normalizer
@@ -72,7 +73,8 @@ class ResponseDecode(Context):
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    code = defines(int)
+    code = defines(str)
+    status = defines(int)
     isSuccess = defines(bool)
     text = defines(str)
     errorMessage = defines(str)
@@ -146,19 +148,19 @@ class BabelConversionDecodeHandler(HandlerProcessorProceed):
             if value: formats[clsTyp] = value
 
         locale = None
-        if RequestDecode.language in request:
+        if RequestDecode.language in request and request.language is not None:
             try: locale = Locale.parse(request.language, sep='-')
             except: assert log.debug('Invalid request content language %s', request.language) or True
 
         if locale is None:
-            request.language = self.languageDefault
+            if RequestDecode.language in request: request.language = self.languageDefault
             locale = Locale.parse(self.languageDefault)
 
         try: formats = self.processFormats(locale, formats)
         except FormatError as e:
             assert isinstance(e, FormatError)
             if response.isSuccess is False: return  # Skip in case the response is in error
-            response.code, response.isSuccess = INVALID_FORMATING
+            response.code, response.status, response.isSuccess = FORMATING_ERROR
             response.text = 'Bad request content formatting'
             response.errorMessage = 'Bad request content formatting, %s' % e.message
             return
@@ -172,12 +174,12 @@ class BabelConversionDecodeHandler(HandlerProcessorProceed):
             if value: formats[clsTyp] = value
 
         locale = None
-        if ResponseDecode.language in response:
+        if response.language:
             try: locale = Locale.parse(response.language, sep='-')
             except: assert log.debug('Invalid response content language %s', response.language) or True
 
         if locale is None:
-            if RequestDecode.accLanguages in request:
+            if RequestDecode.accLanguages in request and request.accLanguages is not None:
                 for lang in request.accLanguages:
                     try: locale = Locale.parse(lang, sep='-')
                     except:
@@ -188,21 +190,26 @@ class BabelConversionDecodeHandler(HandlerProcessorProceed):
 
             if locale is None:
                 locale = Locale.parse(self.languageDefault)
-                if RequestDecode.accLanguages in request: request.accLanguages.insert(0, self.languageDefault)
-                else: request.accLanguages = [self.languageDefault]
-                if RequestDecode.argumentsOfType in request: request.argumentsOfType[LIST_LOCALE] = request.accLanguages
+                if RequestDecode.accLanguages in request:
+                    if request.accLanguages is not None:
+                        request.accLanguages.insert(0, self.languageDefault)
+                        accLanguages = request.accLanguages
+                    else: accLanguages = request.accLanguages = [self.languageDefault]
+                else: accLanguages = [self.languageDefault]
+                if RequestDecode.argumentsOfType in request and request.argumentsOfType is not None:
+                    request.argumentsOfType[LIST_LOCALE] = accLanguages
                 assert log.debug('No language specified for the response, set default %s', locale) or True
 
             response.language = str(locale)
 
-            if RequestDecode.argumentsOfType in request:
+            if RequestDecode.argumentsOfType in request and request.argumentsOfType is not None:
                 request.argumentsOfType[TypeLocale] = response.language
 
         try: formats = self.processFormats(locale, formats)
         except FormatError as e:
             assert isinstance(e, FormatError)
             if response.isSuccess is False: return  # Skip in case the response is in error
-            response.code, response.isSuccess = INVALID_FORMATING
+            response.code, response.status, response.isSuccess = FORMATING_ERROR
             response.text = 'Bad content formatting for response'
             response.errorMessage = 'Bad content formatting for response, %s' % e.message
             return

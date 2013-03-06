@@ -23,7 +23,7 @@ from .samples.impl.article import ArticleServiceAlchemy
 from .samples.impl.article_type import ArticleTypeServiceAlchemy
 from .samples.meta import meta
 from ally.container.binder_op import bindValidations
-from ally.container.proxy import createProxy, ProxyWrapper
+from ally.container.impl.proxy import createProxy, ProxyWrapper
 from ally.exception import InputError
 from ally.support.sqlalchemy.mapper import mappingsOf
 from ally.support.sqlalchemy.session import bindSession, endSessions, commit, \
@@ -45,8 +45,8 @@ class TestMapping(unittest.TestCase):
         articleTypeService = createProxy(IArticleTypeService)(ProxyWrapper(ArticleTypeServiceAlchemy()))
         assert isinstance(articleTypeService, IArticleTypeService)
 
-        bindSession(articleTypeService, self.sessionCreate)
         bindValidations(articleTypeService, mappingsOf(meta))
+        bindSession(articleTypeService, self.sessionCreate)
 
         setKeepAlive(True)
 
@@ -100,8 +100,8 @@ class TestMapping(unittest.TestCase):
         articleService = createProxy(IArticleService)(ProxyWrapper(ArticleServiceAlchemy()))
         assert isinstance(articleService, IArticleService)
 
-        bindSession(articleService, self.sessionCreate)
         bindValidations(articleService, mappingsOf(meta))
+        bindSession(articleService, self.sessionCreate)
 
         a = Article()
         a.Name = 'Article 1'

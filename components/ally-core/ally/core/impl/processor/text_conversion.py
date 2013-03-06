@@ -11,8 +11,9 @@ Provides the converters for the response content and request content.
 
 from ally.container.ioc import injected
 from ally.core.spec.resources import Converter, Normalizer
-from ally.design.context import Context, defines
-from ally.design.processor import HandlerProcessorProceed
+from ally.design.processor.attribute import defines
+from ally.design.processor.context import Context
+from ally.design.processor.handler import HandlerProcessorProceed
 import logging
 
 # --------------------------------------------------------------------

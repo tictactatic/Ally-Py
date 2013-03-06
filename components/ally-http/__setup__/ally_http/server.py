@@ -10,31 +10,54 @@ Runs the basic web server.
 '''
 
 from . import server_type, server_version, server_host, server_port
+from .processor import assemblyNotFound
 from ally.container import ioc
+from ally.design.processor.assembly import Assembly
+from ally.design.processor.handler import Handler
+from ally.http.impl.processor.router_by_path import RoutingByPathHandler
 from ally.http.server import server_basic
-from ally.http.server.wsgi import RequestHandler
 from threading import Thread
 
 # --------------------------------------------------------------------
 
 @ioc.entity
-def pathAssemblies():
+def assemblyServer() -> Assembly:
     '''
-    The path assemblies to be processed, add to this list tuples containing in the first position the pattern to be matched
-    with the request path and on the second position the Assembly object to be used for requests that match the pattern.
+    The assembly used in processing the server requests.
     '''
-    return []
+    return Assembly('Server')
+
+# --------------------------------------------------------------------
 
 @ioc.entity
-def requestHandlerWSGI():
-    b = RequestHandler(); yield b
-    b.pathAssemblies = pathAssemblies()
+def serverBasicRequestHandler(): return server_basic.RequestHandler
+
+@ioc.entity
+def serverBasic():
+    b = server_basic.BasicServer()
     b.serverVersion = server_version()
+    b.serverHost = server_host()
+    b.serverPort = server_port()
+    b.requestHandlerFactory = serverBasicRequestHandler()
+    b.assembly = assemblyServer()
+    return b
+
+# --------------------------------------------------------------------
+
+@ioc.entity
+def notFoundRouter() -> Handler:
+    b = RoutingByPathHandler()
+    b.assembly = assemblyNotFound()
+    b.pattern = '(?:.*)'
+    return b
+
+@ioc.before(assemblyServer)
+def updateAssemblyServer():
+    assemblyServer().add(notFoundRouter())
 
 # --------------------------------------------------------------------
 
 @ioc.start
 def runServer():
     if server_type() == 'basic':
-        args = pathAssemblies(), server_version(), server_host(), server_port()
-        Thread(name='HTTP server thread', target=server_basic.run, args=args).start()
+        Thread(name='HTTP server thread', target=server_basic.run, args=(serverBasic(),)).start()

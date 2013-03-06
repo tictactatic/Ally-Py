@@ -586,7 +586,7 @@ class AssembleUpdateModel(AssembleUpdate):
             typ, modelIndex = modelTypes[0]
             assert isinstance(typ, TypeModel)
             if typ.hasId():
-                typeId = typ.childTypeId()
+                typeId = typ.propertyTypeId()
                 if typeId not in types:
                     assert isinstance(typeId, TypeModelProperty)
                     inputs = list(invoker.inputs[:invoker.mandatory])

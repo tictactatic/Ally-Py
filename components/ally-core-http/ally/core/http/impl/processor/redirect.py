@@ -12,13 +12,15 @@ Provides the content location redirect based on references.
 from ally.api.operator.type import TypeModelProperty
 from ally.api.type import TypeReference
 from ally.container.ioc import injected
-from ally.core.http.spec.server import IEncoderPath
-from ally.core.spec.codes import REDIRECT
+from ally.core.http.spec.codes import REDIRECT
 from ally.core.spec.resources import Invoker
-from ally.design.context import Context, requires, defines
-from ally.design.processor import Handler, Assembly, NO_VALIDATION, Processing, \
-    Chain, Function
-from ally.http.spec.server import IEncoderHeader
+from ally.design.processor.assembly import Assembly
+from ally.design.processor.attribute import requires, defines
+from ally.design.processor.context import Context
+from ally.design.processor.execution import Processing, Chain
+from ally.design.processor.handler import HandlerBranching
+from ally.design.processor.processor import Included
+from ally.http.spec.server import IEncoderHeader, IEncoderPath
 import logging
 
 # --------------------------------------------------------------------
@@ -43,14 +45,14 @@ class Response(Context):
     encoderPath = requires(IEncoderPath)
     obj = requires(object)
     # ---------------------------------------------------------------- Defined
-    code = defines(int)
+    code = defines(str)
+    status = defines(int)
     isSuccess = defines(bool)
-    text = defines(str)
 
 # --------------------------------------------------------------------
 
 @injected
-class RedirectHandler(Handler):
+class RedirectHandler(HandlerBranching):
     '''
     Implementation for a processor that provides the redirect by using the content location based on found references.
     '''
@@ -63,40 +65,30 @@ class RedirectHandler(Handler):
     def __init__(self):
         assert isinstance(self.redirectAssembly, Assembly), 'Invalid redirect assembly %s' % self.redirectAssembly
         assert isinstance(self.nameLocation, str), 'Invalid string %s' % self.nameLocation
+        super().__init__(Included(self.redirectAssembly))
 
-        redirectProcessing = self.redirectAssembly.create(NO_VALIDATION, request=Request, response=Response)
-        assert isinstance(redirectProcessing, Processing), 'Invalid processing %s' % redirectProcessing
-        super().__init__(Function(redirectProcessing.contexts, self.process))
-        
-        self._redirectProcessing = redirectProcessing
-
-    def process(self, chain, request, response, **keyargs):
+    def process(self, chain, redirect, request:Request, response:Response, **keyargs):
         '''
-        Process the redirect.
+        @see: HandlerBranching.process
         
-        The rest of the parameters are contexts.
+        Process the redirect.
         '''
         assert isinstance(chain, Chain), 'Invalid processors chain %s' % chain
+        assert isinstance(redirect, Processing), 'Invalid processing %s' % redirect
         assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(response, Response), 'Invalid response %s' % response
 
         if response.isSuccess is not False:  # Skip in case the response is in error
             assert isinstance(request.invoker, Invoker), 'Invalid request invoker %s' % request.invoker
+            assert isinstance(response.encoderHeader, IEncoderHeader), 'Invalid header encoder %s' % response.encoderHeader
+            assert isinstance(response.encoderPath, IEncoderPath), 'Invalid encoder path %s' % response.encoderPath
 
             typ = request.invoker.output
             if isinstance(typ, TypeModelProperty): typ = typ.type
             if isinstance(typ, TypeReference):
-                redirectChain = Chain(self._redirectProcessing)
-                redirectChain.process(request=request, response=response, **keyargs).doAll()
+                Chain(redirect).process(request=request, response=response, **keyargs).doAll()
                 if response.isSuccess is not False:
-                    assert isinstance(response.encoderHeader, IEncoderHeader), \
-                    'Invalid header encoder %s' % response.encoderHeader
-                    assert isinstance(response.encoderPath, IEncoderPath), \
-                    'Invalid encoder path %s' % response.encoderPath
-
                     response.encoderHeader.encode(self.nameLocation, response.encoderPath.encode(response.obj))
-                    response.code, response.isSuccess = REDIRECT
-                    response.text = 'Redirect'
+                    response.code, response.status, response.isSuccess = REDIRECT
                     return
-
         chain.proceed()

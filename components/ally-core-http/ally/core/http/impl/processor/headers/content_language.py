@@ -11,8 +11,9 @@ Provides the content language header decoding.
 
 from ally.api.type import Locale
 from ally.container.ioc import injected
-from ally.design.context import Context, requires, defines, optional
-from ally.design.processor import HandlerProcessorProceed
+from ally.design.processor.attribute import requires, defines, optional
+from ally.design.processor.context import Context
+from ally.design.processor.handler import HandlerProcessorProceed
 from ally.http.spec.server import IDecoderHeader, IEncoderHeader
 
 # --------------------------------------------------------------------
@@ -58,7 +59,8 @@ class ContentLanguageDecodeHandler(HandlerProcessorProceed):
         value = request.decoderHeader.retrieve(self.nameContentLanguage)
         if value:
             request.language = value
-            if RequestDecode.argumentsOfType in request: request.argumentsOfType[Locale] = request.language
+            if RequestDecode.argumentsOfType in request and request.argumentsOfType is not None:
+                request.argumentsOfType[Locale] = request.language
 
 # --------------------------------------------------------------------
 
@@ -95,5 +97,4 @@ class ContentLanguageEncodeHandler(HandlerProcessorProceed):
         assert isinstance(response.encoderHeader, IEncoderHeader), \
         'Invalid response header encoder %s' % response.encoderHeader
 
-        if ResponseEncode.language in response:
-            response.encoderHeader.encode(self.nameContentLanguage, response.language)
+        if response.language: response.encoderHeader.encode(self.nameContentLanguage, response.language)

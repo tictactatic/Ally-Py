@@ -13,10 +13,9 @@ from ally.container import ioc, support
 from ally.container.binder_op import bindValidations
 from ally.support.sqlalchemy.mapper import mappingsOf
 from ally.support.sqlalchemy.session import bindSession
-from sql_alchemy import database_config
-from sql_alchemy.database_config import alchemySessionCreator, metas, createTables
 from security.meta.metadata_security import meta
-from distribution.container import app
+from sql_alchemy import database_config
+from sql_alchemy.database_config import alchemySessionCreator, metas
 
 # --------------------------------------------------------------------
 
@@ -24,7 +23,6 @@ support.include(database_config)
 
 # --------------------------------------------------------------------
 
-createSecurityTables = app.analyze(createTables)
 alchemySessionCreator = alchemySessionCreator
 
 @ioc.replace(database_url)

@@ -30,7 +30,7 @@ import re
 # --------------------------------------------------------------------
 
 @injected
-@setup(IRequestService)
+@setup(IRequestService, name='requestService')
 class RequestService(IRequestService, INodeChildListener, INodeInvokerListener):
     '''
     Provides the implementation for @see: IRequestIntrospectService.
@@ -132,8 +132,7 @@ class RequestService(IRequestService, INodeChildListener, INodeInvokerListener):
         assert isinstance(replacer, ReplacerMarkCount), 'Invalid replacer %s' % replacer
         node = path.node
         assert isinstance(node, Node), 'Invalid path node %s' % node
-        idNode = id(node)
-        if idNode in self._nodeRequests: return
+        if node in self._nodeRequests: return
         if not (node.get or node.delete or node.insert or node.update): return
         
         r = Request()
@@ -149,7 +148,7 @@ class RequestService(IRequestService, INodeChildListener, INodeInvokerListener):
             inp.Name = name
 
         self._requests[r.Id] = r
-        self._nodeRequests[idNode] = r.Id
+        self._nodeRequests[node] = r.Id
         self._patternInputs[r.Id] = patternInputs
         requestMethods = self._requestMethods[r.Id] = set()
 

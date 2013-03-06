@@ -9,7 +9,7 @@ Created on Nov 7, 2012
 Special module that is used in preparing the application deploy.
 '''
 
-from ..ally_utilities.prepare import OptionsCore, prepareCoreOptions, \
+from ..ally.prepare import OptionsCore, prepareCoreOptions, \
     prepareCoreActions
 from ally.container import ioc
 from argparse import ArgumentParser

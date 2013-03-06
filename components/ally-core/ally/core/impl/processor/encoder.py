@@ -15,16 +15,17 @@ from ally.api.operator.type import TypeExtension, TypeProperty, \
 from ally.api.type import Type, Iter, Boolean, Integer, Number, Percentage, \
     String, Time, Date, DateTime, TypeNone, typeFor
 from ally.container.ioc import injected
-from ally.core.spec.codes import BAD_CONTENT
 from ally.core.spec.resources import Invoker, Normalizer, Converter
 from ally.core.spec.transform.exploit import IResolve, handleExploitError
 from ally.core.spec.transform.render import IRender
 from ally.core.spec.transform.support import getterOnObjIfIn
-from ally.design.context import defines, Context, requires
-from ally.design.processor import HandlerProcessorProceed
+from ally.design.processor.attribute import requires, defines, optional
+from ally.design.processor.context import Context
+from ally.design.processor.handler import HandlerProcessorProceed
 from collections import Callable, Iterable, OrderedDict
 from weakref import WeakKeyDictionary
 import logging
+from ally.exception import DevelError
 
 # --------------------------------------------------------------------
 
@@ -47,10 +48,8 @@ class Response(Context):
     converterId = requires(Converter)
     converter = requires(Converter)
     normalizer = requires(Normalizer)
+    isSuccess = requires(bool)
     # ---------------------------------------------------------------- Defined
-    code = defines(int)
-    isSuccess = defines(bool)
-    text = defines(str)
     encoder = defines(Callable, doc='''
     @rtype: Callable
     The encoder to be used for encoding the response object for content rendering.
@@ -97,14 +96,11 @@ class CreateEncoderHandler(HandlerProcessorProceed):
         assert isinstance(response, Response), 'Invalid response %s' % response
 
         if response.isSuccess is False: return  # Skip in case the response is in error
-        if Response.encoder in response: return  # There is already an encoder no need to create another one
+        if response.encoder: return  # There is already an encoder no need to create another one
         assert isinstance(request.invoker, Invoker), 'Invalid request invoker %s' % request.invoker
 
         response.encoder = self.encoderFor(request.invoker.output)
-        if response.encoder is None:
-            response.code, response.isSuccess = BAD_CONTENT
-            response.text = 'Cannot encode response object'
-            return
+        if response.encoder is None: raise DevelError('Cannot encode response object \'%s\'' % request.invoker.output)
 
         response.encoderData = dict(converterId=response.converterId, converter=response.converter,
                                     normalizer=response.normalizer)
@@ -183,11 +179,11 @@ class CreateEncoderHandler(HandlerProcessorProceed):
         '''
         assert isinstance(ofType, TypeModel), 'Invalid type model %s' % ofType
 
-        typesProps = list(ofType.childTypes())
-        if ofType.hasId(): typesProps.remove(ofType.childTypeId())
+        typesProps = list(ofType.propertyTypes())
+        if ofType.hasId(): typesProps.remove(ofType.propertyTypeId())
         typesProps.sort(key=lambda typeProp: typeProp.property)
         typesProps.sort(key=self.sortTypePropertyKey)
-        if ofType.hasId(): typesProps.insert(0, ofType.childTypeId())
+        if ofType.hasId(): typesProps.insert(0, ofType.propertyTypeId())
 
         exploit = exploit or EncodeObject(ofType.container.name, getter)
         assert isinstance(exploit, EncodeObject), 'Invalid encode object %s' % exploit
@@ -277,7 +273,7 @@ class CreateEncoderHandler(HandlerProcessorProceed):
             encoder = self.encoderId(typeProp.type, getter)
         elif isinstance(typeProp.type, TypeModel):
             assert isinstance(typeProp.type, TypeModel)
-            encoder = self.encoderProperty(typeProp.type.childTypeId(), getter)
+            encoder = self.encoderProperty(typeProp.type.propertyTypeId(), getter)
         else:
             encoder = self.encoderPrimitive(typeProp.type, getter)
         exploit.properties[typeProp.property] = encoder

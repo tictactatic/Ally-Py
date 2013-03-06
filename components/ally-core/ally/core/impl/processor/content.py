@@ -12,10 +12,11 @@ Provides a processor that provides the request content as an invoking argument.
 from ally.api.model import Content
 from ally.api.type import Input
 from ally.container.ioc import injected
-from ally.core.spec.codes import BAD_CONTENT
+from ally.core.spec.codes import CONTENT_EXPECTED
 from ally.core.spec.resources import Invoker
-from ally.design.context import Context, requires, optional, asData, defines
-from ally.design.processor import HandlerProcessorProceed
+from ally.design.processor.attribute import requires, defines, optional
+from ally.design.processor.context import Context, asData
+from ally.design.processor.handler import HandlerProcessorProceed
 from ally.support.util_io import IInputStream
 from collections import Callable
 import logging
@@ -58,9 +59,8 @@ class Response(Context):
     The response context.
     '''
     # ---------------------------------------------------------------- Defines
-    code = defines(int)
+    code = defines(str)
     isSuccess = defines(bool)
-    text = defines(str)
 
 # --------------------------------------------------------------------
 
@@ -70,15 +70,11 @@ class ContentHandler(HandlerProcessorProceed):
     Handler that provides the content as an argument if required.
     '''
 
-    def __init__(self):
-        '''
-        Construct the content handler.
-        '''
-        super().__init__()
-
     def process(self, request:Request, response:Response, requestCnt:RequestContent=None, **keyargs):
         '''
         @see: HandlerProcessorProceed.process
+        
+        Process the content.
         '''
         assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(response, Response), 'Invalid response %s' % response
@@ -91,14 +87,13 @@ class ContentHandler(HandlerProcessorProceed):
 
             if inp.type.isOf(Content):
                 if requestCnt is None:
-                    response.code, response.isSuccess = BAD_CONTENT
-                    response.text = 'Required a request content follow up'
+                    response.code, response.isSuccess = CONTENT_EXPECTED
                     return
                 assert isinstance(requestCnt, RequestContent), 'Invalid request content %s' % requestCnt
                 assert isinstance(requestCnt.source, IInputStream), 'Invalid request content source %s' % requestCnt.source
 
                 request.arguments[inp.name] = ContentData(requestCnt)
-                assert log.debug('Successfully provided the next content for input (%s)', inp.name) or True
+                assert log.debug('Successfully provided the next content for input \'%s\'', inp.name) or True
 
 # --------------------------------------------------------------------
 
@@ -136,7 +131,8 @@ class ContentData(Content):
         if self._closed: raise ValueError('I/O operation on a closed content file')
 
         self._closed = True
-        if RequestContent.fetchNextContent in self._content: content = self._content.fetchNextContent()
+        if RequestContent.fetchNextContent in self._content and self._content.fetchNextContent is not None:
+            content = self._content.fetchNextContent()
         else: content = None
 
         if content is not None: return ContentData(content)

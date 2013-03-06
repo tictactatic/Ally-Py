@@ -6,13 +6,14 @@ package: ally core http
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
 
-Provides the multi part form-data conversion to url encoded content.
+Provides the multipart form-data conversion to url encoded content.
 '''
 
 from ally.container.ioc import injected
-from ally.core.spec.codes import BAD_CONTENT
-from ally.design.context import Context, requires, defines
-from ally.design.processor import HandlerProcessor, Chain
+from ally.core.http.spec.codes import MUTLIPART_ERROR
+from ally.design.processor.attribute import requires, defines
+from ally.design.processor.context import Context
+from ally.design.processor.handler import HandlerProcessorProceed
 from ally.support.util_io import IInputStream
 from collections import Callable, deque
 from io import BytesIO
@@ -46,15 +47,15 @@ class Response(Context):
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    code = defines(int)
+    code = defines(str)
+    status = defines(int)
     isSuccess = defines(bool)
-    text = defines(str)
     errorMessage = defines(str)
 
 # --------------------------------------------------------------------
 
 @injected
-class ParseFormDataHandler(HandlerProcessor):
+class ParseFormDataHandler(HandlerProcessorProceed):
     '''
     Provides the multi part form data content handler processor.
     '''
@@ -87,17 +88,16 @@ class ParseFormDataHandler(HandlerProcessor):
 
         self._reMultipart = re.compile(self.regexMultipart)
 
-    def process(self, chain, requestCnt:RequestContent, response:Response, **keyargs):
+    def process(self, requestCnt:RequestContent, response:Response, **keyargs):
         '''
-        @see: HandlerProcessor.process
+        @see: HandlerProcessorProceed.process
+        
+        Process the multi part data.
         '''
-        assert isinstance(chain, Chain), 'Invalid processors chain %s' % chain
         assert isinstance(requestCnt, RequestContent), 'Invalid request content %s' % requestCnt
         assert isinstance(response, Response), 'Invalid response %s' % response
 
-        chain.proceed()
-
-        if RequestContent.previousContent not in requestCnt: return
+        if requestCnt.previousContent is None: return
         # If there is no previous content it means that this is not a multi part request content.
         multiCnt = requestCnt.previousContent
         assert isinstance(multiCnt, RequestContent), 'Invalid request content %s' % multiCnt
@@ -108,9 +108,8 @@ class ParseFormDataHandler(HandlerProcessor):
         content, parameters = requestCnt, deque()
         while True:
             if content.disposition != self.contentDisposition:
-                response.code, response.isSuccess = BAD_CONTENT
-                response.text = 'Invalid multi part form data'
-                response.errorMessage = 'Invalid multi part form data content disposition \'%s\'' % content.disposition
+                response.code, response.status, response.isSuccess = MUTLIPART_ERROR
+                response.errorMessage = 'Invalid multipart form data content disposition \'%s\'' % content.disposition
                 return
 
             name = content.dispositionAttr.pop(self.attrContentDispositionFile, None)
@@ -120,8 +119,7 @@ class ParseFormDataHandler(HandlerProcessor):
 
             name = content.dispositionAttr.pop(self.attrContentDispositionName, None)
             if not name:
-                response.code, response.isSuccess = BAD_CONTENT
-                response.text = 'No name in content disposition'
+                response.code, response.status, response.isSuccess = MUTLIPART_ERROR
                 response.errorMessage = 'Missing the content disposition header attribute name'
                 return
 

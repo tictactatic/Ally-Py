@@ -10,9 +10,10 @@ Provides the decoding/encoding for the content length header.
 '''
 
 from ally.container.ioc import injected
-from ally.design.context import Context, requires, defines, optional
-from ally.design.processor import HandlerProcessorProceed
-from ally.http.spec.codes import INVALID_HEADER_VALUE
+from ally.core.http.spec.codes import CONTENT_LENGHT_ERROR
+from ally.design.processor.attribute import requires, defines, optional
+from ally.design.processor.context import Context
+from ally.design.processor.handler import HandlerProcessorProceed
 from ally.http.spec.server import IEncoderHeader, IDecoderHeader
 from ally.support.util_io import IInputStream, IClosable
 
@@ -42,10 +43,10 @@ class ResponseDecode(Context):
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    code = defines(int)
+    code = defines(str)
+    status = defines(int)
     isSuccess = defines(bool)
     text = defines(str)
-    errorMessage = defines(str)
 
 # --------------------------------------------------------------------
 
@@ -79,13 +80,12 @@ class ContentLengthDecodeHandler(HandlerProcessorProceed):
             try: requestCnt.length = int(value)
             except ValueError:
                 if response.isSuccess is False: return  # Skip in case the response is in error
-                response.code, response.isSuccess = INVALID_HEADER_VALUE
-                response.text = 'Invalid %s' % self.nameContentLength
-                response.errorMessage = 'Invalid value \'%s\' for header \'%s\''\
+                response.code, response.status, response.isSuccess = CONTENT_LENGHT_ERROR
+                response.text = 'Invalid value \'%s\' for header \'%s\''\
                 ', expected an integer value' % (value, self.nameContentLength)
                 return
             else:
-                if RequestContentDecode.source in requestCnt:
+                if RequestContentDecode.source in requestCnt and requestCnt.source is not None:
                     requestCnt.source = StreamLimitedLength(requestCnt.source, requestCnt.length)
 
 class StreamLimitedLength(IInputStream, IClosable):
@@ -179,5 +179,5 @@ class ContentLengthEncodeHandler(HandlerProcessorProceed):
         assert isinstance(response.encoderHeader, IEncoderHeader), \
         'Invalid response header encoder %s' % response.encoderHeader
 
-        if ResponseContentEncode.length in responseCnt:
+        if responseCnt.length is not None:
             response.encoderHeader.encode(self.nameContentLength, str(responseCnt.length))

@@ -10,12 +10,11 @@ Contains the GUI configuration setup for the node presenter plugin.
 '''
 
 from ..gui_core import publish_gui_resources
-from ..gui_core.gui_core import getPublishedLib, gui_folder_format
-from ..plugin.registry import cdmGUI
-from .gui_core import getGuiPath, lib_folder_format, publishLib
+from .gui_core import cdmGUI, getGuiPath, lib_folder_format, publishLib, \
+    getPublishedLib, gui_folder_format, publish
+from __setup__.ally_http import server_port
 from ally.container import ioc
 from ally.support.util_io import openURI
-from distribution.container import app
 from io import BytesIO
 import logging
 
@@ -47,16 +46,19 @@ def ui_demo_file():
 
 @ioc.config
 def server_url():
-    ''' for demo file update... '''
-    return 'localhost:8080'
+    '''
+    The GUI server URL. This location is used for loading the client java script files.
+    !Attention this configuration needs to be in concordance with 'server_host' an 'server_port' configurations.
+    '''
+    return 'localhost:%s' % server_port()
 
 # --------------------------------------------------------------------
 
-@app.populate
-def publish():
+@publish
+def publishCore():
     publishLib('core')
 
-@ioc.after(publish)
+@ioc.after(publishCore)
 def updateStartup():
     if not publish_gui_resources(): return  # No publishing is allowed
     bootPath = lib_folder_format() % 'core/'
@@ -71,7 +73,7 @@ def updateStartup():
 
     for f in fileList: f.close()
 
-@ioc.after(publish)
+@ioc.after(publishCore)
 def updateStartFile():
     if not publish_gui_resources(): return  # No publishing is allowed
     try:

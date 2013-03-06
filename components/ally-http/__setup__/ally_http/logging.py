@@ -9,11 +9,12 @@ Created on Nov 7, 2012
 Update the default logging.
 '''
 
-from ..ally_utilities.logging import info_for
+from ..ally.logging import info_for
 from ally.container import ioc
+from ally.http import server
 
 # --------------------------------------------------------------------
 
 @ioc.before(info_for)
 def updateInfos():
-    return info_for().append('ally.http.server')
+    return info_for().append(server.__name__)

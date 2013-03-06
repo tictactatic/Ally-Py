@@ -117,3 +117,19 @@ class IRbacService(metaclass=abc.ABCMeta):
         @param roleId: integer
             The role id to be deleted.
         '''
+
+class IRbacSupport(metaclass=abc.ABCMeta):
+    '''
+    Provides support for querying RBAC data.
+    '''
+        
+    @abc.abstractmethod
+    def iterateTypeAndRightsNames(self, rbacId):
+        '''
+        Iterates the RBAC right types and rights names for the provided rbac id.
+        
+        @param rbacId: integer
+            The rbac id.
+        @return: Iterable(tuple(string, Iterable(string)))
+            Iterable that provides (right type name, Iterable(right name)).
+        '''

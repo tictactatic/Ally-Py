@@ -9,12 +9,13 @@ Created on Nov 24, 2011
 Provides the configurations for the processors used in handling the request.
 '''
 
-from ..ally_core.processor import updateAssemblyResources, assemblyResources, \
-    argumentsBuild
+from ..ally_core.processor import invoking
+from ..ally_core_http.processor import assemblyResources, \
+    updateAssemblyResources
 from ally.container import ioc
 from ally.core.sqlalchemy.processor.transactional_wrapping import \
     TransactionWrappingHandler
-from ally.design.processor import Handler
+from ally.design.processor.handler import Handler
 
 # --------------------------------------------------------------------
 # Creating the processors used in handling the sql alchemy session
@@ -26,4 +27,4 @@ def transactionWrapping() -> Handler: return TransactionWrappingHandler()
 
 @ioc.after(updateAssemblyResources)
 def updateAssemblyResourcesForAlchemy():
-    assemblyResources().add(transactionWrapping(), after=argumentsBuild())
+    assemblyResources().add(transactionWrapping(), before=invoking())
