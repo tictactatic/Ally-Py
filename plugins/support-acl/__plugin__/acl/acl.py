@@ -22,6 +22,17 @@ def aclRight(name, description) -> RightService:
     aclType().add(b)
     return b
 
+def aclAlternate(forRef, theRef):
+    '''
+    Adds 'theRef' reference as an alternate 'forRef' reference.
+        
+    @param forRef: tuple(class, string)
+        The call reference for which the alternate is specified.
+    @param theRef: tuple(class, string)
+        The call reference which is an alternative the for reference.
+    '''
+    alternate().add(forRef, theRef)
+
 # --------------------------------------------------------------------
 
 @ioc.entity
