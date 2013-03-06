@@ -183,6 +183,9 @@ table thead tr th.desc {
 				padding-left:8px;
 				border-left:1px solid #CCC;
 				}
+.live-blog-content .tab-content {
+	display:block !important;
+}
 				
 .ui-droppable-highlight
 {
@@ -344,10 +347,14 @@ table thead tr th.desc {
 }
 #timeline-view .post-list .editable.annotation
 {
-	border: 1px dotted #ccc;
+	border: 1px dotted #fff;
 	min-height: 18px;
 	.clearfix();
-	padding:3px 5px;
+	padding:3px 5px 3px 0;
+	margin-left: -1px;
+}
+#timeline-view .post-list li:hover .editable.annotation {
+	border-color: #ccc;
 }
 #timeline-view .post-list .actions
 {
@@ -449,7 +456,7 @@ table thead tr th.desc {
 #timeline-view .instagram .editable.annotation,
 #timeline-view .youtube .editable.annotation,
 #timeline-view .flickr .editable.annotation {
-	margin-left:0px;
+	/* margin-left:0px; */
 }
 
 #timeline-view .google-full-content,
@@ -473,7 +480,11 @@ table thead tr th.desc {
 	padding-bottom: 5px;
 }
 
-#timeline-view, #own-posts-holder {
+#timeline-view .youtube-full-content .result-content {
+	overflow:hidden;
+}
+
+#timeline-view, #own-posts-holder, #colabs {
 	.post-info {
 		padding:3px 0 5px 60px; 
 		p[rel="author"] {
@@ -494,6 +505,9 @@ table thead tr th.desc {
 		}
 
 	} 
+}
+#colabs .postinfo {
+	
 }
 
 #own-posts-holder {

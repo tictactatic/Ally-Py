@@ -5982,6 +5982,9 @@ table thead tr th.desc {
   padding-left: 8px;
   border-left: 1px solid #CCC;
 }
+.live-blog-content .tab-content {
+  display: block !important;
+}
 .ui-droppable-highlight {
   border-color: rgba(82, 168, 236, 0.8);
   -webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(82, 168, 236, 0.6);
@@ -6152,10 +6155,11 @@ table thead tr th.desc {
   cursor: text;
 }
 #timeline-view .post-list .editable.annotation {
-  border: 1px dotted #ccc;
+  border: 1px dotted #fff;
   min-height: 18px;
   *zoom: 1;
-  padding: 3px 5px;
+  padding: 3px 5px 3px 0;
+  margin-left: -1px;
 }
 #timeline-view .post-list .editable.annotation:before,
 #timeline-view .post-list .editable.annotation:after {
@@ -6164,6 +6168,9 @@ table thead tr th.desc {
 }
 #timeline-view .post-list .editable.annotation:after {
   clear: both;
+}
+#timeline-view .post-list li:hover .editable.annotation {
+  border-color: #ccc;
 }
 #timeline-view .post-list .actions {
   margin-top: 5px;
@@ -6250,7 +6257,8 @@ table thead tr th.desc {
 #timeline-view .instagram .editable.annotation,
 #timeline-view .youtube .editable.annotation,
 #timeline-view .flickr .editable.annotation {
-  margin-left: 0px;
+  /* margin-left:0px; */
+
 }
 #timeline-view .google-full-content,
 #timeline-view .youtube-full-content,
@@ -6270,12 +6278,17 @@ table thead tr th.desc {
   line-height: 18px;
   padding-bottom: 5px;
 }
+#timeline-view .youtube-full-content .result-content {
+  overflow: hidden;
+}
 #timeline-view .post-info,
-#own-posts-holder .post-info {
+#own-posts-holder .post-info,
+#colabs .post-info {
   padding: 3px 0 5px 60px;
 }
 #timeline-view .post-info p[rel="author"],
-#own-posts-holder .post-info p[rel="author"] {
+#own-posts-holder .post-info p[rel="author"],
+#colabs .post-info p[rel="author"] {
   font-size: 12px;
   font-weight: bold;
   color: #000;
@@ -6286,7 +6299,8 @@ table thead tr th.desc {
   line-height: 14px;
 }
 #timeline-view .post-info time,
-#own-posts-holder .post-info time {
+#own-posts-holder .post-info time,
+#colabs .post-info time {
   color: #686868;
   font-size: 11px;
   line-height: 14px;
