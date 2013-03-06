@@ -484,7 +484,8 @@ class CallEventControlled(WithCall, WithListeners):
         '''
         Provides the call for the source.
         '''
-        if self._processed: return self._value
+        if self._processed:
+            return self._value
         self._processed = True
         self.assembly.called.add(self.name)
 

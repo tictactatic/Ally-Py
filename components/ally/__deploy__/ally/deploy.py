@@ -10,7 +10,7 @@ Special module that is used in deploying the application.
 '''
 
 from .prepare import OptionsCore
-from __setup__.ally.logging import format, debug_for, info_for, warning_for
+from __setup__.ally.logging import format, debug_for, info_for, warning_for, log_file
 from ally.container import ioc, aop, context, support, event
 from ally.container.error import SetupError, ConfigError
 from ally.container.impl.config import load, save

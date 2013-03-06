@@ -9,7 +9,7 @@ Created on Jan 21, 2013
 Contains the setups for populating default data.
 '''
 
-from ally.container import support, app
+from ally.container import support, app, ioc
 from ally.internationalization import NC_
 from security.rbac.api.rbac import IRoleService, Role
 
@@ -18,6 +18,12 @@ from security.rbac.api.rbac import IRoleService, Role
 NAME_ROOT = NC_('security role', 'ROOT')  # The name for the root role
 
 # --------------------------------------------------------------------
+
+@ioc.entity
+def rootRoleId():
+    roleService = support.entityFor(IRoleService)
+    assert isinstance(roleService, IRoleService)
+    return roleService.getByName(NAME_ROOT).Id
 
 @app.populate(priority=app.PRIORITY_FIRST)
 def populateRootRole():

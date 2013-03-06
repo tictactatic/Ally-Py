@@ -75,33 +75,30 @@ def nameInEntity(clazz, name, module=None):
 
 # --------------------------------------------------------------------
 
-def callEntityEvent(group, clazz, name, assembly=None):
+def callEntityEvent(name, nameEvent, assembly=None):
     '''
     !Attention this function is only available in an open assembly if the assembly is not provided @see: ioc.open!
     Calls a inner entity event.
     
-    @param group: string|module
-        The group or setup module to consider the call in.
+    @param name: string
+        The setup name of the entity having the event function.
     @param clazz: class
         The class of the entity to call the event for.
-    @param name: string|function
+    @param nameEvent: string|function
         The name of the event function.
     @param assembly: Assembly|None
         The assembly to find the entity in, if None the current assembly will be considered.
     '''
-    if ismodule(group): group = group.__name__
-    assert isinstance(group, str), 'Invalid group %s' % group
-    assert isclass(clazz), 'Invalid class %s' % clazz
-    if isfunction(name) or ismethod(name): name = name.__name__
-    assert isinstance(name, str), 'Invalid name %s' % name
+    assert isinstance(name, str), 'Invalid setup name %s' % name
+    if isfunction(nameEvent) or ismethod(nameEvent): nameEvent = nameEvent.__name__
+    assert isinstance(nameEvent, str), 'Invalid event name %s' % nameEvent
     
     assembly = assembly or Assembly.current()
     assert isinstance(assembly, Assembly), 'Invalid assembly %s' % assembly
-            
-    entity = entityFor(clazz, group=group, assembly=assembly)
     
     Assembly.stack.append(assembly)
-    try: return getattr(entity, name)()
+    entity = assembly.processForName(name)
+    try: return getattr(entity, nameEvent)()
     except AttributeError: raise SetupError('Invalid call name \'%s\' for entity %s' % (name, entity))
     finally: Assembly.stack.pop()
 
@@ -226,6 +223,7 @@ def eventEntities(*classes, module=None, nameInEntity=nameInEntity):
     '''
     Creates entity event setups for the provided classes. The event setups consists of configurations found in the
     provided classes that will be published in the setup module.
+    !!! Currently this works only with 'createEntitySetup'.
     
     @param classes: arguments(string|class|module|AOPClasses)
         The classes to be processed for events.
@@ -251,7 +249,7 @@ def eventEntities(*classes, module=None, nameInEntity=nameInEntity):
             for event in advent.events:
                 assert isinstance(event, Event)
                 name = nameInEntity(clazz, event.name, group)
-                eventCall = partial(callEntityEvent, group, clazz, event.name)
+                eventCall = partial(callEntityEvent, name, event.name)
                 register(SetupEventControlled(eventCall, event.priority, event.triggers, name=name, group=group), registry)
 
 # --------------------------------------------------------------------

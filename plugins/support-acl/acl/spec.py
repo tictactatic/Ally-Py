@@ -61,8 +61,10 @@ class RightAcl:
         '''
         assert isinstance(name, str), 'Invalid name %s' % name
         assert isinstance(description, str), 'Invalid description %s' % description
+        
         self.name = name.strip()
         self.description = description.strip()
+        self.type = None
 
 class TypeAcl:
     '''
@@ -123,7 +125,9 @@ class TypeAcl:
         '''
         assert isinstance(right, RightAcl), 'Invalid right %s' % right
         assert right.name not in self._rights, 'Already a right with name %s' % right.name
+        assert right.type is None, 'The right %s already has a type' % right.type
         self._rights[right.name] = right
+        right.type = self
         return right
     
     def addDefault(self, right):
@@ -137,7 +141,9 @@ class TypeAcl:
             The same right.
         '''
         assert isinstance(right, RightAcl), 'Invalid right %s' % right
+        assert right.type is None, 'The right %s already has a type' % right.type
         self._defaults.append(right)
+        right.type = self
         return right
     
 class Acl:

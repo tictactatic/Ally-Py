@@ -21,7 +21,7 @@ from security.meta.right import RightMapped
 from security.rbac.api.rbac import IRoleService, QRole, Role
 from security.rbac.core.spec import IRbacService
 from security.rbac.meta.rbac import RoleMapped
-from security.rbac.meta.rbac_intern import RbacRight, RbacRole
+from security.rbac.meta.rbac_intern import RbacRight
 from sql_alchemy.impl.entity import EntityServiceAlchemy
 from sqlalchemy.orm.exc import NoResultFound
 
