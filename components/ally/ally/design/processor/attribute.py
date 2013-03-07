@@ -31,7 +31,7 @@ def defines(*types, doc=None):
     
     @param types: arguments[class]
         The types of the defined attribute.
-    @keyword doc: string
+    @param doc: string|None
         The documentation associated with the attribute.
     '''
     return Attribute(DEFINED, types, doc=doc)
@@ -47,7 +47,7 @@ def definesIf(*types, doc=None):
     
     @param types: arguments[class]
         The types of the defined attribute.
-    @keyword doc: string
+    @param doc: string|None
         The documentation associated with the attribute.
     '''
     return Attribute(DEFINED | OPTIONAL, types, doc=doc)
@@ -62,7 +62,7 @@ def optional(*types, doc=None):
     
     @param types: arguments[class]
         The types of the optional attribute, the attribute value can be any one of the provided attributes.
-    @keyword doc: string
+    @param doc: string|None
         The documentation associated with the attribute.
     '''
     return Attribute(OPTIONAL, types, doc)
@@ -74,7 +74,7 @@ def requires(*types, doc=None):
     
     @param types: arguments[class]
         The types of the required attribute, the attribute value can be any one of the provided attributes.
-    @param doc: string
+    @param doc: string|None
         The documentation associated with the attribute.
     '''
     return Attribute(REQUIRED, types, doc=doc)

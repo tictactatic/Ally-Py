@@ -233,7 +233,7 @@ def asData(context, *classes):
         
     data = {}
     for name in common:
-        if (name, context.__attributes__[name]) in context: data[name] = getattr(context, name)
+        if context.__attributes__[name] in context: data[name] = getattr(context, name)
 
     return data
 
