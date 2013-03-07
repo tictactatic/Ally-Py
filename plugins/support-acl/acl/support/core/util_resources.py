@@ -90,5 +90,5 @@ def processPattern(path, invoker, encoder, values=None):
         else: raise Exception('Unusable type \'%s\'' % propertyType)
         types.append(propertyType)
     
-    pattern = encoder.encode(path, asPattern=True, invalid=ReplacerWithMarkers().register(replaceMarkers))
+    pattern = encoder.encodePattern(path, invalid=ReplacerWithMarkers().register(replaceMarkers))
     return '%s[\\/]?(?:\\.|$)' % pattern, types

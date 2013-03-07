@@ -275,4 +275,4 @@ class GatewaysFromPermissions(HandlerProcessorProceed):
             log.error('The filter service %s has not authenticated value for %s', typeService, rfilter.authenticated)
             return
         
-        return encoder.encode(path, invalid=ReplacerWithMarkers().register((valueAuth, marker)), asQuoted=False)
+        return encoder.encode(path, invalid=ReplacerWithMarkers().register((valueAuth, marker)), quoted=False)

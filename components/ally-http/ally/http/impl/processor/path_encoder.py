@@ -86,7 +86,6 @@ class EncoderPathNothing(Singletone, IEncoderPath):
     '''
     Provides no encoding for URIs.
     '''
-    
     __slots__ = ()
 
     def encode(self, path, parameters=None):
@@ -106,6 +105,12 @@ class EncoderPathNothing(Singletone, IEncoderPath):
             parameters = urlencode(parameters)
         else: parameters = ''
         return urlunsplit((url.scheme, url.netloc, url.path, parameters, ''))
+    
+    def encodePattern(self, path):
+        '''
+        @see: IEncoderPath.encodePattern
+        '''
+        raise NotImplementedError('Not need to implement, at least until now')
 
 class EncoderPathHost(IEncoderPath):
     '''
@@ -152,3 +157,9 @@ class EncoderPathHost(IEncoderPath):
         if url.netloc: return urlunsplit((self._scheme, url.netloc, url.path, parameters, ''))
         # We just needed to append the scheme
         return urlunsplit((self._scheme, self._host, url.path, parameters, ''))
+    
+    def encodePattern(self, path):
+        '''
+        @see: IEncoderPath.encodePattern
+        '''
+        raise NotImplementedError('Not need to implement, at least until now')

@@ -110,53 +110,73 @@ class EncoderPathResource(IEncoderPath):
         self.wrapped = wrapped
         self.extension = extension
 
-    def encode(self, path, invalid=None, **keyargs):
+    def encode(self, path, invalid=None, quoted=None, **keyargs):
         '''
         @see: EncoderPath.encode
         
         @param invalid: @see: Path.toPaths
             The callable to handle invalid matches.
         
-        @keyword asPattern: boolean
-            Flag indicating that the encoded path is used as a pattern.
-        @keyword asQuoted: boolean
+        @keyword quoted: boolean|None
             Flag indicating that the encoded path should be quoted. 
         '''
-        asPattern, asQuoted = keyargs.get('asPattern', False), keyargs.get('asQuoted', True)
-        assert isinstance(asPattern, bool), 'Invalid as pattern flag %s' % asPattern
-        assert isinstance(asQuoted, bool), 'Invalid as quoted flag %s' % asQuoted
         if isinstance(path, Path):
+            if quoted is None: quoted = True
+            assert isinstance(quoted, bool), 'Invalid as quoted flag %s' % quoted
             assert isinstance(path, Path)
             
             uri, paths = [], path.toPaths(self.handler.converterPath, invalid=invalid)
             
-            if asPattern: uri.append('\\/'.join(paths))
-            else: uri.append('/'.join(paths))
+            uri.append('/'.join(paths))
             if self.extension:
-                if asPattern: uri.append('\\.')
-                else: uri.append('.')
+                uri.append('.')
                 uri.append(self.extension)
-            elif not asPattern:
-                if path.node.isGroup: uri.append('/')
-                elif paths[-1].count('.') > 0:
-                    # Added just in case the last entry has a dot in it and not to be confused as a extension
-                    uri.append('/')  
+            elif path.node.isGroup: uri.append('/')
+            elif paths[-1].count('.') > 0: uri.append('/')
+            # Added just in case the last entry has a dot in it and not to be confused as a extension
             
             uri = ''.join(uri)
-            if asPattern:
-                if self.handler.resourcesRootPattern: uri = self.handler.resourcesRootPattern % uri
-            else:
-                if asQuoted: uri = quote(uri)
-                if self.handler.resourcesRootURI: uri = self.handler.resourcesRootURI % uri
+            if quoted: uri = quote(uri)
+            if self.handler.resourcesRootURI: uri = self.handler.resourcesRootURI % uri
             
             if self.wrapped: return self.wrapped.encode(uri, **keyargs)
             return uri
         
         elif self.wrapped is None:
-            assert asPattern is False, 'Cannot encode as pattern the provided path %s' % path
-            assert invalid is not None, 'Cannot invalid replacer expected %s' % invalid
+            assert quoted is not None, 'No quoted flag expected'
+            assert invalid is not None, 'No invalid replacer expected %s' % invalid
             assert not keyargs, 'Invalid key arguments %s' % keyargs
             return path
         
-        if asPattern: return self.wrapped.encode(path, **keyargs)
         return self.wrapped.encode(path, **keyargs)
+    
+    def encodePattern(self, path, invalid=None, **keyargs):
+        '''
+        @see: EncoderPath.encodePattern
+        
+        @param invalid: @see: Path.toPaths
+            The callable to handle invalid matches.
+        '''
+        if isinstance(path, Path):
+            assert isinstance(path, Path)
+            
+            uri, paths = [], path.toPaths(self.handler.converterPath, invalid=invalid)
+            
+            uri.append('\\/'.join(paths))
+            if self.extension:
+                uri.append('\\.')
+                uri.append(self.extension)
+            
+            uri = ''.join(uri)
+            if self.handler.resourcesRootPattern: uri = self.handler.resourcesRootPattern % uri
+            
+            if self.wrapped: return self.wrapped.encodePattern(uri, **keyargs)
+            return uri
+        
+        elif self.wrapped is None:
+            assert invalid is not None, 'No invalid replacer expected %s' % invalid
+            assert not keyargs, 'Invalid key arguments %s' % keyargs
+            return path
+        
+        return self.wrapped.encodePattern(path, **keyargs)
+        
