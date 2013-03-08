@@ -250,6 +250,15 @@ class TypeModelProperty(TypeProperty):
         '''
         assert isinstance(parent, TypeModel), 'Invalid model type %s' % parent
         super().__init__(parent, property, type)
+        
+    def isId(self):
+        '''
+        Checks if the model property type represent a model id.
+        
+        @return: boolean
+            True if the property type represents a property id, False otherwise.
+        '''
+        return self.container.propertyId == self.property
 
 class TypeCriteriaEntry(TypeClass):
     '''

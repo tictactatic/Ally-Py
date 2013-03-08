@@ -9,7 +9,7 @@ Created on Jul 3, 2011
 Provides additional configurations for the Zend PHP client.
 '''
 
-from ..ally_core.encoder_decoder import content_types_json
+from ..ally_core.parsing_rendering import content_types_json
 from ally.container import ioc
 
 # --------------------------------------------------------------------

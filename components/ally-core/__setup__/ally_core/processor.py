@@ -9,16 +9,16 @@ Created on Nov 24, 2011
 Provides the configurations for the processors used in handling the request.
 '''
 
-from .encoder_decoder import renderingAssembly, assemblyParsing
+from .encode import assemblyEncode
+from .parsing_rendering import renderingAssembly, assemblyParsing
 from ally.container import ioc
 from ally.core.impl.processor.arguments import ArgumentsPrepareHandler, \
     ArgumentsBuildHandler
 from ally.core.impl.processor.content import ContentHandler
 from ally.core.impl.processor.decoder import CreateDecoderHandler
-from ally.core.impl.processor.encoder import CreateEncoderHandler
+from ally.core.impl.processor.encoding import EncodingHandler
 from ally.core.impl.processor.invoking import InvokingHandler
 from ally.core.impl.processor.parsing import ParsingHandler
-from ally.core.impl.processor.render_encoder import RenderEncoderHandler
 from ally.core.impl.processor.rendering import RenderingHandler
 from ally.core.impl.processor.text_conversion import ConversionSetHandler
 from ally.core.spec.resources import Normalizer, Converter
@@ -41,16 +41,6 @@ def default_characterset() -> str:
 def explain_detailed_error():
     '''If True will provide as an error response a detailed response containing info about where the problem originated'''
     return True
-
-@ioc.config
-def allow_chuncked_response():
-    '''Flag indicating that a chuncked transfer is allowed, more or less if this is false a length is a must'''
-    return False
-
-@ioc.config
-def chunck_size():
-    '''The buffer size used in the generator returned chuncks'''
-    return 4096
 
 # --------------------------------------------------------------------
 
@@ -83,9 +73,6 @@ def conversion() -> Handler:
 def createDecoder() -> Handler: return CreateDecoderHandler()
 
 @ioc.entity
-def createEncoder() -> Handler: return CreateEncoderHandler()
-
-@ioc.entity
 def parser() -> Handler:
     b = ParsingHandler()
     b.charSetDefault = default_characterset()
@@ -102,9 +89,8 @@ def argumentsBuild() -> Handler: return ArgumentsBuildHandler()
 def invoking() -> Handler: return InvokingHandler()
 
 @ioc.entity
-def renderEncoder() -> Handler:
-    b = RenderEncoderHandler()
-    b.allowChunked = allow_chuncked_response()
-    b.bufferSize = chunck_size()
+def encoder() -> Handler:
+    b = EncodingHandler()
+    b.encodeAssembly = assemblyEncode()
     return b
 

@@ -6,7 +6,7 @@ Created on Nov 24, 2011
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
 
-Provides the configurations for the processors encoders and decoders.
+Provides the setups for the parsing/rendering processors.
 '''
 
 from ally.container import ioc
@@ -66,6 +66,31 @@ def content_types_yaml() -> dict:
             }
 
 # --------------------------------------------------------------------
+# Creating the parsers
+
+@ioc.entity
+def assemblyParsing() -> Assembly:
+    '''
+    The assembly containing the request parsers.
+    '''
+    return Assembly('Parsing request content')
+
+@ioc.entity
+def parseJSON() -> Handler:
+    import json
+    def parserJSON(content, charSet): return json.load(codecs.getreader(charSet)(content))
+
+    b = ParseTextHandler(); yield b
+    b.contentTypes = set(content_types_json())
+    b.parser = parserJSON
+    b.parserName = 'json'
+
+@ioc.entity
+def parseXML() -> Handler:
+    b = ParseXMLHandler(); yield b
+    b.contentTypes = set(content_types_xml())
+
+# --------------------------------------------------------------------
 # Create the renders
 
 @ioc.entity
@@ -74,13 +99,6 @@ def renderingAssembly() -> Assembly:
     The assembly containing the response renders.
     '''
     return Assembly('Renderer selection')
-
-@ioc.entity
-def assemblyParsing() -> Assembly:
-    '''
-    The assembly containing the request parsers.
-    '''
-    return Assembly('Parsing request content')
 
 @ioc.entity
 def renderJSON() -> Handler:
@@ -103,29 +121,16 @@ def renderXML() -> Handler:
     b.contentTypes = content_types_xml()
 
 # --------------------------------------------------------------------
-# Creating the parsers
-
-@ioc.entity
-def parseJSON() -> Handler:
-    import json
-    def parserJSON(content, charSet): return json.load(codecs.getreader(charSet)(content))
-
-    b = ParseTextHandler(); yield b
-    b.contentTypes = set(content_types_json())
-    b.parser = parserJSON
-    b.parserName = 'json'
-
-@ioc.entity
-def parseXML() -> Handler:
-    b = ParseXMLHandler(); yield b
-    b.contentTypes = set(content_types_xml())
-
-# --------------------------------------------------------------------
 
 @ioc.before(assemblyParsing)
 def updateAssemblyParsing():
     assemblyParsing().add(parseJSON())
     assemblyParsing().add(parseXML())
+    
+@ioc.before(renderingAssembly)
+def updateRenderingAssembly():
+    renderingAssembly().add(renderJSON())
+    renderingAssembly().add(renderXML())
 
 try: import yaml
 except ImportError: log.info('No YAML library available, no yaml available for output or input')
@@ -140,13 +145,6 @@ else:
         b = RenderTextHandler(); yield b
         b.contentTypes = content_types_yaml()
         b.rendererTextObject = rendererYAML
-    
-    @ioc.before(renderingAssembly)
-    def updateRenderingAssembly():
-        renderingAssembly().add(renderJSON())
-        renderingAssembly().add(renderXML())
-        renderingAssembly().add(renderYAML())
-
 
     @ioc.entity
     def parseYAML() -> Handler:
@@ -156,7 +154,13 @@ else:
         b.contentTypes = set(content_types_yaml())
         b.parser = parserYAML
         b.parserName = 'yaml'
-        
-    @ioc.before(assemblyParsing)
+ 
+    # ----------------------------------------------------------------
+       
+    @ioc.after(updateAssemblyParsing)
     def updateAssemblyParsingWithYAML():
         assemblyParsing().add(parseYAML())
+    
+    @ioc.after(updateRenderingAssembly)
+    def updateRenderingAssemblyWithYAML():
+        renderingAssembly().add(renderYAML())

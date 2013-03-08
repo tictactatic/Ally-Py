@@ -9,7 +9,7 @@ Created on Jun 12, 2012
 Provides the context support.
 '''
 
-from .spec import IAttribute, IResolver, Resolvers, ContextMetaClass
+from .spec import IAttribute, IResolver, ContextMetaClass, IResolvers
 from ally.support.util import immut
 
 # --------------------------------------------------------------------
@@ -166,7 +166,7 @@ def create(resolvers):
     '''
     Creates the object contexts for the provided resolvers.
     
-    @param resolvers: Resolvers
+    @param resolvers: IResolvers
         The resolvers to create the context for.
     '''
     contexts = {}
@@ -182,7 +182,7 @@ def createDefinition(resolvers):
     '''
     Creates the definition contexts for the provided resolvers.
     
-    @param resolvers: Resolvers
+    @param resolvers: IResolvers
         The resolvers to create the context for.
     '''
     contexts = {}
@@ -197,12 +197,12 @@ def groupResolversByContext(resolvers):
     '''
     Groups the resolvers from the provided resolvers repository based on context.
     
-    @param resolvers: Resolvers
+    @param resolvers: IResolvers
         The resolvers to group by.
     @return: dictionary{string: dictionary{string: IResolver}}
         The grouped resolvers, first dictionary key is the context name and second dictionary key is the attribute name.
     '''
-    assert isinstance(resolvers, Resolvers), 'Invalid resolvers %s' % resolvers
+    assert isinstance(resolvers, IResolvers), 'Invalid resolvers %s' % resolvers
     
     resolversByContext = {}
     for key, resolver in resolvers.iterate():
@@ -244,7 +244,7 @@ def copy(src, dest, *classes):
     @param context: object
         The context object to get the data from.
     @param classes: arguments[ContextMetaClass]
-        The context classes to construct the data based on.
+        The context classes to copy the data based on.
     '''
     assert isinstance(src, Context), 'Invalid source context %s' % src
     assert isinstance(dest, Context), 'Invalid destination context %s' % dest
@@ -257,3 +257,17 @@ def copy(src, dest, *classes):
         
     for name in common:
         if (name, src.__attributes__[name]) in src: setattr(dest, name, getattr(src, name))
+
+def clone(context):
+    '''
+    Clones the provided context object.
+    
+    @param context: object
+        The context object to clone.
+    @return: object
+        The cloned object context.
+    '''
+    assert isinstance(context, Context), 'Invalid context %s' % context
+    clone = context.__class__()
+    copy(context, clone)
+    return clone

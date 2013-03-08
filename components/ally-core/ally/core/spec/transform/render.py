@@ -6,7 +6,7 @@ Created on Jun 27, 2012
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
 
-Provides exploits for transforming object to rendered content. 
+Provides transforming object to rendered content. 
 '''
 
 from collections import deque

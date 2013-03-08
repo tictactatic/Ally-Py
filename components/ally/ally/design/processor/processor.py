@@ -12,13 +12,15 @@ Module containing processors.
 from .assembly import Assembly, Container
 from .context import create, createDefinition
 from .execution import Chain, Processing
+from .resolvers import Resolvers
 from .spec import AssemblyError, IProcessor, ContextMetaClass, ProcessorError, \
-    Resolvers, IReport, ResolverError
+    IReport, ResolverError, IResolvers
 from ally.support.util_sys import locationStack
 from collections import Iterable
 from inspect import ismethod, isfunction, getfullargspec
 from itertools import chain
 import abc
+from ally.design.processor.resolvers import ResolversFilter
 
 # --------------------------------------------------------------------
 
@@ -52,7 +54,7 @@ class Processor(IProcessor):
         '''
         @see: IProcessor.register
         '''
-        assert isinstance(resolvers, Resolvers), 'Invalid resolvers %s' % resolvers
+        assert isinstance(resolvers, IResolvers), 'Invalid resolvers %s' % resolvers
         assert isinstance(calls, list), 'Invalid calls %s' % calls
         resolvers.merge(self.contexts)
         calls.append(self.call)
@@ -116,7 +118,7 @@ class Contextual(Processor):
         '''
         @see: IProcessor.register
         '''
-        assert isinstance(resolvers, Resolvers), 'Invalid resolvers %s' % resolvers
+        assert isinstance(resolvers, IResolvers), 'Invalid resolvers %s' % resolvers
         assert isinstance(calls, list), 'Invalid calls %s' % calls
         
         try: resolvers.merge(self.contexts)
@@ -298,8 +300,8 @@ class Routing(IBranch):
         @see: IBrach.process
         '''
         assert isinstance(processor, Processor), 'Invalid processor %s' % processor
-        assert isinstance(sources, Resolvers), 'Invalid sources %s' % sources
-        assert isinstance(resolvers, Resolvers), 'Invalid resolvers %s' % resolvers
+        assert isinstance(sources, IResolvers), 'Invalid sources %s' % sources
+        assert isinstance(resolvers, IResolvers), 'Invalid resolvers %s' % resolvers
         assert isinstance(report, IReport), 'Invalid report %s' % report
         
         report = report.open('Routing \'%s\'' % self.assembly.name)
@@ -308,7 +310,7 @@ class Routing(IBranch):
             for rproc in self.assembly.processors:
                 assert isinstance(rproc, IProcessor), 'Invalid processor %s' % rproc
                 rproc.register(sources, rresolvs, rextens, calls, report)
-        except (ResolverError, AssemblyError): raise AssemblyError('Cannot process Routing for %s' % self.assembly.name)
+        except (ResolverError, AssemblyError): raise AssemblyError('Cannot process Routing for \'%s\'' % self.assembly.name)
         
         try:
             rresolvs.solve(processor.contexts)
@@ -318,14 +320,14 @@ class Routing(IBranch):
             rresolvs.solve(rextens)
             
             if self.merged:
-                assert isinstance(extensions, Resolvers), 'Invalid extensions %s' % extensions
+                assert isinstance(extensions, IResolvers), 'Invalid extensions %s' % extensions
                 extensions.merge(rresolvs)
                 return Processing(calls)
             
             report.add(rresolvs)
             return Processing(calls, create(rresolvs))
         except ResolverError:
-            raise AssemblyError('Resolvers problems on Routing for %s\n, with processors %s\n'
+            raise AssemblyError('Resolvers problems on Routing for \'%s\'\n, with resolvers %s\n'
                                 ', and extensions %s' % (self.assembly.name, rresolvs, rextens))
  
 class Using(IBranch):
@@ -358,8 +360,8 @@ class Using(IBranch):
         @see: IBrach.process
         '''
         assert isinstance(processor, Processor), 'Invalid processor %s' % processor
-        assert isinstance(sources, Resolvers), 'Invalid sources %s' % sources
-        assert isinstance(resolvers, Resolvers), 'Invalid resolvers %s' % resolvers
+        assert isinstance(sources, IResolvers), 'Invalid sources %s' % sources
+        assert isinstance(resolvers, IResolvers), 'Invalid resolvers %s' % resolvers
         assert isinstance(report, IReport), 'Invalid report %s' % report
         
         resolvers.merge(processor.contexts)
@@ -377,7 +379,7 @@ class Using(IBranch):
             for uproc in self.assembly.processors:
                 assert isinstance(uproc, IProcessor), 'Invalid processor %s' % uproc
                 uproc.register(usrcs, uresolvs, uextens, calls, report)
-        except (ResolverError, AssemblyError): raise AssemblyError('Cannot process Using for %s' % self.assembly.name)
+        except (ResolverError, AssemblyError): raise AssemblyError('Cannot process Using for \'%s\'' % self.assembly.name)
         
         try:
             uresolvs.solve(usrcs)
@@ -386,7 +388,7 @@ class Using(IBranch):
             report.add(uresolvs)
             return Processing(calls, create(uresolvs))
         except ResolverError:
-            raise AssemblyError('Resolvers problems on Using for %s\n, with sources %s\n, with processors %s\n'
+            raise AssemblyError('Resolvers problems on Using for \'%s\'\n, with sources %s\n, with processors %s\n'
                                 ', and extensions %s' % (self.assembly.name, usrcs, uresolvs, uextens))
             
     # ----------------------------------------------------------------
@@ -429,8 +431,8 @@ class Included(IBranch):
         @see: IBrach.process
         '''
         assert isinstance(processor, Processor), 'Invalid processor %s' % processor
-        assert isinstance(resolvers, Resolvers), 'Invalid resolvers %s' % resolvers
-        assert isinstance(extensions, Resolvers), 'Invalid extensions %s' % extensions
+        assert isinstance(resolvers, IResolvers), 'Invalid resolvers %s' % resolvers
+        assert isinstance(extensions, IResolvers), 'Invalid extensions %s' % extensions
         assert isinstance(report, IReport), 'Invalid report %s' % report
         
         report = report.open('Included \'%s\'' % self.assembly.name)
@@ -443,7 +445,7 @@ class Included(IBranch):
             
             if self.contextsUsing:
                 uattrs = iresolvs.extract(self.contextsUsing)
-                assert isinstance(uattrs, Resolvers)
+                assert isinstance(uattrs, IResolvers)
                 uattrs.solve(self.contextsUsing)
                 uattrs.validate()
                 uattrs.solve(iextens.extract(self.contextsUsing))
@@ -456,7 +458,7 @@ class Included(IBranch):
             extensions.solve(iextens)
             return Processing(calls, contexts=contexts)
         
-        except (ResolverError, AssemblyError): raise AssemblyError('Cannot process Included for %s' % self.assembly.name)
+        except (ResolverError, AssemblyError): raise AssemblyError('Cannot process Included for \'%s\'' % self.assembly.name)
     
     # ----------------------------------------------------------------
     
@@ -477,6 +479,51 @@ class Included(IBranch):
         self.contextsUsing.update(**contexts)
         return self
 
+class Filter(IBranch):
+    '''
+    Provides context filtering for a wrapped branch.
+    '''
+    __slots__ = ('filtered', 'routing')
+    
+    def __init__(self, filtered, **routing):
+        '''
+        Construct the included branch.
+        
+        @param filtered: IBranch
+            The filtered branch.
+        @param routing: dictionary{string: string}
+            Routing dictionary, as a key the context name as it is known in the processor that performs the branching and as a
+            value the name as it is known in the branch.
+        '''
+        assert isinstance(filtered, IBranch), 'Invalid branch %s' % filtered
+        assert routing, 'At least one routing is required'
+        if __debug__:
+            for name, value in routing.items():
+                assert isinstance(name, str), 'Invalid name %s' % name
+                assert isinstance(value, str), 'Invalid name %s' % value
+        
+        self.filtered = filtered
+        self.routing = routing
+    
+    def process(self, processor, sources, resolvers, extensions, report):
+        '''
+        @see: IBrach.process
+        '''
+        assert isinstance(sources, IResolvers), 'Invalid sources %s' % sources
+        assert isinstance(resolvers, IResolvers), 'Invalid resolvers %s' % resolvers
+        assert isinstance(extensions, IResolvers), 'Invalid extensions %s' % extensions
+        
+        sources = ResolversFilter(sources, self.routing)
+        resolvers = ResolversFilter(resolvers, self.routing)
+        extensions = ResolversFilter(extensions, self.routing)
+
+        processing = self.filtered.process(processor, sources, resolvers, extensions, report)
+        
+        resolvers.solveInFiltered()
+        extensions.solveInFiltered()
+        
+        return processing
+
 # --------------------------------------------------------------------
 
 def restructure(processor, *mapping):
@@ -491,6 +538,7 @@ def restructure(processor, *mapping):
     @return: Handler
         The handler that has the restructured processor.
     '''
+    # TODO: Gabriel: make the restructure based on resolver filters
     if isinstance(processor, Container):
         assert isinstance(processor, Container)
         assert len(processor.processors) == 1, 'Container %s, is required to have only one processor' % processor

@@ -11,7 +11,8 @@ Contains the assembly support.
 
 from .context import create
 from .execution import Processing
-from .spec import IProcessor, AssemblyError, Resolvers
+from .resolvers import Resolvers
+from .spec import IProcessor, AssemblyError
 from abc import ABCMeta
 from ally.design.processor.report import ReportUnused
 from collections import Iterable

@@ -9,7 +9,7 @@ Created on Feb 18, 2013
 Module containing report implementations.
 '''
 
-from .spec import IReport, Resolvers, IResolver
+from .spec import IReport, IResolver, IResolvers
 
 # --------------------------------------------------------------------
 
@@ -39,7 +39,7 @@ class ReportUnused(IReport):
         '''
         @see: IReport.add
         '''
-        assert isinstance(resolvers, Resolvers), 'Invalid resolvers %s' % resolvers
+        assert isinstance(resolvers, IResolvers), 'Invalid resolvers %s' % resolvers
         self._resolvers.append(resolvers)
         
     def report(self):
@@ -51,7 +51,7 @@ class ReportUnused(IReport):
         '''
         st, reported = [], set()
         for resolvers in self._resolvers:
-            assert isinstance(resolvers, Resolvers)
+            assert isinstance(resolvers, IResolvers)
             for key, resolver in resolvers.iterate():
                 assert isinstance(resolver, IResolver)
                 if not resolver.isUsed():

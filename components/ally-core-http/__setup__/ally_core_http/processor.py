@@ -9,18 +9,16 @@ Created on Nov 24, 2011
 Provides the configurations for the processors used in handling the request.
 '''
 
-from ..ally_core.encoder_decoder import assemblyParsing
+from ..ally_core.parsing_rendering import assemblyParsing
 from ..ally_core.processor import argumentsBuild, argumentsPrepare, \
-    renderEncoder, invoking, default_characterset, renderer, conversion, \
+    encoder, invoking, default_characterset, renderer, conversion, \
     createDecoder, content
 from ..ally_core.resources import resourcesRoot
 from ..ally_http.processor import encoderPath, contentLengthDecode, \
     contentLengthEncode, methodOverride, allowEncode, headerDecodeRequest, \
     contentTypeRequestDecode, headerEncodeResponse, contentTypeResponseEncode
 from ally.container import ioc
-from ally.core.http.impl.processor.encoder import CreateEncoderWithPathHandler
 from ally.core.http.impl.processor.explain_error import ExplainErrorHandler
-from ally.core.http.impl.processor.fetcher import FetcherHandler
 from ally.core.http.impl.processor.headers.accept import AcceptDecodeHandler
 from ally.core.http.impl.processor.headers.content_disposition import \
     ContentDispositionDecodeHandler
@@ -109,12 +107,6 @@ def encoderPathResource() -> Handler:
 def parameter() -> Handler: return ParameterHandler()
 
 @ioc.entity
-def fetcher() -> Handler: return FetcherHandler()
-
-@ioc.entity
-def createEncoderWithPath() -> Handler: return CreateEncoderWithPathHandler()
-
-@ioc.entity
 def parserMultiPart() -> Handler:
     b = ParsingMultiPartHandler()
     b.charSetDefault = default_characterset()
@@ -174,10 +166,9 @@ def updateAssemblyResources():
     assemblyResources().add(internalDevelError(), headerDecodeRequest(), encoderPath(),
                             argumentsPrepare(), uri(), encoderPathResource(), methodInvoker(), headerEncodeResponse(), redirect(),
                             contentTypeRequestDecode(), contentLengthDecode(), contentLanguageDecode(), acceptDecode(),
-                            renderer(), conversion(), createDecoder(), createEncoderWithPath(), parserMultiPart(), content(),
-                            parameter(), fetcher(), argumentsBuild(), invoking(), renderEncoder(),
-                            status(), explainError(), contentTypeResponseEncode(),
-                            contentLanguageEncode(), contentLengthEncode(), allowEncode())
+                            renderer(), conversion(), createDecoder(), parserMultiPart(), content(),
+                            parameter(), argumentsBuild(), invoking(), encoder(), status(), explainError(),
+                            contentTypeResponseEncode(), contentLanguageEncode(), contentLengthEncode(), allowEncode())
     
     if allow_method_override(): assemblyResources().add(methodOverride(), before=methodInvoker())
 

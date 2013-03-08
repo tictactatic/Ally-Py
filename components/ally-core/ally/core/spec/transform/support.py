@@ -8,7 +8,7 @@ Created on May 23, 2012
 
 Provides static functions support for exploit processing. 
 '''
-
+#TODO: remove module after encoder/decoder refactoring
 # --------------------------------------------------------------------
 
 SAMPLE = object() # Marker used to instruct the encoders to provide a sample.

@@ -9,8 +9,7 @@ Created on Feb 11, 2013
 Provides the processor specifications.
 '''
 
-from ally.support.util import immut, firstOf
-from collections import Iterable
+from ally.support.util import immut
 import abc
 
 # --------------------------------------------------------------------
@@ -41,13 +40,16 @@ class IResolver(metaclass=abc.ABCMeta):
     '''
     The attribute resolver specification.
     '''
+    __slots__ = ()
     
     @abc.abstractmethod
-    def push(self, resolvers):
+    def push(self, name, resolvers):
         '''
         Pushes a resolver that reflects this resolver into the provided resolvers repository.
         
-        @param resolvers: Resolvers
+        @param name: string
+            The context name to associate with the resolver.
+        @param resolvers: IResolver
             The repository to push the resolver to.
         '''
 
@@ -112,7 +114,108 @@ class IResolver(metaclass=abc.ABCMeta):
         @param attributes: dictionary{string: IAttribute}
             The attributes dictionary where to place the resolver definition attribute.
         '''
-     
+
+class IResolvers(metaclass=abc.ABCMeta):
+    '''
+    Attributes resolvers repository specification.
+    '''
+    __slots__ = ()
+    
+    @abc.abstractmethod 
+    def lock(self):
+        '''
+        Locks this resolvers repository.
+        '''
+    
+    @abc.abstractmethod
+    def add(self, name, attribute, resolver):
+        '''
+        Adds a new resolver to this repository.
+        
+        @param name: string
+            The context name represented by the resolver.
+        @param attribute: string
+            The attribute name represented by the resolver.
+        @param resolver: IResolver
+            The resolver to add to the repository.
+        '''
+    
+    @abc.abstractmethod  
+    def merge(self, other, joined=True):
+        '''
+        Merges into this resolvers repository the provided resolvers or contexts.
+        
+        @param other: IResolvers|dictionary{string, ContextMetaClass)
+            The resolvers or dictionary of context to merge with.
+        @param joined: boolean
+            If True then the other resolvers that are not found in this resolvers repository will be added, if False
+            the merging is done only on existing resolvers in this repository.
+        '''
+    
+    @abc.abstractmethod
+    def solve(self, other, joined=True):
+        '''
+        Solves into this resolver repository the provided resolvers or contexts.
+        
+        @param other: IResolvers|dictionary{string, ContextMetaClass)
+            The resolvers or dictionary of context to solve with.
+        @param joined: boolean
+            If True then the other resolvers that are not found in this resolvers repository will be added, if False
+            the solving is done only on existing resolvers in this repository.
+        '''
+    
+    # ----------------------------------------------------------------
+    
+    @abc.abstractmethod
+    def copy(self, names=None):
+        '''
+        Creates a copy for this resolvers repository, if this repository has the locked flag it will no be passed on to the copy.
+        
+        @param names: Iterable(string|tuple(string, string))|None
+            The context or attribute names to copy the resolvers for, if None then all resolvers are copied.
+        @return: Resolvers
+            The cloned resolvers repository.
+        '''
+    
+    @abc.abstractmethod
+    def extract(self, names):
+        '''
+        Extracts from this resolvers repository all the resolvers for the provided context or attribute names.
+        
+        @param names: Iterable(string|tuple(string, string))
+            The context or attribute names to extract the resolvers for.
+        @return: IResolvers
+            The extracted resolvers repository.
+        '''
+    
+    # ----------------------------------------------------------------
+
+    @abc.abstractmethod
+    def validate(self):
+        '''
+        Validates the resolvers in this repository.
+        '''
+    
+    @abc.abstractmethod
+    def iterateNames(self):
+        '''
+        Iterates the resolvers names for this resolvers repository.
+        
+        @return: Iterable(tuple(string, string))
+            The resolvers names iterator.
+        '''
+    
+    @abc.abstractmethod
+    def iterate(self):
+        '''
+        Iterates the resolvers for this resolvers repository.
+        
+        @return: Iterable(tuple(string, string), IResolver)
+            The resolvers iterator.
+        '''
+
+# --------------------------------------------------------------------
+        
 class IAttribute(metaclass=abc.ABCMeta):
     '''
     The attribute specification.
@@ -168,6 +271,7 @@ class IReport(metaclass=abc.ABCMeta):
     '''
     Provides the reporting support.
     '''
+    __slots__ = ()
     
     def open(self, name):
         '''
@@ -183,7 +287,7 @@ class IReport(metaclass=abc.ABCMeta):
         '''
         Adds the provided resolvers to be reported on.
         
-        @param resolvers: Resolvers
+        @param resolvers: IResolver
             The resolvers repository to be reported.
         '''
 
@@ -198,11 +302,11 @@ class IProcessor(metaclass=abc.ABCMeta):
         Register the processor call. The processor needs to alter the attributes and extensions dictionaries based on the
         processor.
         
-        @param sources: Resolvers
+        @param sources: IResolver
             The sources attributes resolvers that need to be solved by processors.
-        @param resolvers: Resolvers
+        @param resolvers: IResolver
             The attributes resolvers solved so far by processors.
-        @param extensions: Resolvers
+        @param extensions: IResolver
             The attributes resolvers that are not part of the main stream resolvers but they are rather extension for the created
             contexts.
         @param calls: list[callable]
@@ -249,203 +353,3 @@ class ContextMetaClass(abc.ABCMeta):
     
     def __str__(self):
         return '<context \'%s.%s(%s)\'>' % (self.__module__, self.__name__, ', '.join(self.__attributes__))
-
-class Resolvers:
-    '''
-    Attributes resolvers repository.
-    '''
-    __slots__ = ('_resolvers', '_locked')
-    
-    def __init__(self, locked=False, contexts=None):
-        '''
-        Construct the resolvers attributes repository.
-
-        @param locked: boolean
-            If True then the resolvers cannot be modified.
-        @param contexts: dictionary{string, ContextMetaClass)|None
-            The contexts to have the resolvers created based on.
-        '''
-        assert isinstance(locked, bool), 'Invalid locked flag %s' % locked
-        self._resolvers = {}
-        self._locked = False
-        
-        if contexts is not None:
-            assert isinstance(contexts, dict), 'Invalid contexts %s' % contexts
-            for name, context in contexts.items():
-                assert isinstance(name, str), 'Invalid context name %s' % name
-                assert isinstance(context, ContextMetaClass), 'Invalid context class %s' % context
-        
-                for attribute in context.__attributes__.values():
-                    assert isinstance(attribute, IAttribute), 'Invalid attribute %s' % attribute
-                    attribute.push(name, self)
-                    
-        if locked: self.lock()
-                    
-    def lock(self):
-        '''
-        Locks this resolvers repository.
-        '''
-        self._locked = True
-        
-    def add(self, name, attribute, resolver):
-        '''
-        Adds a new resolver to this repository.
-        
-        @param name: string
-            The context name represented by the resolver.
-        @param attribute: string
-            The attribute name represented by the resolver.
-        @param resolver: IResolver
-            The resolver to add to the repository.
-        '''
-        if self._locked: raise ResolverError('Resolvers are locked')
-        assert isinstance(name, str), 'Invalid name %s' % name
-        assert isinstance(attribute, str), 'Invalid attribute %s' % attribute
-        assert isinstance(resolver, IResolver), 'Invalid resolver %s' % resolver
-        self._resolvers[(name, attribute)] = resolver
-                    
-    def merge(self, other, joined=True):
-        '''
-        Merges into this resolvers repository the provided resolvers or contexts.
-        
-        @param other: Resolvers|dictionary{string, ContextMetaClass)
-            The resolvers or dictionary of context to merge with.
-        @param joined: boolean
-            If True then the other resolvers that are not found in this resolvers repository will be added, if False
-            the merging is done only on existing resolvers in this repository.
-        '''
-        if self._locked: raise ResolverError('Resolvers are locked')
-        if not isinstance(other, Resolvers): other = Resolvers(True, other)
-        assert isinstance(other, Resolvers), 'Invalid other resolvers %s' % other
-        assert isinstance(joined, bool), 'Invalid joined flag %s' % joined
-    
-        for key, resolver in other._resolvers.items():
-            assert isinstance(resolver, IResolver), 'Invalid resolver %s' % resolver
-            assert isinstance(key, tuple), 'Invalid key %s' % key
-    
-            resolv = self._resolvers.get(key)
-            if resolv is None:
-                if joined: resolver.push(self)
-            else:
-                assert isinstance(resolv, IResolver), 'Invalid resolver %s' % resolv 
-                resolv.merge(resolver).push(self)
-                
-    def solve(self, other, joined=True):
-        '''
-        Solves into this resolver repository the provided resolvers or contexts.
-        
-        @param other: Resolvers|dictionary{string, ContextMetaClass)
-            The resolvers or dictionary of context to solve with.
-        @param joined: boolean
-            If True then the other resolvers that are not found in this resolvers repository will be added, if False
-            the solving is done only on existing resolvers in this repository.
-        '''
-        if self._locked: raise ResolverError('Resolvers are locked')
-        if not isinstance(other, Resolvers): other = Resolvers(True, other)
-        assert isinstance(other, Resolvers), 'Invalid other resolvers %s' % other
-        assert isinstance(joined, bool), 'Invalid joined flag %s' % joined
-    
-        for key, resolver in other._resolvers.items():
-            assert isinstance(resolver, IResolver), 'Invalid resolver %s' % resolver
-            assert isinstance(key, tuple), 'Invalid key %s' % key
-            
-            resolv = self._resolvers.get(key)
-            if resolv is None:
-                if joined: resolver.push(self)
-            else:
-                resolver.solve(resolv).push(self)
-    
-    # ----------------------------------------------------------------
-    
-    def copy(self, names=None):
-        '''
-        Creates a copy for this resolvers repository, if this repository has the locked flag it will no be passed on to the copy.
-        
-        @param names: Iterable(string|tuple(string, string))|None
-            The context or attribute names to copy the resolvers for, if None then all resolvers are copied.
-        @return: Resolvers
-            The cloned resolvers repository.
-        '''
-        copy = Resolvers()
-        if names:
-            assert isinstance(names, Iterable), 'Invalid names %s' % names
-            for name in names:
-                if isinstance(name, tuple):
-                    resolver = self._resolvers.get(name)
-                    if resolver:
-                        assert isinstance(resolver, IResolver), 'Invalid resolver %s' % resolver
-                        resolver.push(copy)
-                else:
-                    assert isinstance(name, str), 'Invalid context or attribute name %s' % name
-                    for key, resolver in self._resolvers.items():
-                        assert isinstance(resolver, IResolver), 'Invalid resolver %s' % resolver
-                        if key[0] == name: resolver.push(copy)
-        else:
-            for resolver in self._resolvers.values():
-                assert isinstance(resolver, IResolver), 'Invalid resolver %s' % resolver
-                resolver.push(copy)
-            
-        return copy
-    
-    def extract(self, names):
-        '''
-        Extracts from this resolvers repository all the resolvers for the provided context or attribute names.
-        
-        @param names: Iterable(string|tuple(string, string))
-            The context or attribute names to extract the resolvers for.
-        @return: Resolvers
-            The extracted resolvers repository.
-        '''
-        if self._locked: raise ResolverError('Resolvers are locked')
-        assert isinstance(names, Iterable), 'Invalid names %s' % names
-        
-        toExtract = []
-        for name in names:
-            if isinstance(name, tuple):
-                if name in self._resolvers: toExtract.append(name)
-            else:
-                assert isinstance(name, str), 'Invalid context or attribute name %s' % name
-                for key in self._resolvers:
-                    if key[0] == name: toExtract.append(key)
-                
-        extracted = Resolvers()
-        for key in toExtract:
-            resolver = self._resolvers.pop(key)
-            assert isinstance(resolver, IResolver), 'Invalid resolver %s' % resolver
-            resolver.push(extracted)
-        
-        return extracted
-    
-    # ----------------------------------------------------------------
-
-    def validate(self):
-        '''
-        Validates the resolvers in this repository.
-        '''
-        for key, resolver in self._resolvers.items():
-            assert isinstance(resolver, IResolver), 'Invalid resolver %s' % resolver
-            if not resolver.isAvailable(): raise ResolverError('The \'%s.%s\' is not available for %s' % (key + (resolver,)))
-    
-    def iterateNames(self):
-        '''
-        Iterates the resolvers names for this resolvers repository.
-        
-        @return: Iterable(tuple(string, string))
-            The resolvers names iterator.
-        '''
-        return self._resolvers.keys()
-    
-    def iterate(self):
-        '''
-        Iterates the resolvers for this resolvers repository.
-        
-        @return: Iterable(tuple(string, string), IResolver)
-            The resolvers iterator.
-        '''
-        return self._resolvers.items()
-    
-    # ----------------------------------------------------------------
-    
-    def __str__(self):
-        return '%s:\n%s' % (self.__class__.__name__,
-                    ''.join('%s.%s with %s' % (key + (attr,)) for key, attr in sorted(self._resolvers.items(), key=firstOf)))

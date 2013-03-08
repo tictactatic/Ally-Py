@@ -9,7 +9,7 @@ Created on Feb 11, 2013
 Provides the attributes support.
 '''
 
-from .spec import IAttribute, AttrError, IResolver, Resolvers, ResolverError, \
+from .spec import IAttribute, AttrError, IResolver, IResolvers, ResolverError, \
     ContextMetaClass
 from ally.support.util_spec import IGet, ISet
 from ally.support.util_sys import locationStack
@@ -220,9 +220,9 @@ class Attribute(IAttribute):
         @see: IAttribute.push
         '''
         if self._clazz is None: raise AttrError('Attribute is not placed, so no definition class is available')
-        resolver = Resolver(name, self._name, self.status, self.types, self.doc)
+        resolver = Resolver(self._name, self.status, self.types, self.doc)
         resolver.usedIn[(self._clazz, self._name)] = self.status
-        resolver.push(resolvers)
+        resolver.push(name, resolvers)
         
     def isValid(self, clazz):
         '''
@@ -286,14 +286,14 @@ class Resolver(IResolver):
     '''
     Implementation for a @see: IResolver that manages a attributes by status.
     '''
-    __slots__ = ('status', 'types', 'nameContext', 'nameAttribute', 'doc', 'defined', 'usedIn')
+    __slots__ = ('status', 'types', 'name', 'doc', 'defined', 'usedIn')
 
-    def __init__(self, nameContext, nameAttribute, status, types, doc, defined=None):
+    def __init__(self, name, status, types, doc, defined=None):
         '''
         Construct the attribute resolver.
         
         @param name: string
-            The context name for the resolver.
+            The attribute name for the resolver.
          @param status: integer
             The status of the resolver.
         @param types: tuple(class)
@@ -303,8 +303,7 @@ class Resolver(IResolver):
         @param defined: Iterable(class)|None
             The defined classes.
         '''
-        assert isinstance(nameContext, str), 'Invalid context name %s' % nameContext
-        assert isinstance(nameAttribute, str), 'Invalid attribute name %s' % nameAttribute
+        assert isinstance(name, str), 'Invalid attribute name %s' % name
         assert isinstance(status, int), 'Invalid status %s' % status
         assert isinstance(types, tuple), 'Invalid types %s' % types
         assert types, 'At least a type is required'
@@ -316,20 +315,19 @@ class Resolver(IResolver):
             else: defined = ()
         else: assert isinstance(defined, Iterable), 'Invalid defined classes %s' % defined
 
-        self.nameContext = nameContext
-        self.nameAttribute = nameAttribute
+        self.name = name
         self.status = status
         self.types = types
         self.doc = doc
         self.defined = frozenset(defined)
         self.usedIn = {}
         
-    def push(self, resolvers):
+    def push(self, name, resolvers):
         '''
         @see: IResolver.push
         '''
-        assert isinstance(resolvers, Resolvers), 'Invalid resolvers %s' % resolvers
-        resolvers.add(self.nameContext, self.nameAttribute, self)
+        assert isinstance(resolvers, IResolvers), 'Invalid resolvers %s' % resolvers
+        resolvers.add(name, self.name, self)
             
     def merge(self, other, isFirst=True):
         '''
@@ -345,9 +343,9 @@ class Resolver(IResolver):
             raise ResolverError('Cannot merge %s with %s' % (self, other))
         assert isFirst, 'Is required to be first for merging'
         assert isinstance(other, Resolver)
-        if self.nameContext != other.nameContext or self.nameAttribute != other.nameAttribute:
-            raise ResolverError('Cannot merge %s with %s' % (self, other))
-        
+        if self.name != other.name:
+            raise ResolverError('Cannot merge different names for %s with %s' % (self, other))
+
         if self.status == REQUIRED:
             if isFirst and other.status & DEFINED:
                 raise AttrError('Improper order for %s, it should be before %s' % (other, self))
@@ -387,7 +385,7 @@ class Resolver(IResolver):
         if self.doc is not None: docs.append(self.doc)
         if other.doc is not None: docs.append(other.doc)
         doc = '\n'.join(docs) if docs else None
-        resolver = Resolver(self.nameContext, self.nameAttribute, status, tuple(types), doc, defined)
+        resolver = Resolver(self.name, status, tuple(types), doc, defined)
         resolver.usedIn.update(self.usedIn)
         resolver.usedIn.update(other.usedIn)
         
@@ -429,16 +427,16 @@ class Resolver(IResolver):
         assert isinstance(attributes, dict), 'Invalid attributes %s' % attributes
         if self.status == REQUIRED: raise AttrError('Resolver %s\n, cannot generate attribute' % self)
         if self.status & OPTIONAL: return  # If is optional then no need to create it
-        if self.nameAttribute in attributes: return  # There is already an attribute
-        attributes[self.nameAttribute] = Attribute(self.status, self.types, self.doc, Descriptor)
+        if self.name in attributes: return  # There is already an attribute
+        attributes[self.name] = Attribute(self.status, self.types, self.doc, Descriptor)
         
     def createDefinition(self, attributes):
         '''
         @see: IResolver.createDefinition
         '''
         assert isinstance(attributes, dict), 'Invalid attributes %s' % attributes
-        if self.nameAttribute in attributes: return  # There is already an attribute
-        attributes[self.nameAttribute] = Attribute(self.status, self.types, self.doc, Definition)
+        if self.name in attributes: return  # There is already an attribute
+        attributes[self.name] = Attribute(self.status, self.types, self.doc, Definition)
 
     def __str__(self):
         status = []

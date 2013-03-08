@@ -17,6 +17,8 @@ import logging
 
 log = logging.getLogger(__name__)
 
+CONSUMED = 1 << 1  # Chain flag indicating that True should be returned if the chain is consumed.
+
 # --------------------------------------------------------------------
         
 class Processing:
@@ -142,19 +144,6 @@ class Chain:
         self._callBacksErrors = deque()
         self._consumed = False
 
-    def proceed(self):
-        '''
-        Indicates to the chain that it should proceed with the chain execution after a processor has returned. 
-        The proceed is available only when the chain is in execution. The execution is continued with the same
-        arguments.
-        
-        @return: this chain
-            This chain for chaining purposes.
-        '''
-        assert not self._consumed, 'Chain is consumed cannot proceed'
-        self._proceed = True
-        return self
-
     def process(self, **keyargs):
         '''
         Called in order to execute the next processors in the chain. This method registers the chain proceed
@@ -168,6 +157,42 @@ class Chain:
         assert not self._consumed, 'Chain is consumed cannot process'
         self.arg.__dict__.clear()
         for key, value in keyargs.items(): setattr(self.arg, key, value)
+        self._proceed = True
+        return self
+
+    def execute(self, flag, **keyargs):
+        '''
+        Executes the entire chain using the provided contexts and returns True for the provided flags, otherwise
+        return False.
+        
+        @param flag: integer
+            Flag dictating when this method should return True.
+       @param keyargs: key arguments
+            The key arguments that are passed on to the next processors.
+        @return: boolean
+            False if if one of the provided flags matches the execution, True otherwise.
+        '''
+        assert isinstance(flag, int), 'Invalid flag %s' % flag
+        assert not self._consumed, 'Chain is consumed cannot process'
+        self.arg.__dict__.clear()
+        for key, value in keyargs.items(): setattr(self.arg, key, value)
+        self._proceed = True
+        
+        self.doAll()
+        if self._consumed and flag & CONSUMED: return True
+        
+        return False
+
+    def proceed(self):
+        '''
+        Indicates to the chain that it should proceed with the chain execution after a processor has returned. 
+        The proceed is available only when the chain is in execution. The execution is continued with the same
+        arguments.
+        
+        @return: this chain
+            This chain for chaining purposes.
+        '''
+        assert not self._consumed, 'Chain is consumed cannot proceed'
         self._proceed = True
         return self
     
