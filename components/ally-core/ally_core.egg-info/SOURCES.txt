@@ -1,5 +1,8 @@
 setup.cfg
 setup.py
+__plugin__/__init__.py
+__plugin__/plugin/__init__.py
+__plugin__/plugin/registry.py
 __setup__/__init__.py
 __setup__/ally_core/__init__.py
 __setup__/ally_core/assembler.py
@@ -28,11 +31,8 @@ ally/core/impl/processor/__init__.py
 ally/core/impl/processor/arguments.py
 ally/core/impl/processor/content.py
 ally/core/impl/processor/decoder.py
-ally/core/impl/processor/deliver_ok.py
 ally/core/impl/processor/encoder.py
-ally/core/impl/processor/explain_error.py
 ally/core/impl/processor/invoking.py
-ally/core/impl/processor/method_invoker.py
 ally/core/impl/processor/parsing.py
 ally/core/impl/processor/render_encoder.py
 ally/core/impl/processor/rendering.py

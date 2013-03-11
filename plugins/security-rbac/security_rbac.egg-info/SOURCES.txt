@@ -3,6 +3,7 @@ setup.py
 __plugin__/__init__.py
 __plugin__/security_rbac/__init__.py
 __plugin__/security_rbac/populate.py
+__plugin__/security_rbac/service.py
 security/__init__.py
 security/rbac/__init__.py
 security/rbac/api/__init__.py
@@ -11,7 +12,11 @@ security/rbac/api/rbac.py
 security/rbac/core/__init__.py
 security/rbac/core/spec.py
 security/rbac/core/impl/__init__.py
+security/rbac/core/impl/proxy_assign.py
 security/rbac/core/impl/rbac_service.py
+security/rbac/core/impl/rbac_support.py
+security/rbac/core/impl/processor/__init__.py
+security/rbac/core/impl/processor/rbac_right.py
 security/rbac/impl/__init__.py
 security/rbac/impl/rbac.py
 security/rbac/meta/__init__.py

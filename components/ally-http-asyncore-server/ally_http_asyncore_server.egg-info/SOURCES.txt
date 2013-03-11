@@ -2,7 +2,8 @@ setup.cfg
 setup.py
 __setup__/__init__.py
 __setup__/ally_http_asyncore_server/__init__.py
-__setup__/ally_http_asyncore_server/patch_ally_http_core.py
+__setup__/ally_http_asyncore_server/patch_ally_core_http.py
+__setup__/ally_http_asyncore_server/patch_service_gateway.py
 __setup__/ally_http_asyncore_server/processor.py
 __setup__/ally_http_asyncore_server/server.py
 ally/__init__.py

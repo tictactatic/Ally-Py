@@ -3,7 +3,6 @@ setup.py
 __plugin__/__init__.py
 __plugin__/security/__init__.py
 __plugin__/security/db_security.py
-__plugin__/security/populate.py
 __plugin__/security/service.py
 security/__init__.py
 security.egg-info/PKG-INFO

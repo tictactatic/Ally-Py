@@ -1,1 +1,1 @@
-ally_core >= 1.0
+ally_api >= 1.0
