@@ -28,16 +28,22 @@ from inspect import isclass, ismodule, getsource, isfunction, ismethod
 
 # --------------------------------------------------------------------
 
-def nameEntity(clazz, location=None):
+def nameEntity(target, location=None):
     '''
     Provides the setup names to be used setup modules based on a setup target and name.
     
-    @param clazz: class
-        The target class that is considered the entity source.
+    @param target: class|SetupFunction
+        The target that is considered the entity source.
     @param location: string|module|SetupFunction|None
         The group, setup or setup module to consider as setup container, if not provided then the name is provided
         without location.
     '''
+    if isinstance(target, SetupFunction):
+        assert location is None, 'No location expected'
+        assert isinstance(target, SetupFunction)
+        return target.name
+    
+    assert isclass(target), 'Invalid target %s' % target
     if location:
         if ismodule(location): location = location.__name__
         elif isinstance(location, SetupEntityCreate):
@@ -48,19 +54,18 @@ def nameEntity(clazz, location=None):
             location = location.name
         assert isinstance(location, str), 'Invalid location %s' % location
     
-    try: types, name = clazz.__ally_setup__
+    try: types, name = target.__ally_setup__
     except AttributeError: types = name = None
     if name is None:
-        if types is None: name = clazz.__name__
+        if types is None: name = target.__name__
         else:
             assert isclass(types[0]), 'Invalid class %s' % types[0]
             name = types[0].__name__
-        name = 'entity.%s' % name
     
     if location: return '%s.%s' % (location, name)
     return name
 
-def nameInEntity(clazz, name, location=None):
+def nameInEntity(target, name, location=None):
     '''
     Provides the setup names to be used setup modules based on a setup target and name.
     
@@ -75,7 +80,7 @@ def nameInEntity(clazz, name, location=None):
     if isfunction(name) or ismethod(name): name = name.__name__
     assert isinstance(name, str), 'Invalid name %s' % name
     
-    return '%s.%s' % (nameEntity(clazz, location), name)
+    return '%s.%s' % (nameEntity(target, location), name)
 
 # --------------------------------------------------------------------
 

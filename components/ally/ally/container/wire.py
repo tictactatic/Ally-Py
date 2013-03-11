@@ -179,7 +179,7 @@ def createWirings(clazz, target, group, registry, nameEntity, nameInEntity):
     wire = setupFirstOf(registry, SetupEntityWire)
     if not wire: wire = register(SetupEntityWire(group), registry)
     assert isinstance(wire, SetupEntityWire)
-    wire.update(nameEntity(clazz, location=target), wiring, mapping)
+    wire.update(nameEntity(target), wiring, mapping)
     return True
         
 def wrapperWiredConfiguration(clazz, wconfig):
