@@ -1,0 +1,11 @@
+Metadata-Version: 1.0
+Name: support-cdm
+Version: 1.0.dev
+Summary: Ally framework - cdm local file system plugin
+Home-page: http://www.sourcefabric.org/en/superdesk/
+Author: Gabriel Nistor
+Author-email: gabriel.nistor@sourcefabric.org
+License: GPL v3
+Description: The local file system cdm
+Keywords: Ally REST framework cdm
+Platform: all
