@@ -13,14 +13,13 @@ from ..ally.logging import info_for
 from .distribution import application_mode, APP_DEVEL
 from ally.container import ioc
 from ally.design import processor
-import __plugin__
 import logging
 
 # --------------------------------------------------------------------
 
 @ioc.before(info_for)
 def updateInfos():
-    info_for().append(__plugin__.__name__)
+    info_for().append('__plugin__')
 
 # --------------------------------------------------------------------
 
