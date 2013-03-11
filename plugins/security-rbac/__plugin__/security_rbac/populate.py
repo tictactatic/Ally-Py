@@ -11,7 +11,7 @@ Contains the setups for populating default data.
 
 from ally.container import support, app, ioc
 from ally.internationalization import NC_
-from security.rbac.api.rbac import IRoleService, Role
+from security.rbac.api.rbac import IRoleService, Role, QRole
 
 # --------------------------------------------------------------------
 
@@ -29,8 +29,10 @@ def rootRoleId():
 def populateRootRole():
     roleService = support.entityFor(IRoleService)
     assert isinstance(roleService, IRoleService)
-    
-    rootRole = Role()
-    rootRole.Name = NAME_ROOT
-    rootRole.Description = NC_('security role', 'Default role that provides access to all available roles and rights')
-    roleService.insert(rootRole)
+
+    roles = roleService.getAll(limit=1, q=QRole(name=NAME_ROOT))
+    if not roles:
+        rootRole = Role()
+        rootRole.Name = NAME_ROOT
+        rootRole.Description = NC_('security role', 'Default role that provides access to all available roles and rights')
+        roleService.insert(rootRole)
