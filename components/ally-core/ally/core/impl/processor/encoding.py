@@ -18,7 +18,7 @@ from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Processing, Chain, CONSUMED
 from ally.design.processor.handler import HandlerBranchingProceed
-from ally.design.processor.processor import Included, Filter
+from ally.design.processor.processor import Included
 from ally.exception import DevelError
 from collections import Callable, Iterable
 from io import BytesIO
@@ -46,7 +46,7 @@ class Response(Context):
     obj = requires(object)
     isSuccess = requires(bool)
     # ---------------------------------------------------------------- Defined
-    doAction = defines(int, doc='''
+    action = defines(int, doc='''
     @rtype: integer
     Flag indicating what the process that should be performed.
     ''')
@@ -93,9 +93,7 @@ class EncodingHandler(HandlerBranchingProceed):
     
     def __init__(self):
         assert isinstance(self.encodeAssembly, Assembly), 'Invalid encode assembly %s' % self.encodeAssembly
-        branch = Included(self.encodeAssembly).using(encode=Encode)
-        branch = Filter(branch, response='support')  # We use the response as the support in the encoding
-        super().__init__(branch)
+        super().__init__(Included(self.encodeAssembly).using(encode=Encode))
 
     def process(self, encodeProcessing, request:Request, response:Response, responseCnt:ResponseContent, **keyargs):
         '''
@@ -112,7 +110,7 @@ class EncodingHandler(HandlerBranchingProceed):
         assert isinstance(request.invoker, Invoker), 'Invalid request invoker %s' % request.invoker
         assert callable(response.renderFactory), 'Invalid response renderer factory %s' % response.renderFactory
 
-        response.doAction = DO_RENDER
+        response.action = DO_RENDER
         
         output = BytesIO()
         encode = encodeProcessing.ctx.encode()
@@ -121,7 +119,8 @@ class EncodingHandler(HandlerBranchingProceed):
         encode.objType = request.invoker.output
         encode.render = response.renderFactory(output)
 
-        if Chain(encodeProcessing).execute(CONSUMED, support=response, encode=encode, **keyargs):
+        if Chain(encodeProcessing).execute(CONSUMED, request=request, response=response, responseCnt=responseCnt,
+                                           encode=encode, **keyargs):
             raise DevelError('Cannot encode %s' % request.invoker.output)
         
         content = output.getvalue()

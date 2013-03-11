@@ -206,6 +206,53 @@ class RenderToObject(IRender):
         assert self.processing and isinstance(self.processing[0], list), 'No collection available to end'
 
         self.processing.popleft()
+        
+class RenderValuesToObject(IRender):
+    '''
+    A @see: IRender implementation that captures only value rendering data into a text object.
+    '''
+    __slots__ = ('obj',)
+
+    def __init__(self):
+        '''
+        Construct the render.
+        '''
+        self.obj = {}
+
+    def value(self, name, value):
+        '''
+        @see: IRender.value
+        '''
+        assert isinstance(name, str), 'Invalid name %s' % name
+        assert isinstance(value, str), 'Invalid value %s' % value
+
+        self.obj[name] = value
+
+    def objectStart(self, name, attributes=None):
+        '''
+        @see: IRender.objectStart
+        '''
+        raise TypeError('Not available for this renderer')
+
+    def objectEnd(self):
+        '''
+        @see: IRender.objectEnd
+        '''
+        raise TypeError('Not available for this renderer')
+
+    def collectionStart(self, name, attributes=None):
+        '''
+        @see: IRender.collectionStart
+        '''
+        raise TypeError('Not available for this renderer')
+
+    def collectionEnd(self):
+        '''
+        @see: IRender.collectionEnd
+        '''
+        raise TypeError('Not available for this renderer')
+
+# --------------------------------------------------------------------
 
 def renderObject(txt, render):
     '''

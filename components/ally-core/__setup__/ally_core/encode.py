@@ -11,8 +11,13 @@ Provides the setup for the encode processors.
 
 from ally.container import ioc
 from ally.core.impl.processor.encoder.collection import CollectionEncode
-from ally.core.impl.processor.encoder.model import ModelEncode
+from ally.core.impl.processor.encoder.extension_attribute import ExtensionEncode
+from ally.core.impl.processor.encoder.model import ModelEncode, \
+    ModelPropertyEncode
 from ally.core.impl.processor.encoder.property import PropertyEncode
+from ally.core.impl.processor.encoder.property_id import PropertyIdEncode
+from ally.core.impl.processor.encoder.property_of_model import \
+    PropertyOfModelEncode
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.handler import Handler
 
@@ -33,11 +38,27 @@ def assemblyItemEncode() -> Assembly:
     return Assembly('Encode collection item')
 
 @ioc.entity
+def assemblyPropertyPrimitiveEncode() -> Assembly:
+    '''
+    The assembly containing the encoders for properties encoding.
+    '''
+    return Assembly('Encode primitive property')
+
+@ioc.entity
+def assemblyPropertyModelEncode() -> Assembly:
+    '''
+    The assembly containing the encoders for properties encoding.
+    '''
+    return Assembly('Encode property of model')
+
+@ioc.entity
 def assemblyPropertyEncode() -> Assembly:
     '''
     The assembly containing the encoders for properties encoding.
     '''
-    return Assembly('Encode model property')
+    return Assembly('Encode property')
+
+# --------------------------------------------------------------------
 
 @ioc.entity
 def collectionEncode() -> Handler:
@@ -52,18 +73,47 @@ def modelEncode() -> Handler:
     return b
 
 @ioc.entity
+def modelPropertyEncode() -> Handler:
+    b = ModelPropertyEncode()
+    b.propertyPrimitiveEncodeAssembly = assemblyPropertyPrimitiveEncode()
+    return b
+
+@ioc.entity
 def propertyEncode() -> Handler: return PropertyEncode()
+
+@ioc.entity
+def propertyIdEncode() -> Handler: return PropertyIdEncode()
+
+@ioc.entity
+def propertyOfModelEncode() -> Handler:
+    b = PropertyOfModelEncode()
+    b.propertyModelEncodeAssembly = assemblyPropertyModelEncode()
+    return b
+
+@ioc.entity
+def extensionEncode() -> Handler:
+    b = ExtensionEncode()
+    b.propertyPrimitiveEncodeAssembly = assemblyPropertyPrimitiveEncode()
+    return b
 
 # --------------------------------------------------------------------
 
 @ioc.before(assemblyEncode)
 def updateAssemblyEncode():
-    assemblyEncode().add(collectionEncode(), modelEncode())
+    assemblyEncode().add(extensionEncode(), collectionEncode(), modelPropertyEncode(), modelEncode())
     
 @ioc.before(assemblyItemEncode)
 def updateAssemblyItemEncode():
-    assemblyItemEncode().add(modelEncode())
+    assemblyItemEncode().add(modelPropertyEncode(), modelEncode())
+    
+@ioc.before(assemblyPropertyModelEncode)
+def updateAssemblyPropertyModelEncode():
+    assemblyPropertyModelEncode().add(modelPropertyEncode())
+
+@ioc.before(assemblyPropertyPrimitiveEncode)
+def updateAssemblyPropertyPrimitiveEncode():
+    assemblyPropertyPrimitiveEncode().add(propertyIdEncode(), propertyEncode())
     
 @ioc.before(assemblyPropertyEncode)
 def updateAssemblyPropertyEncode():
-    assemblyPropertyEncode().add(propertyEncode())
+    assemblyPropertyEncode().add(propertyOfModelEncode(), assemblyPropertyPrimitiveEncode())

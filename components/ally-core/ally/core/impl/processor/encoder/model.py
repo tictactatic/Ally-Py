@@ -28,12 +28,12 @@ from weakref import WeakKeyDictionary
 
 # --------------------------------------------------------------------
 
-class Support(Context):
+class Response(Context):
     '''
-    The encode support context.
+    The encoded response context.
     '''
     # ---------------------------------------------------------------- Required
-    doAction = requires(int)
+    action = requires(int)
     normalizer = requires(Normalizer)
 
 class EncodeModel(Context):
@@ -42,10 +42,7 @@ class EncodeModel(Context):
     '''
     # ---------------------------------------------------------------- Optional
     name = optional(str)
-    attributes = optional(dict, doc='''
-    @rtype: dictionary{string: string}
-    The attributes to be used with the model rendering.
-    ''')
+    attributes = optional(dict)
     # ---------------------------------------------------------------- Required
     obj = requires(object)
     objType = requires(object)
@@ -95,7 +92,7 @@ class ModelEncode(HandlerBranching):
         self.typeOrders = [typeFor(typ) for typ in self.typeOrders]
         self._cacheSort = WeakKeyDictionary()
         
-    def process(self, chain, propertyProcessing, support:Support, encode:EncodeModel, **keyargs):
+    def process(self, chain, propertyProcessing, response:Response, encode:EncodeModel, **keyargs):
         '''
         @see: HandlerBranching.process
         
@@ -103,56 +100,41 @@ class ModelEncode(HandlerBranching):
         '''
         assert isinstance(chain, Chain), 'Invalid chain %s' % chain
         assert isinstance(propertyProcessing, Processing), 'Invalid processing %s' % propertyProcessing
-        assert isinstance(support, Support), 'Invalid support %s' % support
+        assert isinstance(response, Response), 'Invalid response %s' % response
         assert isinstance(encode, EncodeModel), 'Invalid encode %s' % encode
         
-        if not support.doAction & DO_RENDER:
+        if not response.action & DO_RENDER:
             # If no rendering is required we just proceed, maybe other processors might do something
             chain.proceed()
             return
     
-        if isinstance(encode.objType, TypeModel): 
-            modelType = encode.objType
-            propType = None
-        elif isinstance(encode.objType, TypeModelProperty):
-            propType = encode.objType
-            assert isinstance(propType, TypeModelProperty)
-            modelType = propType.parent
-        else:  # The type is not for a model, nothing to do, just move along
+        if not isinstance(encode.objType, TypeModel):  # The type is not for a model, nothing to do, just move along
             chain.proceed()
             return
         
         assert encode.obj is not None, 'An object is required for rendering'
-        assert isinstance(modelType, TypeModel)
-        assert isinstance(modelType.container, Model)
+        assert isinstance(encode.objType, TypeModel)
+        assert isinstance(encode.objType.container, Model)
         
-        assert isinstance(support.normalizer, Normalizer), 'Invalid normalizer %s' % support.normalizer
+        assert isinstance(response.normalizer, Normalizer), 'Invalid normalizer %s' % response.normalizer
         assert isinstance(encode.render, IRender), 'Invalid render %s' % encode.render
         
-        if EncodeModel.name in encode and encode.name: name = support.normalizer.normalize(encode.name)
-        else: name = support.normalizer.normalize(modelType.container.name)
+        if EncodeModel.name in encode and encode.name: name = response.normalizer.normalize(encode.name)
+        else: name = response.normalizer.normalize(encode.objType.container.name)
         if EncodeModel.attributes in encode: attributes = encode.attributes
         else: attributes = None
         
         encode.render.objectStart(name, attributes)
-        if propType:
+        for propType in self.sortedTypes(encode.objType):
+            value = getattr(encode.obj, propType.property)
+            if value is None: continue
             encodeProperty = propertyProcessing.ctx.encode(render=encode.render)
             assert isinstance(encodeProperty, EncodeProperty), 'Invalid encode property %s' % encodeProperty
             encodeProperty.objType = propType
-            encodeProperty.obj = encode.obj
+            encodeProperty.obj = value
             encodeProperty.name = propType.property
-            if Chain(propertyProcessing).execute(CONSUMED, support=support, encode=encodeProperty, **keyargs):
+            if Chain(propertyProcessing).execute(CONSUMED, response=response, encode=encodeProperty, **keyargs):
                 raise DevelError('Cannot encode %s' % propType)
-        else:
-            for propType in self.sortedTypes(modelType):
-                if propType not in encode.obj: continue
-                encodeProperty = propertyProcessing.ctx.encode(render=encode.render)
-                assert isinstance(encodeProperty, EncodeProperty), 'Invalid encode property %s' % encodeProperty
-                encodeProperty.objType = propType
-                encodeProperty.obj = getattr(encode.obj, propType.property)
-                encodeProperty.name = propType.property
-                if Chain(propertyProcessing).execute(CONSUMED, support=support, encode=encodeProperty, **keyargs):
-                    raise DevelError('Cannot encode %s' % propType)
         
         encode.render.objectEnd()
         
@@ -181,3 +163,64 @@ class ModelEncode(HandlerBranching):
         for k, ord in enumerate(self.typeOrders):
             if propType.type == ord: break
         return k
+    
+# --------------------------------------------------------------------
+
+@injected
+class ModelPropertyEncode(HandlerBranching):
+    '''
+    Implementation for a handler that provides the model property encoding.
+    '''
+    
+    propertyPrimitiveEncodeAssembly = Assembly
+    # The encode processors to be used for encoding primitive properties.
+    
+    def __init__(self):
+        assert isinstance(self.propertyPrimitiveEncodeAssembly, Assembly), \
+        'Invalid property encode assembly %s' % self.propertyPrimitiveEncodeAssembly
+        super().__init__(Included(self.propertyPrimitiveEncodeAssembly).using(encode=EncodeProperty))
+        
+    def process(self, chain, propertyProcessing, response:Response, encode:EncodeModel, **keyargs):
+        '''
+        @see: HandlerBranching.process
+        
+        Encode the model.
+        '''
+        assert isinstance(chain, Chain), 'Invalid chain %s' % chain
+        assert isinstance(propertyProcessing, Processing), 'Invalid processing %s' % propertyProcessing
+        assert isinstance(response, Response), 'Invalid response %s' % response
+        assert isinstance(encode, EncodeModel), 'Invalid encode %s' % encode
+        
+        if not response.action & DO_RENDER:
+            # If no rendering is required we just proceed, maybe other processors might do something
+            chain.proceed()
+            return
+        
+        if not isinstance(encode.objType, TypeModelProperty):
+            # The type is not for a model property, nothing to do, just move along
+            chain.proceed()
+            return
+        
+        assert isinstance(encode.objType, TypeModelProperty)
+        modelType = encode.objType.parent
+        assert isinstance(modelType, TypeModel)
+        assert isinstance(modelType.container, Model)
+        
+        assert encode.obj is not None, 'An object is required for rendering'
+        assert isinstance(response.normalizer, Normalizer), 'Invalid normalizer %s' % response.normalizer
+        assert isinstance(encode.render, IRender), 'Invalid render %s' % encode.render
+        
+        if EncodeModel.name in encode and encode.name: name = response.normalizer.normalize(encode.name)
+        else: name = response.normalizer.normalize(modelType.container.name)
+        if EncodeModel.attributes in encode: attributes = encode.attributes
+        else: attributes = None
+        
+        encode.render.objectStart(name, attributes)
+       
+        encodeProperty = propertyProcessing.ctx.encode(obj=encode.obj, objType=encode.objType, render=encode.render)
+        assert isinstance(encodeProperty, EncodeProperty), 'Invalid encode property %s' % encodeProperty
+        encodeProperty.name = encode.objType.property
+        if Chain(propertyProcessing).execute(CONSUMED, response=response, encode=encodeProperty, **keyargs):
+            raise DevelError('Cannot encode %s' % encode.objType)
+        
+        encode.render.objectEnd()

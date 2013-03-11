@@ -27,12 +27,12 @@ from collections import Iterable
 
 # --------------------------------------------------------------------
 
-class Support(Context):
+class Response(Context):
     '''
-    The encode support context.
+    The encoded response context.
     '''
     # ---------------------------------------------------------------- Required
-    doAction = requires(int)
+    action = requires(int)
     normalizer = requires(Normalizer)
 
 class EncodeCollection(Context):
@@ -49,7 +49,7 @@ class EncodeCollection(Context):
     
 class EncodeItem(Context):
     '''
-    The encode property context.
+    The encode item context.
     '''
     # ---------------------------------------------------------------- Defined
     obj = defines(object, doc='''
@@ -57,7 +57,7 @@ class EncodeItem(Context):
     The item object.
     ''')
     objType = defines(object, doc='''
-    @rtype: Type
+    @rtype: object
     The type of the collection items.
     ''')
     render = defines(IRender, doc='''
@@ -83,7 +83,7 @@ class CollectionEncode(HandlerBranching):
         assert isinstance(self.nameMarkedList, str), 'Invalid name list %s' % self.nameMarkedList
         super().__init__(Included(self.itemEncodeAssembly).using(encode=EncodeItem))
         
-    def process(self, chain, itemProcessing, support:Support, encode:EncodeCollection, **keyargs):
+    def process(self, chain, itemProcessing, response:Response, encode:EncodeCollection, **keyargs):
         '''
         @see: HandlerBranching.process
         
@@ -91,10 +91,10 @@ class CollectionEncode(HandlerBranching):
         '''
         assert isinstance(chain, Chain), 'Invalid chain %s' % chain
         assert isinstance(itemProcessing, Processing), 'Invalid processing %s' % itemProcessing
-        assert isinstance(support, Support), 'Invalid support %s' % support
+        assert isinstance(response, Response), 'Invalid response %s' % response
         assert isinstance(encode, EncodeCollection), 'Invalid encode %s' % encode
         
-        if not support.doAction & DO_RENDER:
+        if not response.action & DO_RENDER:
             # If no rendering is required we just proceed, maybe other processors might do something
             chain.proceed()
             return
@@ -107,15 +107,15 @@ class CollectionEncode(HandlerBranching):
         assert isinstance(encode.objType, Iter)
         itemType = encode.objType.itemType
         
-        assert isinstance(support.normalizer, Normalizer), 'Invalid normalizer %s' % support.normalizer
+        assert isinstance(response.normalizer, Normalizer), 'Invalid normalizer %s' % response.normalizer
         assert isinstance(encode.render, IRender), 'Invalid render %s' % encode.render
         
-        if EncodeCollection.name in encode and encode.name: name = support.normalizer.normalize(encode.name)
+        if EncodeCollection.name in encode and encode.name: name = response.normalizer.normalize(encode.name)
         else:
             if not isinstance(itemType, (TypeModel, TypeModelProperty)):
                 raise DevelError('Cannot get collection name for item %s' % itemType)
             assert isinstance(itemType.container, Model), 'Invalid model %s' % itemType.container
-            name = support.normalizer.normalize(self.nameMarkedList % itemType.container.name)
+            name = response.normalizer.normalize(self.nameMarkedList % itemType.container.name)
         if EncodeCollection.attributes in encode: attributes = encode.attributes
         else: attributes = None
         
@@ -126,6 +126,6 @@ class CollectionEncode(HandlerBranching):
             assert isinstance(encodeItem, EncodeItem), 'Invalid encode item %s' % encodeItem
             encodeItem.objType = itemType
             encodeItem.obj = item
-            if Chain(itemProcessing).execute(CONSUMED, support=support, encode=encodeItem, **keyargs):
+            if Chain(itemProcessing).execute(CONSUMED, response=response, encode=encodeItem, **keyargs):
                 raise DevelError('Cannot encode %s' % itemType)
         encode.render.collectionEnd()

@@ -6,11 +6,10 @@ Created on Mar 8, 2013
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
 
-Provides the primitive properties encoder.
+Provides the id properties encoder.
 '''
 
-from ally.api.operator.type import TypeProperty
-from ally.api.type import Iter
+from ally.api.operator.type import TypeModelProperty
 from ally.container.ioc import injected
 from ally.core.spec.resources import Normalizer, Converter
 from ally.core.spec.transform.encoder import DO_RENDER
@@ -19,7 +18,6 @@ from ally.design.processor.attribute import requires
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain
 from ally.design.processor.handler import HandlerProcessor
-from collections import Iterable
 
 # --------------------------------------------------------------------
 
@@ -30,7 +28,7 @@ class Response(Context):
     # ---------------------------------------------------------------- Required
     action = requires(int)
     normalizer = requires(Normalizer)
-    converter = requires(Converter)
+    converterId = requires(Converter)
 
 class Encode(Context):
     '''
@@ -45,23 +43,16 @@ class Encode(Context):
 # --------------------------------------------------------------------
 
 @injected
-class PropertyEncode(HandlerProcessor):
+class PropertyIdEncode(HandlerProcessor):
     '''
-    Implementation for a handler that provides the primitive properties values encoding.
+    Implementation for a handler that provides the id properties values encoding.
     '''
-    
-    nameValue = 'Value'
-    # The name to use for rendering the values in a collection property.
-    
-    def __init__(self):
-        assert isinstance(self.nameValue, str), 'Invalid name value list %s' % self.nameValue
-        super().__init__()
         
     def process(self, chain, response:Response, encode:Encode, **keyargs):
         '''
         @see: HandlerProcessor.process
         
-        Encode the property.
+        Encode the id property.
         '''
         assert isinstance(chain, Chain), 'Invalid chain %s' % chain
         assert isinstance(response, Response), 'Invalid response %s' % response
@@ -72,26 +63,20 @@ class PropertyEncode(HandlerProcessor):
             chain.proceed()
             return
         
-        if not isinstance(encode.objType, TypeProperty):  # The type is not for a property, nothing to do, just move along
+        if not isinstance(encode.objType, TypeModelProperty):  # The type is not for a property, nothing to do, just move along
             chain.proceed()
             return
-        valueType = encode.objType.type
+        
+        assert isinstance(encode.objType, TypeModelProperty)
+        if not encode.objType.isId():  # Not a id property, nothing to do, just move along
+            chain.proceed()
+            return
         
         assert encode.obj is not None, 'An object is required for rendering'
         assert isinstance(encode.name, str), 'Invalid property name %s' % encode.name
         assert isinstance(encode.render, IRender), 'Invalid render %s' % encode.render
         assert isinstance(response.normalizer, Normalizer), 'Invalid normalizer %s' % response.normalizer
-        assert isinstance(response.converter, Converter), 'Invalid converter %s' % response.converter
+        assert isinstance(response.converterId, Converter), 'Invalid converter %s' % response.converterId
 
-        if isinstance(valueType, Iter):
-            assert isinstance(valueType, Iter)
-            assert isinstance(encode.obj, Iterable), 'Invalid encode object %s' % encode.obj
-            valueType = valueType.itemType
-            
-            encode.render.collectionStart(encode.name)
-            nameValue = response.normalizer.normalize(self.nameValue)
-            for value in encode.obj: encode.render.value(nameValue, response.converter.asString(value, valueType))
-            encode.render.collectionEnd()
-            return
-        
-        encode.render.value(response.normalizer.normalize(encode.name), response.converter.asString(encode.obj, valueType))
+        encode.render.value(response.normalizer.normalize(encode.name),
+                            response.converterId.asString(encode.obj, encode.objType.type))
