@@ -57,14 +57,14 @@ class RequestHandler:
                                                response=ResponseHTTP, responseCnt=ResponseContentHTTP)
         self.defaultHeaders = {'Server':self.serverVersion, 'Content-Type':'text'}
 
-    def __call__(self, request):
+    def __call__(self, req):
         '''
         Process the Mongrel2 call.
         
-        @param request: Request
+        @param req: Request
             The request to process.
         '''
-        assert isinstance(request, Request), 'Invalid request %s' % request
+        assert isinstance(req, Request), 'Invalid request %s' % req
         proc = self.processing
         assert isinstance(proc, Processing), 'Invalid processing %s' % proc
         
@@ -72,13 +72,13 @@ class RequestHandler:
         assert isinstance(request, RequestHTTP), 'Invalid request %s' % request
         assert isinstance(requestCnt, RequestContentHTTP), 'Invalid request content %s' % requestCnt
         
-        request.scheme, request.method = self.scheme, request.headers.pop('METHOD').upper()
-        request.headers = dict(request.headers)
-        request.uri = request.path.lstrip('/')
-        request.parameters = parse_qsl(request.headers.pop('QUERY', ''), True, False)
+        request.scheme, request.method = self.scheme, req.headers.pop('METHOD').upper()
+        request.headers = dict(req.headers)
+        request.uri = req.path.lstrip('/')
+        request.parameters = parse_qsl(req.headers.pop('QUERY', ''), True, False)
         
-        if isinstance(request.body, IInputStream): requestCnt.source = request.body
-        else: requestCnt.source = BytesIO(request.body)
+        if isinstance(req.body, IInputStream): requestCnt.source = req.body
+        else: requestCnt.source = BytesIO(req.body)
         
         chain = Chain(proc)
         chain.process(request=request, requestCnt=requestCnt,
@@ -97,10 +97,10 @@ class RequestHandler:
         else:
             try: text, _long = BaseHTTPRequestHandler.responses[response.status]
             except KeyError: text = '???'
-        self._respond(request, response.status, text, responseHeaders)
+        self._respond(req, response.status, text, responseHeaders)
         
-        if ResponseContentHTTP.source in responseCnt and responseCnt.source is not None: request.push(responseCnt.source)
-        self._end(request)
+        if ResponseContentHTTP.source in responseCnt and responseCnt.source is not None: req.push(responseCnt.source)
+        self._end(req)
 
     # ----------------------------------------------------------------
 
