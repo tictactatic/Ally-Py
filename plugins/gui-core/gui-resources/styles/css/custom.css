@@ -998,7 +998,7 @@ section.main-section {
 	padding-left: 10px;
 }
 .normal .result-content .result-text {
-	line-height: 16px !important;
+	line-height: 18px !important;
 }
 .quote .result-content,
 .advertisement .result-content,
@@ -1062,7 +1062,6 @@ section.main-section {
 		}
 	.with-avatar .result-content h3, .with-avatar .result-content .result-text  {
 		display:inline;
-		line-height:14px;
 		}
 		.with-avatar .result-content h3 {
 			margin-right:6px;
@@ -1250,8 +1249,8 @@ section.main-section {
 		}		
 .post-list > li .tool-box-right {
 	position: absolute;
-	top: 3px;
-	right: 2px;
+	top: 7px;
+	right: 6px;
 	display: none;
 	height: 20px;
 	width: 38px;
@@ -2723,7 +2722,12 @@ ul.posttypes li {
 	list-style-type: square;
 }
 
-
+.modal-open {
+	padding: 100px 150px;
+	box-sizing:border-box;
+	-moz-box-sizing:border-box;
+	-o-box-sizing: border-box;
+}
 .responsive-popup {
 	/*
 	width:60% !important;
@@ -2766,6 +2770,8 @@ ul.posttypes li {
 	left:0;
 	right:0;
 }
+
+
 .uploads-grid {
 	list-style-type: none;
 	margin:60px 0 0;
@@ -2820,9 +2826,19 @@ ul.posttypes li {
 	max-height: 100px;
 }
 
+
+.drag-area {
+	background: #f8f8f8;
+	border: 3px dashed #e0e0e0;
+	position: absolute;
+	top:0;
+	left: 0;
+	bottom: 0;
+	right: 0;
+}
 .drag-area-title {
 	width: 100%;
-	background: url("../img/dragfiles.png") no-repeat 50% 0;
+	background: url("../../images/dragfiles.png") no-repeat 50% 0;
 	margin-top: 5%;
 	padding-top: 100px;
 	text-align: center;
