@@ -65,7 +65,7 @@ class RequestHandler:
             The request to process.
         '''
         assert isinstance(request, Request), 'Invalid request %s' % request
-        proc = self.server.processing
+        proc = self.processing
         assert isinstance(proc, Processing), 'Invalid processing %s' % proc
         
         request, requestCnt = proc.ctx.request(), proc.ctx.requestCnt()
