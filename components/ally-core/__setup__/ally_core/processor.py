@@ -23,6 +23,7 @@ from ally.core.impl.processor.rendering import RenderingHandler
 from ally.core.impl.processor.text_conversion import ConversionSetHandler
 from ally.core.spec.resources import Normalizer, Converter
 from ally.design.processor.handler import Handler
+from ally.core.impl.processor.render_encoder import RenderEncoderHandler
 
 # --------------------------------------------------------------------
 # Creating the processors used in handling the request
@@ -56,7 +57,7 @@ def converter() -> Converter: return Converter()
 def argumentsPrepare() -> Handler: return ArgumentsPrepareHandler()
 
 @ioc.entity
-def renderer() -> Handler:
+def rendering() -> Handler:
     b = RenderingHandler()
     b.charSetDefault = default_characterset()
     b.renderingAssembly = renderingAssembly()
@@ -70,10 +71,16 @@ def conversion() -> Handler:
     return b
 
 @ioc.entity
+def encoding() -> Handler:
+    b = EncodingHandler()
+    b.encodeAssembly = assemblyEncode()
+    return b
+
+@ioc.entity
 def createDecoder() -> Handler: return CreateDecoderHandler()
 
 @ioc.entity
-def parser() -> Handler:
+def parsing() -> Handler:
     b = ParsingHandler()
     b.charSetDefault = default_characterset()
     b.parsingAssembly = assemblyParsing()
@@ -89,8 +96,5 @@ def argumentsBuild() -> Handler: return ArgumentsBuildHandler()
 def invoking() -> Handler: return InvokingHandler()
 
 @ioc.entity
-def encoder() -> Handler:
-    b = EncodingHandler()
-    b.encodeAssembly = assemblyEncode()
-    return b
+def renderEncoder() -> Handler: return RenderEncoderHandler()
 

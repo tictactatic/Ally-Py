@@ -9,28 +9,34 @@ Created on Mar 8, 2013
 Provides the setup for the encode processors.
 '''
 
-from ..ally_core.encode import updateAssemblyEncode, assemblyEncode, \
-    modelPropertyEncode, assemblyItemEncode, updateAssemblyItemEncode, \
-    updateAssemblyPropertyModelEncode, assemblyPropertyModelEncode
+from ..ally_core.encode import extensionAttributeEncode, updateAssemblyEncode, \
+    assemblyEncode, modelPropertyEncode, assemblyItemEncode, \
+    updateAssemblyItemEncode
 from ally.container import ioc
-from ally.core.http.impl.processor.encoder.path_attribute import PathEncode
+from ally.core.http.impl.processor.encoder.model_path import \
+    ModelPathAttributeEncode
+from ally.core.http.impl.processor.encoder.path_support import PathSupport
 from ally.design.processor.handler import Handler
 
 # --------------------------------------------------------------------
 
 @ioc.entity
-def pathEncode() -> Handler: return PathEncode()
+def pathSupport() -> Handler: return PathSupport()
+
+@ioc.entity
+def modelPathAttributeEncode() -> Handler: return ModelPathAttributeEncode()
 
 # --------------------------------------------------------------------
 
 @ioc.after(updateAssemblyEncode)
 def updateAssemblyEncodeWithPath():
-    assemblyEncode().add(pathEncode(), before=modelPropertyEncode())
+    assemblyEncode().add(pathSupport(), before=extensionAttributeEncode())
+    assemblyEncode().add(modelPathAttributeEncode(), before=modelPropertyEncode())
     
 @ioc.after(updateAssemblyItemEncode)
 def updateAssemblyItemEncodeWithPath():
-    assemblyItemEncode().add(pathEncode(), before=modelPropertyEncode())
-
-@ioc.after(updateAssemblyPropertyModelEncode)
-def updateAssemblyPropertyModelEncodeWithPath():
-    assemblyPropertyModelEncode().add(pathEncode(), before=modelPropertyEncode())
+    assemblyItemEncode().add(modelPathAttributeEncode(), before=modelPropertyEncode())
+#
+#@ioc.after(updateAssemblyPropertyModelEncode)
+#def updateAssemblyPropertyModelEncodeWithPath():
+#    assemblyPropertyModelEncode().add(pathEncode(), before=modelPropertyEncode())

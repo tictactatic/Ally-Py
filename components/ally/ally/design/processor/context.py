@@ -9,7 +9,7 @@ Created on Jun 12, 2012
 Provides the context support.
 '''
 
-from .spec import IAttribute, IResolver, ContextMetaClass, IResolvers
+from .spec import IAttribute, IRepository, ContextMetaClass, CREATE_DEFINITION
 from ally.support.util import immut
 
 # --------------------------------------------------------------------
@@ -162,58 +162,34 @@ class Object(metaclass=ContextMetaClass):
 
 # --------------------------------------------------------------------
 
-def create(resolvers):
+def create(repository, *flags):
     '''
     Creates the object contexts for the provided resolvers.
     
-    @param resolvers: IResolvers
-        The resolvers to create the context for.
+    @param repository: IRepository
+        The repository to create the context for.
+    @param flags: arguments[object]
+        Flags to be used for creating the attributes.
+    @return: dictionary{string: ContextMetaClass}
+        The created context classes.
     '''
+    assert isinstance(repository, IRepository), 'Invalid repository %s' % repository
     contexts = {}
-    for nameContext, forContext in groupResolversByContext(resolvers).items():
-        attributes = {}
-        for resolver in forContext.values(): resolver.create(attributes)
-        namespace = dict(__module__=__name__, __attributes__=attributes)
-        contexts[nameContext] = type('Object$%s%s' % (nameContext[0].upper(), nameContext[1:]), (Object,), namespace)
-
-    return contexts
-
-def createDefinition(resolvers):
-    '''
-    Creates the definition contexts for the provided resolvers.
-    
-    @param resolvers: IResolvers
-        The resolvers to create the context for.
-    '''
-    contexts = {}
-    for nameContext, forContext in groupResolversByContext(resolvers).items():
-        namespace = dict(__module__=__name__)
-        for resolver in forContext.values(): resolver.createDefinition(namespace)
-        contexts[nameContext] = type('Context%s%s' % (nameContext[0].upper(), nameContext[1:]), (Context,), namespace)
-
-    return contexts
-
-def groupResolversByContext(resolvers):
-    '''
-    Groups the resolvers from the provided resolvers repository based on context.
-    
-    @param resolvers: IResolvers
-        The resolvers to group by.
-    @return: dictionary{string: dictionary{string: IResolver}}
-        The grouped resolvers, first dictionary key is the context name and second dictionary key is the attribute name.
-    '''
-    assert isinstance(resolvers, IResolvers), 'Invalid resolvers %s' % resolvers
-    
-    resolversByContext = {}
-    for key, resolver in resolvers.iterate():
-        assert isinstance(resolver, IResolver), 'Invalid resolver %s' % resolver
-        nameContext, nameAttribute = key
-
-        byContext = resolversByContext.get(nameContext)
-        if byContext is None: byContext = resolversByContext[nameContext] = {}
-        byContext[nameAttribute] = resolver
+    for name, attributes in repository.create(*flags).items():
+        assert isinstance(name, str), 'Invalid name %s' % name
+        assert isinstance(attributes, dict), 'Invalid attributes %s' % attributes
+        nameClass = '%s%s' % (name[0].upper(), name[1:])
         
-    return resolversByContext
+        if CREATE_DEFINITION in flags:
+            namespace = dict(__module__=__name__)
+            namespace.update(attributes)
+            contexts[name] = type('Context$%s' % nameClass, (Context,), namespace)
+            
+        else:
+            namespace = dict(__module__=__name__, __attributes__=attributes)
+            contexts[name] = type('Object$%s' % nameClass, (Object,), namespace)
+
+    return contexts
 
 def asData(context, *classes):
     '''
@@ -237,37 +213,26 @@ def asData(context, *classes):
 
     return data
 
-def copy(src, dest, *classes):
+def pushIn(dest, *srcs):
     '''
-    Copies the data from the source context to the destination context based on the provided context classes.
+    Pushes in the destination context data from the source context(s).
     
-    @param context: object
-        The context object to get the data from.
-    @param classes: arguments[ContextMetaClass]
-        The context classes to copy the data based on.
-    '''
-    assert isinstance(src, Context), 'Invalid source context %s' % src
-    assert isinstance(dest, Context), 'Invalid destination context %s' % dest
-
-    common = set(src.__attributes__)
-    common.intersection_update(dest.__attributes__)
-    for clazz in classes:
-        assert isinstance(clazz, ContextMetaClass), 'Invalid context class %s' % clazz
-        common.intersection_update(clazz.__attributes__)
-        
-    for name in common:
-        if (name, src.__attributes__[name]) in src: setattr(dest, name, getattr(src, name))
-
-def clone(context):
-    '''
-    Clones the provided context object.
-    
-    @param context: object
-        The context object to clone.
+    @param dest: object
+        The destination context object to get the data from.
+    @param srcs: arguments[object]
+        Sources to copy data from, attention the order is important since if the first context has no value
+        for an attribute then the second one is checked and so on.
     @return: object
-        The cloned object context.
+        The destination context after copy.
     '''
-    assert isinstance(context, Context), 'Invalid context %s' % context
-    clone = context.__class__()
-    copy(context, clone)
-    return clone
+    assert isinstance(dest, Object), 'Invalid destination context %s' % dest
+    assert srcs, 'At least one source is required'
+        
+    for name in dest.__attributes__:
+        for src in srcs:
+            attribute = src.__attributes__.get(name)
+            if attribute and attribute in src:
+                setattr(dest, name, getattr(src, name))
+                break
+    
+    return dest

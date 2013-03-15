@@ -13,7 +13,7 @@ from ._impl._aop import AOPModules
 from ._impl._assembly import Context, Assembly
 from ._impl._setup import CallStart
 from .error import SetupError
-from .impl.priority import sortByPriorities
+from ally.design.priority import sortByPriorities
 from inspect import ismodule
 import importlib
 import logging

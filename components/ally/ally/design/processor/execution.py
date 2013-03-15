@@ -27,7 +27,6 @@ class Processing:
     !!! Attention, never ever use a processing in multiple threads, only one thread is allowed to execute 
     a processing at one time.
     '''
-    __slots__ = ('ctx', '_calls')
 
     class Ctx:
         '''

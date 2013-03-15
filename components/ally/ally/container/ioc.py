@@ -16,7 +16,7 @@ from ._impl._setup import SetupEntity, SetupSource, SetupConfig, SetupFunction, 
     SetupEvent, SetupEventReplace, SetupSourceReplace, SetupStart, SetupEventCancel, \
     register, SetupConfigReplace, setupsOf
 from .error import SetupError
-from .impl.priority import Priority
+from ally.design.priority import Priority
 from functools import partial, update_wrapper
 from inspect import isclass, ismodule, getfullargspec, isfunction, cleandoc
 import logging

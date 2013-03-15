@@ -19,9 +19,9 @@ from ._impl._support import SetupEntityListen, SetupEntityListenAfterBinding, \
 from .error import SetupError
 from .event import ITrigger, createEvents
 from .impl.config import Config
-from .impl.priority import sortByPriorities
 from .ioc import PRIORITY_LAST
 from .wire import createWirings
+from ally.design.priority import sortByPriorities
 from collections import Iterable
 from functools import partial
 from inspect import isclass, ismodule, getsource, isfunction, ismethod

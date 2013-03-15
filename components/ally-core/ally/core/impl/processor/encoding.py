@@ -11,17 +11,14 @@ Renders the response encoder.
 
 from ally.container.ioc import injected
 from ally.core.spec.resources import Invoker
-from ally.core.spec.transform.encoder import DO_RENDER
-from ally.core.spec.transform.render import IRender
+from ally.core.spec.transform.encoder import IEncoder
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines
-from ally.design.processor.context import Context
-from ally.design.processor.execution import Processing, Chain, CONSUMED
+from ally.design.processor.branch import Using, Combine
+from ally.design.processor.context import Context, pushIn
+from ally.design.processor.execution import Processing, Chain
 from ally.design.processor.handler import HandlerBranchingProceed
-from ally.design.processor.processor import Included
 from ally.exception import DevelError
-from collections import Callable, Iterable
-from io import BytesIO
 import logging
 
 # --------------------------------------------------------------------
@@ -41,51 +38,36 @@ class Response(Context):
     '''
     The response context.
     '''
-    # ---------------------------------------------------------------- Required
-    renderFactory = requires(Callable)
-    obj = requires(object)
-    isSuccess = requires(bool)
     # ---------------------------------------------------------------- Defined
-    action = defines(int, doc='''
-    @rtype: integer
-    Flag indicating what the process that should be performed.
+    encoder = defines(IEncoder, doc='''
+    @rtype: IEncoder
+    The encoder to be used for rendering the response object.
     ''')
-
-class ResponseContent(Context):
-    '''
-    The response content context.
-    '''
-    # ---------------------------------------------------------------- Defined
-    source = defines(Iterable, doc='''
-    @rtype: Iterable
-    The generator containing the response content.
-    ''')
-    length = defines(int)
-
-class Encode(Context):
-    '''
-    The encode context.
-    '''
-    # ---------------------------------------------------------------- Required
-    obj = defines(object, doc='''
+    support = defines(object, doc='''
     @rtype: object
-    The value object to be encoded.
+    The support object required in encoding.
     ''')
+    # ---------------------------------------------------------------- Required
+    isSuccess = requires(bool)
+
+class Create(Context):
+    '''
+    The create encoder context.
+    '''
+    # ---------------------------------------------------------------- Defined
     objType = defines(object, doc='''
     @rtype: object
     The object type.
     ''')
-    render = defines(IRender, doc='''
-    @rtype: IRender
-    The renderer to be used for output encoded data.
-    ''')
+    # ---------------------------------------------------------------- Required
+    encoder = requires(IEncoder)
     
 # --------------------------------------------------------------------
 
 @injected
 class EncodingHandler(HandlerBranchingProceed):
     '''
-    Implementation for a handler that encodes the response content.
+    Implementation for a handler that provides the creation of encoders for response objects.
     '''
     
     encodeAssembly = Assembly
@@ -93,9 +75,11 @@ class EncodingHandler(HandlerBranchingProceed):
     
     def __init__(self):
         assert isinstance(self.encodeAssembly, Assembly), 'Invalid encode assembly %s' % self.encodeAssembly
-        super().__init__(Included(self.encodeAssembly).using(encode=Encode))
+        branch = Using(self.encodeAssembly, 'support', create=Create)
+        branch = Combine(branch, ('support', 'response'), ('support', 'request'))
+        super().__init__(branch)
 
-    def process(self, encodeProcessing, request:Request, response:Response, responseCnt:ResponseContent, **keyargs):
+    def process(self, encodeProcessing, request:Request, response:Response, **keyargs):
         '''
         @see: HandlerBranchingProceed.process
         
@@ -104,25 +88,25 @@ class EncodingHandler(HandlerBranchingProceed):
         assert isinstance(encodeProcessing, Processing), 'Invalid processing %s' % encodeProcessing
         assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(response, Response), 'Invalid response %s' % response
-        assert isinstance(responseCnt, ResponseContent), 'Invalid response content %s' % responseCnt
 
         if response.isSuccess is False: return  # Skip in case the response is in error
+        if response.encoder: return  # There is already an encoder no need to create another one
         assert isinstance(request.invoker, Invoker), 'Invalid request invoker %s' % request.invoker
-        assert callable(response.renderFactory), 'Invalid response renderer factory %s' % response.renderFactory
-
-        response.action = DO_RENDER
         
-        output = BytesIO()
-        encode = encodeProcessing.ctx.encode()
-        assert isinstance(encode, Encode)
-        encode.obj = response.obj
-        encode.objType = request.invoker.output
-        encode.render = response.renderFactory(output)
-
-        if Chain(encodeProcessing).execute(CONSUMED, request=request, response=response, responseCnt=responseCnt,
-                                           encode=encode, **keyargs):
-            raise DevelError('Cannot encode %s' % request.invoker.output)
+        #TODO: Gabriel: remove
+        print('support:', list(encodeProcessing.ctx.support.__attributes__))
+        print('request:', list(request.__attributes__))
+        print('response:', list(response.__attributes__))
+        print(request)
+        supp = encodeProcessing.ctx.support()
+        print(pushIn(supp, response, request))
         
-        content = output.getvalue()
-        responseCnt.length = len(content)
-        responseCnt.source = (content,)
+        chain = Chain(encodeProcessing)
+        chain.process(create=encodeProcessing.ctx.create(objType=request.invoker.output),
+                      support=pushIn(encodeProcessing.ctx.support(), response, request)).doAll()
+        create, support = chain.arg.create, chain.arg.support
+        assert isinstance(create, Create), 'Invalid create %s' % create
+        if create.encoder is None: raise DevelError('Cannot encode response object \'%s\'' % request.invoker.output)
+        
+        response.encoder = create.encoder
+        response.support = support

@@ -10,7 +10,7 @@ Provides handlers for entities.
 '''
 
 from ..error import WireError, AventError
-from ..impl.priority import Priority
+from ally.design.priority import Priority
 from collections import Iterable
 from functools import partial
 from inspect import isclass

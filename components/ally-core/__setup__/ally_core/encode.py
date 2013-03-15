@@ -11,9 +11,8 @@ Provides the setup for the encode processors.
 
 from ally.container import ioc
 from ally.core.impl.processor.encoder.collection import CollectionEncode
-from ally.core.impl.processor.encoder.extension_attribute import ExtensionEncode
-from ally.core.impl.processor.encoder.model import ModelEncode, \
-    ModelPropertyEncode
+from ally.core.impl.processor.encoder.extension_attribute import ExtensionAttributeEncode
+from ally.core.impl.processor.encoder.model import ModelEncode
 from ally.core.impl.processor.encoder.property import PropertyEncode
 from ally.core.impl.processor.encoder.property_id import PropertyIdEncode
 from ally.core.impl.processor.encoder.property_of_model import \
@@ -74,8 +73,8 @@ def modelEncode() -> Handler:
 
 @ioc.entity
 def modelPropertyEncode() -> Handler:
-    b = ModelPropertyEncode()
-    b.propertyPrimitiveEncodeAssembly = assemblyPropertyPrimitiveEncode()
+    b = ModelEncode()
+    b.propertyEncodeAssembly = assemblyPropertyPrimitiveEncode()
     return b
 
 @ioc.entity
@@ -91,16 +90,16 @@ def propertyOfModelEncode() -> Handler:
     return b
 
 @ioc.entity
-def extensionEncode() -> Handler:
-    b = ExtensionEncode()
-    b.propertyPrimitiveEncodeAssembly = assemblyPropertyPrimitiveEncode()
+def extensionAttributeEncode() -> Handler:
+    b = ExtensionAttributeEncode()
+    b.propertyEncodeAssembly = assemblyPropertyPrimitiveEncode()
     return b
 
 # --------------------------------------------------------------------
 
 @ioc.before(assemblyEncode)
 def updateAssemblyEncode():
-    assemblyEncode().add(extensionEncode(), collectionEncode(), modelPropertyEncode(), modelEncode())
+    assemblyEncode().add(extensionAttributeEncode(), collectionEncode(), modelPropertyEncode(), modelEncode())
     
 @ioc.before(assemblyItemEncode)
 def updateAssemblyItemEncode():

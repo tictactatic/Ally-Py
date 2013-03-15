@@ -10,42 +10,44 @@ Provides the primitive properties encoder.
 '''
 
 from ally.api.operator.type import TypeProperty
-from ally.api.type import Iter
+from ally.api.type import Iter, Type
 from ally.container.ioc import injected
 from ally.core.spec.resources import Normalizer, Converter
-from ally.core.spec.transform.encoder import DO_RENDER
+from ally.core.spec.transform.encoder import IEncoder
 from ally.core.spec.transform.render import IRender
-from ally.design.processor.attribute import requires
+from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
-from ally.design.processor.execution import Chain
-from ally.design.processor.handler import HandlerProcessor
+from ally.design.processor.handler import HandlerProcessorProceed
 from collections import Iterable
+from ally.design.cache import CacheWeak
 
 # --------------------------------------------------------------------
 
-class Response(Context):
+class Create(Context):
     '''
-    The encoded response context.
+    The create encoder context.
     '''
-    # ---------------------------------------------------------------- Required
-    action = requires(int)
-    normalizer = requires(Normalizer)
-    converter = requires(Converter)
-
-class Encode(Context):
-    '''
-    The encode context.
-    '''
+    # ---------------------------------------------------------------- Defined
+    encoder = defines(IEncoder, doc='''
+    @rtype: IEncoder
+    The encoder for the property.
+    ''')    
     # ---------------------------------------------------------------- Required
     name = requires(str)
-    obj = requires(object)
     objType = requires(object)
-    render = requires(IRender)
+
+class Support(Context):
+    '''
+    The encoder support context.
+    '''
+    # ---------------------------------------------------------------- Required
+    normalizer = requires(Normalizer)
+    converter = requires(Converter)
     
 # --------------------------------------------------------------------
 
 @injected
-class PropertyEncode(HandlerProcessor):
+class PropertyEncode(HandlerProcessorProceed):
     '''
     Implementation for a handler that provides the primitive properties values encoding.
     '''
@@ -55,43 +57,91 @@ class PropertyEncode(HandlerProcessor):
     
     def __init__(self):
         assert isinstance(self.nameValue, str), 'Invalid name value list %s' % self.nameValue
-        super().__init__()
+        super().__init__(support=Support)
         
-    def process(self, chain, response:Response, encode:Encode, **keyargs):
+        self._cache = CacheWeak()
+        
+    def process(self, create:Create, **keyargs):
         '''
-        @see: HandlerProcessor.process
+        @see: HandlerProcessorProceed.process
         
-        Encode the property.
+        Create the property encoder.
         '''
-        assert isinstance(chain, Chain), 'Invalid chain %s' % chain
-        assert isinstance(response, Response), 'Invalid response %s' % response
-        assert isinstance(encode, Encode), 'Invalid encode %s' % encode
+        assert isinstance(create, Create), 'Invalid create %s' % create
         
-        if not response.action & DO_RENDER:
-            # If no rendering is required we just proceed, maybe other processors might do something
-            chain.proceed()
-            return
+        if create.encoder is not None: return 
+        # There is already an encoder, nothing to do.
+        if not isinstance(create.objType, TypeProperty): return 
+        # The type is not for a property, nothing to do, just move along
         
-        if not isinstance(encode.objType, TypeProperty):  # The type is not for a property, nothing to do, just move along
-            chain.proceed()
-            return
-        valueType = encode.objType.type
+        valueType = create.objType.type
+        assert isinstance(create.name, str), 'Invalid property name %s' % create.name
         
-        assert encode.obj is not None, 'An object is required for rendering'
-        assert isinstance(encode.name, str), 'Invalid property name %s' % encode.name
-        assert isinstance(encode.render, IRender), 'Invalid render %s' % encode.render
-        assert isinstance(response.normalizer, Normalizer), 'Invalid normalizer %s' % response.normalizer
-        assert isinstance(response.converter, Converter), 'Invalid converter %s' % response.converter
-
-        if isinstance(valueType, Iter):
-            assert isinstance(valueType, Iter)
-            assert isinstance(encode.obj, Iterable), 'Invalid encode object %s' % encode.obj
-            valueType = valueType.itemType
+        cache = self._cache.key(create.name, valueType)
+        if not cache.has:
+            if isinstance(valueType, Iter):
+                assert isinstance(valueType, Iter)
+                cache.value = EncoderPropertyCollection(create.name, self.nameValue, valueType.itemType)
+                
+            else:
+                cache.value = EncoderProperty(create.name, valueType)
             
-            encode.render.collectionStart(encode.name)
-            nameValue = response.normalizer.normalize(self.nameValue)
-            for value in encode.obj: encode.render.value(nameValue, response.converter.asString(value, valueType))
-            encode.render.collectionEnd()
-            return
+        create.encoder = cache.value
+
+# --------------------------------------------------------------------
+
+class EncoderProperty(IEncoder):
+    '''
+    Implementation for a @see: IEncoder for properties.
+    '''
+    
+    def __init__(self, name, valueType):
+        '''
+        Construct the property encoder.
+        '''
+        assert isinstance(name, str), 'Invalid property name %s' % name
+        assert isinstance(valueType, Type), 'Invalid value type %s' % valueType
+        self.name = name
+        self.valueType = valueType
         
-        encode.render.value(response.normalizer.normalize(encode.name), response.converter.asString(encode.obj, valueType))
+    def render(self, obj, render, support):
+        '''
+        @see: IEncoder.render
+        '''
+        assert isinstance(render, IRender), 'Invalid render %s' % render
+        assert isinstance(support, Support), 'Invalid support %s' % support
+        assert isinstance(support.normalizer, Normalizer), 'Invalid normalizer %s' % support.normalizer
+        assert isinstance(support.converter, Converter), 'Invalid converter %s' % support.converter
+        
+        render.value(support.normalizer.normalize(self.name), support.converter.asString(obj, self.valueType))
+        
+class EncoderPropertyCollection(IEncoder):
+    '''
+    Implementation for a @see: IEncoder for properties that contains a collection.
+    '''
+    
+    def __init__(self, name, nameValue, valueType):
+        '''
+        Construct the property encoder.
+        '''
+        assert isinstance(name, str), 'Invalid property name %s' % name
+        assert isinstance(nameValue, str), 'Invalid value name %s' % nameValue
+        assert isinstance(valueType, Type), 'Invalid value type %s' % valueType
+        self.name = name
+        self.nameValue = nameValue
+        self.valueType = valueType
+        
+    def render(self, obj, render, support):
+        '''
+        @see: IEncoder.render
+        '''
+        assert isinstance(obj, Iterable), 'Invalid encode object %s' % obj
+        assert isinstance(render, IRender), 'Invalid render %s' % render
+        assert isinstance(support, Support), 'Invalid support %s' % support
+        assert isinstance(support.normalizer, Normalizer), 'Invalid normalizer %s' % support.normalizer
+        assert isinstance(support.converter, Converter), 'Invalid converter %s' % support.converter
+        
+        render.collectionStart(support.normalizer.normalize(self.name))
+        nameValue = support.normalizer.normalize(self.nameValue)
+        for objItem in obj: render.value(nameValue, support.converter.asString(objItem, self.valueType))
+        render.collectionEnd()

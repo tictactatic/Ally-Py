@@ -11,8 +11,8 @@ Provides the configurations for the processors used in handling the request.
 
 from ..ally_core.parsing_rendering import assemblyParsing
 from ..ally_core.processor import argumentsBuild, argumentsPrepare, \
-    encoder, invoking, default_characterset, renderer, conversion, \
-    createDecoder, content
+    encoding, invoking, default_characterset, rendering, conversion, \
+    createDecoder, content, renderEncoder
 from ..ally_core.resources import resourcesRoot
 from ..ally_http.processor import encoderPath, contentLengthDecode, \
     contentLengthEncode, methodOverride, allowEncode, headerDecodeRequest, \
@@ -107,7 +107,7 @@ def encoderPathResource() -> Handler:
 def parameter() -> Handler: return ParameterHandler()
 
 @ioc.entity
-def parserMultiPart() -> Handler:
+def parsingMultiPart() -> Handler:
     b = ParsingMultiPartHandler()
     b.charSetDefault = default_characterset()
     b.parsingAssembly = assemblyParsing()
@@ -166,8 +166,8 @@ def updateAssemblyResources():
     assemblyResources().add(internalDevelError(), headerDecodeRequest(), encoderPath(),
                             argumentsPrepare(), uri(), encoderPathResource(), methodInvoker(), headerEncodeResponse(), redirect(),
                             contentTypeRequestDecode(), contentLengthDecode(), contentLanguageDecode(), acceptDecode(),
-                            renderer(), conversion(), createDecoder(), parserMultiPart(), content(),
-                            parameter(), argumentsBuild(), invoking(), encoder(), status(), explainError(),
+                            rendering(), conversion(), createDecoder(), encoding(), parsingMultiPart(), content(),
+                            parameter(), argumentsBuild(), invoking(), renderEncoder(), status(), explainError(),
                             contentTypeResponseEncode(), contentLanguageEncode(), contentLengthEncode(), allowEncode())
     
     if allow_method_override(): assemblyResources().add(methodOverride(), before=methodInvoker())

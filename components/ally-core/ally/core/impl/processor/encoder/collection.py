@@ -14,61 +14,58 @@ from ally.api.operator.type import TypeModel, TypeModelProperty
 from ally.api.type import Iter
 from ally.container.ioc import injected
 from ally.core.spec.resources import Normalizer
-from ally.core.spec.transform.encoder import DO_RENDER
+from ally.core.spec.transform.encoder import IAttributes, IEncoder
 from ally.core.spec.transform.render import IRender
+from ally.design.cache import CacheWeak
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines, optional
+from ally.design.processor.branch import Included
 from ally.design.processor.context import Context
-from ally.design.processor.execution import Chain, Processing, CONSUMED
-from ally.design.processor.handler import HandlerBranching
-from ally.design.processor.processor import Included
+from ally.design.processor.execution import Chain, Processing
+from ally.design.processor.handler import HandlerBranchingProceed
 from ally.exception import DevelError
 from collections import Iterable
 
 # --------------------------------------------------------------------
 
-class Response(Context):
+class Create(Context):
     '''
-    The encoded response context.
-    '''
-    # ---------------------------------------------------------------- Required
-    action = requires(int)
-    normalizer = requires(Normalizer)
-
-class EncodeCollection(Context):
-    '''
-    The encode collection context.
-    '''
-    # ---------------------------------------------------------------- Optional
-    name = optional(str)
-    attributes = optional(dict)
-    # ---------------------------------------------------------------- Required
-    obj = requires(object)
-    objType = requires(object)
-    render = requires(IRender)
-    
-class EncodeItem(Context):
-    '''
-    The encode item context.
+    The create encoder context.
     '''
     # ---------------------------------------------------------------- Defined
-    obj = defines(object, doc='''
-    @rtype: object
-    The item object.
+    encoder = defines(IEncoder, doc='''
+    @rtype: IEncoder
+    The encoder for the collection.
     ''')
+    # ---------------------------------------------------------------- Optional
+    name = optional(str)
+    attributes = optional(IAttributes)
+    # ---------------------------------------------------------------- Required
+    objType = requires(object)
+
+class Support(Context):
+    '''
+    The encoder support context.
+    '''
+    # ---------------------------------------------------------------- Required
+    normalizer = requires(Normalizer)
+  
+class CreateItem(Context):
+    '''
+    The create item encoder context.
+    '''
+    # ---------------------------------------------------------------- Defined
     objType = defines(object, doc='''
     @rtype: object
     The type of the collection items.
     ''')
-    render = defines(IRender, doc='''
-    @rtype: IRender
-    The renderer to be used for output encoded item data.
-    ''')
+    # ---------------------------------------------------------------- Required
+    encoder = requires(IEncoder)
     
 # --------------------------------------------------------------------
 
 @injected
-class CollectionEncode(HandlerBranching):
+class CollectionEncode(HandlerBranchingProceed):
     '''
     Implementation for a handler that provides the collection encoding.
     '''
@@ -81,51 +78,78 @@ class CollectionEncode(HandlerBranching):
     def __init__(self):
         assert isinstance(self.itemEncodeAssembly, Assembly), 'Invalid item encode assembly %s' % self.itemEncodeAssembly
         assert isinstance(self.nameMarkedList, str), 'Invalid name list %s' % self.nameMarkedList
-        super().__init__(Included(self.itemEncodeAssembly).using(encode=EncodeItem))
+        super().__init__(Included(self.itemEncodeAssembly, create=CreateItem), support=Support)
         
-    def process(self, chain, itemProcessing, response:Response, encode:EncodeCollection, **keyargs):
-        '''
-        @see: HandlerBranching.process
+        self._cache = CacheWeak()
         
-        Encode the collection.
+    def process(self, itemProcessing, create:Create, **keyargs):
         '''
-        assert isinstance(chain, Chain), 'Invalid chain %s' % chain
+        @see: HandlerBranchingProceed.process
+        
+        Create the collection encoder.
+        '''
         assert isinstance(itemProcessing, Processing), 'Invalid processing %s' % itemProcessing
-        assert isinstance(response, Response), 'Invalid response %s' % response
-        assert isinstance(encode, EncodeCollection), 'Invalid encode %s' % encode
+        assert isinstance(create, Create), 'Invalid create %s' % create
         
-        if not response.action & DO_RENDER:
-            # If no rendering is required we just proceed, maybe other processors might do something
-            chain.proceed()
-            return
+        if create.encoder is not None: return 
+        # There is already an encoder, nothing to do.
+        if not isinstance(create.objType, Iter): return
+        # The type is not for a collection, nothing to do, just move along
         
-        if not isinstance(encode.objType, Iter):  # The type is not for a collection, nothing to do, just move along
-            chain.proceed()
-            return
+        assert isinstance(create.objType, Iter)
+        itemType = create.objType.itemType
         
-        assert encode.obj is not None, 'An object is required for rendering'
-        assert isinstance(encode.objType, Iter)
-        itemType = encode.objType.itemType
-        
-        assert isinstance(response.normalizer, Normalizer), 'Invalid normalizer %s' % response.normalizer
-        assert isinstance(encode.render, IRender), 'Invalid render %s' % encode.render
-        
-        if EncodeCollection.name in encode and encode.name: name = response.normalizer.normalize(encode.name)
+        if Create.name in create and create.name: name = create.name
         else:
             if not isinstance(itemType, (TypeModel, TypeModelProperty)):
                 raise DevelError('Cannot get collection name for item %s' % itemType)
             assert isinstance(itemType.container, Model), 'Invalid model %s' % itemType.container
-            name = response.normalizer.normalize(self.nameMarkedList % itemType.container.name)
-        if EncodeCollection.attributes in encode: attributes = encode.attributes
+            name = self.nameMarkedList % itemType.container.name
+        if Create.attributes in create: attributes = create.attributes
         else: attributes = None
         
-        assert isinstance(encode.obj, Iterable), 'Invalid collection object %s' % encode.obj
-        encode.render.collectionStart(name, attributes)
-        for item in encode.obj:
-            encodeItem = itemProcessing.ctx.encode(render=encode.render)
-            assert isinstance(encodeItem, EncodeItem), 'Invalid encode item %s' % encodeItem
-            encodeItem.objType = itemType
-            encodeItem.obj = item
-            if Chain(itemProcessing).execute(CONSUMED, response=response, encode=encodeItem, **keyargs):
-                raise DevelError('Cannot encode %s' % itemType)
-        encode.render.collectionEnd()
+        cache = self._cache.key(itemProcessing, name, attributes, itemType)
+        if not cache.has:
+            chain = Chain(itemProcessing)
+            chain.process(create=itemProcessing.ctx.create(objType=itemType)).doAll()
+            createItem = chain.arg.create
+            assert isinstance(createItem, CreateItem), 'Invalid create item %s' % createItem
+            if createItem.encoder is None: raise DevelError('Cannot encode %s' % itemType)
+            cache.value = EncoderCollection(name, createItem.encoder, attributes)
+        
+        create.encoder = cache.value
+
+# --------------------------------------------------------------------
+
+class EncoderCollection(IEncoder):
+    '''
+    Implementation for a @see: IEncoder for collections.
+    '''
+    
+    def __init__(self, name, encoder, attributes=None):
+        '''
+        Construct the collection encoder.
+        '''
+        assert isinstance(name, str), 'Invalid name %s' % name
+        assert isinstance(encoder, IEncoder), 'Invalid item encoder %s' % encoder
+        assert attributes is None or isinstance(attributes, IAttributes), 'Invalid attributes %s' % attributes
+        
+        self.name = name
+        self.encoder = encoder
+        self.attributes = attributes
+        
+    def render(self, obj, render, support):
+        '''
+        @see: IEncoder.render
+        '''
+        assert isinstance(obj, Iterable), 'Invalid collection object %s' % obj
+        assert isinstance(render, IRender), 'Invalid render %s' % render
+        assert isinstance(support, Support), 'Invalid support %s' % support
+        assert isinstance(support.normalizer, Normalizer), 'Invalid normalizer %s' % support.normalizer
+        
+        if self.attributes: attributes = self.attributes.provide(obj, support)
+        else: attributes = None
+        
+        render.collectionStart(support.normalizer.normalize(self.name), attributes)
+        for objItem in obj: self.encoder.render(objItem, render, support)
+        render.collectionEnd()

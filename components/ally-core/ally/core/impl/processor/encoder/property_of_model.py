@@ -11,36 +11,33 @@ Provides the properties of model encoder.
 
 from ally.api.operator.type import TypeModelProperty, TypeModel
 from ally.container.ioc import injected
-from ally.core.spec.transform.encoder import DO_RENDER
+from ally.core.spec.transform.encoder import IEncoder
 from ally.design.processor.assembly import Assembly
-from ally.design.processor.attribute import requires
+from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain, Processing
-from ally.design.processor.handler import HandlerBranching
-from ally.design.processor.processor import Included
+from ally.design.processor.handler import HandlerBranchingProceed
+from ally.design.processor.branch import Included
 
 # --------------------------------------------------------------------
 
-class Response(Context):
+class Create(Context):
     '''
-    The encoded response context.
+    The create encoder context.
     '''
-    # ---------------------------------------------------------------- Required
-    action = requires(int)
-
-class Encode(Context):
-    '''
-    The encode context.
-    '''
+    # ---------------------------------------------------------------- Defined
+    encoder = defines(IEncoder, doc='''
+    @rtype: IEncoder
+    The encoder for the property of model.
+    ''')
     # ---------------------------------------------------------------- Required
     name = requires(str)
-    obj = requires(object)
     objType = requires(object)
 
 # --------------------------------------------------------------------
 
 @injected
-class PropertyOfModelEncode(HandlerBranching):
+class PropertyOfModelEncode(HandlerBranchingProceed):
     '''
     Implementation for a handler that provides the encoding for properties that reference another model.
     '''
@@ -53,30 +50,25 @@ class PropertyOfModelEncode(HandlerBranching):
         'Invalid model encode assembly %s' % self.propertyModelEncodeAssembly
         super().__init__(Included(self.propertyModelEncodeAssembly))
         
-    def process(self, chain, propertyModelProcessing, response:Response, encode:Encode, **keyargs):
+    def process(self, propertyModelProcessing, create:Create, **keyargs):
         '''
-        @see: HandlerBranching.process
+        @see: HandlerBranchingProceed.process
         
-        Encode the property of model.
+        Create the property of model encoder.
         '''
-        assert isinstance(chain, Chain), 'Invalid chain %s' % chain
         assert isinstance(propertyModelProcessing, Processing), 'Invalid processing %s' % propertyModelProcessing
-        assert isinstance(response, Response), 'Invalid response %s' % response
-        assert isinstance(encode, Encode), 'Invalid encode %s' % encode
+        assert isinstance(create, Create), 'Invalid create %s' % create
         
-        chain.proceed()  # We proceed anyway
-        
-        if not response.action & DO_RENDER: return
-        # If no rendering is required we just proceed, maybe other processors might do something
-        if not isinstance(encode.objType, TypeModelProperty) or not isinstance(encode.objType.type, TypeModel): return
+        if create.encoder is not None: return 
+        # There is already an encoder, nothing to do.
+        if not isinstance(create.objType, TypeModelProperty) or not isinstance(create.objType.type, TypeModel): return
         # The type is not for a model property, nothing to do, just move along
             
-        modelType = encode.objType.type
+        modelType = create.objType.type
         
-        assert encode.obj is not None, 'An object is required for rendering'
-        assert isinstance(encode.name, str), 'Invalid property name %s' % encode.name
+        assert isinstance(create.name, str), 'Invalid property name %s' % create.name
         assert isinstance(modelType, TypeModel)
         assert modelType.hasId(), 'Model type %s, has no id' % modelType
 
-        encode.objType = modelType.propertyTypeId()
-        chain.branch(propertyModelProcessing)
+        create.objType = modelType.propertyTypeId()
+        Chain(propertyModelProcessing).process(create=create).doAll()

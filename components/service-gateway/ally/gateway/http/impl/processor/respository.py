@@ -12,10 +12,10 @@ Provides the gateway repository processor.
 from ally.container.ioc import injected
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import defines
+from ally.design.processor.branch import Using
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Processing, Chain
 from ally.design.processor.handler import HandlerBranchingProceed
-from ally.design.processor.processor import Using
 from ally.gateway.http.spec.gateway import IRepository, Gateway, Match
 from ally.http.spec.codes import BAD_GATEWAY, isSuccess
 from ally.http.spec.server import RequestHTTP, ResponseHTTP, ResponseContentHTTP, \
@@ -92,7 +92,7 @@ class GatewayRepositoryHandler(HandlerBranchingProceed):
         assert isinstance(self.uri, str), 'Invalid URI %s' % self.uri
         assert isinstance(self.cleanupInterval, int), 'Invalid cleanup interval %s' % self.cleanupInterval
         assert isinstance(self.assembly, Assembly), 'Invalid assembly %s' % self.assembly
-        super().__init__(Using(self.assembly, request=RequestGateway).sources('requestCnt', 'response', 'responseCnt'))
+        super().__init__(Using(self.assembly, 'requestCnt', 'response', 'responseCnt', request=RequestGateway))
         self.initialize()
 
     def process(self, processing, request:Request, response:Response, **keyargs):

@@ -27,11 +27,11 @@ else:
     ally_core_http = ally_core_http  # Just to avoid the import warning
     # ----------------------------------------------------------------
 
-    from ..ally_core_http.processor import updateAssemblyResources, assemblyResources, parserMultiPart
+    from ..ally_core_http.processor import updateAssemblyResources, assemblyResources, parsingMultiPart
     
     # ----------------------------------------------------------------
     
     @ioc.after(updateAssemblyResources)
     def updateAssemblyResourcesForHTTPAsyncore():
         if server_type() == SERVER_ASYNCORE:
-            assemblyResources().add(asyncoreContent(), before=parserMultiPart())
+            assemblyResources().add(asyncoreContent(), before=parsingMultiPart())

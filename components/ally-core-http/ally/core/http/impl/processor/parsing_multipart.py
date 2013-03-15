@@ -16,9 +16,9 @@ from ally.core.impl.processor.parsing import ParsingHandler, Request, \
     RequestContent, Response
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines
+from ally.design.processor.branch import Included
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain, Processing
-from ally.design.processor.processor import Included
 from ally.exception import DevelError
 from ally.support.util_io import IInputStream, IClosable
 from collections import Callable
@@ -133,7 +133,7 @@ class ParsingMultiPartHandler(ParsingHandler, DataMultiPart):
         assert isinstance(self.attrBoundary, str), 'Invalid attribute boundary name %s' % self.attrBoundary
         assert isinstance(self.populateAssembly, Assembly), 'Invalid populate assembly %s' % self.populateAssembly
         DataMultiPart.__init__(self)
-        ParsingHandler.__init__(self, Included(self.populateAssembly).using(request=RequestPopulate))
+        ParsingHandler.__init__(self, Included(self.populateAssembly, request=RequestPopulate))
         self._reMultipart = re.compile(self.regexMultipart)
 
     def process(self, chain, populate, parsing, request:Request, requestCnt:RequestContentMultiPart,

@@ -10,9 +10,9 @@ Provides the setup calls implementations for the IoC module.
 '''
 
 from ..error import SetupError, ConfigError
-from ..impl.priority import Priority
 from ._assembly import Assembly
 from ._entity import Initializer
+from ally.design.priority import Priority
 from functools import partial
 from inspect import isclass, isgenerator
 from itertools import chain

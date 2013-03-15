@@ -15,7 +15,7 @@ from ._impl._assembly import Assembly
 from ._impl._entity import Advent, Event
 from ._impl._setup import SetupEventControlled, register
 from .error import SetupError
-from .impl.priority import Priority
+from ally.design.priority import Priority
 from collections import Iterable
 from functools import partial, update_wrapper
 from inspect import getargspec, isclass, isfunction, ismethod

@@ -16,7 +16,7 @@ from ally.design.processor.attribute import defines, optional
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain, Processing
 from ally.design.processor.handler import HandlerBranchingProceed
-from ally.design.processor.processor import Included
+from ally.design.processor.branch import Included
 from ally.exception import DevelError
 import codecs
 import itertools

@@ -9,18 +9,17 @@ Created on Feb 11, 2013
 Module containing processors.
 '''
 
-from .assembly import Assembly, Container
-from .context import create, createDefinition
+from .branch import IBranch
+from .context import Context
 from .execution import Chain, Processing
-from .resolvers import Resolvers
+from .manipulator import Mapping
+from .repository import Repository
 from .spec import AssemblyError, IProcessor, ContextMetaClass, ProcessorError, \
-    IReport, ResolverError, IResolvers
+    IRepository
 from ally.support.util_sys import locationStack
 from collections import Iterable
 from inspect import ismethod, isfunction, getfullargspec
 from itertools import chain
-import abc
-from ally.design.processor.resolvers import ResolversFilter
 
 # --------------------------------------------------------------------
 
@@ -50,22 +49,17 @@ class Processor(IProcessor):
         self.contexts = contexts
         self.call = call
 
-    def register(self, sources, resolvers, extensions, calls, report):
+    def register(self, sources, current, extensions, calls, report):
         '''
         @see: IProcessor.register
         '''
-        assert isinstance(resolvers, IResolvers), 'Invalid resolvers %s' % resolvers
+        assert isinstance(current, IRepository), 'Invalid current repository %s' % current
         assert isinstance(calls, list), 'Invalid calls %s' % calls
-        resolvers.merge(self.contexts)
+        
+        current.merge(self.contexts)
         calls.append(self.call)
         
     # ----------------------------------------------------------------
-    
-    def clone(self):
-        '''
-        Clones the processor.
-        '''
-        return Processor(dict(self.contexts), self.call)
 
     def __eq__(self, other):
         if not isinstance(other, self.__class__): return False
@@ -104,7 +98,9 @@ class Contextual(Processor):
         for name in arguments:
             assert isinstance(name, str), 'Invalid argument name %s' % name
             clazz = annotations.get(name)
-            if clazz is None: continue
+            if clazz is None:
+                raise ProcessorError('Context class required for argument %s, at:%s' % (name, locationStack(self.function)))
+            if clazz is Context: continue
             if not isinstance(clazz, ContextMetaClass):
                 raise ProcessorError('Not a context class %s for argument %s, at:%s' % 
                                      (clazz, name, locationStack(self.function)))
@@ -114,24 +110,18 @@ class Contextual(Processor):
         
         super().__init__(contexts, self.processCall(function))
     
-    def register(self, sources, resolvers, extensions, calls, report):
+    def register(self, sources, current, extensions, calls, report):
         '''
         @see: IProcessor.register
         '''
-        assert isinstance(resolvers, IResolvers), 'Invalid resolvers %s' % resolvers
+        assert isinstance(current, IRepository), 'Invalid current repository %s' % current
         assert isinstance(calls, list), 'Invalid calls %s' % calls
         
-        try: resolvers.merge(self.contexts)
-        except ResolverError: raise AssemblyError('Cannot merge contexts at:%s' % locationStack(self.function))
+        try: current.merge(self.contexts)
+        except: raise AssemblyError('Cannot merge contexts at:%s' % locationStack(self.function))
         calls.append(self.call)
         
     # ----------------------------------------------------------------
-    
-    def clone(self):
-        '''
-        @see: Processor.clone
-        '''
-        return Contextual(self.function, self.proceed)
      
     def processArguments(self, arguments, annotations):
         '''
@@ -166,9 +156,12 @@ class Contextual(Processor):
             The wrapped call.
         '''
         if self.proceed:
-            def wrapper(chain, **keyargs):
+            def wrapper(chain, *args, **keyargs):
                 assert isinstance(chain, Chain), 'Invalid processors chain %s' % chain
-                call(**keyargs)
+                try: call(*args, **keyargs)
+                except TypeError:
+                    raise TypeError('Problems for arguments %s and key arguments %s for call at:%s' % 
+                                    (args, keyargs, locationStack(call)))
                 chain.proceed()
             return wrapper
         return call
@@ -184,35 +177,11 @@ class Contextual(Processor):
 
 # --------------------------------------------------------------------
 
-class IBranch(metaclass=abc.ABCMeta):
-    '''
-    Specification for a branch handler.
-    '''
-    __slots__ = ()
-    
-    @abc.abstractmethod
-    def process(self, processor, sources, resolvers, extensions, report):
-        '''
-        Process the branch for the current contexts and attributes.
-        
-        @param sources: Resolvers
-            The sources attributes resolvers that need to be solved by processors.
-        @param resolvers: Resolvers
-            The attributes resolvers solved so far by processors.
-        @param extensions: Resolvers
-            The resolvers that are not part of the main stream attributes resolvers but they are rather extension for the created
-            contexts.
-        @param report: IReport
-            The report to be used in the registration process.
-        @return: IProcessing
-            The branch processing.
-        ''' 
-
 class Brancher(Contextual):
     '''
     Implementation for @see: IProcessor that provides branching of other processors containers.
     '''
-    __slots__ = ('branches', 'processings')
+    __slots__ = ('branches',)
     
     def __init__(self, function, *branches, proceed=False):
         '''
@@ -228,28 +197,24 @@ class Brancher(Contextual):
         self.branches = branches
         super().__init__(function, proceed)
     
-    def register(self, sources, resolvers, extensions, calls, report):
+    def register(self, sources, current, extensions, calls, report):
         '''
         @see: IProcessor.register
         '''
         assert isinstance(calls, list), 'Invalid calls %s' % calls
         
-        self.processings = []
+        processings, processor = [], Repository(self.contexts)
         for branch in self.branches:
             assert isinstance(branch, IBranch), 'Invalid branch %s' % branch
-            try: processing = branch.process(self, sources, resolvers, extensions, report)
-            except ResolverError: raise AssemblyError('Cannot create processing at:%s' % locationStack(self.function))
+            try: processing = branch.process(processor, sources, current, extensions, report)
+            except: raise AssemblyError('Cannot create processing at:%s' % locationStack(self.function))
             assert isinstance(processing, Processing), 'Invalid processing %s' % processing
-            self.processings.append(processing)
-        calls.append(self.call)
+            processings.append(processing)
+        
+        def wrapper(*args, **keyargs): self.call(*chain(args, processings), **keyargs)
+        calls.append(wrapper)
         
     # ----------------------------------------------------------------
-    
-    def clone(self):
-        '''
-        @see: Processor.clone
-        '''
-        return Brancher(self.function, *self.branches, proceed=self.proceed)
         
     def processArguments(self, arguments, annotations):
         '''
@@ -261,326 +226,59 @@ class Brancher(Contextual):
         if len(arguments) > n: return arguments[n:], annotations
         raise ProcessorError('Required function of form \'def processor(self, [chain], '
                              'processing, ..., contex:Context ...)\' for:%s' % locationStack(self.function))
+
+# --------------------------------------------------------------------
+
+class ProcessorRenamer(IProcessor):
+    '''
+    Implementation for @see: IProcessor that renames the context names for the provided processor.
+    '''
+    __slots__ = ('processor', 'mapping')
     
-    def processCall(self, call):
+    def __init__(self, processor, *mapping):
         '''
-        @see: Contextual.processCall
+        Construct the processor that renames the context names for the provided processor.
+        
+        @param processor: Container|Processor
+            Restructures the provided processor.
+        @param mapping: arguments[tuple(string string)]
+            The mappings that the renamer needs to make, attention the order in which the context mappings are provided
+            is crucial, examples:
+                ('request': 'solicitation')
+                    The wrapped processor will receive as the 'request' context the 'solicitation' context.
+                ('request': 'solicitation'), ('request': 'response')
+                    The wrapped processor will receive as the 'request' context the 'solicitation' and 'response' context.
+                ('solicitation': 'request'), ('response': 'request')
+                    The wrapped processor will receive as the 'solicitation' and 'response' context the 'request' context.
         '''
+        assert isinstance(processor, Processor), 'Invalid processor %s' % processor
+        assert mapping, 'At least one mapping is required'
+        
+        self.mapping = Mapping()
+        for first, second in mapping: self.mapping.map(first, second)
+        self.processor = processor
+
+    def register(self, sources, current, extensions, calls, report):
+        '''
+        @see: IProcessor.register
+        '''
+        assert isinstance(calls, list), 'Invalid calls %s' % calls
+        
+        wsources = self.mapping.structure(sources)
+        wcurrent = self.mapping.structure(current)
+        wextensions = self.mapping.structure(extensions)
+        wcalls = []
+        self.processor.register(wsources, wcurrent, wextensions, wcalls, report)
+        
+        self.mapping.restructure(current, wcurrent)
+        self.mapping.restructure(extensions, wextensions)
+        
         def wrapper(*args, **keyargs):
-            call(*chain(args, self.processings), **keyargs)
-        return super().processCall(wrapper)
-
-# --------------------------------------------------------------------
-
-class Routing(IBranch):
-    '''
-    Branch for routed processors containers. By routing is understood that the processors will be executed separately
-    from the main chain and they need to solve the main contexts. 
-    '''
-    __slots__ = ('assembly', 'merged')
-    
-    def __init__(self, assembly, merged=True):
-        '''
-        Construct the routing branch.
-        
-        @param assembly: Assembly
-            The processors assembly that provides routing.
-        @param merged: boolean
-            Flag indicating that the routing should be merged with the main context, thus allowing the routing processor
-            to use the same objects.
-            Attention if this is true then no processing context will be available.
-        '''
-        assert isinstance(assembly, Assembly), 'Invalid assembly %s' % assembly
-        assert isinstance(merged, bool), 'Invalid merged flag %s' % merged
-        self.assembly = assembly
-        self.merged = merged
-        
-    def process(self, processor, sources, resolvers, extensions, report):
-        '''
-        @see: IBrach.process
-        '''
-        assert isinstance(processor, Processor), 'Invalid processor %s' % processor
-        assert isinstance(sources, IResolvers), 'Invalid sources %s' % sources
-        assert isinstance(resolvers, IResolvers), 'Invalid resolvers %s' % resolvers
-        assert isinstance(report, IReport), 'Invalid report %s' % report
-        
-        report = report.open('Routing \'%s\'' % self.assembly.name)
-        try:
-            calls, rresolvs, rextens = [], Resolvers(), Resolvers()
-            for rproc in self.assembly.processors:
-                assert isinstance(rproc, IProcessor), 'Invalid processor %s' % rproc
-                rproc.register(sources, rresolvs, rextens, calls, report)
-        except (ResolverError, AssemblyError): raise AssemblyError('Cannot process Routing for \'%s\'' % self.assembly.name)
-        
-        try:
-            rresolvs.solve(processor.contexts)
-            resolvers.merge(rresolvs.copy(sources.iterateNames()))
-            rresolvs.solve(sources)
-            rresolvs.validate()
-            rresolvs.solve(rextens)
+            for second, firsts in self.mapping.secondToFirst.items():
+                try: value = keyargs.pop(second)
+                except KeyError: continue
+                for first in firsts: keyargs[first] = value
             
-            if self.merged:
-                assert isinstance(extensions, IResolvers), 'Invalid extensions %s' % extensions
-                extensions.merge(rresolvs)
-                return Processing(calls)
-            
-            report.add(rresolvs)
-            return Processing(calls, create(rresolvs))
-        except ResolverError:
-            raise AssemblyError('Resolvers problems on Routing for \'%s\'\n, with resolvers %s\n'
-                                ', and extensions %s' % (self.assembly.name, rresolvs, rextens))
- 
-class Using(IBranch):
-    '''
-    Branch for using processors containers. By using is understood that the processors will be executed separately
-    from the main chain and they need to solve the provided contexts. 
-    '''
-    __slots__ = ('assembly', 'contexts', 'useSources')
-
-    def __init__(self, assembly, **contexts):
-        '''
-        Construct the using branch.
+            for call in wcalls: call(*args, **keyargs)
         
-        @param assembly: Assembly
-            The processors assembly to use.
-        @param contexts: key arguments{string, ContextMetaClass}
-            The contexts to be solved by the used container.
-        '''
-        assert isinstance(assembly, Assembly), 'Invalid assembly %s' % assembly
-        if __debug__:
-            for name, clazz in contexts.items():
-                assert isinstance(name, str), 'Invalid context name %s' % name
-                assert isinstance(clazz, ContextMetaClass), 'Invalid context class %s' % clazz
-        self.assembly = assembly
-        self.contexts = contexts
-        self.useSources = set()
-    
-    def process(self, processor, sources, resolvers, extensions, report):
-        '''
-        @see: IBrach.process
-        '''
-        assert isinstance(processor, Processor), 'Invalid processor %s' % processor
-        assert isinstance(sources, IResolvers), 'Invalid sources %s' % sources
-        assert isinstance(resolvers, IResolvers), 'Invalid resolvers %s' % resolvers
-        assert isinstance(report, IReport), 'Invalid report %s' % report
-        
-        resolvers.merge(processor.contexts)
-        report = report.open('Using \'%s\'' % self.assembly.name)
-        
-        try:
-            if self.useSources:
-                usrcs = sources.copy(self.useSources)
-                if self.contexts: usrcs.merge(self.contexts)
-                usrcs.lock()
-            else:
-                usrcs = Resolvers(True, self.contexts)
-            
-            calls, uresolvs, uextens = [], Resolvers(), Resolvers()
-            for uproc in self.assembly.processors:
-                assert isinstance(uproc, IProcessor), 'Invalid processor %s' % uproc
-                uproc.register(usrcs, uresolvs, uextens, calls, report)
-        except (ResolverError, AssemblyError): raise AssemblyError('Cannot process Using for \'%s\'' % self.assembly.name)
-        
-        try:
-            uresolvs.solve(usrcs)
-            uresolvs.validate()
-            uresolvs.solve(uextens)
-            report.add(uresolvs)
-            return Processing(calls, create(uresolvs))
-        except ResolverError:
-            raise AssemblyError('Resolvers problems on Using for \'%s\'\n, with sources %s\n, with processors %s\n'
-                                ', and extensions %s' % (self.assembly.name, usrcs, uresolvs, uextens))
-            
-    # ----------------------------------------------------------------
-    
-    def sources(self, *names):
-        '''
-        Declare the source names that are used as contexts.
-        
-        @param names: arguments[string]
-            The contexts names to be used from the sources.
-        @return: self
-            This instance for chaining purposes.
-        '''
-        if __debug__:
-            for name in names: assert isinstance(name, str), 'Invalid context name %s' % name
-        self.useSources.update(names)
-        return self
-
-class Included(IBranch):
-    '''
-    Branch for included processors containers. By included is understood that the processors will be executed using the
-    main context objects, so basically is like having included also the processors in the main chain but still have control
-    over when and how they are executed.
-    '''
-    __slots__ = ('assembly', 'contextsUsing')
-    
-    def __init__(self, assembly):
-        '''
-        Construct the included branch.
-        
-        @param assembly: Container
-            The processors assembly to be included.
-        '''
-        assert isinstance(assembly, Assembly), 'Invalid assembly %s' % assembly
-        self.assembly = assembly
-        self.contextsUsing = {}
-    
-    def process(self, processor, sources, resolvers, extensions, report):
-        '''
-        @see: IBrach.process
-        '''
-        assert isinstance(processor, Processor), 'Invalid processor %s' % processor
-        assert isinstance(resolvers, IResolvers), 'Invalid resolvers %s' % resolvers
-        assert isinstance(extensions, IResolvers), 'Invalid extensions %s' % extensions
-        assert isinstance(report, IReport), 'Invalid report %s' % report
-        
-        report = report.open('Included \'%s\'' % self.assembly.name)
-        
-        try:
-            calls, iresolvs, iextens = [], Resolvers(), Resolvers()
-            for iproc in self.assembly.processors:
-                assert isinstance(iproc, IProcessor), 'Invalid processor %s' % iproc
-                iproc.register(sources, iresolvs, iextens, calls, report)
-            
-            if self.contextsUsing:
-                uattrs = iresolvs.extract(self.contextsUsing)
-                assert isinstance(uattrs, IResolvers)
-                uattrs.solve(self.contextsUsing)
-                uattrs.validate()
-                uattrs.solve(iextens.extract(self.contextsUsing))
-                report.add(uattrs)
-                contexts = create(uattrs)
-            else: contexts = None
-            
-            iresolvs.solve(processor.contexts)
-            resolvers.merge(iresolvs)
-            extensions.solve(iextens)
-            return Processing(calls, contexts=contexts)
-        
-        except (ResolverError, AssemblyError): raise AssemblyError('Cannot process Included for \'%s\'' % self.assembly.name)
-    
-    # ----------------------------------------------------------------
-    
-    def using(self, **contexts):
-        '''
-        Declare the contexts that will not be included but will be used. This means that this context will be on processing
-        contexts and have instances created for.
-        
-        @param contexts: key arguments{string, ContextMetaClass}
-            The contexts to be used rather then included.
-        @return: self
-            This instance for chaining purposes.
-        '''
-        if __debug__:
-            for name, clazz in contexts.items():
-                assert isinstance(name, str), 'Invalid context name %s' % name
-                assert isinstance(clazz, ContextMetaClass), 'Invalid context class %s' % clazz
-        self.contextsUsing.update(**contexts)
-        return self
-
-class Filter(IBranch):
-    '''
-    Provides context filtering for a wrapped branch.
-    '''
-    __slots__ = ('filtered', 'routing')
-    
-    def __init__(self, filtered, **routing):
-        '''
-        Construct the included branch.
-        
-        @param filtered: IBranch
-            The filtered branch.
-        @param routing: dictionary{string: string}
-            Routing dictionary, as a key the context name as it is known in the processor that performs the branching and as a
-            value the name as it is known in the branch.
-        '''
-        assert isinstance(filtered, IBranch), 'Invalid branch %s' % filtered
-        assert routing, 'At least one routing is required'
-        if __debug__:
-            for name, value in routing.items():
-                assert isinstance(name, str), 'Invalid name %s' % name
-                assert isinstance(value, str), 'Invalid name %s' % value
-        
-        self.filtered = filtered
-        self.routing = routing
-    
-    def process(self, processor, sources, resolvers, extensions, report):
-        '''
-        @see: IBrach.process
-        '''
-        assert isinstance(sources, IResolvers), 'Invalid sources %s' % sources
-        assert isinstance(resolvers, IResolvers), 'Invalid resolvers %s' % resolvers
-        assert isinstance(extensions, IResolvers), 'Invalid extensions %s' % extensions
-        
-        sources = ResolversFilter(sources, self.routing)
-        resolvers = ResolversFilter(resolvers, self.routing)
-        extensions = ResolversFilter(extensions, self.routing)
-
-        processing = self.filtered.process(processor, sources, resolvers, extensions, report)
-        
-        resolvers.solveInFiltered()
-        extensions.solveInFiltered()
-        
-        return processing
-
-# --------------------------------------------------------------------
-
-def restructure(processor, *mapping):
-    '''
-    Handler that restructures the context names for the provided handler or processor.
-    
-    @param processor: Container|Processor
-        Restructures the provided processor.
-    @param mapping: arguments[tuple(string, string)]
-        The mapping to restructure by. The mapping(s) are provided as tuples having on the first position the name of the 
-        restructured processor context and as a second value to name of the context to use.
-    @return: Handler
-        The handler that has the restructured processor.
-    '''
-    # TODO: Gabriel: make the restructure based on resolver filters
-    if isinstance(processor, Container):
-        assert isinstance(processor, Container)
-        assert len(processor.processors) == 1, 'Container %s, is required to have only one processor' % processor
-        processor = processor.processors[0]
-    assert isinstance(processor, Processor), 'Invalid processor %s' % processor
-    assert mapping, 'At least one mapping is required'
-    
-    clone = processor.clone()
-    assert isinstance(clone, Processor), 'Invalid clone %s' % clone
-    
-    mappings = {}
-    for nameFrom, nameTo in mapping:
-        assert nameFrom in clone.contexts, 'Invalid name %s for contexts %s' % (nameFrom, clone.contexts)
-        names = mappings.get(nameTo)
-        if names is None: mappings[nameTo] = names = set()
-        names.add(nameFrom)
-    
-    restructured = dict(clone.contexts)
-    for nameTo, names in mappings.items():
-        for nameFrom in names: restructured.pop(nameFrom, None) 
-        # Just making sure that the restructured doens't contain the class anymore
-        if len(names) > 1:
-            resolvers = None
-            for nameFrom in names:
-                if resolvers is None: resolvers = Resolvers(contexts={nameTo: clone.contexts[nameFrom]})
-                else: resolvers.solve({nameTo: clone.contexts[nameFrom]})
-            restructured[nameTo] = createDefinition(resolvers)[nameTo]
-        else:
-            nameFrom = next(iter(names))
-            restructured[nameTo] = clone.contexts[nameFrom]
-
-    originalCall = clone.call
-    def restructurer(*args, **keyargs):
-        for nameTo, names in mappings.items():
-            try: value = keyargs.pop(nameTo)
-            except KeyError: continue
-            for nameFrom in names: keyargs[nameFrom] = value
-            
-        originalCall(*args, **keyargs)
-        
-    clone.contexts = restructured
-    clone.call = restructurer
-    
-    from .handler import Handler
-    return Handler(clone)
+        calls.append(wrapper)

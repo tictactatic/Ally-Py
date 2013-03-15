@@ -19,7 +19,7 @@ from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Processing, Chain
 from ally.design.processor.handler import HandlerBranching
-from ally.design.processor.processor import Included
+from ally.design.processor.branch import Included
 from ally.http.spec.server import IEncoderHeader, IEncoderPath
 import logging
 

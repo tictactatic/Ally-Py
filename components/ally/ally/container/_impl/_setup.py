@@ -11,10 +11,10 @@ Provides the setup implementations for the IoC module.
 
 from ..error import SetupError, ConfigError
 from ..impl.config import Config
-from ..impl.priority import Priority
 from ._assembly import Setup, Assembly
 from ._call import WithType, WithCall, CallEvent, CallEventOnCount, \
     WithListeners, CallConfig, CallEntity, CallStart, CallEventControlled
+from ally.design.priority import Priority
 from ally.support.util_sys import locationStack
 from collections import Iterable
 from functools import partial

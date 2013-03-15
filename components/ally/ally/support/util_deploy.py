@@ -1,9 +1,9 @@
 '''
 Created on Sep 14, 2012
 
-@package ally utilities
-@copyright 2012 Sourcefabric o.p.s.
-@license http: // www.gnu.org / licenses / gpl - 3.0.txt
+@package: ally base
+@copyright: 2011 Sourcefabric o.p.s.
+@license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Mugur Rus
 
 Contains ZIP utils

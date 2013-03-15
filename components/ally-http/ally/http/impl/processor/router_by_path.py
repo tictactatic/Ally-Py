@@ -12,10 +12,10 @@ Provides a processor that routes the requests based on patterns.
 from ally.container.ioc import injected
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires
-from ally.design.processor.context import Context, copy
+from ally.design.processor.context import Context, pushIn
 from ally.design.processor.execution import Chain, Processing
 from ally.design.processor.handler import HandlerBranching
-from ally.design.processor.processor import Routing
+from ally.design.processor.branch import Routing
 import logging
 import re
 
@@ -57,7 +57,7 @@ class RoutingByPathHandler(HandlerBranching):
         
         self._regex = re.compile(self.pattern)
             
-    def process(self, chain, processing, request:Request, requestCnt, response, responseCnt):
+    def process(self, chain, processing, request:Request, requestCnt:Context, response:Context, responseCnt:Context):
         '''
         @see: HandlerBranching.process
         
@@ -70,10 +70,8 @@ class RoutingByPathHandler(HandlerBranching):
         match = self._regex.match(request.uri)
         if match:
             if not self.useSameContexts:
-                req, reqCnt = processing.ctx.request(), processing.ctx.requestCnt()
-                copy(request, req)
-                copy(requestCnt, reqCnt)
-                request, requestCnt = req, reqCnt
+                request = pushIn(processing.ctx.request(), request)
+                requestCnt = pushIn(processing.ctx.requestCnt(), requestCnt)
                 response, responseCnt = processing.ctx.response(), processing.ctx.responseCnt()
                 
             request.uri = ''.join(match.groups())
