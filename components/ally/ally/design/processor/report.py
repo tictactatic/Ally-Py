@@ -53,6 +53,7 @@ class ReportUnused(IReport):
         @return: list[string]
             The list of string lines.
         '''
+        #TODO: Gabriel: make a prettier report.
         lines = []
         reportOn(lines, self.resolvers, LIST_UNUSED)
         if lines: lines.insert(0, 'Unused attributes:')

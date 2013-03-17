@@ -13,7 +13,7 @@ from .assembly import Assembly
 from .context import create
 from .execution import Processing
 from .resolvers import copyAttributes, attributesFor, extractContexts, solve, \
-    merge, checkIf, reportFor, resolversFor
+    merge, checkIf, reportFor
 from .spec import ContextMetaClass, IReport, IProcessor, AssemblyError, \
     LIST_UNAVAILABLE
 from .structure import restructureResolvers
@@ -188,9 +188,9 @@ class Using(WithAssembly):
         merge(resolvers, processor)
         report = report.open('Using \'%s\'' % self.name())
         try:
-            if self.current: usources = merge(restructureResolvers(resolvers, self.current), self.contexts)
-            else: usources = resolversFor(self.contexts)
-            
+            usources = restructureResolvers(resolvers, self.current)
+            solve(usources, restructureResolvers(sources, self.current))
+            merge(usources, self.contexts)
             uextensions, uresolvers = {}, {}
             calls = self.processAssembly(usources, uresolvers, uextensions, report)
                     
@@ -198,16 +198,14 @@ class Using(WithAssembly):
         
         try:
             solve(uresolvers, usources, False)
-            #TODO: Gabriel check the reported unused for REST
-            #if self.current: solve(uresolvers, restructureResolvers(sources, self.current), False)
             if checkIf(uresolvers, LIST_UNAVAILABLE):
                 raise AssemblyError('Using for \'%s\' has unavailable attributes:%s' % 
                                     (self.name(), reportFor(uresolvers, LIST_UNAVAILABLE)))
             solve(uresolvers, uextensions)
-            if self.current:
-                uextensions = restructureResolvers(uresolvers, self.current, True)
-                uextensions = copyAttributes(uextensions, attributesFor(resolvers))
-                merge(extensions, uextensions)
+            cextensions = restructureResolvers(uresolvers, self.current, True)
+            cextensions = copyAttributes(cextensions, attributesFor(resolvers))
+            merge(extensions, cextensions)
+            
             report.add(uresolvers)
             return Processing(calls, create(uresolvers))
         except AssemblyError: raise
@@ -249,17 +247,15 @@ class Included(WithAssembly):
             iresolvers, iextensions = {}, {}
             calls = self.processAssembly(sources, iresolvers, iextensions, report)
             
-            if self.using:
-                uresolvers = extractContexts(iresolvers, self.using)
-                uresolvers = solve(uresolvers, self.using)
-                if checkIf(uresolvers, LIST_UNAVAILABLE):
-                    raise AssemblyError('Included for \'%s\' has unavailable attributes:%s' % 
-                                        (self.name(), reportFor(uresolvers, LIST_UNAVAILABLE)))
-                solve(uresolvers, extractContexts(iextensions, self.using))
-                
-                report.add(uresolvers)
-                contexts = create(uresolvers)
-            else: contexts = None
+            uresolvers = extractContexts(iresolvers, self.using)
+            uresolvers = solve(uresolvers, self.using)
+            if checkIf(uresolvers, LIST_UNAVAILABLE):
+                raise AssemblyError('Included for \'%s\' has unavailable attributes:%s' % 
+                                    (self.name(), reportFor(uresolvers, LIST_UNAVAILABLE)))
+            solve(uresolvers, extractContexts(iextensions, self.using))
+            
+            report.add(uresolvers)
+            contexts = create(uresolvers)
             
             merge(resolvers, solve(iresolvers, processor))
             solve(extensions, iextensions)
