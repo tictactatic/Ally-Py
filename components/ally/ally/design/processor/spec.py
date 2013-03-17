@@ -43,8 +43,6 @@ LIST_UNUSED = 'List unused attributes'
 # Flag indicating that the unused attributes names should be iterated.
 LIST_CLASSES = 'List used in classes for attributes'
 # Flag indicating that the classes where an attribute is used should be provided as a value.
-LIST_RESOLVER = 'List resolvers for contexts'
-# Flag indicating that the resolvers should be listed as values for contexts.
 
 CREATE_DEFINITION = 'Create definition attributes'
 # Flag indicating that definition attributes need to be created.
@@ -117,86 +115,6 @@ class IResolver(metaclass=abc.ABCMeta):
             The attributes dictionary specific for this context resolver.
         '''
 
-class IRepository(metaclass=abc.ABCMeta):
-    '''
-    Context resolvers repository specification.
-    '''
-    __slots__ = ()
-    
-    @abc.abstractmethod
-    def merge(self, other):
-        '''
-        Merges into this resolvers repository the provided resolvers or contexts.
-        
-        @param other: IRepository|dictionary{string, ContextMetaClass)
-            The resolvers or dictionary of context to merge with.
-        '''
-    
-    @abc.abstractmethod
-    def solve(self, other):
-        '''
-        Solves into this resolvers repository the provided resolvers or contexts.
-        
-        @param other: IRepository|dictionary{string, ContextMetaClass)
-            The resolvers or dictionary of context to solve with.
-        '''
-    
-    @abc.abstractmethod
-    def copy(self, names=None):
-        '''
-        Creates a copy for this resolvers repository.
-        
-        @param names: Iterable(string|tuple(string, string))|None
-            The context or attribute names to copy for, if a name is not known then is ignored,
-            if None then all resolvers are copied.
-        @return: IRepository
-            The copy of resolvers repository.
-        '''
-    
-    @abc.abstractmethod
-    def extract(self, names):
-        '''
-        Extracts from this resolvers repository all the resolvers for the provided context or attribute names.
-        
-        @param names: Iterable(string|tuple(string, string))
-            The context or attribute names to extract the resolvers for.
-        @return: IRepository
-            The extracted resolvers repository.
-        '''
-        
-    @abc.abstractmethod
-    def listContexts(self, *flags):
-        '''
-        Lists the context names for this resolvers repository.
-        
-        @param flags: arguments[object]
-            Flags indicating specific context to be listed, if no specific flag is provided then all contexts are listed.
-        @return: dictionary{string: object}
-            The context name as a key and additional information depending on flags as a value.
-        '''
-    
-    @abc.abstractmethod
-    def listAttributes(self, *flags):
-        '''
-        Lists the context names and attribute names for this resolvers repository.
-        
-        @param flags: arguments[object]
-            Flags indicating specific attributes to be listed, if no specific flag is provided then all attributes are listed.
-        @return: dictionary{tuple(string, string): object}
-            The context and attribute name as a key and additional information depending on flags as a value.
-        '''
-    
-    @abc.abstractmethod
-    def create(self, *flags):
-        '''
-        Creates the attributes of this repository.
-        
-        @param flags: arguments[object]
-            Flags to be used for creating the attributes.
-        @return: dictionary{string: dictionary{string: IAttribute}}
-            The attributes indexed by context names.
-        '''
-
 # --------------------------------------------------------------------
         
 class IAttribute(metaclass=abc.ABCMeta):
@@ -266,12 +184,12 @@ class IReport(metaclass=abc.ABCMeta):
             The report for name.
         '''
         
-    def add(self, repository):
+    def add(self, resolvers):
         '''
         Adds the provided resolvers to be reported on.
         
-        @param repository: IRepository
-            The resolvers repository to be reported.
+        @param resolvers: dictionary{string: IResolver}
+            The resolvers to be reported.
         '''
 
 class IProcessor(metaclass=abc.ABCMeta):
@@ -280,18 +198,17 @@ class IProcessor(metaclass=abc.ABCMeta):
     '''
     
     @abc.abstractmethod
-    def register(self, sources, current, extensions, calls, report):
+    def register(self, sources, resolvers, extensions, calls, report):
         '''
         Register the processor call. The processor needs to alter the attributes and extensions dictionaries based on the
         processor.
         
-        @param sources: IRepository
-            The sources resolvers repository that need to be solved by processors.
-        @param current: IRepository
-            The current resolvers repository solved so far by processors.
-        @param extensions: IRepository
-            The resolvers repository that are not part of the main stream resolvers but they are rather extension for 
-            the created contexts.
+        @param sources: dictionary{string: IResolver}
+            The sources resolvers that need to be solved by processors.
+        @param resolvers: dictionary{string: IResolver}
+            The resolvers used in creating the final contexts.
+        @param extensions: dictionary{string: IResolver}
+            The resolvers that are not part of the current resolvers but they are rather extension for the final contexts.
         @param calls: list[callable]
             The list of callable objects to register the processor call into.
         @param report: IReport

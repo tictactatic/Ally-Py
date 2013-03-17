@@ -317,7 +317,7 @@ class Resolver(IResolver):
                     raise AttrError('Cannot generate attribute %s=%s, used in:%s' % 
                                     (name, spec, ''.join(locationStack(clazz) for clazz in spec.usedIn)))
                 if spec.status & OPTIONAL: continue  # If is optional then no need to create it
-                attributes[name] = Attribute(spec, Descriptor=Descriptor)
+                attributes[name] = Attribute(Specification(spec.status, spec.types, spec.doc), Descriptor=Descriptor)
             
         assert not flags, 'Unknown flags: %s' % ', '.join(flags)
         return attributes

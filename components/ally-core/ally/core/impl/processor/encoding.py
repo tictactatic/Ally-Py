@@ -14,7 +14,7 @@ from ally.core.spec.resources import Invoker
 from ally.core.spec.transform.encoder import IEncoder
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines
-from ally.design.processor.branch import Using, Combine
+from ally.design.processor.branch import Using
 from ally.design.processor.context import Context, pushIn
 from ally.design.processor.execution import Processing, Chain
 from ally.design.processor.handler import HandlerBranchingProceed
@@ -75,9 +75,7 @@ class EncodingHandler(HandlerBranchingProceed):
     
     def __init__(self):
         assert isinstance(self.encodeAssembly, Assembly), 'Invalid encode assembly %s' % self.encodeAssembly
-        branch = Using(self.encodeAssembly, 'support', create=Create)
-        branch = Combine(branch, ('support', 'response'), ('support', 'request'))
-        super().__init__(branch)
+        super().__init__(Using(self.encodeAssembly, ('support', 'response'), ('support', 'request'), create=Create))
 
     def process(self, encodeProcessing, request:Request, response:Response, **keyargs):
         '''
@@ -93,7 +91,7 @@ class EncodingHandler(HandlerBranchingProceed):
         if response.encoder: return  # There is already an encoder no need to create another one
         assert isinstance(request.invoker, Invoker), 'Invalid request invoker %s' % request.invoker
         
-        #TODO: Gabriel: remove
+        # TODO: Gabriel: remove
         print('support:', list(encodeProcessing.ctx.support.__attributes__))
         print('request:', list(request.__attributes__))
         print('response:', list(response.__attributes__))

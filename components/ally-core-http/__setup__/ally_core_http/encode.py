@@ -36,7 +36,7 @@ def updateAssemblyEncodeWithPath():
 @ioc.after(updateAssemblyItemEncode)
 def updateAssemblyItemEncodeWithPath():
     assemblyItemEncode().add(modelPathAttributeEncode(), before=modelPropertyEncode())
-#
+#TODO: Gabriel: see about this
 #@ioc.after(updateAssemblyPropertyModelEncode)
 #def updateAssemblyPropertyModelEncodeWithPath():
 #    assemblyPropertyModelEncode().add(pathEncode(), before=modelPropertyEncode())

@@ -222,7 +222,7 @@ class Repository(IRepository):
         @see: IRepository.find
         '''
         for gateway in self._gateways:
-            groupsURI = self._macth(gateway, method, headers, uri, error)
+            groupsURI = self._match(gateway, method, headers, uri, error)
             if groupsURI is not None: return Match(gateway, groupsURI)
         
     def allowsFor(self, headers=None, uri=None):
@@ -232,7 +232,7 @@ class Repository(IRepository):
         allowed = set()
         for gateway in self._gateways:
             assert isinstance(gateway, Gateway)
-            groupsURI = self._macth(gateway, None, headers, uri, None)
+            groupsURI = self._match(gateway, None, headers, uri, None)
             if groupsURI is not None: allowed.update(gateway.methods)
         return allowed
         
@@ -246,7 +246,7 @@ class Repository(IRepository):
 
     # ----------------------------------------------------------------
     
-    def _macth(self, gateway, method, headers, uri, error):
+    def _match(self, gateway, method, headers, uri, error):
         '''
         Checks the match for the provided gateway and parameters.
         

@@ -76,7 +76,7 @@ class PathSupport(HandlerProcessorProceed):
         elif isinstance(objType, TypeModelProperty):
             assert isinstance(objType, TypeModelProperty)
             modelType = objType.parent
-        else: return  # Cannot use the object type, moving allong
+        else: return  # Cannot use the object type, moving along
         
         assert isinstance(support.path, Path), 'Invalid path %s' % support.path
         

@@ -11,9 +11,8 @@ Contains the assembly support.
 
 from .context import create
 from .execution import Processing
-from .repository import Repository
-from .spec import IProcessor, AssemblyError
-from .support.util_repository import hasUnavailable, reportUnavailable
+from .resolvers import resolversFor, checkIf, solve, reportFor
+from .spec import IProcessor, AssemblyError, LIST_UNAVAILABLE
 from abc import ABCMeta
 from ally.design.processor.report import ReportUnused
 from collections import Iterable
@@ -126,16 +125,16 @@ class Assembly(Container):
             report: string
             A text containing the report for the processing creation
         '''
-        report = ReportUnused()
-        calls, sources, current, extensions = [], Repository(contexts), Repository(), Repository()
+        sources, current, extensions, calls, report = resolversFor(contexts), {}, {}, [], ReportUnused()
         for processor in self.processors:
             assert isinstance(processor, IProcessor), 'Invalid processor %s' % processor
             processor.register(sources, current, extensions, calls, report)
-            
-        current.solve(sources)
-        if hasUnavailable(current):
-            raise AssemblyError('Assembly \'%s\' has unavailable attributes:\n%s' % (self.name, reportUnavailable(current)))
-        current.solve(extensions)
+        
+        solve(current, sources)
+        if checkIf(current, LIST_UNAVAILABLE):
+            raise AssemblyError('Assembly \'%s\' has unavailable attributes:\n%s' % 
+                                (self.name, reportFor(current, LIST_UNAVAILABLE)))
+        solve(current, extensions)
         processing = Processing(calls, create(current))
         reportAss = report.open('Assembly \'%s\'' % self.name)
         reportAss.add(current)

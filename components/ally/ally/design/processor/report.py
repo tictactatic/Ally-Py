@@ -9,9 +9,8 @@ Created on Feb 18, 2013
 Module containing report implementations.
 '''
 
-from .spec import IReport, IRepository, LIST_UNUSED, LIST_CLASSES
-from ally.support.util_sys import locationStack
-from collections import Iterable
+from .resolvers import reportOn
+from .spec import IReport, LIST_UNUSED
 
 # --------------------------------------------------------------------
 
@@ -19,7 +18,7 @@ class ReportUnused(IReport):
     '''
     Implementation for @see: IReport that reports the unused attributes resolvers.
     '''
-    __slots__ = ('reports', 'repositories')
+    __slots__ = ('reports', 'resolvers')
     
     ident = '  '
     # The ident to use in the report.
@@ -29,7 +28,7 @@ class ReportUnused(IReport):
         Construct the report.
         '''
         self.reports = {}
-        self.repositories = []
+        self.resolvers = {}
         
     def open(self, name):
         '''
@@ -40,12 +39,12 @@ class ReportUnused(IReport):
         if not report: report = self.reports[name] = ReportUnused()
         return report
         
-    def add(self, repository):
+    def add(self, resolvers):
         '''
         @see: IReport.add
         '''
-        assert isinstance(repository, IRepository), 'Invalid resolvers %s' % repository
-        self.repositories.append(repository)
+        assert isinstance(resolvers, dict), 'Invalid resolvers %s' % resolvers
+        self.resolvers.update(resolvers)
         
     def report(self):
         '''
@@ -54,22 +53,14 @@ class ReportUnused(IReport):
         @return: list[string]
             The list of string lines.
         '''
-        st, reported = [], set()
-        for repository in self.repositories:
-            assert isinstance(repository, IRepository)
-            for key, classes in repository.listAttributes(LIST_UNUSED, LIST_CLASSES).items():
-                if key not in reported:
-                    reported.add(key)
-                    st.append('%s%s' % (self.ident, '%s.%s used in:' % key))
-                    assert isinstance(classes, Iterable), 'Invalid classes %s' % classes
-                    for clazz in classes: st.append('%s%s' % (self.ident, locationStack(clazz).strip()))
-                        
-        if st: st.insert(0, 'Unused attributes:')
+        lines = []
+        reportOn(lines, self.resolvers, LIST_UNUSED)
+        if lines: lines.insert(0, 'Unused attributes:')
             
         for name, report in self.reports.items():
             assert isinstance(report, ReportUnused)
-            lines = report.report()
-            if lines:
-                st.append('Report on %s:' % name)
-                st.extend('%s%s' % (self.ident, line) for line in lines)
-        return st
+            linesChild = report.report()
+            if linesChild:
+                lines.append('Report on %s' % name)
+                lines.extend('%s%s' % (self.ident, line) for line in linesChild)
+        return lines

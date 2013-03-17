@@ -12,12 +12,12 @@ Module containing processors branches.
 from .assembly import Assembly
 from .context import create
 from .execution import Processing
-from .repository import Repository, RepositoryUsed
-from .spec import ContextMetaClass, IRepository, IReport, IProcessor, \
-    AssemblyError
-from .support.util_repository import hasUnavailable, reportUnavailable
+from .resolvers import copyAttributes, attributesFor, extractContexts, solve, \
+    merge, checkIf, reportFor, resolversFor
+from .spec import ContextMetaClass, IReport, IProcessor, AssemblyError, \
+    LIST_UNAVAILABLE
+from .structure import restructureResolvers
 import abc
-from .manipulator import Mapping
 
 # --------------------------------------------------------------------
 
@@ -33,25 +33,23 @@ class IBranch(metaclass=abc.ABCMeta):
         '''
     
     @abc.abstractmethod
-    def process(self, processor, sources, current, extensions, report):
+    def process(self, sources, processor, resolvers, extensions, report):
         '''
         Process the branch for the current repository.
         
-        @param processor: IRepository
-            The contexts resolvers repository of the processor that handles the branch..
-        @param sources: IRepository
-            The sources resolvers repository that need to be solved by processors.
-        @param current: IRepository
-            The current resolvers repository solved so far by processors.
-        @param extensions: IRepository
-            The resolvers repository that are not part of the main stream resolvers but they are rather extension for 
-            the created contexts.
+        @param sources: dictionary{string: IResolver}
+            The sources resolvers that need to be solved by processors.
+        @param processor: dictionary{string: IResolver}
+            The resolvers of the processor that handles the branch.
+        @param resolvers: dictionary{string: IResolver}
+            The resolvers used in creating the final contexts.
+        @param extensions: dictionary{string: IResolver}
+            The resolvers that are not part of the current resolvers but they are rather extension for the final contexts.
         @param report: IReport
             The report to be used in the registration process.
         @return: Processing
             The branch processing.
         ''' 
-# --------------------------------------------------------------------
 
 class WithAssembly(IBranch):
     '''
@@ -89,27 +87,6 @@ class WithAssembly(IBranch):
             proc.register(sources, current, extensions, calls, report)
         return calls
 
-class WithBranch(IBranch):
-    '''
-    Branch for implementation that provides a wrapped branch support.
-    '''
-
-    def __init__(self, branch):
-        '''
-        Construct the branch with target.
-        
-        @param branch: IBranch
-            The target branch to use.
-        '''
-        assert isinstance(branch, IBranch), 'Invalid branch %s' % branch
-        self.branch = branch
-        
-    def name(self):
-        '''
-        @see: IBranch.name
-        '''
-        return self.branch.name()
-
 # --------------------------------------------------------------------
 
 class Routing(WithAssembly):
@@ -133,40 +110,38 @@ class Routing(WithAssembly):
         
         self.merged = merged
         
-    def process(self, processor, sources, current, extensions, report):
+    def process(self, sources, processor, resolvers, extensions, report):
         '''
         @see: IBrach.process
         '''
-        assert isinstance(sources, IRepository), 'Invalid sources %s' % sources
-        assert isinstance(current, IRepository), 'Invalid current repository %s' % current
+        assert isinstance(sources, dict), 'Invalid sources %s' % sources
         assert isinstance(report, IReport), 'Invalid report %s' % report
         
         report = report.open('Routing \'%s\'' % self.name())
         try:
-            rcurrent, rextensions = Repository(), Repository()
-            calls = self.processAssembly(sources, rcurrent, rextensions, report)
+            rresolvers, rextensions = {}, {}
+            calls = self.processAssembly(sources, rresolvers, rextensions, report)
         except: raise AssemblyError('Cannot process Routing for \'%s\'' % self.name())
         
         try:
-            rcurrent.solve(processor)
-            current.merge(rcurrent.copy(sources.listAttributes()))
-            rcurrent.solve(sources)
-            if hasUnavailable(rcurrent):
-                raise AssemblyError('Routing for \'%s\' has unavailable attributes:\n%s' % 
-                                    (self.name(), reportUnavailable(rcurrent)))
-            rcurrent.solve(rextensions)
-            
+            solve(rresolvers, processor)
+            merge(resolvers, copyAttributes(rresolvers, attributesFor(sources)))
+            solve(rresolvers, sources)
+            if checkIf(rresolvers, LIST_UNAVAILABLE):
+                raise AssemblyError('Routing for \'%s\' has unavailable attributes:%s' % 
+                                    (self.name(), reportFor(rresolvers, LIST_UNAVAILABLE)))
+            solve(rresolvers, rextensions)
             if self.merged:
-                assert isinstance(extensions, IRepository), 'Invalid extensions %s' % extensions
-                extensions.merge(rcurrent)
+                assert isinstance(extensions, dict), 'Invalid extensions %s' % extensions
+                merge(extensions, rresolvers)
                 return Processing(calls)
             
-            report.add(rcurrent)
-            return Processing(calls, create(rcurrent))
+            report.add(rresolvers)
+            return Processing(calls, create(rresolvers))
         except AssemblyError: raise
         except:
-            raise AssemblyError('Resolvers problems on Routing for \'%s\'\n, with resolvers %s\n'
-                                ', and extensions %s' % (self.name(), rcurrent, rextensions))
+            raise AssemblyError('Resolvers problems on Routing for \'%s\'\n, with resolvers:%s\n'
+                                ', and extensions:%s' % (self.name(), reportFor(rresolvers), reportFor(rextensions)))
             
 class Using(WithAssembly):
     '''
@@ -180,13 +155,21 @@ class Using(WithAssembly):
         they will not have a processing context class.
         @see: WithAssembly.__init__
         
-        @param current: arguments[string]
-            The current contexts names to be used from the ongoing process.
+        @param current: arguments[string|tuple(string, string)]
+            The current contexts names to be used from the ongoing process, or mappings that the using needs to make,
+            attention the order in which the context mappings are provided
+            is crucial, examples:
+                ('request': 'solicitation')
+                    The wrapped branch will receive as the 'request' context the 'solicitation' context.
+                ('request': 'solicitation'), ('request': 'response')
+                    The wrapped branch will receive as the 'request' context the 'solicitation' and 'response' context.
+                ('solicitation': 'request'), ('response': 'request')
+                    The wrapped branch will receive as the 'solicitation' and 'response' context the 'request' context.
         @param contexts: key arguments{string, ContextMetaClass}
             The contexts to be solved by the used container.
         '''
         if __debug__:
-            for name in current: assert isinstance(name, str), 'Invalid current context name %s' % name
+            for name in current: assert isinstance(name, (str, tuple)), 'Invalid current context name %s' % name
             assert len(set(current)) == len(current), 'Cannot have duplicated current names'
             for name, clazz in contexts.items():
                 assert isinstance(name, str), 'Invalid context name %s' % name
@@ -196,45 +179,41 @@ class Using(WithAssembly):
         self.current = current
         self.contexts = contexts
     
-    def process(self, processor, sources, current, extensions, report):
+    def process(self, sources, processor, resolvers, extensions, report):
         '''
         @see: IBrach.process
         '''
-        assert isinstance(sources, IRepository), 'Invalid sources %s' % sources
-        assert isinstance(current, IRepository), 'Invalid current repository %s' % current
-        assert isinstance(extensions, IRepository), 'Invalid extensions %s' % extensions
         assert isinstance(report, IReport), 'Invalid report %s' % report
         
-        current.merge(processor)
+        merge(resolvers, processor)
         report = report.open('Using \'%s\'' % self.name())
         try:
-            if self.current:
-                usources = sources.copy(self.current)
-                ucurrent = current.copy(self.current)
-                usources.merge(self.contexts)
-            else:
-                usources = Repository(self.contexts)
-                ucurrent = Repository()
+            if self.current: usources = merge(restructureResolvers(resolvers, self.current), self.contexts)
+            else: usources = resolversFor(self.contexts)
             
-            uextensions = Repository()
-            calls = self.processAssembly(usources, ucurrent, uextensions, report)
+            uextensions, uresolvers = {}, {}
+            calls = self.processAssembly(usources, uresolvers, uextensions, report)
                     
         except: raise AssemblyError('Cannot process Using for \'%s\'' % self.name())
         
         try:
-            ucurrent.solve(usources)
-            if hasUnavailable(ucurrent):
-                raise AssemblyError('Using for \'%s\' has unavailable attributes:\n%s' % 
-                                    (self.name(), reportUnavailable(ucurrent)))
-            ucurrent.solve(uextensions)
-            if self.current: extensions.merge(ucurrent.copy(self.current).copy(current.listAttributes()))
-            
-            report.add(ucurrent)
-            return Processing(calls, create(ucurrent))
+            solve(uresolvers, usources, False)
+            #TODO: Gabriel check the reported unused for REST
+            #if self.current: solve(uresolvers, restructureResolvers(sources, self.current), False)
+            if checkIf(uresolvers, LIST_UNAVAILABLE):
+                raise AssemblyError('Using for \'%s\' has unavailable attributes:%s' % 
+                                    (self.name(), reportFor(uresolvers, LIST_UNAVAILABLE)))
+            solve(uresolvers, uextensions)
+            if self.current:
+                uextensions = restructureResolvers(uresolvers, self.current, True)
+                uextensions = copyAttributes(uextensions, attributesFor(resolvers))
+                merge(extensions, uextensions)
+            report.add(uresolvers)
+            return Processing(calls, create(uresolvers))
         except AssemblyError: raise
         except:
-            raise AssemblyError('Resolvers problems on Using for \'%s\'\n, with sources %s\n, with processors %s\n'
-                                ', and extensions %s' % (self.name(), usources, ucurrent, uextensions))
+            raise AssemblyError('Resolvers problems on Using for \'%s\'\n, with sources:%s\n, with processors:%s\n'
+                    ', and extensions:%s' % (self.name(), reportFor(usources), reportFor(uresolvers), reportFor(uextensions)))
 
 class Included(WithAssembly):
     '''
@@ -258,87 +237,32 @@ class Included(WithAssembly):
                 assert isinstance(clazz, ContextMetaClass), 'Invalid context class %s' % clazz
         self.using = using
     
-    def process(self, processor, sources, current, extensions, report):
+    def process(self, sources, processor, resolvers, extensions, report):
         '''
         @see: IBrach.process
         '''
-        assert isinstance(current, IRepository), 'Invalid current repository %s' % current
-        assert isinstance(extensions, IRepository), 'Invalid extensions %s' % extensions
+        assert isinstance(resolvers, dict), 'Invalid resolvers %s' % resolvers
         assert isinstance(report, IReport), 'Invalid report %s' % report
         
         report = report.open('Included \'%s\'' % self.name())
-        
         try:
-            icurrent, iextensions = Repository(), Repository()
-            calls = self.processAssembly(sources, icurrent, iextensions, report)
+            iresolvers, iextensions = {}, {}
+            calls = self.processAssembly(sources, iresolvers, iextensions, report)
             
             if self.using:
-                ucurrent = icurrent.extract(self.using)
-                assert isinstance(ucurrent, IRepository)
-                ucurrent.solve(self.using)
-                if hasUnavailable(ucurrent):
-                    raise AssemblyError('Included for \'%s\' has unavailable attributes:\n%s' % 
-                                        (self.name(), reportUnavailable(ucurrent)))
-                ucurrent.solve(iextensions.extract(self.using))
+                uresolvers = extractContexts(iresolvers, self.using)
+                uresolvers = solve(uresolvers, self.using)
+                if checkIf(uresolvers, LIST_UNAVAILABLE):
+                    raise AssemblyError('Included for \'%s\' has unavailable attributes:%s' % 
+                                        (self.name(), reportFor(uresolvers, LIST_UNAVAILABLE)))
+                solve(uresolvers, extractContexts(iextensions, self.using))
                 
-                report.add(ucurrent)
-                contexts = create(ucurrent)
+                report.add(uresolvers)
+                contexts = create(uresolvers)
             else: contexts = None
             
-            icurrent.solve(processor)
-            current.merge(icurrent)
-            extensions.solve(iextensions)
+            merge(resolvers, solve(iresolvers, processor))
+            solve(extensions, iextensions)
             return Processing(calls, contexts)
         
         except: raise AssemblyError('Cannot process Included for \'%s\'' % self.name())
-
-# --------------------------------------------------------------------
-
-class Combine(WithBranch):
-    '''
-    Branch wrapper for combining contexts
-    '''
-    
-    def __init__(self, branch, *mapping):
-        '''
-        Construct the combining branch.
-        @see: WithBranch.__init__
-        
-        @param mapping: arguments[tuple(string string)]
-            The mappings that the combine needs to make, attention the order in which the context mappings are provided
-            is crucial, examples:
-                ('request': 'solicitation')
-                    The wrapped branch will receive as the 'request' context the 'solicitation' context.
-                ('request': 'solicitation'), ('request': 'response')
-                    The wrapped branch will receive as the 'request' context the 'solicitation' and 'response' context.
-                ('solicitation': 'request'), ('response': 'request')
-                    The wrapped branch will receive as the 'solicitation' and 'response' context the 'request' context.
-        '''
-        assert mapping, 'At least one mapping is required'
-        super().__init__(branch)
-        
-        self.mapping = Mapping()
-        for first, second in mapping: self.mapping.map(first, second)
-        
-    def process(self, processor, sources, current, extensions, report):
-        '''
-        @see: IBrach.process
-        '''
-        assert isinstance(processor, IRepository), 'Invalid processor %s' % processor
-        assert isinstance(current, IRepository), 'Invalid current repository %s' % current
-        assert isinstance(extensions, IRepository), 'Invalid extensions %s' % extensions
-        assert isinstance(report, IReport), 'Invalid report %s' % report
-        
-        current.merge(processor)
-        
-        wprocessor = RepositoryUsed(self.mapping.structure(processor))
-        wsources = RepositoryUsed(self.mapping.structure(sources))
-        wcurrent = RepositoryUsed(self.mapping.structure(current))
-        wextensions = RepositoryUsed(self.mapping.structure(extensions))
-        
-        processing = self.branch.process(wprocessor, wsources, wcurrent, wextensions, report)
-        
-        self.mapping.restructure(current, wcurrent)
-        self.mapping.restructure(extensions, wextensions)
-        
-        return processing

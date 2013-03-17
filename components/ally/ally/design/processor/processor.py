@@ -12,10 +12,9 @@ Module containing processors.
 from .branch import IBranch
 from .context import Context
 from .execution import Chain, Processing
-from .manipulator import Mapping
-from .repository import Repository
-from .spec import AssemblyError, IProcessor, ContextMetaClass, ProcessorError, \
-    IRepository
+from .resolvers import merge, resolversFor
+from .spec import AssemblyError, IProcessor, ContextMetaClass, ProcessorError, IReport
+from .structure import restructureData, restructureResolvers
 from ally.support.util_sys import locationStack
 from collections import Iterable
 from inspect import ismethod, isfunction, getfullargspec
@@ -49,14 +48,13 @@ class Processor(IProcessor):
         self.contexts = contexts
         self.call = call
 
-    def register(self, sources, current, extensions, calls, report):
+    def register(self, sources, resolvers, extensions, calls, report):
         '''
         @see: IProcessor.register
         '''
-        assert isinstance(current, IRepository), 'Invalid current repository %s' % current
         assert isinstance(calls, list), 'Invalid calls %s' % calls
         
-        current.merge(self.contexts)
+        merge(resolvers, self.contexts)
         calls.append(self.call)
         
     # ----------------------------------------------------------------
@@ -110,14 +108,13 @@ class Contextual(Processor):
         
         super().__init__(contexts, self.processCall(function))
     
-    def register(self, sources, current, extensions, calls, report):
+    def register(self, sources, resolvers, extensions, calls, report):
         '''
         @see: IProcessor.register
         '''
-        assert isinstance(current, IRepository), 'Invalid current repository %s' % current
         assert isinstance(calls, list), 'Invalid calls %s' % calls
         
-        try: current.merge(self.contexts)
+        try: merge(resolvers, self.contexts)
         except: raise AssemblyError('Cannot merge contexts at:%s' % locationStack(self.function))
         calls.append(self.call)
         
@@ -202,11 +199,13 @@ class Brancher(Contextual):
         @see: IProcessor.register
         '''
         assert isinstance(calls, list), 'Invalid calls %s' % calls
+        assert isinstance(report, IReport), 'Invalid report %s' % report
+        report = report.open('Branching processor at:%s' % locationStack(self.function))
         
-        processings, processor = [], Repository(self.contexts)
+        processings, processor = [], resolversFor(self.contexts)
         for branch in self.branches:
             assert isinstance(branch, IBranch), 'Invalid branch %s' % branch
-            try: processing = branch.process(processor, sources, current, extensions, report)
+            try: processing = branch.process(sources, processor, current, extensions, report)
             except: raise AssemblyError('Cannot create processing at:%s' % locationStack(self.function))
             assert isinstance(processing, Processing), 'Invalid processing %s' % processing
             processings.append(processing)
@@ -253,10 +252,15 @@ class ProcessorRenamer(IProcessor):
         '''
         assert isinstance(processor, Processor), 'Invalid processor %s' % processor
         assert mapping, 'At least one mapping is required'
+        if __debug__:
+            for entry in mapping:
+                assert isinstance(entry, tuple), 'Invalid entry %s' % entry
+                assert len(entry) == 2, 'Invalid entry tuple %s' % (entry,)
+                assert isinstance(entry[0], str), 'Invalid first entry name %s' % entry[0]
+                assert isinstance(entry[1], str), 'Invalid second entry name %s' % entry[1]
         
-        self.mapping = Mapping()
-        for first, second in mapping: self.mapping.map(first, second)
         self.processor = processor
+        self.mapping = mapping
 
     def register(self, sources, current, extensions, calls, report):
         '''
@@ -264,21 +268,17 @@ class ProcessorRenamer(IProcessor):
         '''
         assert isinstance(calls, list), 'Invalid calls %s' % calls
         
-        wsources = self.mapping.structure(sources)
-        wcurrent = self.mapping.structure(current)
-        wextensions = self.mapping.structure(extensions)
+        wsources = restructureResolvers(sources, self.mapping)
+        wcurrent = restructureResolvers(current, self.mapping)
+        wextensions = restructureResolvers(extensions, self.mapping)
         wcalls = []
         self.processor.register(wsources, wcurrent, wextensions, wcalls, report)
         
-        self.mapping.restructure(current, wcurrent)
-        self.mapping.restructure(extensions, wextensions)
+        merge(current, restructureResolvers(wcurrent, self.mapping, True))
+        merge(extensions, restructureResolvers(wextensions, self.mapping, True))
         
         def wrapper(*args, **keyargs):
-            for second, firsts in self.mapping.secondToFirst.items():
-                try: value = keyargs.pop(second)
-                except KeyError: continue
-                for first in firsts: keyargs[first] = value
-            
+            keyargs = restructureData(keyargs, self.mapping)
             for call in wcalls: call(*args, **keyargs)
         
         calls.append(wrapper)

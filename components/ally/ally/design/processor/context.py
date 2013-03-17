@@ -9,7 +9,7 @@ Created on Jun 12, 2012
 Provides the context support.
 '''
 
-from .spec import IAttribute, IRepository, ContextMetaClass, CREATE_DEFINITION
+from .spec import IAttribute, ContextMetaClass, CREATE_DEFINITION, IResolver
 from ally.support.util import immut
 
 # --------------------------------------------------------------------
@@ -162,21 +162,24 @@ class Object(metaclass=ContextMetaClass):
 
 # --------------------------------------------------------------------
 
-def create(repository, *flags):
+def create(resolvers, *flags):
     '''
     Creates the object contexts for the provided resolvers.
     
-    @param repository: IRepository
-        The repository to create the context for.
+    @param resolvers: dictionary{string: IResolver}
+        The resolvers to create the context for.
     @param flags: arguments[object]
         Flags to be used for creating the attributes.
     @return: dictionary{string: ContextMetaClass}
         The created context classes.
     '''
-    assert isinstance(repository, IRepository), 'Invalid repository %s' % repository
+    assert isinstance(resolvers, dict), 'Invalid resolvers %s' % resolvers
     contexts = {}
-    for name, attributes in repository.create(*flags).items():
+    for name, resolver in resolvers.items():
         assert isinstance(name, str), 'Invalid name %s' % name
+        assert isinstance(resolver, IResolver), 'Invalid resolver %s' % resolver
+        attributes = resolver.create(*flags)
+        
         assert isinstance(attributes, dict), 'Invalid attributes %s' % attributes
         nameClass = '%s%s' % (name[0].upper(), name[1:])
         
