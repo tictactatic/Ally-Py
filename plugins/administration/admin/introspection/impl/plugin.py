@@ -60,28 +60,33 @@ class PluginService(IPluginService):
         modules = modulesIn('__plugin__.*').asList()
         modules.sort()
 
-        components = {cmp.Path:cmp.Id for cmp in self.componentService.getComponents()}
-        plugins = (self.pluginFor(module, components) for module in modules)
-
-        return IterPart(trimIter(plugins, len(modules), offset, limit), len(modules), offset, limit)
+        return IterPart(trimIter((self.idOf(module) for module in modules), len(modules), offset, limit),
+                        len(modules), offset, limit)
 
     # ----------------------------------------------------------------
+    
+    def idOf(self, module):
+        '''
+        Provides the id base don module.
+        '''
+        assert isinstance(module, str), 'Invalid module %s' % module
+        return module[len('__plugin__') + 1:]
 
-    def pluginFor(self, module, components=None):
+    def pluginFor(self, module):
         '''
         Create a plugin based on the provided module.
         
         @param module: string
             The module to create a plugin for.
         @param components: dictionary{string, string}|None
-            A dictionary having as a key the compoenent path and as a value the compoenent id.
+            A dictionary having as a key the component path and as a value the component id.
         @return: Plugin
             The plugin reflecting the module.
         '''
         assert isinstance(module, str), 'Invalid module %s' % module
 
         c = Plugin()
-        c.Id = module[len('__plugin__') + 1:]
+        c.Id = self.idOf(module)
 
         m = sys.modules.get(module)
         if m:
@@ -95,11 +100,7 @@ class PluginService(IPluginService):
             c.InEgg = not path.isfile(m.__file__)
         else:
             c.Loaded = False
-        if components is None:
-            try: c.Component = next(iter(self.componentService.getComponents(limit=1, q=QComponent(path=c.Path)))).Id
-            except StopIteration: pass
-        else:
-            assert isinstance(components, dict), 'Invalid components %s' % components
-            c.Component = components.get(c.Path, None)
+        try: c.Component = next(iter(self.componentService.getComponents(limit=1, q=QComponent(path=c.Path)))).Id
+        except StopIteration: pass
 
         return c

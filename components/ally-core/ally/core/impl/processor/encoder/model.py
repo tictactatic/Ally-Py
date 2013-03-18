@@ -10,7 +10,7 @@ Provides the model encoder.
 '''
 
 from ally.api.operator.container import Model
-from ally.api.operator.type import TypeModel, TypeProperty, TypeModelProperty
+from ally.api.operator.type import TypeModel, TypeProperty
 from ally.api.type import Iter, Boolean, Integer, Number, Percentage, String, \
     Time, Date, DateTime, typeFor
 from ally.container.ioc import injected
@@ -19,7 +19,8 @@ from ally.core.spec.transform.encoder import IAttributes, IEncoder
 from ally.core.spec.transform.render import IRender
 from ally.design.cache import CacheWeak
 from ally.design.processor.assembly import Assembly
-from ally.design.processor.attribute import requires, defines, optional
+from ally.design.processor.attribute import requires, defines, optional, \
+    definesIf
 from ally.design.processor.branch import Included
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain, Processing
@@ -47,6 +48,8 @@ class Support(Context):
     '''
     The encoder support context.
     '''
+    # ---------------------------------------------------------------- Optional
+    hideProperties = optional(bool)
     # ---------------------------------------------------------------- Required
     normalizer = requires(Normalizer)
     
@@ -66,6 +69,18 @@ class CreateProperty(Context):
     # ---------------------------------------------------------------- Required
     encoder = requires(IEncoder)
     
+class CreateModelExtra(Context):
+    '''
+    The create extra model encoder context.
+    '''
+    # ---------------------------------------------------------------- Defined
+    objType = definesIf(object, doc='''
+    @rtype: object
+    The model type.
+    ''')
+    # ---------------------------------------------------------------- Optional
+    encoder = optional(IEncoder)
+    
 # --------------------------------------------------------------------
 
 @injected
@@ -76,77 +91,69 @@ class ModelEncode(HandlerBranchingProceed):
     
     propertyEncodeAssembly = Assembly
     # The encode processors to be used for encoding properties.
+    modelExtraEncodeAssembly = Assembly
+    # The encode processors to be used for encoding extra data on the model.
     typeOrders = [Boolean, Integer, Number, Percentage, String, Time, Date, DateTime, Iter]
     # The type that define the order in which the properties should be rendered.
     
     def __init__(self):
         assert isinstance(self.propertyEncodeAssembly, Assembly), \
         'Invalid property encode assembly %s' % self.propertyEncodeAssembly
+        assert isinstance(self.modelExtraEncodeAssembly, Assembly), \
+        'Invalid model extra encode assembly %s' % self.modelExtraEncodeAssembly
         assert isinstance(self.typeOrders, list), 'Invalid type orders %s' % self.typeOrders
-        super().__init__(Included(self.propertyEncodeAssembly, create=CreateProperty), support=Support)
+        super().__init__(Included(self.propertyEncodeAssembly, create=CreateProperty),
+                         Included(self.modelExtraEncodeAssembly, create=CreateModelExtra), support=Support)
         
         self.typeOrders = [typeFor(typ) for typ in self.typeOrders]
         self._cache = CacheWeak()
         
-    def process(self, propertyProcessing, create:Create, **keyargs):
+    def process(self, propertyProcessing, modelExtraProcessing, create:Create, **keyargs):
         '''
         @see: HandlerBranchingProceed.process
         
         Create the model encoder.
         '''
         assert isinstance(propertyProcessing, Processing), 'Invalid processing %s' % propertyProcessing
+        assert isinstance(modelExtraProcessing, Processing), 'Invalid processing %s' % modelExtraProcessing
         assert isinstance(create, Create), 'Invalid create %s' % create
         
         if create.encoder is not None: return 
         # There is already an encoder, nothing to do.
-        if isinstance(create.objType, TypeModel):
-            modelType = create.objType
-            propType = None
-        elif isinstance(create.objType, TypeModelProperty):
-            modelType = create.objType.parent
-            propType = create.objType
-        else: return
+        if not isinstance(create.objType, TypeModel): return
         # The type is not for a model, nothing to do, just move along
-        
-        assert isinstance(modelType, TypeModel)
-        assert isinstance(modelType.container, Model)
+        assert isinstance(create.objType, TypeModel)
+        assert isinstance(create.objType.container, Model)
         
         if Create.name in create and create.name: name = create.name
-        else: name = modelType.container.name
+        else: name = create.objType.container.name
         if Create.attributes in create: attributes = create.attributes
         else: attributes = None
         
-        if propType:
-            cache = self._cache.key(propertyProcessing, name, attributes, propType)
-            if not cache.has:
-                encoderProperty = self.propertyEncoder(propType, propertyProcessing, keyargs)
-                cache.value = EncoderModelProperty(name, encoderProperty, attributes)
+        cache = self._cache.key(propertyProcessing, modelExtraProcessing, name, attributes, create.objType)
+        if not cache.has:
+            properties = []
+            for propType in self.sortedTypes(create.objType):
+                assert isinstance(propType, TypeProperty), 'Invalid property type %s' % propType
+                chain = Chain(propertyProcessing)
+                chain.process(create=propertyProcessing.ctx.create(objType=propType, name=propType.property), **keyargs).doAll()
+                propCreate = chain.arg.create
+                assert isinstance(propCreate, CreateProperty), 'Invalid create property %s' % propCreate
+                if propCreate.encoder is None: raise DevelError('Cannot encode %s' % propType)
+                properties.append((propType.property, propCreate.encoder))
+            
+            chain = Chain(modelExtraProcessing)
+            chain.process(create=modelExtraProcessing.ctx.create(objType=create.objType), **keyargs).doAll()
+            extraCreate = chain.arg.create
+            assert isinstance(extraCreate, CreateModelExtra), 'Invalid create model extra %s' % extraCreate
+            if CreateModelExtra.encoder in extraCreate: extra = extraCreate.encoder
+            else: extra = None
                 
-        else:
-            cache = self._cache.key(propertyProcessing, name, attributes, modelType)
-            if not cache.has:
-                properties = []
-                for propType in self.sortedTypes(create.objType):
-                    encoderProperty = self.propertyEncoder(propType, propertyProcessing, keyargs)
-                    properties.append((propType.property, encoderProperty))
-                cache.value = EncoderModel(name, properties, attributes)
+            cache.value = EncoderModel(name, properties, extra, attributes)
         
         create.encoder = cache.value
         
     # --------------------------------------------------------------------
-    
-    def propertyEncoder(self, propertyType, processing, keyargs):
-        '''
-        Provides the property encoder.
-        '''
-        assert isinstance(propertyType, TypeProperty), 'Invalid property type %s' % propertyType
-        assert isinstance(processing, Processing), 'Invalid processing %s' % processing
-        chain = Chain(processing)
-        chain.process(create=processing.ctx.create(objType=propertyType, name=propertyType.property), **keyargs).doAll()
-        create = chain.arg.create
-        assert isinstance(create, CreateProperty), 'Invalid create property %s' % create
-        if create.encoder is None: raise DevelError('Cannot encode %s' % propertyType)
-        return create.encoder
     
     def sortedTypes(self, modelType):
         '''
@@ -177,16 +184,18 @@ class EncoderModel(IEncoder):
     Implementation for a @see: IEncoder for model.
     '''
     
-    def __init__(self, name, properties, attributes=None):
+    def __init__(self, name, properties, extra=None, attributes=None):
         '''
         Construct the model encoder.
         '''
         assert isinstance(name, str), 'Invalid model name %s' % name
         assert isinstance(properties, list), 'Invalid properties %s' % properties
+        assert extra is None or isinstance(extra, IEncoder), 'Invalid extra encoder %s' % extra
         assert attributes is None or isinstance(attributes, IAttributes), 'Invalid attributes %s' % attributes
         
         self.name = name
         self.properties = properties
+        self.extra = extra
         self.attributes = attributes
         
     def render(self, obj, render, support):
@@ -199,44 +208,18 @@ class EncoderModel(IEncoder):
         
         if self.attributes: attributes = self.attributes.provide(obj, support)
         else: attributes = None
+        if Support.hideProperties in support: hideProperties = support.hideProperties
+        else: hideProperties = False
+        
         render.objectStart(support.normalizer.normalize(self.name), attributes)
-        
-        for name, encoder in self.properties:
-            assert isinstance(encoder, IEncoder), 'Invalid property encoder %s' % encoder
-            objValue = getattr(obj, name)
-            if objValue is None: continue
-            encoder.render(objValue, render, support)
-        
-        render.objectEnd()
-
-class EncoderModelProperty(IEncoder):
-    '''
-    Implementation for a @see: IEncoder for model property.
-    '''
-    
-    def __init__(self, name, encoder, attributes=None):
-        '''
-        Construct the model property encoder.
-        '''
-        assert isinstance(name, str), 'Invalid model name %s' % name
-        assert isinstance(encoder, IEncoder), 'Invalid property encoder %s' % encoder
-        assert attributes is None or isinstance(attributes, IAttributes), 'Invalid attributes %s' % attributes
-        
-        self.name = name
-        self.encoder = encoder
-        self.attributes = attributes
-        
-    def render(self, obj, render, support):
-        '''
-        @see: IEncoder.render
-        '''
-        assert isinstance(render, IRender), 'Invalid render %s' % render
-        assert isinstance(support, Support), 'Invalid support %s' % support
-        assert isinstance(support.normalizer, Normalizer), 'Invalid normalizer %s' % support.normalizer
-        
-        if self.attributes: attributes = self.attributes.provide(obj, support)
-        else: attributes = None
-        render.objectStart(support.normalizer.normalize(self.name), attributes)
-        self.encoder.render(obj, render, support)
+        if not hideProperties:
+            for name, encoder in self.properties:
+                assert isinstance(encoder, IEncoder), 'Invalid property encoder %s' % encoder
+                objValue = getattr(obj, name)
+                if objValue is None: continue
+                encoder.render(objValue, render, support)
+                
+            if self.extra: self.extra.render(obj, render, support)
+                
         render.objectEnd()
 

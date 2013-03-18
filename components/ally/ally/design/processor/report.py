@@ -53,15 +53,47 @@ class ReportUnused(IReport):
         @return: list[string]
             The list of string lines.
         '''
-        #TODO: Gabriel: make a prettier report.
-        lines = []
-        reportOn(lines, self.resolvers, LIST_UNUSED)
-        if lines: lines.insert(0, 'Unused attributes:')
-            
+        data = self.process(set())
+        if data:
+            message, stack = data
+            assert isinstance(stack, list), 'Invalid stack %s' % stack
+            if len(stack) > 1:
+                return 'Unused attributes in %s\n%s\n, found in\n%s' % (stack[0], message, '\n'.join(stack[1:]))
+            elif stack:
+                return 'Unused attributes in %s\n%s' % (stack[0], message)
+            return message
+
+    # ----------------------------------------------------------------
+    
+    def process(self, reported):
+        '''
+        Process the report.
+        '''
+        assert isinstance(reported, set), 'Invalid reported names %s' % reported
+        
+        datas = []
         for name, report in self.reports.items():
             assert isinstance(report, ReportUnused)
-            linesChild = report.report()
-            if linesChild:
-                lines.append('Report on %s' % name)
-                lines.extend('%s%s' % (self.ident, line) for line in linesChild)
-        return lines
+            if name in reported: continue
+            data = report.process(reported)
+            if data:
+                reported.add(name)
+                _message, stack = data
+                assert isinstance(stack, list), 'Invalid stack %s' % stack
+                stack.append(name)
+                datas.append(data)
+        
+        messages = []
+        reportOn(messages, self.resolvers, LIST_UNUSED)
+
+        if messages or len(datas) > 1:
+            for message, stack in datas:
+                if len(stack) > 1:
+                    messages.append('Unused attributes in %s\n%s\n, found in\n%s' % (stack[0], message, '\n'.join(stack[1:])))
+                else:
+                    messages.append('Unused attributes in %s\n%s' % (stack[0], message))
+                    
+            return '\n'.join(messages), []
+        elif datas:
+            return datas[0]
+        

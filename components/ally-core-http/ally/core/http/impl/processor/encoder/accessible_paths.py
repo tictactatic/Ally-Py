@@ -1,19 +1,18 @@
 '''
-Created on Mar 8, 2013
+Created on Mar 18, 2013
 
 @package: ally core http
 @copyright: 2011 Sourcefabric o.p.s.
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
 
-Provides the paths for a model.
+Provides the accessible paths for a model.
 '''
 
-from ally.api.operator.type import TypeModel, TypeModelProperty
 from ally.container.ioc import injected
-from ally.core.spec.resources import Path, Normalizer
-from ally.core.spec.transform.encoder import IAttributes, AttributesJoiner
-from ally.design.cache import CacheWeak
+from ally.core.spec.resources import Normalizer
+from ally.core.spec.transform.encoder import IEncoder
+from ally.core.spec.transform.render import IRender
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessorProceed
@@ -26,12 +25,10 @@ class Create(Context):
     The create encoder context.
     '''
     # ---------------------------------------------------------------- Defined
-    attributes = defines(IAttributes, doc='''
-    @rtype: IAttributes
-    The attributes with the paths.
+    encoder = defines(IEncoder, doc='''
+    @rtype: IEncoder
+    The encoder for the accessible paths.
     ''')
-    # ---------------------------------------------------------------- Required
-    objType = requires(object)
     
 class Support(Context):
     '''
@@ -39,15 +36,15 @@ class Support(Context):
     '''
     # ---------------------------------------------------------------- Required
     normalizer = requires(Normalizer)
-    pathModel = requires(Path)
+    pathsAccesible = requires(dict)
     encoderPath = requires(IEncoderPath)
     
 # --------------------------------------------------------------------
 
 @injected
-class ModelPathAttributeEncode(HandlerProcessorProceed):
+class AccessiblePathEncode(HandlerProcessorProceed):
     '''
-    Implementation for a handler that provides the path encoding in attributes.
+    Implementation for a handler that provides the accessible paths encoding.
     '''
     
     nameRef = 'href'
@@ -57,52 +54,49 @@ class ModelPathAttributeEncode(HandlerProcessorProceed):
         assert isinstance(self.nameRef, str), 'Invalid reference name %s' % self.nameRef
         super().__init__(support=Support)
         
-        self._cache = CacheWeak()
-        self._attributes = AttributesModelPath(self.nameRef)
+        self._encoder = EncoderAccessiblePath(self.nameRef)
         
     def process(self, create:Create, **keyargs):
         '''
         @see: HandlerProcessorProceed.process
         
-        Create the path attributes.
+        Create the accesible path encoder.
         '''
         assert isinstance(create, Create), 'Invalid create %s' % create
         
-        if not isinstance(create.objType, (TypeModel, TypeModelProperty)): return
-        # Model not valid for paths, move along.
-        
-        if create.attributes:
-            cache = self._cache.key(create.attributes)
-            if not cache.has: cache.value = AttributesModelPath(self.nameRef, create.attributes)
-            create.attributes = cache.value
-        else:
-            create.attributes = self._attributes
+        if create.encoder is not None: return 
+        # There is already an encoder, nothing to do.
+            
+        create.encoder = self._encoder
 
 # --------------------------------------------------------------------
 
-class AttributesModelPath(AttributesJoiner):
+class EncoderAccessiblePath(IEncoder):
     '''
-    Implementation for a @see: IAttributes for paths.
+    Implementation for a @see: IEncoder for model paths.
     '''
     
-    def __init__(self, nameRef, attributes=None):
+    def __init__(self, nameRef):
         '''
-        Construct the paths attributes.
+        Construct the model paths encoder.
         '''
         assert isinstance(nameRef, str), 'Invalid reference name %s' % nameRef
-        super().__init__(attributes)
         
         self.nameRef = nameRef
-        
-    def provideIntern(self, obj, support):
+    
+    def render(self, obj, render, support):
         '''
-        @see: AttributesJoiner.provideIntern
+        @see: IEncoder.render
         '''
+        assert isinstance(render, IRender), 'Invalid render %s' % render
         assert isinstance(support, Support), 'Invalid support %s' % support
-        if not support.pathModel: return  # No path to construct attributes for.
+        if not support.pathsAccesible: return  # No accessible paths.
         
         assert isinstance(support.normalizer, Normalizer), 'Invalid normalizer %s' % support.normalizer
-        assert isinstance(support.pathModel, Path), 'Invalid path %s' % support.pathModel
+        assert isinstance(support.pathsAccesible, dict), 'Invalid accessible paths %s' % support.pathsAccesible
         assert isinstance(support.encoderPath, IEncoderPath), 'Invalid path encoder %s' % support.encoderPath
         
-        return {support.normalizer.normalize(self.nameRef): support.encoderPath.encode(support.pathModel)}
+        for name, path in support.pathsAccesible.items():
+            attributes = {support.normalizer.normalize(self.nameRef): support.encoderPath.encode(path)}
+            render.objectStart(support.normalizer.normalize(name), attributes)
+            render.objectEnd()

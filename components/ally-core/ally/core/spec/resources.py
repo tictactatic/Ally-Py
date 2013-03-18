@@ -116,7 +116,7 @@ class Path:
             assert isinstance(match, Match)
             if match.isValid(): path = match.toPath(converterPath, isFirst, isLast)
             elif invalid: path = invalid(match, converterPath)
-            else: raise DevelError('Invalid match %s' % match)
+            else: raise DevelError('Invalid match in %s' % '/'.join(str(match) for match in self.matches))
             if path is not None:
                 if isinstance(path, list): paths.extend(path)
                 paths.append(path)

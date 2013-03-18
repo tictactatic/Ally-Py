@@ -1,53 +1,54 @@
 '''
-Created on Mar 8, 2013
+Created on Mar 18, 2013
 
 @package: ally core http
 @copyright: 2011 Sourcefabric o.p.s.
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
 
-Provides the paths for a model.
+Provides the reference types encoding.
 '''
 
-from ally.api.operator.type import TypeModel, TypeModelProperty
+from ally.api.operator.type import TypeProperty
+from ally.api.type import TypeReference
 from ally.container.ioc import injected
-from ally.core.spec.resources import Path, Normalizer
-from ally.core.spec.transform.encoder import IAttributes, AttributesJoiner
-from ally.design.cache import CacheWeak
+from ally.core.spec.resources import Normalizer
+from ally.core.spec.transform.encoder import IEncoder
+from ally.core.spec.transform.render import IRender
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessorProceed
 from ally.http.spec.server import IEncoderPath
 
 # --------------------------------------------------------------------
-    
+
 class Create(Context):
     '''
     The create encoder context.
     '''
     # ---------------------------------------------------------------- Defined
-    attributes = defines(IAttributes, doc='''
-    @rtype: IAttributes
-    The attributes with the paths.
+    encoder = defines(IEncoder, doc='''
+    @rtype: IEncoder
+    The encoder for the reference.
     ''')
     # ---------------------------------------------------------------- Required
+    name = requires(str)
     objType = requires(object)
-    
+
 class Support(Context):
     '''
     The encoder support context.
     '''
     # ---------------------------------------------------------------- Required
     normalizer = requires(Normalizer)
-    pathModel = requires(Path)
     encoderPath = requires(IEncoderPath)
     
 # --------------------------------------------------------------------
 
 @injected
-class ModelPathAttributeEncode(HandlerProcessorProceed):
+class PropertyReferenceEncode(HandlerProcessorProceed):
     '''
-    Implementation for a handler that provides the path encoding in attributes.
+    Implementation for a handler that provides the references types encoding.
     '''
     
     nameRef = 'href'
@@ -57,52 +58,55 @@ class ModelPathAttributeEncode(HandlerProcessorProceed):
         assert isinstance(self.nameRef, str), 'Invalid reference name %s' % self.nameRef
         super().__init__(support=Support)
         
-        self._cache = CacheWeak()
-        self._attributes = AttributesModelPath(self.nameRef)
+        self._cache = {}
         
     def process(self, create:Create, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerBranchingProceed.process
         
-        Create the path attributes.
+        Create the collection encoder.
         '''
         assert isinstance(create, Create), 'Invalid create %s' % create
         
-        if not isinstance(create.objType, (TypeModel, TypeModelProperty)): return
-        # Model not valid for paths, move along.
+        if create.encoder is not None: return 
+        # There is already an encoder, nothing to do.
+        if not isinstance(create.objType, TypeProperty): return 
+        # The type is not for a property, nothing to do, just move along
+        assert isinstance(create.objType, TypeProperty)
+        if not isinstance(create.objType.type, TypeReference): return 
+        # The type is not a reference, just move along
         
-        if create.attributes:
-            cache = self._cache.key(create.attributes)
-            if not cache.has: cache.value = AttributesModelPath(self.nameRef, create.attributes)
-            create.attributes = cache.value
-        else:
-            create.attributes = self._attributes
+        assert isinstance(create.name, str), 'Invalid name %s' % create.name
+        encoder = self._cache.get(create.name)
+        if not encoder: encoder = self._cache[create.name] = EncoderReference(create.name, self.nameRef)
+        create.encoder = encoder
 
 # --------------------------------------------------------------------
 
-class AttributesModelPath(AttributesJoiner):
+class EncoderReference(IEncoder):
     '''
-    Implementation for a @see: IAttributes for paths.
+    Implementation for a @see: IEncoder for references types.
     '''
     
-    def __init__(self, nameRef, attributes=None):
+    def __init__(self, name, nameRef):
         '''
-        Construct the paths attributes.
+        Construct the reference encoder.
         '''
+        assert isinstance(name, str), 'Invalid name %s' % name
         assert isinstance(nameRef, str), 'Invalid reference name %s' % nameRef
-        super().__init__(attributes)
         
+        self.name = name
         self.nameRef = nameRef
         
-    def provideIntern(self, obj, support):
+    def render(self, obj, render, support):
         '''
-        @see: AttributesJoiner.provideIntern
+        @see: IEncoder.render
         '''
+        assert isinstance(render, IRender), 'Invalid render %s' % render
         assert isinstance(support, Support), 'Invalid support %s' % support
-        if not support.pathModel: return  # No path to construct attributes for.
-        
         assert isinstance(support.normalizer, Normalizer), 'Invalid normalizer %s' % support.normalizer
-        assert isinstance(support.pathModel, Path), 'Invalid path %s' % support.pathModel
         assert isinstance(support.encoderPath, IEncoderPath), 'Invalid path encoder %s' % support.encoderPath
         
-        return {support.normalizer.normalize(self.nameRef): support.encoderPath.encode(support.pathModel)}
+        attributes = {support.normalizer.normalize(self.nameRef): support.encoderPath.encode(obj)}
+        render.objectStart(support.normalizer.normalize(self.name), attributes)
+        render.objectEnd()

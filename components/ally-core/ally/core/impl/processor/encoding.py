@@ -91,14 +91,6 @@ class EncodingHandler(HandlerBranchingProceed):
         if response.encoder: return  # There is already an encoder no need to create another one
         assert isinstance(request.invoker, Invoker), 'Invalid request invoker %s' % request.invoker
         
-        # TODO: Gabriel: remove
-        print('support:', list(encodeProcessing.ctx.support.__attributes__))
-        print('request:', list(request.__attributes__))
-        print('response:', list(response.__attributes__))
-        print(request)
-        supp = encodeProcessing.ctx.support()
-        print(pushIn(supp, response, request))
-        
         chain = Chain(encodeProcessing)
         chain.process(create=encodeProcessing.ctx.create(objType=request.invoker.output),
                       support=pushIn(encodeProcessing.ctx.support(), response, request)).doAll()

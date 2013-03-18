@@ -47,7 +47,7 @@ class IPluginService:
         '''
 
     @call
-    def getPlugins(self, offset:int=None, limit:int=None) -> Iter(Plugin):
+    def getPlugins(self, offset:int=None, limit:int=None) -> Iter(Plugin.Id):
         '''
         Provides all the plugins.
         '''

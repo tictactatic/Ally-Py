@@ -11,8 +11,10 @@ Provides the setup for the encode processors.
 
 from ally.container import ioc
 from ally.core.impl.processor.encoder.collection import CollectionEncode
-from ally.core.impl.processor.encoder.extension_attribute import ExtensionAttributeEncode
+from ally.core.impl.processor.encoder.extension_attribute import \
+    ExtensionAttributeEncode
 from ally.core.impl.processor.encoder.model import ModelEncode
+from ally.core.impl.processor.encoder.model_property import ModelPropertyEncode
 from ally.core.impl.processor.encoder.property import PropertyEncode
 from ally.core.impl.processor.encoder.property_id import PropertyIdEncode
 from ally.core.impl.processor.encoder.property_of_model import \
@@ -57,6 +59,13 @@ def assemblyPropertyEncode() -> Assembly:
     '''
     return Assembly('Encode property')
 
+@ioc.entity
+def assemblyModelExtraEncode() -> Assembly:
+    '''
+    The assembly containing the encoders for extra model data encoding.
+    '''
+    return Assembly('Encode model extra')
+
 # --------------------------------------------------------------------
 
 @ioc.entity
@@ -69,11 +78,12 @@ def collectionEncode() -> Handler:
 def modelEncode() -> Handler:
     b = ModelEncode()
     b.propertyEncodeAssembly = assemblyPropertyEncode()
+    b.modelExtraEncodeAssembly = assemblyModelExtraEncode()
     return b
 
 @ioc.entity
 def modelPropertyEncode() -> Handler:
-    b = ModelEncode()
+    b = ModelPropertyEncode()
     b.propertyEncodeAssembly = assemblyPropertyPrimitiveEncode()
     return b
 
@@ -99,11 +109,11 @@ def extensionAttributeEncode() -> Handler:
 
 @ioc.before(assemblyEncode)
 def updateAssemblyEncode():
-    assemblyEncode().add(extensionAttributeEncode(), collectionEncode(), modelPropertyEncode(), modelEncode())
+    assemblyEncode().add(extensionAttributeEncode(), collectionEncode(), modelEncode())
     
 @ioc.before(assemblyItemEncode)
 def updateAssemblyItemEncode():
-    assemblyItemEncode().add(modelPropertyEncode(), modelEncode())
+    assemblyItemEncode().add(modelEncode(), modelPropertyEncode())
     
 @ioc.before(assemblyPropertyModelEncode)
 def updateAssemblyPropertyModelEncode():

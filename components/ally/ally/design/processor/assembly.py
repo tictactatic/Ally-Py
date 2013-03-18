@@ -139,8 +139,8 @@ class Assembly(Container):
         reportAss = report.open('Assembly \'%s\'' % self.name)
         reportAss.add(current)
         
-        lines = report.report()
-        if lines: log.info('\n%s\n' % '\n'.join(lines))
+        message = report.report()
+        if message: log.info('\n%s\n' % message)
         else: log.info('Nothing to report for \'%s\', everything fits nicely', self.name)
         return processing
 
