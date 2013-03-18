@@ -101,7 +101,7 @@ class SetupEntityWire(Setup):
                                                      (wentity.name, locationStack(value.__class__)))
 
                     mapping = wirings.get(wiring)
-                    if not mapping:
+                    if mapping:
                         assert isinstance(mapping, dict), 'Invalid mapping %s' % mapping
                         for wconfig in wiring.configurations:
                             assert isinstance(wconfig, WireConfig)
