@@ -65,7 +65,8 @@ function($, superdesk, giz)
             
             this.collection._list = [];
             this.syncing = true;
-            this.collection.xfilter('*').sync({data: this.searchData(src), done: function(data){ self.syncing = false; }});
+            if( this.collection.setSearchUrl ) this.collection.setSearchUrl(src);
+            this.collection.xfilter('*').sync({data: this.searchData(src), done: function(data){ self.syncing = false; self.renderList(); }});
             
             $('[data-action="cancel-search"]', self.el).removeClass('hide');
         },
@@ -162,6 +163,7 @@ function($, superdesk, giz)
          */
         refresh: function(opts)
         {
+            if( this.collection.resetSearchUrl ) this.collection.resetSearchUrl();
             var self = this;
             this.collection._list = [];
             this.syncing = true;
