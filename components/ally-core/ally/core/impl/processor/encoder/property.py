@@ -10,16 +10,16 @@ Provides the primitive properties encoder.
 '''
 
 from ally.api.operator.type import TypeProperty
-from ally.api.type import Iter, Type
+from ally.api.type import Iter, Type, Dict
 from ally.container.ioc import injected
 from ally.core.spec.resources import Normalizer, Converter
 from ally.core.spec.transform.encoder import IEncoder
 from ally.core.spec.transform.render import IRender
+from ally.design.cache import CacheWeak
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessorProceed
 from collections import Iterable
-from ally.design.cache import CacheWeak
 
 # --------------------------------------------------------------------
 
@@ -52,11 +52,7 @@ class PropertyEncode(HandlerProcessorProceed):
     Implementation for a handler that provides the primitive properties values encoding.
     '''
     
-    nameValue = 'Value'
-    # The name to use for rendering the values in a collection property.
-    
     def __init__(self):
-        assert isinstance(self.nameValue, str), 'Invalid name value list %s' % self.nameValue
         super().__init__(support=Support)
         
         self._cache = CacheWeak()
@@ -78,13 +74,7 @@ class PropertyEncode(HandlerProcessorProceed):
         assert isinstance(create.name, str), 'Invalid property name %s' % create.name
         
         cache = self._cache.key(create.name, valueType)
-        if not cache.has:
-            if isinstance(valueType, Iter):
-                assert isinstance(valueType, Iter)
-                cache.value = EncoderPropertyCollection(create.name, self.nameValue, valueType.itemType)
-                
-            else:
-                cache.value = EncoderProperty(create.name, valueType)
+        if not cache.has: cache.value = EncoderProperty(create.name, valueType)
             
         create.encoder = cache.value
 
@@ -113,35 +103,18 @@ class EncoderProperty(IEncoder):
         assert isinstance(support.normalizer, Normalizer), 'Invalid normalizer %s' % support.normalizer
         assert isinstance(support.converter, Converter), 'Invalid converter %s' % support.converter
         
-        render.value(support.normalizer.normalize(self.name), support.converter.asString(obj, self.valueType))
+        if isinstance(self.valueType, Iter):
+            assert isinstance(obj, Iterable), 'Invalid object %s' % obj
+            itemType = self.valueType.itemType
+            obj = [support.converter.asString(item, itemType) for item in obj]
+            render.property(support.normalizer.normalize(self.name), obj)
+        elif isinstance(self.valueType, Dict):
+            assert isinstance(obj, dict), 'Invalid object %s' % obj
+            keyType = self.valueType.keyType
+            valueType = self.valueType.valueType
+            obj = {support.converter.asString(key, keyType): support.converter.asString(item, valueType)
+                   for key, item in obj.items()}
+            render.property(support.normalizer.normalize(self.name), obj)
+        else:
+            render.property(support.normalizer.normalize(self.name), support.converter.asString(obj, self.valueType))
         
-class EncoderPropertyCollection(IEncoder):
-    '''
-    Implementation for a @see: IEncoder for properties that contains a collection.
-    '''
-    
-    def __init__(self, name, nameValue, valueType):
-        '''
-        Construct the property encoder.
-        '''
-        assert isinstance(name, str), 'Invalid property name %s' % name
-        assert isinstance(nameValue, str), 'Invalid value name %s' % nameValue
-        assert isinstance(valueType, Type), 'Invalid value type %s' % valueType
-        self.name = name
-        self.nameValue = nameValue
-        self.valueType = valueType
-        
-    def render(self, obj, render, support):
-        '''
-        @see: IEncoder.render
-        '''
-        assert isinstance(obj, Iterable), 'Invalid encode object %s' % obj
-        assert isinstance(render, IRender), 'Invalid render %s' % render
-        assert isinstance(support, Support), 'Invalid support %s' % support
-        assert isinstance(support.normalizer, Normalizer), 'Invalid normalizer %s' % support.normalizer
-        assert isinstance(support.converter, Converter), 'Invalid converter %s' % support.converter
-        
-        render.collectionStart(support.normalizer.normalize(self.name))
-        nameValue = support.normalizer.normalize(self.nameValue)
-        for objItem in obj: render.value(nameValue, support.converter.asString(objItem, self.valueType))
-        render.collectionEnd()

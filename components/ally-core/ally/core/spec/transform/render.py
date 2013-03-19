@@ -21,18 +21,18 @@ class IRender(metaclass=abc.ABCMeta):
     __slots__ = ()
 
     @abc.abstractclassmethod
-    def value(self, name, value):
+    def property(self, name, value):
         '''
-        Called to signal that a value has to be rendered.
+        Called to signal that a property value has to be rendered.
 
         @param name: string
-            The value name.
-        @param value: string
+            The property name.
+        @param value: string|tuple(string)|list[string]|dictionary{string: string}
             The value.
         '''
 
     @abc.abstractclassmethod
-    def objectStart(self, name, attributes=None):
+    def beginObject(self, name, attributes=None):
         '''
         Called to signal that an object has to be rendered.
         
@@ -40,29 +40,27 @@ class IRender(metaclass=abc.ABCMeta):
             The object name.
         @param attributes: dictionary{string, string}|None
             The attributes for the value.
+        @return: self
+            The same render instance for chaining purposes.
         '''
 
     @abc.abstractclassmethod
-    def objectEnd(self):
+    def beginCollection(self, name, attributes=None):
         '''
-        Called to signal that the current object has ended the rendering.
-        '''
-
-    @abc.abstractclassmethod
-    def collectionStart(self, name, attributes=None):
-        '''
-        Called to signal that a collection has to be rendered.
+        Called to signal that a collection of objects has to be rendered.
         
         @param name: string
             The collection name.
         @param attributes: dictionary{string, string}|None
             The attributes for the collection.
+        @return: self
+            The same render instance for chaining purposes.
         '''
 
     @abc.abstractclassmethod
-    def collectionEnd(self):
+    def end(self):
         '''
-        Called to signal that the current collection has ended the rendering.
+        Called to signal that the current block has ended the rendering.
         '''
 
 class Value:
@@ -126,30 +124,37 @@ class RenderToObject(IRender):
     '''
     A @see: IRender implementation that captures the data into a text object.
     '''
-    __slots__ = ('obj', 'processing')
+    __slots__ = ('obj', 'stack')
 
     def __init__(self):
         '''
         Construct the render.
         '''
+        self.stack = deque()
         self.obj = None
-        self.processing = deque()
 
-    def value(self, name, value):
+    def property(self, name, value):
         '''
-        @see: IRender.value
+        @see: IRender.property
         '''
-        assert self.processing, 'No object available to place the value'
         assert isinstance(name, str), 'Invalid name %s' % name
-        assert isinstance(value, str), 'Invalid value %s' % value
+        assert isinstance(value, (str, list, dict)), 'Invalid value %s' % value
+        if __debug__:
+            if isinstance(value, list):
+                for item in value: assert isinstance(item, str), 'Invalid list item %s' % item
+            elif isinstance(value, dict):
+                for key, item in value.items():
+                    assert isinstance(key, str), 'Invalid dictionary key %s' % key
+                    assert isinstance(item, str), 'Invalid dictionary value %s' % item
+        assert self.stack, 'No object available on stack'
+        
+        obj = self.stack[0]
+        assert isinstance(obj, dict), 'No object to set the property on'
+        obj[name] = value
 
-        obj = self.processing[0]
-        if isinstance(obj, dict): obj[name] = value
-        else: obj.append(value)
-
-    def objectStart(self, name, attributes=None):
+    def beginObject(self, name, attributes=None):
         '''
-        @see: IRender.objectStart
+        @see: IRender.beginObject
         '''
         assert isinstance(name, str), 'Invalid name %s' % name
         assert attributes is None or isinstance(attributes, dict), 'Invalid attributes %s' % attributes
@@ -160,22 +165,15 @@ class RenderToObject(IRender):
                 assert isinstance(attrName, str), 'Invalid attribute name %s' % attrName
                 assert isinstance(attrValue, str), 'Invalid attribute value %s' % attrValue
             value.update(attributes)
-
-        if self.processing:
-            obj = self.processing[0]
+            
+        if self.stack:
+            obj = self.stack[0]
             if isinstance(obj, dict): obj[name] = value
             else: obj.append(value)
-
-        if not self.processing: self.obj = value
-        self.processing.appendleft(value)
-
-    def objectEnd(self):
-        '''
-        @see: IRender.objectEnd
-        '''
-        assert self.processing and isinstance(self.processing[0], dict), 'No object available to end'
-
-        self.processing.popleft()
+        else: self.obj = value
+        self.stack.appendleft(value)
+        
+        return self
 
     def collectionStart(self, name, attributes=None):
         '''
@@ -192,65 +190,22 @@ class RenderToObject(IRender):
             valueObj.update(attributes)
 
         value = valueObj[name] = []
-        if self.processing:
-            obj = self.processing[0]
-            if isinstance(obj, dict): obj[name] = valueObj
-            else: obj.append(valueObj)
-        if not self.processing: self.obj = valueObj
-        self.processing.appendleft(value)
-
-    def collectionEnd(self):
-        '''
-        @see: IRender.collectionEnd
-        '''
-        assert self.processing and isinstance(self.processing[0], list), 'No collection available to end'
-
-        self.processing.popleft()
+        if self.stack:
+            obj = self.stack[0]
+            assert isinstance(obj, dict), 'Not an object to set the collection on'
+            obj[name] = valueObj
+        else: self.obj = valueObj
+        self.stack.appendleft(value)
         
-class RenderValuesToObject(IRender):
-    '''
-    A @see: IRender implementation that captures only value rendering data into a text object.
-    '''
-    __slots__ = ('obj',)
+        return self
 
-    def __init__(self):
+    def end(self):
         '''
-        Construct the render.
+        @see: IRender.end
         '''
-        self.obj = {}
+        assert self.stack, 'No object available on stack to end'
 
-    def value(self, name, value):
-        '''
-        @see: IRender.value
-        '''
-        assert isinstance(name, str), 'Invalid name %s' % name
-        assert isinstance(value, str), 'Invalid value %s' % value
-
-        self.obj[name] = value
-
-    def objectStart(self, name, attributes=None):
-        '''
-        @see: IRender.objectStart
-        '''
-        raise TypeError('Not available for this renderer')
-
-    def objectEnd(self):
-        '''
-        @see: IRender.objectEnd
-        '''
-        raise TypeError('Not available for this renderer')
-
-    def collectionStart(self, name, attributes=None):
-        '''
-        @see: IRender.collectionStart
-        '''
-        raise TypeError('Not available for this renderer')
-
-    def collectionEnd(self):
-        '''
-        @see: IRender.collectionEnd
-        '''
-        raise TypeError('Not available for this renderer')
+        self.stack.popleft()
 
 # --------------------------------------------------------------------
 
@@ -268,20 +223,20 @@ def renderObject(txt, render):
     if isinstance(txt, Value):
         assert isinstance(txt, Value)
 
-        render.value(txt.name, txt.value)
+        render.property(txt.name, txt.value)
 
     elif isinstance(txt, Object):
         assert isinstance(txt, Object)
 
-        render.objectStart(txt.name, txt.attributes)
+        render.beginObject(txt.name, txt.attributes)
         for prop in txt.properties: renderObject(prop, render)
-        render.objectEnd()
+        render.end()
 
     elif isinstance(txt, List):
         assert isinstance(txt, List)
 
-        render.collectionStart(txt.name, txt.attributes)
+        render.beginCollection(txt.name, txt.attributes)
         for item in txt.items: renderObject(item, render)
-        render.collectionEnd()
+        render.end()
 
     else: raise ValueError('Invalid text object %s' % txt)

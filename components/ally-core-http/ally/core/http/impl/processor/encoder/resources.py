@@ -109,9 +109,8 @@ class EncoderResources(IEncoder):
         assert isinstance(support.normalizer, Normalizer), 'Invalid normalizer %s' % support.normalizer
         assert isinstance(support.encoderPath, IEncoderPath), 'Invalid path encoder %s' % support.encoderPath
         
-        render.collectionStart(support.normalizer.normalize(self.nameResources))
+        render.beginCollection(support.normalizer.normalize(self.nameResources))
         for path in obj:
             attributes = {support.normalizer.normalize(self.nameRef): support.encoderPath.encode(path)}
-            render.objectStart(support.normalizer.normalize(pathLongName(path)), attributes)
-            render.objectEnd()
-        render.collectionEnd()
+            render.beginObject(support.normalizer.normalize(pathLongName(path)), attributes).end()
+        render.end()

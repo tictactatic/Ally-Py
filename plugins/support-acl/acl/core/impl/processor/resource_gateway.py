@@ -90,12 +90,9 @@ class GatewaysFromPermissions(HandlerProcessorProceed):
     
     resourcesRoot = Node; wire.entity('resourcesRoot')
     # The root node to find the filters in.
-    separatorHeader = ':'
-    # The separator used between the header name and header value.
 
     def __init__(self):
         assert isinstance(self.resourcesRoot, Node), 'Invalid root node %s' % self.resourcesRoot
-        assert isinstance(self.separatorHeader, str), 'Invalid header separator %s' % self.separatorHeader
         super().__init__()
         
         self._cacheFilters = {}
@@ -160,8 +157,7 @@ class GatewaysFromPermissions(HandlerProcessorProceed):
             pattern, types = processPattern(permission.path, permission.invoker, encoder, values)
             filters = self.processFilters(types, permission.filters, provider, encoder)
             
-            if PermissionResource.putHeaders in permission and permission.putHeaders is not None:
-                putHeaders = [self.separatorHeader.join(item) for item in permission.putHeaders.items()]
+            if PermissionResource.putHeaders in permission: putHeaders = permission.putHeaders
             else: putHeaders = None
             
             if PermissionResource.navigate in permission: navigate = permission.navigate

@@ -51,7 +51,7 @@ class RenderXML(IRender):
     '''
     Renderer for xml.
     '''
-    __slots__ = ('xml', 'processing')
+    __slots__ = ('xml', 'stack')
 
     def __init__(self, xml):
         '''
@@ -63,46 +63,62 @@ class RenderXML(IRender):
         assert isinstance(xml, XMLGenerator), 'Invalid xml generator %s' % xml
 
         self.xml = xml
-        self.processing = deque()
+        self.stack = deque()
 
-    def value(self, name, value):
+    def property(self, name, value):
         '''
-        @see: IRender.value
+        @see: IRender.property
         '''
+        assert isinstance(value, (str, list, dict)), 'Invalid value %s' % value
+
         self.xml.startElement(name, immut())
-        self.xml.characters(value)
+        if isinstance(value, list):
+            for item in value:
+                assert isinstance(item, str), 'Invalid list item %s' % item
+                self.xml.startElement('Value', immut())
+                self.xml.characters(item)
+                self.xml.endElement('Value')
+        elif isinstance(value, dict):
+            for key, item in value.items():
+                assert isinstance(key, str), 'Invalid dictionary key %s' % key
+                assert isinstance(item, str), 'Invalid dictionary value %s' % item
+                self.xml.startElement('Entry', immut())
+                self.xml.startElement('Key', immut())
+                self.xml.characters(key)
+                self.xml.endElement('Key')
+                self.xml.startElement('Value', immut())
+                self.xml.characters(item)
+                self.xml.endElement('Value')
+                self.xml.endElement('Entry')
+        else:
+            self.xml.characters(value)
         self.xml.endElement(name)
 
-    def objectStart(self, name, attributes=None):
+    def beginObject(self, name, attributes=None):
         '''
-        @see: IRender.objectStart
+        @see: IRender.beginObject
         '''
-        if not self.processing: self.xml.startDocument() # Start the document
-        self.processing.append(name)
+        if not self.stack: self.xml.startDocument()  # Start the document
+        self.stack.append(name)
         self.xml.startElement(name, attributes or immut())
+        
+        return self
 
-    def objectEnd(self):
+    def beginCollection(self, name, attributes=None):
         '''
-        @see: IRender.objectEnd
+        @see: IRender.beginCollection
         '''
-        assert self.processing, 'No object to end'
-
-        self.xml.endElement(self.processing.pop())
-        if not self.processing: self.xml.endDocument() # Close the document if there are no other processes queued
-
-    def collectionStart(self, name, attributes=None):
-        '''
-        @see: IRender.collectionStart
-        '''
-        if not self.processing: self.xml.startDocument() # Start the document
-        self.processing.append(name)
+        if not self.stack: self.xml.startDocument()  # Start the document
+        self.stack.append(name)
         self.xml.startElement(name, attributes or immut())
+        
+        return self
 
-    def collectionEnd(self):
+    def end(self):
         '''
-        @see: IRender.collectionEnd
+        @see: IRender.end
         '''
-        assert self.processing, 'No collection to end'
+        assert self.stack, 'No object to end'
 
-        self.xml.endElement(self.processing.pop())
-        if not self.processing: self.xml.endDocument() # Close the document if there are no other processes queued
+        self.xml.endElement(self.stack.pop())
+        if not self.stack: self.xml.endDocument()  # Close the document if there are no other processes queued

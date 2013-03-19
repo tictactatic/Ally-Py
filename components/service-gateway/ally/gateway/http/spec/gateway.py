@@ -9,7 +9,6 @@ Created on Feb 7, 2013
 Provides the gateway specification.
 '''
 
-from ally.support.util import immut
 import abc
 import re
 
@@ -37,7 +36,7 @@ class Gateway:
             self.pattern = re.compile(pattern)
         else: self.pattern = None
         
-        headers = obj.get('Headers', immut()).get('Headers')
+        headers = obj.get('Headers')
         if headers:
             assert isinstance(headers, list), 'Invalid headers %s' % headers
             if __debug__:
@@ -45,7 +44,7 @@ class Gateway:
             self.headers = [re.compile(header) for header in headers]
         else: self.headers = None
         
-        methods = obj.get('Methods', immut()).get('Methods')
+        methods = obj.get('Methods')
         if methods:
             assert isinstance(methods, list), 'Invalid methods %s' % methods
             if __debug__:
@@ -53,12 +52,12 @@ class Gateway:
             self.methods = set(method.upper() for method in methods)
         else: self.methods = None
             
-        self.filters = obj.get('Filters', immut()).get('Filters')
+        self.filters = obj.get('Filters')
         if __debug__ and self.filters:
             assert isinstance(self.filters, list), 'Invalid filters %s' % self.filters
             for item in self.filters: assert isinstance(item, str), 'Invalid filter value %s' % item
             
-        errors = obj.get('Errors', immut()).get('Errors')
+        errors = obj.get('Errors')
         if errors:
             assert isinstance(errors, list), 'Invalid errors %s' % errors
             self.errors = set()
@@ -76,15 +75,12 @@ class Gateway:
         self.navigate = obj.get('Navigate')
         assert not self.navigate or isinstance(self.navigate, str), 'Invalid navigate %s' % self.navigate
         
-        putHeaders = obj.get('PutHeaders', immut()).get('PutHeaders')
-        if putHeaders:
-            assert isinstance(putHeaders, list), 'Invalid put headers %s' % putHeaders
-            if __debug__:
-                for putHeader in putHeaders:
-                    assert isinstance(putHeader, str), 'Invalid put header value %s' % putHeader
-                    assert len(putHeader.split(':')), 'Invalid put header value %s' % putHeader
-            self.putHeaders = [putHeader.split(':') for putHeader in putHeaders]
-        else: self.putHeaders = None
+        self.putHeaders = obj.get('PutHeaders')
+        if __debug__ and self.putHeaders:
+            assert isinstance(self.putHeaders, dict), 'Invalid put headers %s' % self.putHeaders
+            for name, value in self.putHeaders.items():
+                assert isinstance(name, str), 'Invalid put header name %s' % name
+                assert isinstance(value, str), 'Invalid put header value %s' % value
 
 class Match:
     '''

@@ -13,7 +13,7 @@ from ally.api.operator.container import Model
 from ally.api.operator.type import TypeModel, TypeModelProperty
 from ally.api.type import Iter
 from ally.container.ioc import injected
-from ally.core.spec.resources import Path
+from ally.core.spec.resources import Path, Node, Invoker
 from ally.core.spec.transform.encoder import IEncoder
 from ally.design.cache import CacheWeak
 from ally.design.processor.attribute import requires, defines, definesIf
@@ -82,6 +82,13 @@ class PathSupport(HandlerProcessorProceed):
     '''
     Implementation for a handler that provides the path support.
     '''
+    
+    nameMarkedList = '%sList'
+    # The name to use for rendering lists of models, contains the '%s' mark where to place the item name.
+    
+    def __init__(self):
+        assert isinstance(self.nameMarkedList, str), 'Invalid name list %s' % self.nameMarkedList
+        super().__init__()
         
     def process(self, create:Create, support:Support, **keyargs):
         '''
@@ -145,19 +152,23 @@ class PathSupport(HandlerProcessorProceed):
         # Make sure when placing the accessible paths that there isn't already an accessible path
         # that already returns the inherited model see the example for MetaData and ImageData in relation
         # with MetaInfo and ImageInfo
-        for path in findGetAllAccessible(pathModel):
-            pathName = pathLongName(path)
-            if pathName not in support.pathsAccesible: support.pathsAccesible[pathName] = path
+        accessible = findGetAllAccessible(pathModel)
         # These paths will get updated in the encode model when the data model path is updated
         # because they are extended from the base path.
         for parentType in modelType.parents():
             parentPath = findGetModel(pathModel, parentType)
             if parentPath:
-                for path in findGetAllAccessible(parentPath):
-                    pathName = pathLongName(path)
-                    if pathName not in support.pathsAccesible:
-                        if parentType not in support.updatePaths: support.updatePaths[parentType] = parentPath
-                        support.pathsAccesible[pathName] = path
+                support.updatePaths[parentType] = parentPath
+                accessible.extend(findGetAllAccessible(parentPath))
+                        
+        for path in accessible:
+            assert isinstance(path, Path), 'Invalid path %s' % path
+            assert isinstance(path.node, Node), 'Invalid node %s' % path.node
+            assert isinstance(path.node.get, Invoker), 'Invalid node get %s' % path.node.get
+            pathName = pathLongName(path)
+            if isinstance(path.node.get.output, Iter): pathName = self.nameMarkedList % pathName
+            if pathName not in support.pathsAccesible:
+                support.pathsAccesible[pathName] = path
 
 @injected
 class PathUpdaterSupportEncode(HandlerProcessorProceed):

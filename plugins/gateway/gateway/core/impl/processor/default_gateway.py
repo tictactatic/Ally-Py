@@ -134,8 +134,10 @@ def gatewayFrom(config):
                 elif key == 'Protocol': assert isinstance(value, str), 'Invalid Protocol %s' % value
                 elif key == 'Navigate': assert isinstance(value, str), 'Invalid Navigate %s' % value
                 elif key == 'PutHeaders':
-                    assert isinstance(value, list), 'Invalid PutHeaders %s' % value
-                    for item in value: assert isinstance(item, str), 'Invalid PutHeaders value %s' % item
+                    assert isinstance(value, dict), 'Invalid PutHeaders %s' % value
+                    for key, item in value.items():
+                        assert isinstance(key, str), 'Invalid PutHeaders key %s' % key
+                        assert isinstance(item, str), 'Invalid PutHeaders value %s' % item
                     
             setattr(gateway, key, value)
             assert keys.add(key) or True

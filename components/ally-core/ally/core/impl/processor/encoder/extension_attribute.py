@@ -14,7 +14,7 @@ from ally.api.type import typeFor
 from ally.container.ioc import injected
 from ally.core.spec.transform.encoder import IAttributes, IEncoder, \
     AttributesJoiner
-from ally.core.spec.transform.render import RenderValuesToObject
+from ally.core.spec.transform.render import IRender
 from ally.design.cache import CacheWeak
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines
@@ -133,10 +133,49 @@ class AttributesExtension(AttributesJoiner):
         typeExt = typeFor(obj)
         if not typeExt or not isinstance(typeExt, TypeExtension): return  # Is not an extension object, nothing to do
         
-        renderAttributes = RenderValuesToObject()
+        render = RenderAttributes()
         for name, encoder in self.provider(typeExt, self.processing):
             assert isinstance(encoder, IEncoder), 'Invalid property encoder %s' % encoder
             objValue = getattr(obj, name)
             if objValue is None: continue
-            encoder.render(objValue, renderAttributes, support)
-        return renderAttributes.obj
+            encoder.render(objValue, render, support)
+        return render.attributes
+
+class RenderAttributes(IRender):
+    '''
+    Implementation for @see: IRender used for attributes.
+    '''
+    __slots__ = ('attributes',)
+    
+    def __init__(self):
+        '''
+        Construct the render attributes.
+        '''
+        self.attributes = {}
+        
+    def property(self, name, value):
+        '''
+        @see: IRender.property
+        '''
+        assert isinstance(name, str), 'Invalid name %s' % name
+        assert isinstance(value, str), 'Invalid value %s' % value
+        
+        self.attributes[name] = value
+
+    def beginObject(self, name, attributes=None):
+        '''
+        @see: IRender.beginObject
+        '''
+        raise NotImplementedError('Not available for attributes rendering')
+
+    def beginCollection(self, name, attributes=None):
+        '''
+        @see: IRender.beginCollection
+        '''
+        raise NotImplementedError('Not available for attributes rendering')
+
+    def end(self):
+        '''
+        @see: IRender.end
+        '''
+        raise NotImplementedError('Not available for attributes rendering')

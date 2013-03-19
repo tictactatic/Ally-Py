@@ -63,64 +63,58 @@ class RenderJSON(IRender):
         self.isObject = deque()
         self.isFirst = True
 
-    def value(self, name, value):
+    def property(self, name, value):
         '''
-        @see: IRender.value
+        @see: IRender.property
         '''
-        assert self.isObject, 'No container for value'
         assert isinstance(name, str), 'Invalid name %s' % name
-        assert isinstance(value, str), 'Invalid value %s' % value
-        out = self.out
+        assert isinstance(value, (str, list, dict)), 'Invalid value %s' % value
+        assert self.isObject and self.isObject[0], 'No object for property'
 
         if self.isFirst: self.isFirst = False
-        else: out.write(',')
-        if self.isObject[0]:
-            out.write(encode_basestring(name))
-            out.write(':')
-            out.write(encode_basestring(value))
-        else: out.write(encode_basestring(value))
+        else: self.out.write(',')
+        self.out.write(encode_basestring(name))
+        self.out.write(':')
+        if isinstance(value, list): value = '[%s]' % ','.join(encode_basestring(item) for item in value)
+        elif isinstance(value, dict):
+            value = ','.join('%s:%s' % (encode_basestring(key), encode_basestring(item)) for key, item in value.items())
+            value = '{%s}' % value
+        else:
+            value = encode_basestring(value)
+        self.out.write(value)
 
-    def objectStart(self, name, attributes=None):
+    def beginObject(self, name, attributes=None):
         '''
-        @see: IRender.objectStart
+        @see: IRender.beginObject
         '''
         self.openObject(name, attributes)
         self.isObject.appendleft(True)
+        
+        return self
 
-    def objectEnd(self):
+    def beginCollection(self, name, attributes=None):
         '''
-        @see: IRender.objectEnd
-        '''
-        assert self.isObject, 'No object to end'
-        isObject = self.isObject.popleft()
-        assert isObject, 'No object to end'
-
-        self.out.write('}')
-
-    def collectionStart(self, name, attributes=None):
-        '''
-        @see: IRender.collectionStart
+        @see: IRender.beginCollection
         '''
         assert isinstance(name, str), 'Invalid name %s' % name
-        out = self.out
 
         self.openObject(name, attributes)
-        if not self.isFirst: out.write(',')
-        out.write(encode_basestring(name))
-        out.write(':[')
+        if not self.isFirst: self.out.write(',')
+        self.out.write(encode_basestring(name))
+        self.out.write(':[')
         self.isFirst = True
         self.isObject.appendleft(False)
+        
+        return self
 
-    def collectionEnd(self):
+    def end(self):
         '''
         @see: IRender.collectionEnd
         '''
         assert self.isObject, 'No collection to end'
-        isObject = self.isObject.popleft()
-        assert not isObject, 'No collection to end'
-
-        self.out.write(']}')
-
+        if self.isObject.popleft(): self.out.write('}')
+        else: self.out.write(']}')
+        
     # ----------------------------------------------------------------
 
     def openObject(self, name, attributes=None):

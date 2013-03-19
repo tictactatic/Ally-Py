@@ -98,5 +98,4 @@ class EncoderAccessiblePath(IEncoder):
         
         for name, path in support.pathsAccesible.items():
             attributes = {support.normalizer.normalize(self.nameRef): support.encoderPath.encode(path)}
-            render.objectStart(support.normalizer.normalize(name), attributes)
-            render.objectEnd()
+            render.beginObject(support.normalizer.normalize(name), attributes).end()

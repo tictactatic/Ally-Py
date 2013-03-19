@@ -108,5 +108,4 @@ class EncoderReference(IEncoder):
         assert isinstance(support.encoderPath, IEncoderPath), 'Invalid path encoder %s' % support.encoderPath
         
         attributes = {support.normalizer.normalize(self.nameRef): support.encoderPath.encode(obj)}
-        render.objectStart(support.normalizer.normalize(self.name), attributes)
-        render.objectEnd()
+        render.beginObject(support.normalizer.normalize(self.name), attributes).end()

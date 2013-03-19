@@ -151,6 +151,6 @@ class EncoderModelProperty(IEncoder):
         if Support.hideProperties in support: hideProperties = support.hideProperties
         else: hideProperties = False
             
-        render.objectStart(support.normalizer.normalize(self.name), attributes)
+        render.beginObject(support.normalizer.normalize(self.name), attributes)
         if not hideProperties: self.encoder.render(obj, render, support)
-        render.objectEnd()
+        render.end()

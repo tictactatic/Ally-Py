@@ -150,6 +150,6 @@ class EncoderCollection(IEncoder):
         if self.attributes: attributes = self.attributes.provide(obj, support)
         else: attributes = None
         
-        render.collectionStart(support.normalizer.normalize(self.name), attributes)
+        render.beginCollection(support.normalizer.normalize(self.name), attributes)
         for objItem in obj: self.encoder.render(objItem, render, support)
-        render.collectionEnd()
+        render.end()

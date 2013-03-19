@@ -69,18 +69,10 @@ class RenderTextObject(RenderToObject):
         self.charSet = charSet
         self.output = output
 
-    def objectEnd(self):
+    def end(self):
         '''
-        @see: RenderToObject.objectEnd
+        @see: RenderToObject.end
         '''
-        super().objectEnd()
+        super().end()
         # Finalized object rendering
-        if not self.processing: self.renderer(self.obj, self.charSet, self.output)
-
-    def collectionEnd(self):
-        '''
-        @see: RenderToObject.collectionEnd
-        '''
-        super().collectionEnd()
-        # Finalized object rendering
-        if not self.processing: self.renderer(self.obj, self.charSet, self.output)
+        if not self.stack: self.renderer(self.obj, self.charSet, self.output)

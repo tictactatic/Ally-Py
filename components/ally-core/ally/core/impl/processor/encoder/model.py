@@ -211,7 +211,7 @@ class EncoderModel(IEncoder):
         if Support.hideProperties in support: hideProperties = support.hideProperties
         else: hideProperties = False
         
-        render.objectStart(support.normalizer.normalize(self.name), attributes)
+        render.beginObject(support.normalizer.normalize(self.name), attributes)
         if not hideProperties:
             for name, encoder in self.properties:
                 assert isinstance(encoder, IEncoder), 'Invalid property encoder %s' % encoder
@@ -221,5 +221,5 @@ class EncoderModel(IEncoder):
                 
             if self.extra: self.extra.render(obj, render, support)
                 
-        render.objectEnd()
+        render.end()
 

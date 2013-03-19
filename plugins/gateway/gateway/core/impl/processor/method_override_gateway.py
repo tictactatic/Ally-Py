@@ -40,7 +40,7 @@ class RegisterMethodOverride(HandlerProcessorProceed):
     '''
     Provides the method override gateways, basically support for @see: MethodOverrideHandler.
     '''
-    pattern_xmethod_override = 'X\-HTTP\-Method\-Override\\:[\s]*%s[\s]*(?i)'; wire.config('pattern_xmethod_override', doc='''
+    pattern_xmethod_override = 'X\-HTTP\-Method\-Override\\:\s*%s\s*$(?i)'; wire.config('pattern_xmethod_override', doc='''
     The header pattern for the method override, needs to contain '%s' where the value will be placed.
     ''')
     methods_override = {
