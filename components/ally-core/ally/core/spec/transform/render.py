@@ -175,9 +175,9 @@ class RenderToObject(IRender):
         
         return self
 
-    def collectionStart(self, name, attributes=None):
+    def beginCollection(self, name, attributes=None):
         '''
-        @see: IRender.collectionStart
+        @see: IRender.beginCollection
         '''
         assert isinstance(name, str), 'Invalid name %s' % name
         assert attributes is None or isinstance(attributes, dict), 'Invalid attributes %s' % attributes
