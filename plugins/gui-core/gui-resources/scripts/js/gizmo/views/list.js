@@ -197,7 +197,7 @@ function($, superdesk, giz)
             var self = this;
             return this.refresh().done(function()
             {
-                $(self.renderPlaceholder).html(self.el);
+                !$(self.renderPlaceholder).find(self.el).length && $(self.renderPlaceholder).html(self.el);
                 if( self._resetEvents ) self.resetEvents();
                 self._resetEvents = true;
             });
