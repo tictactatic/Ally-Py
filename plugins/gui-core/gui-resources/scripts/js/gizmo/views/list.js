@@ -66,7 +66,15 @@ function($, superdesk, giz)
             this.collection._list = [];
             this.syncing = true;
             if( this.collection.setSearchUrl ) this.collection.setSearchUrl(src);
-            this.collection.xfilter('*').sync({data: this.searchData(src), done: function(data){ self.syncing = false; self.renderList(); }});
+
+            var myData = $.extend({}, this.searchData(src), {limit: this.page.limit, offset: this.page.offset});
+
+            //this.collection.xfilter('*').sync({data: this.searchData(src)}).done(function(data){ 
+            this.collection.xfilter('*').sync({data: myData}).done(function(data){ 
+                self.syncing = false; 
+                self.page.total = data.total;
+                self.renderList(); 
+            });
             
             $('[data-action="cancel-search"]', self.el).removeClass('hide');
         },
@@ -138,6 +146,7 @@ function($, superdesk, giz)
         init: function()
         {
             var self = this;
+            this.src = '';
             this.page = // pagination data 
             { 
                 limit: 25, 
@@ -249,12 +258,15 @@ function($, superdesk, giz)
         /*!
          * render the complete list
          */
-        renderList: function()
+        renderList: function(isSearch)
         {
+            
             if(!this.firstRender) return;
             var self = this;
             self.clearList();
-            this.collection.each(function(){ self.addItem(this); });
+            this.collection.each(function(){
+                self.addItem(this); 
+            });
         },
         /*!
          * the html element to place the view in
