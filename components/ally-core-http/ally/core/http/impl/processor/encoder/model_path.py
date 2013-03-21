@@ -11,10 +11,12 @@ Provides the paths for a model.
 
 from ally.api.operator.type import TypeModel, TypeModelProperty
 from ally.container.ioc import injected
+from ally.core.http.spec.transform.flags import ATTRIBUTE_REFERENCE
 from ally.core.spec.resources import Path, Normalizer
 from ally.core.spec.transform.encoder import IAttributes, AttributesJoiner
+from ally.core.spec.transform.representation import Attribute
 from ally.design.cache import CacheWeak
-from ally.design.processor.attribute import requires, defines
+from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessorProceed
 from ally.http.spec.server import IEncoderPath
@@ -37,10 +39,11 @@ class Support(Context):
     '''
     The encoder support context.
     '''
+    # ---------------------------------------------------------------- Optional
+    encoderPath = optional(IEncoderPath)
     # ---------------------------------------------------------------- Required
     normalizer = requires(Normalizer)
     pathModel = requires(Path)
-    encoderPath = requires(IEncoderPath)
     
 # --------------------------------------------------------------------
 
@@ -103,6 +106,19 @@ class AttributesModelPath(AttributesJoiner):
         
         assert isinstance(support.normalizer, Normalizer), 'Invalid normalizer %s' % support.normalizer
         assert isinstance(support.pathModel, Path), 'Invalid path %s' % support.pathModel
+        assert Support.encoderPath in support, 'No path encoder available in %s' % support
         assert isinstance(support.encoderPath, IEncoderPath), 'Invalid path encoder %s' % support.encoderPath
         
         return {support.normalizer.normalize(self.nameRef): support.encoderPath.encode(support.pathModel)}
+    
+    def representIntern(self, support):
+        '''
+        @see: AttributesJoiner.representIntern
+        '''
+        assert isinstance(support, Support), 'Invalid support %s' % support
+        if not support.pathModel: return  # No path to construct attributes for.
+        
+        assert isinstance(support.normalizer, Normalizer), 'Invalid normalizer %s' % support.normalizer
+        assert isinstance(support.pathModel, Path), 'Invalid path %s' % support.pathModel
+        
+        return {support.normalizer.normalize(self.nameRef): Attribute(ATTRIBUTE_REFERENCE)}

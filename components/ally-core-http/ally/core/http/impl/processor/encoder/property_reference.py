@@ -12,10 +12,12 @@ Provides the reference types encoding.
 from ally.api.operator.type import TypeProperty
 from ally.api.type import TypeReference
 from ally.container.ioc import injected
+from ally.core.http.spec.transform.flags import ATTRIBUTE_REFERENCE
 from ally.core.spec.resources import Normalizer
 from ally.core.spec.transform.encoder import IEncoder
 from ally.core.spec.transform.render import IRender
-from ally.design.processor.attribute import requires, defines
+from ally.core.spec.transform.representation import Attribute, Object
+from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessorProceed
 from ally.http.spec.server import IEncoderPath
@@ -39,9 +41,10 @@ class Support(Context):
     '''
     The encoder support context.
     '''
+    # ---------------------------------------------------------------- Optional
+    encoderPath = optional(IEncoderPath)
     # ---------------------------------------------------------------- Required
     normalizer = requires(Normalizer)
-    encoderPath = requires(IEncoderPath)
     
 # --------------------------------------------------------------------
 
@@ -105,7 +108,24 @@ class EncoderReference(IEncoder):
         assert isinstance(render, IRender), 'Invalid render %s' % render
         assert isinstance(support, Support), 'Invalid support %s' % support
         assert isinstance(support.normalizer, Normalizer), 'Invalid normalizer %s' % support.normalizer
+        assert Support.encoderPath in support, 'No path encoder available in %s' % support
         assert isinstance(support.encoderPath, IEncoderPath), 'Invalid path encoder %s' % support.encoderPath
         
         attributes = {support.normalizer.normalize(self.nameRef): support.encoderPath.encode(obj)}
         render.beginObject(support.normalizer.normalize(self.name), attributes).end()
+
+    def represent(self, support, obj=None):
+        '''
+        @see: IEncoder.represent
+        '''
+        assert isinstance(support, Support), 'Invalid support %s' % support
+        assert isinstance(support.normalizer, Normalizer), 'Invalid normalizer %s' % support.normalizer
+        
+        attributes = {support.normalizer.normalize(self.nameRef): Attribute(ATTRIBUTE_REFERENCE)}
+        object = Object(support.normalizer.normalize(self.name), attributes=attributes)
+        
+        if obj:
+            assert isinstance(obj, Object), 'Invalid representation object to push in %s' % obj
+            obj.properties.append(object)
+            
+        else: return object

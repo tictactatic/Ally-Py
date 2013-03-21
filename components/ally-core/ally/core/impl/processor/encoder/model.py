@@ -26,6 +26,7 @@ from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain, Processing
 from ally.design.processor.handler import HandlerBranchingProceed
 from ally.exception import DevelError
+from ally.core.spec.transform.representation import Object
 
 # --------------------------------------------------------------------
 
@@ -176,7 +177,7 @@ class ModelEncode(HandlerBranchingProceed):
         for k, ord in enumerate(self.typeOrders):
             if propType.type == ord: break
         return k
-
+       
 # --------------------------------------------------------------------
 
 class EncoderModel(IEncoder):
@@ -223,3 +224,28 @@ class EncoderModel(IEncoder):
                 
         render.end()
 
+    def represent(self, support, obj=None):
+        '''
+        @see: IEncoder.represent
+        '''
+        assert isinstance(support, Support), 'Invalid support %s' % support
+        assert isinstance(support.normalizer, Normalizer), 'Invalid normalizer %s' % support.normalizer
+        
+        if self.attributes: attributes = self.attributes.represent(support)
+        else: attributes = None
+        if Support.hideProperties in support: hideProperties = support.hideProperties
+        else: hideProperties = False
+        
+        model = Object(support.normalizer.normalize(self.name), attributes=attributes)
+        if not hideProperties:
+            for _name, encoder in self.properties:
+                assert isinstance(encoder, IEncoder), 'Invalid property encoder %s' % encoder
+                encoder.represent(support, model)
+                
+            if self.extra: self.extra.represent(support, model)
+                
+        if obj:
+            assert isinstance(obj, Object), 'Invalid representation object to push in %s' % obj
+            obj.properties.append(model)
+            
+        else: return model

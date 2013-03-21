@@ -9,7 +9,7 @@ Created on Jun 22, 2012
 Provides the XML encoder processor handler.
 '''
 
-from .base import RenderBaseHandler
+from .base import RenderBaseHandler, PatternBaseHandler
 from ally.container.ioc import injected
 from ally.core.spec.transform.render import IRender
 from ally.support.util import immut
@@ -17,13 +17,19 @@ from ally.support.util_io import IOutputStream
 from codecs import getwriter
 from collections import deque
 from xml.sax.saxutils import XMLGenerator
+from ally.core.spec.transform.representation import Object, Collection, Property
+import logging
+
+# --------------------------------------------------------------------
+
+log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
 @injected
 class RenderXMLHandler(RenderBaseHandler):
     '''
-    Provides the XML encoding.
+    Provides the XML rendering.
     @see: RenderBaseHandler
     '''
 
@@ -45,6 +51,49 @@ class RenderXMLHandler(RenderBaseHandler):
         xml = XMLGenerator(outputb, charSet, short_empty_elements=True)
         return RenderXML(xml)
 
+# --------------------------------------------------------------------
+
+class PatternXMLHandler(PatternBaseHandler):
+    '''
+    Provides the XML pattern.
+    @see: PatternBaseHandler
+    '''
+    
+    def matchers(self, obj):
+        '''
+        @see: PatternBaseHandler.matchers
+        '''
+        if isinstance(obj, Collection):
+            assert isinstance(obj, Collection)
+            obj = obj.item
+            
+        matchers = {}
+        assert isinstance(obj, Object), 'Invalid representation object %s' % obj
+        for prop in obj.properties:
+            if isinstance(prop, Object):
+                assert isinstance(prop, Object)
+                name = prop.name
+            else:
+                assert isinstance(prop, Property), 'Invalid property %s' % prop
+                name = prop.name
+            if not name:
+                log.info('Dynamic property found in %s, cannot handle it', obj.name)
+                continue
+            assert isinstance(name, str), 'Invalid name %s' % name
+            
+                
+        return matchers
+        
+    def trimmers(self, obj):
+        '''
+        @see: PatternBaseHandler.trimmers
+        '''
+        
+    def capture(self, obj, flag):
+        '''
+        @see: PatternBaseHandler.trimmers
+        '''
+        
 # --------------------------------------------------------------------
 
 class RenderXML(IRender):

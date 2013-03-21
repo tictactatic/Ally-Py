@@ -140,6 +140,12 @@ class AttributesExtension(AttributesJoiner):
             if objValue is None: continue
             encoder.render(objValue, render, support)
         return render.attributes
+    
+    def representIntern(self, support):
+        '''
+        @see: AttributesJoiner.representIntern
+        '''
+        # The extension attributes depend on the returned object, so no attributes to return.
 
 class RenderAttributes(IRender):
     '''

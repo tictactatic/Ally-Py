@@ -6,7 +6,7 @@ Created on Mar 8, 2013
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
 
-Provides exploits for transforming object to rendered content. 
+Provides encoder specifications. 
 '''
 
 import abc
@@ -30,6 +30,20 @@ class IEncoder(metaclass=abc.ABCMeta):
         @param support: object
             Support object containing additional data required for encoding.
         '''
+    
+    @abc.abstractmethod
+    def represent(self, support, obj=None):
+        '''
+        Create a representation of the encoder.
+        
+        @param support: object
+            Support object containing additional data required for encoding.
+        @param obj: object|None
+            Optionally the object to push the representations in, this depends on the nature of the encoder, some encoders
+            my require this object.
+        @return: object|None
+            The representation object of the encoder, None if obj has been passed as an argument.
+        '''
 
 class IAttributes(metaclass=abc.ABCMeta):
     '''
@@ -47,6 +61,17 @@ class IAttributes(metaclass=abc.ABCMeta):
             Support object containing additional data required for attributes.
         @return: dictionary{string: string}|None
             The attributes to be used by the encoder.
+        '''
+        
+    @abc.abstractmethod
+    def represent(self, support):
+        '''
+        Create a representation of the attributes.
+        
+        @param support: object
+            Support object containing additional data required for attributes.
+        @return: dictionary{string: object}|None
+            The representation of the attributes.
         '''
 
 # --------------------------------------------------------------------
@@ -80,7 +105,22 @@ class AttributesJoiner(IAttributes):
         elif attributes:
             assert isinstance(other, dict), 'Invalid other attributes %s' % other
             other.update(attributes)
-        return other 
+        return other
+    
+    def represent(self, support):
+        '''
+        @see: IAttributes.represent
+        '''
+        attributes = self.representIntern(support)
+        
+        if self.attributes: other = self.attributes.represent(support)
+        else: other = None
+        
+        if not other: return attributes
+        elif attributes:
+            assert isinstance(other, dict), 'Invalid other attributes %s' % other
+            other.update(attributes)
+        return other
         
     # ----------------------------------------------------------------
     
@@ -88,4 +128,10 @@ class AttributesJoiner(IAttributes):
     def provideIntern(self, obj, support):
         '''
         Same as @see: IAttributes.provide but is for internal purpose, doesn't need to care about the joined attributes.
+        '''
+        
+    @abc.abstractmethod
+    def representIntern(self, support):
+        '''
+        Same as @see: IAttributes.represent but is for internal purpose, doesn't need to care about the joined attributes.
         '''

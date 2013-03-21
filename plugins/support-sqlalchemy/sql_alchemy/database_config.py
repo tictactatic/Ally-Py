@@ -48,6 +48,6 @@ def metas(): return []
 
 # --------------------------------------------------------------------
 
-@app.populate(app.DEVEL, app.CHANGED, priority=app.PRIORITY_FIRST)
+@app.populate(app.DEVEL, app.CHANGED, priority=app.PRIORITY_TOP)
 def createTables():
     for meta in metas(): meta.create_all(alchemyEngine())

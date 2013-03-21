@@ -14,12 +14,15 @@ from ally.container.ioc import injected
 from ally.core.spec.resources import Normalizer, Path
 from ally.core.spec.transform.encoder import IEncoder
 from ally.core.spec.transform.render import IRender
-from ally.design.processor.attribute import requires, defines
+from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessorProceed
 from ally.http.spec.server import IEncoderPath
 from ally.support.core.util_resources import pathLongName
 from collections import Iterable
+from ally.core.spec.transform.representation import Collection, Attribute, \
+    Object
+from ally.core.http.spec.transform.flags import ATTRIBUTE_REFERENCE
 
 # --------------------------------------------------------------------
 
@@ -39,9 +42,10 @@ class Support(Context):
     '''
     The encoder support context.
     '''
+    # ---------------------------------------------------------------- Optional
+    encoderPath = optional(IEncoderPath)
     # ---------------------------------------------------------------- Required
     normalizer = requires(Normalizer)
-    encoderPath = requires(IEncoderPath)
     
 # --------------------------------------------------------------------
 
@@ -107,6 +111,7 @@ class EncoderResources(IEncoder):
         assert isinstance(render, IRender), 'Invalid render %s' % render
         assert isinstance(support, Support), 'Invalid support %s' % support
         assert isinstance(support.normalizer, Normalizer), 'Invalid normalizer %s' % support.normalizer
+        assert Support.encoderPath in support, 'No path encoder available in %s' % support
         assert isinstance(support.encoderPath, IEncoderPath), 'Invalid path encoder %s' % support.encoderPath
         
         render.beginCollection(support.normalizer.normalize(self.nameResources))
@@ -114,3 +119,11 @@ class EncoderResources(IEncoder):
             attributes = {support.normalizer.normalize(self.nameRef): support.encoderPath.encode(path)}
             render.beginObject(support.normalizer.normalize(pathLongName(path)), attributes).end()
         render.end()
+
+    def represent(self, support, obj=None):
+        '''
+        @see: IEncoder.represent
+        '''
+        assert obj is None, 'No object expected for resources representation'
+        attributes = {support.normalizer.normalize(self.nameRef): Attribute(ATTRIBUTE_REFERENCE)}
+        return Collection(None, Object(None, attributes=attributes))

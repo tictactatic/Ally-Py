@@ -39,7 +39,7 @@ class SynchronizerRights:
         assert isinstance(self.rightTypeService, IRightTypeService), 'Invalid right type service %s' % self.rightTypeService
         assert isinstance(self.rightService, IRightService), 'Invalid right service %s' % self.rightService
     
-    @app.populate(app.DEVEL, app.CHANGED, priority=app.PRIORITY_FIRST)
+    @app.populate(app.DEVEL, app.CHANGED, priority=app.PRIORITY_BEFORE_NORMAL)
     def synchronizeSecurityWithACL(self):
         '''
         Synchronize the ACL rights with the database RBAC rights.

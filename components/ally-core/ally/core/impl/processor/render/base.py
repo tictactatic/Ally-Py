@@ -10,10 +10,12 @@ Provides the text base encoder processor handler.
 '''
 
 from ally.container.ioc import injected
+from ally.core.spec.transform.render import IPattern
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain
-from ally.design.processor.handler import HandlerProcessor
+from ally.design.processor.handler import HandlerProcessor, \
+    HandlerProcessorProceed
 from collections import Callable
 from functools import partial
 import abc
@@ -63,7 +65,7 @@ class RenderBaseHandler(HandlerProcessor):
         '''
         @see: HandlerProcessor.process
         
-        Encode the ressponse object.
+        Create the renderer factory
         '''
         assert isinstance(chain, Chain), 'Invalid processors chain %s' % chain
         assert isinstance(response, Response), 'Invalid response %s' % response
@@ -96,3 +98,43 @@ class RenderBaseHandler(HandlerProcessor):
         @return: IRender
             The renderer.
         '''
+
+# --------------------------------------------------------------------
+
+class Support(Context):
+    '''
+    The support context.
+    '''
+    # ---------------------------------------------------------------- Defined
+    patterns = defines(list, doc='''
+    @rtype: list[tuple(IPattern, set(string))]
+    The list of tuples that have on the first position the pattern support and on the second position a set containing
+    the mime types that represent the pattern.
+    ''')
+
+# --------------------------------------------------------------------
+
+@injected
+class PatternBaseHandler(HandlerProcessorProceed, IPattern):
+    '''
+    Provides the text base pattern handler.
+    '''
+
+    contentTypes = dict
+    # The dictionary{string:string} containing as a key the content types specific for this encoder and as a value
+    # the content type to set on the response, if None will use the key for the content type response. 
+
+    def __init__(self):
+        assert isinstance(self.contentTypes, dict), 'Invalid content types %s' % self.contentTypes
+        super().__init__()
+        
+    def process(self, support:Support, **keyargs):
+        '''
+        @see: HandlerProcessorProceed.process
+        
+        Create the pattern support.
+        '''
+        assert isinstance(support, Support), 'Invalid support %s' % support
+        
+        if support.patterns is None: support.patterns = []
+        support.patterns.append((self, {value or key for key, value in self.contentTypes.items()}))

@@ -82,6 +82,58 @@ def requires(*types, doc=None):
 
 # --------------------------------------------------------------------
 
+DEFINED = 1 << 1
+# Status flag for defined attributes.
+REQUIRED = 1 << 2
+# Status flag for required attributes.
+OPTIONAL = 1 << 3
+# Status flag for optional attributes.
+
+# --------------------------------------------------------------------
+
+class Specification:
+    '''
+    Provides attribute specifications.
+    '''
+    __slots__ = ('status', 'types', 'doc', 'defined', 'usedIn')
+    
+    def __init__(self, status, types, doc=None, defined=None):
+        '''
+        Construct the attribute specification.
+        
+        @param status: integer
+            The status of the attribute.
+        @param types: Iterable(class)
+            The type(s) for the attribute.
+        @param doc: string|None
+            The documentation associated with the attribute.
+        @param defined: Iterable(class)|None
+            The defined classes.
+        '''
+        assert isinstance(status, int), 'Invalid status %s' % status
+        types = tuple(reduce(types))
+        assert types, 'At least a type is required'
+        
+        if defined is None:
+            if status & DEFINED: defined = types
+            else: defined = ()
+        else: assert isinstance(defined, Iterable), 'Invalid defined classes %s' % defined
+        
+        self.status = status
+        self.types = types
+        self.doc = doc
+        self.defined = frozenset(defined)
+        
+        self.usedIn = {}
+        
+    def __str__(self):
+        status = []
+        if self.status & DEFINED: status.append('DEFINES')
+        if self.status & REQUIRED: status.append('REQUIRED')
+        if self.status & OPTIONAL: status.append('OPTIONAL')
+        
+        return ''.join(('|'.join(status), '[', ','.join(t.__name__ for t in self.types), ']'))
+
 class Definition:
     '''
     Descriptor used just to provide the definition.
@@ -217,7 +269,7 @@ class Resolver(IResolver):
         
         if self is other: return self
         
-        if not other.__class__ == Resolver:
+        if not isinstance(other, Resolver):
             if isFirst: return other.merge(self, False)
             raise ResolverError('Cannot merge %s with %s' % (self, other))
         assert isinstance(other, Resolver), 'Invalid other resolver %s' % other
@@ -299,32 +351,16 @@ class Resolver(IResolver):
         '''
         @see: IResolver.create
         '''
-        flags, attributes = set(flags), {}
+        flags = set(flags)
         
-        created = False
         try: flags.remove(CREATE_DEFINITION)
         except KeyError: pass
-        else:
-            created = True
-            for name, spec in self.specifications.items():
-                assert isinstance(spec, Specification), 'Invalid specification %s' % spec
-                attributes[name] = Attribute(spec)
-        
-        if not created:
-            for name, spec in self.specifications.items():
-                assert isinstance(spec, Specification), 'Invalid specification %s' % spec
-                if spec.status == REQUIRED:
-                    raise AttrError('Cannot generate attribute %s=%s, used in:%s' % 
-                                    (name, spec, ''.join(locationStack(clazz) for clazz in spec.usedIn)))
-                if spec.status & OPTIONAL: continue  # If is optional then no need to create it
-                attributes[name] = Attribute(Specification(spec.status, spec.types, spec.doc), Descriptor=Descriptor)
-            
-        assert not flags, 'Unknown flags: %s' % ', '.join(flags)
-        return attributes
+        else: return self.createDefinitions(self.specifications)
+        return self.createDescriptors(self.specifications)
                 
     # ----------------------------------------------------------------
     
-    def mergeSpecifications(self, mergeSpec, withSpec):
+    def mergeSpecifications(self, mergeSpec, withSpec, SpecificationFactory=Specification):
         '''
         Merges the provided specifications.
         
@@ -332,9 +368,14 @@ class Resolver(IResolver):
             The specification to be merged.
         @param withSpec: Specification
             The specification to merge with.
+        @param SpecificationFactory: callable(status, types, doc, defined) -> Specification
+            The factory which to create merged specification.
+        @return: Specification
+            The merged specification.
         '''
         assert isinstance(mergeSpec, Specification), 'Invalid merge specification %s' % mergeSpec
         assert isinstance(withSpec, Specification), 'Invalid with specification %s' % withSpec
+        assert callable(SpecificationFactory), 'Invalid specification factory %s' % SpecificationFactory
         
         if mergeSpec is withSpec: return mergeSpec
 
@@ -342,8 +383,7 @@ class Resolver(IResolver):
             if withSpec.status & DEFINED:
                 raise AttrError('Improper order for %s, it should be before %s' % (withSpec, mergeSpec))
             status = REQUIRED
-            types = set(mergeSpec.types)
-            types.intersection_update(withSpec.types)
+            types = intersect(mergeSpec.types, withSpec.types)
             if not types:
                 raise AttrError('Incompatible required types of %s, with required types of %s' % (mergeSpec, withSpec))
                 
@@ -353,8 +393,7 @@ class Resolver(IResolver):
                 types = set(mergeSpec.types)
             else:
                 status = withSpec.status
-                types = set(mergeSpec.types)
-                types.intersection_update(withSpec.types)
+                types = intersect(mergeSpec.types, withSpec.types)
                 if not types:
                     raise AttrError('Incompatible required types of %s, with required types of %s' % (mergeSpec, withSpec))
             
@@ -370,6 +409,8 @@ class Resolver(IResolver):
                 
         defined = set(mergeSpec.defined)
         defined.update(withSpec.defined)
+        
+        types, defined = reduce(types), reduce(defined)
         if defined != types and not types.issuperset(defined):
             raise ResolverError('Invalid types %s and defined types %s, they cannot be joined, for %s, and %s' % 
                                 (', '.join('\'%s\'' % typ.__name__ for typ in types),
@@ -379,70 +420,71 @@ class Resolver(IResolver):
         if mergeSpec.doc is not None: docs.append(mergeSpec.doc)
         if withSpec.doc is not None: docs.append(withSpec.doc)
         doc = '\n'.join(docs) if docs else None
-        spec = Specification(status, tuple(types), doc, defined)
+        
+        spec = SpecificationFactory(status, types, doc, defined)
+        assert isinstance(spec, Specification), 'Invalid specification %s' % spec
         spec.usedIn.update(mergeSpec.usedIn)
         spec.usedIn.update(withSpec.usedIn)
         
         return spec
     
+    def createDefinitions(self, specifications):
+        '''
+        Create the definitions attributes.
+        
+        @param specifications: dictionary{string: Specification}
+            The specifications to create the definitions for.
+        @return: dictionary{string: IAttribute}
+            The created attributes.
+        '''
+        assert isinstance(specifications, dict), 'Invalid specifications %s' % specifications
+        attributes = {}
+        for name, spec in specifications.items():
+            assert isinstance(name, str), 'Invalid name %s' % name
+            assert isinstance(spec, Specification), 'Invalid specification %s' % spec
+            attributes[name] = Attribute(spec)
+            
+        return attributes
+        
+    def createDescriptors(self, specifications):
+        '''
+        Create the descriptors attribute.
+        
+        @param specifications: dictionary{string: Specification}
+            The specifications to create the descriptors for.
+        @return: dictionary{string: IAttribute}
+            The created attributes.
+        '''
+        assert isinstance(specifications, dict), 'Invalid specifications %s' % specifications
+        attributes = {}
+        for name, spec in specifications.items():
+            assert isinstance(name, str), 'Invalid name %s' % name
+            assert isinstance(spec, Specification), 'Invalid specification %s' % spec
+            if spec.status == REQUIRED:
+                raise AttrError('Cannot generate attribute %s=%s, used in:%s' % 
+                                (name, spec, ''.join(locationStack(clazz) for clazz in spec.usedIn)))
+            if spec.status & OPTIONAL: continue  # If is optional then no need to create it
+            specification = self.descriptorSpecification(spec)
+            attributes[name] = Attribute(specification, Descriptor=Descriptor)
+        
+        return attributes
+    
+    def descriptorSpecification(self, specification):
+        '''
+        Creates a specification used as for a descriptor.
+        
+        @param specification: Specification
+            The specification to create the descriptor specification based on.
+        @return: Specification
+            The specification to used on the descriptor attribute.
+        '''
+        assert isinstance(specification, Specification), 'Invalid specification %s' % specification
+        return Specification(specification.status, specification.types, specification.doc)
+    
     def __str__(self):
         if not self.specifications: return '%s empty' % self.__class__.__name__
         return '%s[%s]' % (self.__class__.__name__, ', '.join('%s=%s' % (name, self.specifications.get(name))
                                                               for name in sorted(self.specifications)))
-
-# --------------------------------------------------------------------
-
-DEFINED = 1 << 1
-# Status flag for defined attributes.
-REQUIRED = 1 << 2
-# Status flag for required attributes.
-OPTIONAL = 1 << 3
-# Status flag for optional attributes.
-
-class Specification:
-    '''
-    Provides attribute specifications.
-    '''
-    __slots__ = ('status', 'types', 'doc', 'defined', 'usedIn')
-    
-    def __init__(self, status, types, doc=None, defined=None):
-        '''
-        Construct the attribute specification.
-        
-        @param status: integer
-            The status of the attribute.
-        @param types: tuple(class)
-            The type(s) for the attribute.
-        @param doc: string|None
-            The documentation associated with the attribute.
-        @param defined: Iterable(class)|None
-            The defined classes.
-        '''
-        assert isinstance(status, int), 'Invalid status %s' % status
-        assert isinstance(types, tuple), 'Invalid types %s' % types
-        assert types, 'At least a type is required'
-        if __debug__:
-            for clazz in types: assert isclass(clazz), 'Invalid class %s' % clazz
-        
-        if defined is None:
-            if status & DEFINED: defined = types
-            else: defined = ()
-        else: assert isinstance(defined, Iterable), 'Invalid defined classes %s' % defined
-        
-        self.status = status
-        self.types = types
-        self.doc = doc
-        self.defined = frozenset(defined)
-        
-        self.usedIn = {}
-        
-    def __str__(self):
-        status = []
-        if self.status & DEFINED: status.append('DEFINES')
-        if self.status & REQUIRED: status.append('REQUIRED')
-        if self.status & OPTIONAL: status.append('OPTIONAL')
-        
-        return ''.join(('|'.join(status), '[', ','.join(t.__name__ for t in self.types), ']'))
 
 class Attribute(IAttribute):
     '''
@@ -544,3 +586,55 @@ class Attribute(IAttribute):
         if self.clazz:
             return ''.join((st, ' in:', locationStack(self.clazz), ' as attribute ', self.name))
         return ''.join((st, ' unplaced'))
+
+# --------------------------------------------------------------------
+
+def reduce(types):
+    '''
+    Reduces the provided types to only the classes that are the top classes.
+    
+    @param types: Iterable(class)
+        The types to reduce.
+    @return: set(class)
+        The reduced types.
+    '''
+    assert isinstance(types, Iterable), 'Invalid types %s' % types
+    reduced = []
+    for clazz in types:
+        assert isclass(clazz), 'Invalid class %s' % clazz
+        k, solved = 0, False
+        while k < len(reduced):
+            rclazz = reduced[k]
+            k += 1
+            if rclazz == clazz:
+                solved = True
+                break
+            elif issubclass(clazz, rclazz):
+                solved = True
+                reduced[k] = clazz
+            elif issubclass(rclazz, clazz):
+                solved = True
+                break
+        if not solved: reduced.append(clazz)
+    return set(reduced)
+
+def intersect(first, second):
+    '''
+    Reduces the provided types to only the classes that are the top classes.
+    
+    @param first: Iterable(class)
+        The first types to reduce.
+    @param second: Iterable(class)
+        The second types to reduce.
+    @return: set(class)
+        The intersected types.
+    '''
+    assert isinstance(first, Iterable), 'Invalid first types %s' % first
+    assert isinstance(second, Iterable), 'Invalid types %s' % second
+    if not isinstance(second, (list, tuple, set)): second = list(second)
+    intersect = []
+    for fclazz in first:
+        for sclazz in second:
+            if issubclass(fclazz, sclazz): intersect.append(sclazz)
+            elif issubclass(sclazz, fclazz): intersect.append(fclazz)
+    return reduce(intersect)

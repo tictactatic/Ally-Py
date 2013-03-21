@@ -28,7 +28,8 @@ log = logging.getLogger(__name__)
 PRIORITY_FINAL = Priority()
 PRIORITY_LAST = Priority(PRIORITY_FINAL)
 PRIORITY_NORMAL = Priority(PRIORITY_LAST)
-PRIORITY_FIRST = Priority(PRIORITY_NORMAL)
+PRIORITY_BEFORE_NORMAL = Priority(PRIORITY_NORMAL)
+PRIORITY_FIRST = Priority(PRIORITY_BEFORE_NORMAL)
 PRIORITY_TOP = Priority(PRIORITY_FIRST)
 
 # --------------------------------------------------------------------

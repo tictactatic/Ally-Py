@@ -63,6 +63,53 @@ class IRender(metaclass=abc.ABCMeta):
         Called to signal that the current block has ended the rendering.
         '''
 
+class IPattern(metaclass=abc.ABCMeta):
+    '''
+    The specification for pattern creation for rendered content.
+    '''
+
+    @abc.abstractclassmethod
+    def matchers(self, obj):
+        '''
+        Creates matchers for the representation object.
+        
+        @param obj: object
+            The representation object to create matchers for.
+        @return: dictionary{string: string}
+            A dictionary containing as a key the name that represents the matched content and as a value the regex pattern
+            that captures the data block represented by key. The matcher patterns contain groups that allows for injection.
+        '''
+    
+    @abc.abstractclassmethod
+    def trimmers(self, obj):
+        '''
+        Create trimmers for the representation object in order to facilitate the injection.
+        
+        @param obj: object
+            The representation object to create captures for.
+        @return: list[tuple(string, string)]
+            A list of tuples of two elements, on the first position the regex pattern that is used inside a matcher block
+            in order to inject content, on the second position a pattern like string that contain markers
+            for using as the replaced value. Markers are like {1}, {2} ... for capture blocks from the matcher and like
+            //1, //2 ... for capture blocks from the replace pattern, this are handled automatically by python regex sub method.
+        '''
+    
+    @abc.abstractclassmethod
+    def capture(self, obj, flag):
+        '''
+        Capture data inside a matcher block.
+        
+        @param obj: object
+            The representation object to create captures for.
+        @param flag: object
+            Flag indicating what captures are made.
+        @return: dictionary{string: string}
+            A dictionary containing as a key the name that represents the matcher block (@see: matchers) and as a value
+            the regex pattern that captures the data specified by flags.
+        '''
+
+# --------------------------------------------------------------------
+      
 class Value:
     '''
     Container for the text value.

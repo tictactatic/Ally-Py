@@ -15,10 +15,11 @@ from ally.container.ioc import injected
 from ally.core.spec.resources import Normalizer, Converter
 from ally.core.spec.transform.encoder import IEncoder
 from ally.core.spec.transform.render import IRender
-from ally.design.processor.attribute import requires, defines
+from ally.core.spec.transform.representation import Property, Object
+from ally.design.cache import CacheWeak
+from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessorProceed
-from ally.design.cache import CacheWeak
 
 # --------------------------------------------------------------------
 
@@ -39,9 +40,10 @@ class Support(Context):
     '''
     The encoder support context.
     '''
+    # ---------------------------------------------------------------- Optional
+    converterId = optional(Converter)
     # ---------------------------------------------------------------- Required
     normalizer = requires(Normalizer)
-    converterId = requires(Converter)
     
 # --------------------------------------------------------------------
 
@@ -102,6 +104,22 @@ class EncoderPropertyId(IEncoder):
         assert isinstance(render, IRender), 'Invalid render %s' % render
         assert isinstance(support, Support), 'Invalid support %s' % support
         assert isinstance(support.normalizer, Normalizer), 'Invalid normalizer %s' % support.normalizer
+        assert Support.converterId in support, 'No id converter available in %s' % support
         assert isinstance(support.converterId, Converter), 'Invalid id converter %s' % support.converterId
         
         render.property(support.normalizer.normalize(self.name), support.converterId.asString(obj, self.valueType))
+
+    def represent(self, support, obj=None):
+        '''
+        @see: IEncoder.represent
+        '''
+        assert isinstance(support, Support), 'Invalid support %s' % support
+        assert isinstance(support.normalizer, Normalizer), 'Invalid normalizer %s' % support.normalizer
+        
+        property = Property(support.normalizer.normalize(self.name))
+        
+        if obj:
+            assert isinstance(obj, Object), 'Invalid representation object to push in %s' % obj
+            obj.properties.append(property)
+            
+        else: return property
