@@ -96,7 +96,7 @@ class EncodingHandler(HandlerBranchingProceed):
                       support=pushIn(encodeProcessing.ctx.support(), response, request)).doAll()
         create, support = chain.arg.create, chain.arg.support
         assert isinstance(create, Create), 'Invalid create %s' % create
-        if create.encoder is None: raise DevelError('Cannot encode response object \'%s\'' % request.invoker.output)
+        if create.encoder is None: raise DevelError('Cannot encode response type \'%s\'' % request.invoker.output)
         
         response.encoder = create.encoder
         response.support = support

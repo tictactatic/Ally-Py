@@ -9,7 +9,7 @@ Created on Sep 14, 2012
 Provides the configurations for the Babel conversion processor.
 '''
 
-from ..ally_core.processor import conversion, default_language, normalizer
+from ..ally_core.processor import conversion, default_language
 from ..ally_core_http.processor import assemblyResources, \
     updateAssemblyResources
 from ..ally_http.processor import contentTypeResponseEncode
@@ -43,11 +43,10 @@ else:
     
     # --------------------------------------------------------------------
     
-    @ioc.replace(conversion)
+    @ioc.entity
     def conversionBabel() -> Handler:
         b = BabelConversionDecodeHandler()
         b.languageDefault = default_language()
-        b.normalizer = normalizer()
         return b
     
     @ioc.entity
@@ -57,4 +56,5 @@ else:
     
     @ioc.after(updateAssemblyResources)
     def updateAssemblyResourcesForBabel():
+        assemblyResources().add(conversionBabel(), before=conversion())
         if present_formatting(): assemblyResources().add(babelConversionEncode(), after=contentTypeResponseEncode())

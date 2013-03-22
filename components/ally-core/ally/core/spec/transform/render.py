@@ -69,21 +69,34 @@ class IPattern(metaclass=abc.ABCMeta):
     '''
 
     @abc.abstractclassmethod
-    def matchers(self, obj):
+    def matcher(self, obj, injected):
         '''
-        Creates matchers for the representation object.
+        Creates matcher for the representation object.
         
         @param obj: object
             The representation object to create matchers for.
-        @return: dictionary{string: string}
-            A dictionary containing as a key the name that represents the matched content and as a value the regex pattern
-            that captures the data block represented by key. The matcher patterns contain groups that allows for injection.
+        @param injected: boolean
+            Flag indicating that the matcher capture can be used for injecting content in it.
+        @return: string
+            The regex pattern that captures the data block represented by the object.
+            The matcher patterns contain groups that allows for injection if the injected flag is True.
         '''
     
     @abc.abstractclassmethod
-    def trimmers(self, obj):
+    def capture(self, obj):
         '''
-        Create trimmers for the representation object in order to facilitate the injection.
+        Creates a capture pattern for the data represented by the provided object.
+        
+        @param obj: object
+            The representation object to create captures for.
+        @return: string
+            The regex pattern that captures the data specified by object.
+        '''
+    
+    @abc.abstractclassmethod
+    def adjusters(self, inObj, obj):
+        '''
+        Create adjusters for the representation object in order to facilitate the injection.
         
         @param obj: object
             The representation object to create captures for.
@@ -92,20 +105,6 @@ class IPattern(metaclass=abc.ABCMeta):
             in order to inject content, on the second position a pattern like string that contain markers
             for using as the replaced value. Markers are like {1}, {2} ... for capture blocks from the matcher and like
             //1, //2 ... for capture blocks from the replace pattern, this are handled automatically by python regex sub method.
-        '''
-    
-    @abc.abstractclassmethod
-    def capture(self, obj, flag):
-        '''
-        Capture data inside a matcher block.
-        
-        @param obj: object
-            The representation object to create captures for.
-        @param flag: object
-            Flag indicating what captures are made.
-        @return: dictionary{string: string}
-            A dictionary containing as a key the name that represents the matcher block (@see: matchers) and as a value
-            the regex pattern that captures the data specified by flags.
         '''
 
 # --------------------------------------------------------------------

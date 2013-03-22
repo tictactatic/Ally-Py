@@ -10,32 +10,69 @@ Provides the implementation for assemblage data.
 '''
 
 from ..api.assemblage import IAssemblageService
+from ally.container import wire
 from ally.container.ioc import injected
+from ally.container.support import setup
+from ally.design.processor.assembly import Assembly
+from ally.design.processor.attribute import requires, defines
+from ally.design.processor.context import Context
+from ally.design.processor.execution import Processing, Chain
+from collections import Iterable
+
+# --------------------------------------------------------------------
+
+class Obtain(Context):
+    '''
+    The obtain context.
+    '''
+    # ---------------------------------------------------------------- Defined
+    doAssemblages = defines(bool, doc='''
+    @rtype: boolean
+    Flag indicating that the assemblages have to be created.
+    ''')
+    # ---------------------------------------------------------------- Required
+    assemblages = requires(Iterable)
 
 # --------------------------------------------------------------------
 
 @injected
+@setup(IAssemblageService, name='assemblageService')
 class AssemblageService(IAssemblageService):
     '''
-    Implementation for @see: IAssemblageService based on ally core component resources.
+    Implementation for @see: IAssemblageService.
     '''
     
+    assemblagesAssembly = Assembly; wire.entity('assemblagesAssembly')
+    # The assemblage processors to be used for fetching the assemblages.
+    
     def __init__(self):
-        pass
+        assert isinstance(self.assemblagesAssembly, Assembly), 'Invalid assemblages assembly %s' % self.assemblagesAssembly
+        
+        self._processingAssemblages = self.assemblagesAssembly.create(obtain=Obtain)
     
-    def getIdentifiers(self):
-        '''
-        @see: IAssemblageService.getIdentifiers
-        '''
-    
-    def getAssemblages(self, id):
+    def getAssemblages(self):
         '''
         @see: IAssemblageService.getAssemblages
         '''
+        proc = self._processingAssemblages
+        assert isinstance(proc, Processing), 'Invalid processing %s' % proc
+        
+        chain = Chain(proc)
+        chain.process(**proc.fillIn(obtain=proc.ctx.obtain(doAssemblages=True))).doAll()
+        obtain = chain.arg.obtain
+        assert isinstance(obtain, Obtain), 'Invalid obtain data %s' % obtain
+        if obtain.assemblages is None: return ()
+        
+        return obtain.assemblages
     
-    def getChildAssemblages(self, id):
+    def getTargets(self, id):
         '''
-        @see: IAssemblageService.getChildAssemblages
+        @see: IAssemblageService.getTargets
+        '''
+    
+    def getChildTargets(self, id):
+        '''
+        @see: IAssemblageService.getChildTargets
         '''
         
     def getMatchers(self, id):
@@ -52,3 +89,4 @@ class AssemblageService(IAssemblageService):
         '''
         @see: IAssemblageService.getFailedReplacers
         '''
+        

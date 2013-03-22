@@ -62,6 +62,9 @@ class ConversionSetHandler(HandlerProcessorProceed):
         '''
         assert isinstance(requestCnt, Content), 'Invalid request content %s' % requestCnt
         assert isinstance(response, Content), 'Invalid response content %s' % response
-
-        requestCnt.normalizer = response.normalizer = self.normalizer
-        requestCnt.converter = response.converter = self.converter
+        
+        if requestCnt.normalizer is None: requestCnt.normalizer = self.normalizer
+        if requestCnt.converter is None: requestCnt.converter = self.converter
+        
+        if response.converter is None: response.converter = self.converter
+        if response.normalizer is None: response.normalizer = self.normalizer

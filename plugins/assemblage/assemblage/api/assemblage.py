@@ -48,9 +48,9 @@ class Matcher:
     Reference = str
 
 @model(id='Id')
-class Assemblage:
+class Target:
     '''
-    The assemblage provides the available names that can be injected in the main content.
+    The target provides the available names that can be injected in the main content.
         Id -        unique identifier for the assemblage.
         Name -      the name of the assemblage.
     '''
@@ -58,9 +58,9 @@ class Assemblage:
     Name = str
 
 @model(id='Id')
-class Identifier:
+class Assemblage:
     '''
-    Used for identifying URIs that have assemblages available.
+    Used for identifying assemblage URIs that have assemblages available.
         Id -        unique identifier for the identifier.
         Method -    the method name that this identifier applies for.
         Pattern -   the URI regex pattern to be matched.
@@ -78,25 +78,25 @@ class IAssemblageService:
     '''
     
     @call
-    def getIdentifiers(self) -> Iter(Identifier):
+    def getAssemblages(self) -> Iter(Assemblage):
         '''
-        Provides all identifiers.
-        '''
-    
-    @call
-    def getAssemblages(self, id: Identifier.Id) -> Iter(Assemblage):
-        '''
-        Provides all the assemblages that are available for the identifier.
+        Provides all assemblages.
         '''
     
     @call
-    def getChildAssemblages(self, id: Assemblage.Id) -> Iter(Assemblage):
+    def getTargets(self, id: Assemblage.Id) -> Iter(Target):
         '''
-        Provides the child assemblages for the provided assemblage.
+        Provides all targets that are available for the assemblage.
+        '''
+    
+    @call
+    def getChildTargets(self, id: Target.Id) -> Iter(Target):
+        '''
+        Provides the child targets for the provided target.
         '''
         
     @call
-    def getMatchers(self, id: Assemblage.Id) -> Iter(Matcher):
+    def getMatchers(self, id: Target.Id) -> Iter(Matcher):
         '''
         Provides the matchers for the assemblage.
         '''

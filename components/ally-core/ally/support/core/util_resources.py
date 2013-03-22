@@ -10,11 +10,11 @@ Provides utility methods based on the API specifications.
 '''
 
 from ally.api.config import GET, INSERT, UPDATE, DELETE
-from ally.api.operator.container import Service, Call
+from ally.api.operator.container import Service, Call, Model
 from ally.api.operator.type import TypeModel, TypeModelProperty, TypeService
 from ally.api.type import typeFor, Input
 from ally.core.impl.invoker import InvokerRestructuring, InvokerCall
-from ally.core.impl.node import NodePath, NodeProperty, MatchProperty
+from ally.core.impl.node import NodePath, NodeProperty, MatchProperty, NodeRoot
 from ally.core.spec.resources import Match, Node, Path, ConverterPath, \
     IResourcesRegister, Invoker, PathExtended
 from ally.support.util import immut
@@ -54,27 +54,53 @@ def pathForNode(node):
     
     @param node: Node
         The node to provide the matches for.
-    @return: list[Match]
-        The list of matches that lead to the node.
+    @return: Path
+        The path that leads to the node.
     '''
     assert isinstance(node, Node), 'Invalid node %s' % node
-    k, matches = node, []
-    while k is not None:
-        pushMatch(matches, k.newMatch())
-        k = k.parent
+    n, matches = node, []
+    while n is not None:
+        assert isinstance(n, Node)
+        pushMatch(matches, n.newMatch())
+        n = n.parent
     matches.reverse()  # We need to reverse the matches since they have been made from the child up.
     return Path(matches, node)
+
+def hashForNode(node):
+    '''
+    Provides a unique hash that represents the node in the structure. If the node structure changes this hash might
+    change also.
+    
+    @param node: Node
+        The node to provide the hash for.
+    @return: integer
+        The unique hash.
+    '''
+    assert isinstance(node, Node), 'Invalid node %s' % node
+    k, values = node, []
+    while k is not None:
+        if isinstance(k, NodePath):
+            assert isinstance(k, NodePath)
+            values.append(k.name)
+        elif isinstance(k, NodeProperty):
+            assert isinstance(k, NodeProperty)
+            values.append(k.type)
+        else:
+            assert isinstance(k, NodeRoot), 'Unknown node for hash %s' % k
+            break
+        k = k.parent
+    return hash(tuple(values))
 
 # --------------------------------------------------------------------
 
 def iterateNodes(node):
     '''
-    Iterates all the nodes that can be obtained from the provided node.
+    Iterates all the child nodes that can be obtained from the provided node.
     
     @param node: Node
         The root node to provide the paths from.
     @return: Iterator(Node)
-        An iterator yielding all the nodes from the provided node.
+        An iterator yielding all child nodes for the provided node.
     '''
     assert isinstance(node, Node), 'Invalid root node %s' % node
     nodes = deque()
@@ -83,7 +109,7 @@ def iterateNodes(node):
         node = nodes.popleft()
         yield node
         nodes.extend(node.children)
-        
+
 def iteratePaths(node):
     '''
     Iterates all the paths that can be obtained from the provided node.
@@ -135,9 +161,74 @@ def findPath(node, paths, converterPath):
 
     return Path(matches)
 
+def findEntryModel(fromPath, typeModel, requiresGet=False):
+    '''
+    Finds the path for the first Node that provides is based on the type model. The search is made based
+    on the from path. First the from path Node and is children's are searched for the type model  if 
+    not found it will go to the Nodes parent and make the search there, so forth and so on.
+    
+    @param fromPath: Path
+        The path to make the search based on.
+    @param typeModel: TypeModel
+        The type model to search the get for.
+    @param requiresGet: boolean
+        Flag indicating that the found node needs to have also a get method for the type model.
+    @return: PathExtended|None
+        The path pointing to the desired node, attention some updates might be necessary on 
+        the path to be available. None if the path could not be found.
+    '''
+    assert isinstance(fromPath, Path), 'Invalid from path %s' % fromPath
+    assert isinstance(fromPath.node, Node), 'Invalid from path Node %s' % fromPath.node
+    assert isinstance(typeModel, TypeModel), 'Invalid model type %s' % typeModel
+    assert isinstance(typeModel.container, Model)
+    assert isinstance(requiresGet, bool), 'Invalid requires get flag %s' % requiresGet
+    
+    current = fromPath.node
+    index, nodes, excluded = len(fromPath.matches), deque(), None
+    while current:
+        nodes.append(current)
+        hasValue = True
+        while nodes:
+            node = nodes.popleft()
+            if hasValue or isinstance(node, NodePath):
+                for child in node.children:
+                    if child != excluded: nodes.append(child)
+            hasValue = False
+            
+            if not isinstance(node, NodeProperty): continue
+            assert isinstance(node, NodeProperty)
+            
+            if not isinstance(node.parent, NodePath): continue
+            assert isinstance(node.parent, NodePath)
+            
+            if node.parent.name != typeModel.container.name: continue
+            
+            if requiresGet:
+                if node.get is None: continue
+                assert isinstance(node.get, Invoker)
+                if not node.get.output.isOf(typeModel): continue
+    
+            for propType in node.typesProperties:
+                assert isinstance(propType, TypeModelProperty)
+                if propType.parent != typeModel: continue
+    
+                matches, n = [], node
+                while n != current:
+                    assert isinstance(n, Node)
+                    matches.append(n.newMatch())
+                    n = n.parent
+                matches.reverse()
+                return PathExtended(fromPath, matches, node, index)
+            
+        excluded = current
+        current = current.parent
+        index -= 1
+
+    return None
+
 def findGetModel(fromPath, typeModel):
     '''
-    Finds the path for the first Node that provides a get for the name. The search is made based
+    Finds the path for the first Node that provides a get for the model type. The search is made based
     on the from path. First the from path Node and is children's are searched for the get method if 
     not found it will go to the Nodes parent and make the search there, so forth and so on.
     
@@ -146,19 +237,10 @@ def findGetModel(fromPath, typeModel):
     @param typeModel: TypeModel
         The type model to search the get for.
     @return: PathExtended|None
-        The extended path pointing to the desired get method, attention some updates might be necessary on 
+        The path pointing to the desired get method, attention some updates might be necessary on 
         the path to be available. None if the path could not be found.
     '''
-    assert isinstance(fromPath, Path), 'Invalid from path %s' % fromPath
-    assert isinstance(fromPath.node, Node), 'Invalid from path Node %s' % fromPath.node
-    assert isinstance(typeModel, TypeModel), 'Invalid model type %s' % typeModel
-
-    matchNodes = deque()
-    for index in range(len(fromPath.matches), 0, -1):
-        matchNodes.clear()
-        path = _findGetModel(typeModel, fromPath, fromPath.matches[index - 1].node, index, True, matchNodes,
-                             fromPath.matches[index].node if index < len(fromPath.matches) else None)
-        if path: return path
+    return findEntryModel(fromPath, typeModel, True)
     
 def findGetAllAccessible(pathOrNode):
     '''
@@ -406,47 +488,3 @@ class ReplacerWithMarkers:
         mark = self._markers[self._count]
         self._count += 1
         return mark
-
-# --------------------------------------------------------------------
-
-def _findGetModel(modelType, fromPath, node, index, inPath, matchNodes, exclude=None):
-    '''
-    FOR INTERNAL USE ONLY!
-    Provides the recursive find of a get model based on the path.
-    '''
-    assert isinstance(modelType, TypeModel), 'Invalid model type %s' % modelType
-    assert isinstance(fromPath, Path), 'Invalid from path %s' % fromPath
-    assert isinstance(node, Node), 'Invalid node %s' % node
-    assert isinstance(matchNodes, deque), 'Invalid match nodes %s' % matchNodes
-    assert exclude is None or  isinstance(exclude, Node), 'Invalid exclude node %s' % exclude
-
-    added = False
-    if isinstance(node, NodePath):
-        assert isinstance(node, NodePath)
-        if not inPath:
-            matchNodes.append(node)
-            added = True
-
-        if node.name == modelType.container.name:
-            for nodeId in node.children:
-                if isinstance(nodeId, NodeProperty):
-                    assert isinstance(nodeId, NodeProperty)
-                    if nodeId.get is None: continue
-                    assert isinstance(nodeId.get, Invoker)
-                    if not nodeId.get.output.isOf(modelType): continue
-
-                    for typ in nodeId.typesProperties:
-                        assert isinstance(typ, TypeModelProperty)
-                        if typ.parent != modelType: continue
-
-                        matches = []
-                        for matchNode in matchNodes: pushMatch(matches, matchNode.newMatch())
-                        pushMatch(matches, nodeId.newMatch())
-                        return PathExtended(fromPath, matches, nodeId, index)
-
-    for child in node.children:
-        if child == exclude: continue
-        path = _findGetModel(modelType, fromPath, child, index, False, matchNodes)
-        if path: return path
-
-    if added: matchNodes.pop()

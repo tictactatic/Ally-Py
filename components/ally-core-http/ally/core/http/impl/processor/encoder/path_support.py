@@ -20,7 +20,7 @@ from ally.design.processor.attribute import requires, defines, definesIf
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessorProceed
 from ally.support.core.util_resources import findGetModel, findGetAllAccessible, \
-    pathLongName
+    pathLongName, findEntryModel
 from collections import OrderedDict
 
 # --------------------------------------------------------------------
@@ -121,42 +121,47 @@ class PathSupport(HandlerProcessorProceed):
         if support.pathsProperties is None: support.pathsProperties = {}
         if support.pathsAccesible is None: support.pathsAccesible = OrderedDict()
         
-        if inCollection: pathModel = findGetModel(support.path, modelType)
-        else: pathModel = support.path
-        if pathModel is None: return  # No model path available
-        support.pathModel = pathModel
+        if inCollection: support.pathModel = findGetModel(support.path, modelType)
+        else: support.pathModel = support.path
         
-        if propType:
-            assert isinstance(propType, TypeModelProperty)
-            if propType.isId():
-                support.updatePaths[propType] = pathModel
+        if support.pathModel:
+            pathMain = support.pathModel
+
+            if propType:
+                assert isinstance(propType, TypeModelProperty)
+                if propType.isId():
+                    support.updatePaths[propType] = pathMain
+                    support.hideProperties = True
+                return  # If not a model no other paths are required.
+            
+            if inCollection:
+                support.updatePaths[modelType] = pathMain
                 support.hideProperties = True
-            else: support.pathModel = None
-            return  # If not a model no other paths are required.
-        
-        if inCollection:
-            support.updatePaths[modelType] = pathModel
-            support.hideProperties = True
-            # TODO: Gabriel: This is a temporary fix to get the same rendering as before until we refactor the plugins
-            # to return only ids.
-            return
+                # TODO: Gabriel: This is a temporary fix to get the same rendering as before until we refactor the plugins
+                # to return only ids.
+                return
+        else:
+            pathMain = findEntryModel(support.path, modelType)
+            if not pathMain: return  # We cannot get any entry to have as the main path.
+            
+            if inCollection: support.updatePaths[modelType] = pathMain
         
         assert isinstance(modelType, TypeModel)
         assert isinstance(modelType.container, Model)
         for valueType in modelType.container.properties.values():
             if isinstance(valueType, TypeModel):
                 assert isinstance(valueType, TypeModel)
-                pathProp = findGetModel(pathModel, valueType)
+                pathProp = findGetModel(pathMain, valueType)
                 if pathProp: support.pathsProperties[valueType.propertyTypeId()] = pathProp
                 
         # Make sure when placing the accessible paths that there isn't already an accessible path
         # that already returns the inherited model see the example for MetaData and ImageData in relation
         # with MetaInfo and ImageInfo
-        accessible = findGetAllAccessible(pathModel)
+        accessible = findGetAllAccessible(pathMain)
         # These paths will get updated in the encode model when the data model path is updated
         # because they are extended from the base path.
         for parentType in modelType.parents():
-            parentPath = findGetModel(pathModel, parentType)
+            parentPath = findGetModel(pathMain, parentType)
             if parentPath:
                 support.updatePaths[parentType] = parentPath
                 accessible.extend(findGetAllAccessible(parentPath))

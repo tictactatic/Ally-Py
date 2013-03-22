@@ -15,7 +15,7 @@ from ally.api.type import Type, Percentage, Number, Date, DateTime, Time, \
     Boolean, List, Locale as TypeLocale
 from ally.container.ioc import injected
 from ally.core.http.spec.codes import FORMATING_ERROR
-from ally.core.spec.resources import Converter, Normalizer
+from ally.core.spec.resources import Converter
 from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessorProceed
@@ -59,10 +59,6 @@ class RequestDecode(Context):
     accLanguages = optional(list)
     language = optional(str)
     # ---------------------------------------------------------------- Defined
-    normalizer = defines(Normalizer, doc='''
-    @rtype: Normalizer
-    The normalizer to use for decoding request content.
-    ''')
     converter = defines(Converter, doc='''
     @rtype: Converter
     The converter to use for decoding request content.
@@ -82,10 +78,6 @@ class ResponseDecode(Context):
     @rtype: string
     The language that the converter is using for the response.
     ''')
-    normalizer = defines(Normalizer, doc='''
-    @rtype: Normalizer
-    The normalizer to use for decoding request content.
-    ''')
     converter = defines(Converter, doc='''
     @rtype: Converter
     The converter to use for decoding request content.
@@ -100,8 +92,6 @@ class BabelConversionDecodeHandler(HandlerProcessorProceed):
     for the response content and request content.
     '''
 
-    normalizer = Normalizer
-    # The normalizer to use.
     languageDefault = str
     # The default language on the response used when none is specified
     formatNameX = 'X-Format-%s'
@@ -123,7 +113,6 @@ class BabelConversionDecodeHandler(HandlerProcessorProceed):
     # The default formats.
 
     def __init__(self):
-        assert isinstance(self.normalizer, Normalizer), 'Invalid normalizer %s' % self.normalizer
         assert isinstance(self.languageDefault, str), 'Invalid default language %s' % self.languageDefault
         assert isinstance(self.formatNameX, str), 'Invalid name format %s' % self.formatNameX
         assert isinstance(self.formatContentNameX, str), 'Invalid name content format %s' % self.formatContentNameX
@@ -166,7 +155,6 @@ class BabelConversionDecodeHandler(HandlerProcessorProceed):
             return
 
         request.converter = ConverterBabel(locale, formats)
-        request.normalizer = self.normalizer
 
         formats = {}
         for clsTyp in FORMATTED_TYPE:
@@ -215,7 +203,6 @@ class BabelConversionDecodeHandler(HandlerProcessorProceed):
             return
 
         response.converter = ConverterBabel(locale, formats)
-        response.normalizer = self.normalizer
 
     # ----------------------------------------------------------------
 

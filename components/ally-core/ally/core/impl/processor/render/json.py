@@ -51,19 +51,19 @@ class PatternJSONHandler(PatternBaseHandler):
     @see: PatternBaseHandler
     '''
     
-    def matchers(self, obj):
+    def matcher(self, obj):
         '''
-        @see: PatternBaseHandler.matchers
+        @see: PatternBaseHandler.matcher
         '''
         
-    def trimmers(self, obj):
+    def capture(self, obj):
         '''
         @see: PatternBaseHandler.trimmers
         '''
         
-    def capture(self, obj, flag):
+    def adjusters(self, obj):
         '''
-        @see: PatternBaseHandler.trimmers
+        @see: PatternBaseHandler.adjusters
         '''
 
 # --------------------------------------------------------------------

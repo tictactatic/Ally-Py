@@ -59,10 +59,18 @@ class PatternXMLHandler(PatternBaseHandler):
     @see: PatternBaseHandler
     '''
     
-    def matchers(self, obj):
+    def matcher(self, obj, injected):
         '''
-        @see: PatternBaseHandler.matchers
+        @see: PatternBaseHandler.matcher
         '''
+        assert isinstance(injected, bool), 'Invalid injected flag %s' % injected
+        
+        if isinstance(obj, Property):
+            assert isinstance(obj, Property)
+        
+        
+        
+        
         if isinstance(obj, Collection):
             assert isinstance(obj, Collection)
             obj = obj.item
@@ -84,14 +92,14 @@ class PatternXMLHandler(PatternBaseHandler):
                 
         return matchers
         
-    def trimmers(self, obj):
+    def capture(self, obj):
         '''
-        @see: PatternBaseHandler.trimmers
+        @see: PatternBaseHandler.capture
         '''
         
-    def capture(self, obj, flag):
+    def adjusters(self, obj):
         '''
-        @see: PatternBaseHandler.trimmers
+        @see: PatternBaseHandler.adjusters
         '''
         
 # --------------------------------------------------------------------
