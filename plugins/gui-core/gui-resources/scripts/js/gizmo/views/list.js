@@ -155,11 +155,11 @@ function($, superdesk, giz)
             this.src = '';
             this.page = // pagination data 
             { 
-                limit: 5, 
+                limit: 25, 
                 offset: 0, 
                 total: null, 
                 pagecount: 5, 
-                ipp: [5, 25, 50, 100], 
+                ipp: [25, 50, 100], 
                 isipp: function(chk, ctx){ return ctx.current() == ctx.get('limit') ? "disabled" : ""; }
             };
             this.collection = this.getCollection();
