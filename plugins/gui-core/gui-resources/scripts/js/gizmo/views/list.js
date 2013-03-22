@@ -56,6 +56,7 @@ function($, superdesk, giz)
         {
             var self = this,
                 src = this.getSearchTerm();
+            self.src = src;
             if( src.length <= 0 )
             {
                 this.refresh();
@@ -154,11 +155,11 @@ function($, superdesk, giz)
             this.src = '';
             this.page = // pagination data 
             { 
-                limit: 25, 
+                limit: 5, 
                 offset: 0, 
                 total: null, 
                 pagecount: 5, 
-                ipp: [25, 50, 100], 
+                ipp: [5, 25, 50, 100], 
                 isipp: function(chk, ctx){ return ctx.current() == ctx.get('limit') ? "disabled" : ""; }
             };
             this.collection = this.getCollection();
@@ -195,7 +196,14 @@ function($, superdesk, giz)
          */
         refreshData: function()
         {
-            return {limit: this.page.limit, offset: this.page.offset};
+            var self = this;
+            if( self.src.length <= 0 )
+            {
+                return {limit: this.page.limit, offset: this.page.offset};
+            } else {
+                return {limit: this.page.limit, offset: this.page.offset, 'search.all': self.src};
+            }
+            
         },
         /*!
          * where to render it
@@ -290,7 +298,8 @@ function($, superdesk, giz)
         render: function(cb)
         {
             this.paginate();
-            var data = {pagination: this.page},
+            var self = this;
+            var data = {pagination: this.page, src: self.src},
                 self = this;
             this.firstRender = true;
             $.tmpl(self.tmpl, data, function(e, o)
