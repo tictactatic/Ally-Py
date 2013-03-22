@@ -256,6 +256,7 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
                 return dataAdapter(href).insert(feed).done(function(data)
                 {
                     self._changed = false;
+                    self._parseHash(data);
                     self._parse(data);
 
                     self._uniq && self._uniq.replace(self._clientHash, self.hash(), self);
