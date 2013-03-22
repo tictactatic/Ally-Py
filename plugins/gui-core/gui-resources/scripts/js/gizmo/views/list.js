@@ -56,7 +56,7 @@ function($, superdesk, giz)
         {
             var self = this,
                 src = this.getSearchTerm();
-            if( src.length <= 1 )
+            if( src.length <= 0 )
             {
                 this.refresh();
                 $('[data-action="cancel-search"]', self.el).addClass('hide');
