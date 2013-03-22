@@ -67,10 +67,15 @@ function($, superdesk, giz)
             this.syncing = true;
             if( this.collection.setSearchUrl ) this.collection.setSearchUrl(src);
 
-            var myData = $.extend({}, this.searchData(src), {limit: this.page.limit, offset: this.page.offset});
+            var searchData = this.searchData(src),
+                myData = null;
+            if( $.isObject(searchData) ) 
+                myData = $.extend({}, searchData, {limit: this.page.limit, offset: this.page.offset});
+            else
+                myData = 'limit='+this.page.limit+'&offset='+this.page.offset+'&'+searchData.toString();
 
-            //this.collection.xfilter('*').sync({data: this.searchData(src)}).done(function(data){ 
-            this.collection.xfilter('*').sync({data: myData}).done(function(data){ 
+            this.collection.xfilter('*').sync({data: myData}).done(function(data)
+            { 
                 self.syncing = false; 
                 self.page.total = data.total;
                 self.renderList(); 
