@@ -732,6 +732,13 @@ section.main-section {
 	background-position: -70px -260px;
 	} 
 		
+		
+.active .big-icon-media, .active a:hover .big-icon-media {
+    background-position: -70px -338px;
+}
+.big-icon-media {
+    background-position: 0 -338px;
+}
 /*
 ====================================================
   Webkit scroll
