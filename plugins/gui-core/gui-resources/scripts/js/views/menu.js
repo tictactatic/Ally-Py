@@ -130,6 +130,10 @@ function($, superdesk, Gizmo, Action, authView)
             .on('click.superdesk', '.nav > li > a', function(event)
             {
                 var self = this;
+                if ( $(self).attr('data-action') == 'help' ) {
+                    window.open($(self).attr('data-location'));
+                }
+
                 if(!$(self).attr('href')) return;
                 if(!$(self).attr('script-path')) { event.preventDefault(); return; }
 
