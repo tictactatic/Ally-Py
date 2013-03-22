@@ -164,7 +164,6 @@ class LocalFileSystemCDM(ICDM):
         @see ICDM.publishContent
         '''
         assert isinstance(path, str), 'Invalid content path %s' % path
-        # assert isinstance(content, ) or , 'Invalid binary content for path %s' % path
         path, dstFilePath = self._validatePath(path)
         dstDir = dirname(dstFilePath)
         if not isdir(dstDir):

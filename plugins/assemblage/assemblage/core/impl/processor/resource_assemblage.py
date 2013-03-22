@@ -45,9 +45,9 @@ class Obtain(Context):
     '''
     # ---------------------------------------------------------------- Required
     datas = requires(Iterable)
-    doAssemblages = requires(bool)
+    required = requires(type)
     # ---------------------------------------------------------------- Defined
-    assemblages = defines(Iterable, doc='''
+    objects = defines(Iterable, doc='''
     @rtype: Iterable(Assemblage)
     The generated assemblages.
     ''')
@@ -79,7 +79,7 @@ class AssemblagesFromData(HandlerProcessor):
         assert isinstance(obtain, Obtain), 'Invalid obtain request %s' % obtain
         assert isinstance(support, Support), 'Invalid support %s' % support
         
-        if not obtain.doAssemblages:
+        if obtain.required != Assemblage:
             # The assemblages are not required, nothing to do, moving along.
             chain.proceed()
             return
@@ -88,8 +88,8 @@ class AssemblagesFromData(HandlerProcessor):
         assert isinstance(support.encoderPath, IEncoderPath), 'Invalid encoder path %s' % support.encoderPath
     
         assemblages = self.generate(obtain.datas, support.encoderPath)
-        if obtain.assemblages is None: obtain.assemblages = assemblages
-        else: obtain.assemblages = itertools.chain(obtain.assemblages, assemblages)
+        if obtain.objects is None: obtain.objects = assemblages
+        else: obtain.objects = itertools.chain(obtain.objects, assemblages)
         # We provided the assemblages so we stop the chain.
     
     # ----------------------------------------------------------------

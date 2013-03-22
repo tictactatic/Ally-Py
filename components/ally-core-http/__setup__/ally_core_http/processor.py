@@ -10,9 +10,9 @@ Provides the configurations for the processors used in handling the request.
 '''
 
 from ..ally_core.parsing_rendering import assemblyParsing
-from ..ally_core.processor import argumentsBuild, argumentsPrepare, \
-    encoding, invoking, default_characterset, rendering, conversion, \
-    createDecoder, content, renderEncoder
+from ..ally_core.processor import argumentsBuild, argumentsPrepare, encoding, \
+    invoking, default_characterset, rendering, createDecoder, content, renderEncoder, \
+    normalizerRequest, converterRequest, normalizerResponse, converterResponse
 from ..ally_core.resources import resourcesRoot
 from ..ally_http.processor import encoderPath, contentLengthDecode, \
     contentLengthEncode, methodOverride, allowEncode, headerDecodeRequest, \
@@ -30,6 +30,8 @@ from ally.core.http.impl.processor.method_invoker import MethodInvokerHandler
 from ally.core.http.impl.processor.parameter import ParameterHandler
 from ally.core.http.impl.processor.parsing_multipart import \
     ParsingMultiPartHandler
+from ally.core.http.impl.processor.path_encoder_resource import \
+    ResourcePathEncoderHandler
 from ally.core.http.impl.processor.redirect import RedirectHandler
 from ally.core.http.impl.processor.uri import URIHandler
 from ally.core.http.spec.codes import CODE_TO_STATUS, CODE_TO_TEXT
@@ -37,7 +39,6 @@ from ally.core.spec.resources import ConverterPath
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.handler import Handler
 from ally.http.impl.processor.status import StatusHandler
-from ally.core.http.impl.processor.path_encoder_resource import ResourcePathEncoderHandler
 
 # --------------------------------------------------------------------
 # Creating the processors used in handling the request
@@ -166,7 +167,8 @@ def updateAssemblyResources():
     assemblyResources().add(internalDevelError(), headerDecodeRequest(), encoderPath(),
                             argumentsPrepare(), uri(), encoderPathResource(), methodInvoker(), headerEncodeResponse(), redirect(),
                             contentTypeRequestDecode(), contentLengthDecode(), contentLanguageDecode(), acceptDecode(),
-                            rendering(), conversion(), createDecoder(), encoding(), parsingMultiPart(), content(),
+                            rendering(), normalizerRequest(), converterRequest(), createDecoder(),
+                            normalizerResponse(), converterResponse(), encoding(), parsingMultiPart(), content(),
                             parameter(), argumentsBuild(), invoking(), renderEncoder(), status(), explainError(),
                             contentTypeResponseEncode(), contentLanguageEncode(), contentLengthEncode(), allowEncode())
     

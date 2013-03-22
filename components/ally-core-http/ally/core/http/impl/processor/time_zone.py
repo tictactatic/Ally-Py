@@ -23,39 +23,13 @@ from pytz.exceptions import UnknownTimeZoneError
 
 # --------------------------------------------------------------------
 
-class Request(Context):
+class TimeZoneConfigurations:
     '''
-    The request context.
-    '''
-    # ---------------------------------------------------------------- Required
-    decoderHeader = requires(IDecoderHeader)
-    converter = requires(Converter)
-
-class Response(Context):
-    '''
-    The response context.
-    '''
-    # ---------------------------------------------------------------- Required
-    converter = requires(Converter)
-    # ---------------------------------------------------------------- Defined
-    code = defines(str)
-    status = defines(int)
-    isSuccess = defines(bool)
-    errorMessage = defines(str)
-    errorDetails = defines(Object)
-
-# --------------------------------------------------------------------
-
-@injected
-class TimeZoneHandler(HandlerProcessorProceed):
-    '''
-    Implementation for a processor that provides the time zone decoder and converter handler.
+    Provides general time zone configurations.
     '''
 
-    nameTimeZone = 'X-TimeZone'
+    nameTimeZone = str
     # The header name where the time zone is set.
-    nameContentTimeZone = 'X-Content-TimeZone'
-    # The header name where the content time zone is set.
     baseTimeZone = 'UTC'
     # The base time zone that the server date/time values are provided.
     defaultTimeZone = 'UTC'
@@ -63,59 +37,126 @@ class TimeZoneHandler(HandlerProcessorProceed):
 
     def __init__(self):
         assert isinstance(self.nameTimeZone, str), 'Invalid time zone header name %s' % self.nameTimeZone
-        assert isinstance(self.nameContentTimeZone, str), \
-        'Invalid time zone content header name %s' % self.nameContentTimeZone
         assert isinstance(self.baseTimeZone, str), 'Invalid base time zone %s' % self.baseTimeZone
         assert isinstance(self.defaultTimeZone, str), 'Invalid default time zone %s' % self.defaultTimeZone
-        super().__init__()
 
-        self._baseTZ = timezone(self.baseTimeZone)
-        self._defaultTZ = timezone(self.defaultTimeZone)
+        self.baseTZ = timezone(self.baseTimeZone)
+        self.defaultTZ = timezone(self.defaultTimeZone)
+        
+# --------------------------------------------------------------------
 
-    def process(self, request:Request, response:Response, **keyargs):
+class Request(Context):
+    '''
+    The request context.
+    '''
+    # ---------------------------------------------------------------- Required
+    decoderHeader = requires(IDecoderHeader)
+
+class Response(Context):
+    '''
+    The response context.
+    '''
+    # ---------------------------------------------------------------- Defined
+    code = defines(str)
+    status = defines(int)
+    isSuccess = defines(bool)
+    errorMessage = defines(str)
+    errorDetails = defines(Object)
+    
+class RequestConverter(Request):
+    '''
+    The request converter context.
+    '''
+    # ---------------------------------------------------------------- Required
+    converter = requires(Converter)
+
+class ResponseConverter(Response):
+    '''
+    The response converter context.
+    '''
+    # ---------------------------------------------------------------- Required
+    converter = requires(Converter)
+
+# --------------------------------------------------------------------
+
+@injected
+class TimeZoneConverterRequestHandler(HandlerProcessorProceed, TimeZoneConfigurations):
+    '''
+    Implementation for a processor that provides the time zone request converter handler.
+    '''
+
+    nameTimeZone = 'X-TimeZone'
+    # The header name where the time zone is set.
+
+    def __init__(self):
+        TimeZoneConfigurations.__init__(self)
+        HandlerProcessorProceed.__init__(self)
+
+    def process(self, request:RequestConverter, response:Response, **keyargs):
         '''
         @see: HandlerProcessorProceed.process
         
-        Provides the time zone support for the content converters.
+        Provides the time zone support for the request converter.
         '''
-        assert isinstance(request, Request), 'Invalid request %s' % request
+        assert isinstance(request, RequestConverter), 'Invalid request %s' % request
         assert isinstance(response, Response), 'Invalid response %s' % response
         assert isinstance(request.decoderHeader, IDecoderHeader), 'Invalid header decoder %s' % request.decoderHeader
 
-        failed = False
         timeZone = request.decoderHeader.retrieve(self.nameTimeZone)
         if timeZone:
             try: timeZone = timezone(timeZone)
             except UnknownTimeZoneError:
-                failed = True
+                response.code, response.status, response.isSuccess = TIME_ZONE_ERROR
+                response.errorMessage = 'Invalid content time zone \'%s\'' % timeZone
+
+                samples = (Object('timezone', attributes={'name', name}) for name in common_timezones)
+                response.errorDetails = Object('timezone', List('sample', *samples))
+                return
+
+        if timeZone is not None:
+            request.converter = ConverterTimeZone(request.converter, self.baseTZ, timeZone)
+        else:
+            request.converter = ConverterTimeZone(request.converter, self.baseTZ, self.defaultTZ)
+
+@injected
+class TimeZoneConverterResponseHandler(HandlerProcessorProceed, TimeZoneConfigurations):
+    '''
+    Implementation for a processor that provides the time zone response converter handler.
+    '''
+
+    nameTimeZone = 'X-Content-TimeZone'
+    # The header name where the content time zone is set.
+
+    def __init__(self):
+        TimeZoneConfigurations.__init__(self)
+        HandlerProcessorProceed.__init__(self)
+
+    def process(self, request:Request, response:ResponseConverter, **keyargs):
+        '''
+        @see: HandlerProcessorProceed.process
+        
+        Provides the time zone support for the response converter.
+        '''
+        assert isinstance(request, Request), 'Invalid request %s' % request
+        assert isinstance(response, ResponseConverter), 'Invalid response %s' % response
+        assert isinstance(request.decoderHeader, IDecoderHeader), 'Invalid header decoder %s' % request.decoderHeader
+
+        timeZone = request.decoderHeader.retrieve(self.nameTimeZone)
+        if timeZone:
+            try: timeZone = timezone(timeZone)
+            except UnknownTimeZoneError:
                 response.code, response.status, response.isSuccess = TIME_ZONE_ERROR
                 response.errorMessage = 'Invalid time zone \'%s\'' % timeZone
 
-        timeZoneContent = request.decoderHeader.retrieve(self.nameContentTimeZone)
-        if not failed and timeZoneContent:
-            try: timeZoneContent = timezone(timeZoneContent)
-            except UnknownTimeZoneError:
-                failed = True
-                response.code, response.status, response.isSuccess = TIME_ZONE_ERROR
-                response.errorMessage = 'Invalid content time zone \'%s\'' % timeZoneContent
-
-        if failed:
-            samples = (Object('timezone', attributes={'name', name}) for name in common_timezones)
-            response.errorDetails = Object('timezone', List('sample', *samples))
-            return
+                samples = (Object('timezone', attributes={'name', name}) for name in common_timezones)
+                response.errorDetails = Object('timezone', List('sample', *samples))
+                return
 
         if timeZone is not None:
-            response.converter = ConverterTimeZone(response.converter, self._baseTZ, timeZone)
+            response.converter = ConverterTimeZone(response.converter, self.baseTZ, timeZone)
         else:
-            response.converter = ConverterTimeZone(response.converter, self._baseTZ, self._defaultTZ)
-
-        if timeZoneContent is not None:
-            request.converter = ConverterTimeZone(request.converter, self._baseTZ, timeZoneContent)
-        elif timeZone is not None:
-            request.converter = ConverterTimeZone(request.converter, self._baseTZ, timeZone)
-        else:
-            request.converter = ConverterTimeZone(request.converter, self._baseTZ, self._defaultTZ)
-
+            response.converter = ConverterTimeZone(response.converter, self.baseTZ, self.defaultTZ)
+            
 # --------------------------------------------------------------------
 
 class ConverterTimeZone(Converter):

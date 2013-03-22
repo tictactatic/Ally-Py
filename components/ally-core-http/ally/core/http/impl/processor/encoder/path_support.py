@@ -121,8 +121,7 @@ class PathSupport(HandlerProcessorProceed):
         if support.pathsProperties is None: support.pathsProperties = {}
         if support.pathsAccesible is None: support.pathsAccesible = OrderedDict()
         
-        if inCollection: support.pathModel = findGetModel(support.path, modelType)
-        else: support.pathModel = support.path
+        support.pathModel = findGetModel(support.path, modelType)
         
         if support.pathModel:
             pathMain = support.pathModel

@@ -109,7 +109,7 @@ def extensionAttributeEncode() -> Handler:
 
 @ioc.before(assemblyEncode)
 def updateAssemblyEncode():
-    assemblyEncode().add(extensionAttributeEncode(), collectionEncode(), modelEncode())
+    assemblyEncode().add(extensionAttributeEncode(), collectionEncode(), modelEncode(), modelPropertyEncode())
     
 @ioc.before(assemblyItemEncode)
 def updateAssemblyItemEncode():

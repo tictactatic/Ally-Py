@@ -19,11 +19,12 @@ from ally.core.impl.processor.decoder import CreateDecoderHandler
 from ally.core.impl.processor.encoding import EncodingHandler
 from ally.core.impl.processor.invoking import InvokingHandler
 from ally.core.impl.processor.parsing import ParsingHandler
+from ally.core.impl.processor.render_encoder import RenderEncoderHandler
 from ally.core.impl.processor.rendering import RenderingHandler
-from ally.core.impl.processor.text_conversion import ConversionSetHandler
+from ally.core.impl.processor.text_conversion import NormalizerRequestHandler, \
+    ConverterRequestHandler, NormalizerResponseHandler, ConverterResponseHandler
 from ally.core.spec.resources import Normalizer, Converter
 from ally.design.processor.handler import Handler
-from ally.core.impl.processor.render_encoder import RenderEncoderHandler
 
 # --------------------------------------------------------------------
 # Creating the processors used in handling the request
@@ -64,9 +65,26 @@ def rendering() -> Handler:
     return b
 
 @ioc.entity
-def conversion() -> Handler:
-    b = ConversionSetHandler()
+def normalizerRequest() -> Handler:
+    b = NormalizerRequestHandler()
     b.normalizer = normalizer()
+    return b
+
+@ioc.entity
+def converterRequest() -> Handler:
+    b = ConverterRequestHandler()
+    b.converter = converter()
+    return b
+
+@ioc.entity
+def normalizerResponse() -> Handler:
+    b = NormalizerResponseHandler()
+    b.normalizer = normalizer()
+    return b
+
+@ioc.entity
+def converterResponse() -> Handler:
+    b = ConverterResponseHandler()
     b.converter = converter()
     return b
 

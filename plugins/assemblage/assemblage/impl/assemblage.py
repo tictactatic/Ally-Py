@@ -9,7 +9,7 @@ Created on Mar 20, 2013
 Provides the implementation for assemblage data.
 '''
 
-from ..api.assemblage import IAssemblageService
+from ..api.assemblage import Assemblage, IAssemblageService
 from ally.container import wire
 from ally.container.ioc import injected
 from ally.container.support import setup
@@ -26,12 +26,12 @@ class Obtain(Context):
     The obtain context.
     '''
     # ---------------------------------------------------------------- Defined
-    doAssemblages = defines(bool, doc='''
-    @rtype: boolean
-    Flag indicating that the assemblages have to be created.
+    required = defines(type, doc='''
+    @rtype: class
+    The required class to be obtained.
     ''')
     # ---------------------------------------------------------------- Required
-    assemblages = requires(Iterable)
+    objects = requires(Iterable)
 
 # --------------------------------------------------------------------
 
@@ -58,12 +58,12 @@ class AssemblageService(IAssemblageService):
         assert isinstance(proc, Processing), 'Invalid processing %s' % proc
         
         chain = Chain(proc)
-        chain.process(**proc.fillIn(obtain=proc.ctx.obtain(doAssemblages=True))).doAll()
+        chain.process(**proc.fillIn(obtain=proc.ctx.obtain(required=Assemblage))).doAll()
         obtain = chain.arg.obtain
         assert isinstance(obtain, Obtain), 'Invalid obtain data %s' % obtain
-        if obtain.assemblages is None: return ()
+        if obtain.objects is None: return ()
         
-        return obtain.assemblages
+        return obtain.objects
     
     def getTargets(self, id):
         '''

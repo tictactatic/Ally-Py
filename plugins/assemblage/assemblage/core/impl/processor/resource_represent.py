@@ -20,10 +20,15 @@ from ally.design.processor.branch import Using
 from ally.design.processor.context import Context, pushIn
 from ally.design.processor.execution import Chain, Processing
 from ally.design.processor.handler import Handler, HandlerBranchingProceed
-from ally.exception import DevelError
 from ally.support.core.util_resources import pathForNode
 from collections import Iterable
-                    
+import logging
+from assemblage.api.assemblage import Target, Matcher, Adjuster
+    
+# --------------------------------------------------------------------
+
+log = logging.getLogger(__name__)
+               
 # --------------------------------------------------------------------
     
 class DataResource(Context):
@@ -44,6 +49,7 @@ class Obtain(Context):
     The data obtain context.
     '''
     # ---------------------------------------------------------------- Required
+    required = requires(type)
     datas = requires(Iterable)
 
 class CreateEncoder(Context):
@@ -71,10 +77,10 @@ class SupportEncoder(Context):
 # --------------------------------------------------------------------
 
 @injected
-@setup(Handler, name='provideEncoder')
-class ProvideEncoder(HandlerBranchingProceed):
+@setup(Handler, name='provideRepresentation')
+class ProvideRepresentation(HandlerBranchingProceed):
     '''
-    Provides the encoders for the data.
+    Provides the representation for the resource data.
     '''
     
     assemblyEncode = Assembly; wire.entity('assemblyEncode')
@@ -82,7 +88,7 @@ class ProvideEncoder(HandlerBranchingProceed):
     
     def __init__(self):
         assert isinstance(self.assemblyEncode, Assembly), 'Invalid encode assembly %s' % self.assemblyEncode
-        super().__init__(Using(self.assemblyEncode, 'support', create=CreateEncoder))
+        super().__init__(Using(self.assemblyEncode, 'support', create=CreateEncoder, support=SupportEncoder))
     
     def process(self, encodeProcessing, Data:DataResource, obtain:Obtain, support:Context, **keyargs):
         '''
@@ -95,13 +101,15 @@ class ProvideEncoder(HandlerBranchingProceed):
         assert isinstance(obtain, Obtain), 'Invalid obtain request %s' % obtain
         assert isinstance(obtain.datas, Iterable), 'Invalid datas %s' % obtain.datas
         
-        obtain.datas = self.populateDatas(obtain.datas, encodeProcessing, support)
+        if obtain.required not in (Target, Matcher, Adjuster): return  # The required type doesn't need representations 
+        
+        obtain.datas = self.populateRepresentations(obtain.datas, encodeProcessing, support)
         
     # ----------------------------------------------------------------
         
-    def populateDatas(self, datas, proc, support):
+    def populateRepresentations(self, datas, proc, support):
         '''
-        Provides the data.
+        Provides the representation data.
         '''
         assert isinstance(datas, Iterable), 'Invalid datas %s' % datas
         assert isinstance(proc, Processing), 'Invalid processing %s' % proc
@@ -118,7 +126,9 @@ class ProvideEncoder(HandlerBranchingProceed):
             chain.process(create=create, support=support).doAll()
             create, support = chain.arg.create, chain.arg.support
             assert isinstance(create, CreateEncoder), 'Invalid create %s' % create
-            if create.encoder is None: raise DevelError('Cannot encode type \'%s\'' % data.invoker.output)
+            if create.encoder is None:
+                log.error('No encoder available for %s in \'%s\'', data.invoker.output, support.path)
+                continue  # No encoder available, so we skip this data
             assert isinstance(create.encoder, IEncoder), 'Invalid encoder %s' % create.encoder
             
             data.representation = create.encoder.represent(support)

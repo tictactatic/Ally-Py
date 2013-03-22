@@ -37,6 +37,8 @@ FORMATTED_TYPE = (Number, Percentage, Date, Time, DateTime)
 LIST_LOCALE = List(TypeLocale)
 # The locale list used to set as an additional argument.
 
+# --------------------------------------------------------------------
+
 class FormatError(Exception):
     '''
     Thrown for invalid formatting.
@@ -46,58 +48,15 @@ class FormatError(Exception):
         self.message = message
         super().__init__(message)
 
-# --------------------------------------------------------------------
-
-class RequestDecode(Context):
+class BabelConfigurations:
     '''
-    The request context.
-    '''
-    # ---------------------------------------------------------------- Required
-    decoderHeader = requires(IDecoderHeader)
-    # ---------------------------------------------------------------- Optional
-    argumentsOfType = optional(dict)
-    accLanguages = optional(list)
-    language = optional(str)
-    # ---------------------------------------------------------------- Defined
-    converter = defines(Converter, doc='''
-    @rtype: Converter
-    The converter to use for decoding request content.
-    ''')
-
-class ResponseDecode(Context):
-    '''
-    The response context.
-    '''
-    # ---------------------------------------------------------------- Defined
-    code = defines(str)
-    status = defines(int)
-    isSuccess = defines(bool)
-    text = defines(str)
-    errorMessage = defines(str)
-    language = defines(str, doc='''
-    @rtype: string
-    The language that the converter is using for the response.
-    ''')
-    converter = defines(Converter, doc='''
-    @rtype: Converter
-    The converter to use for decoding request content.
-    ''')
-
-# --------------------------------------------------------------------
-
-@injected
-class BabelConversionDecodeHandler(HandlerProcessorProceed):
-    '''
-    Implementation based on Babel for a processor that provides the converters based on language and object formating 
-    for the response content and request content.
+    Provides general babel configurations.
     '''
 
     languageDefault = str
     # The default language on the response used when none is specified
-    formatNameX = 'X-Format-%s'
-    # The format name for the headers that specify the required format for the response content.
-    formatContentNameX = 'X-Content-Format-%s'
-    # The format name for the headers that specify the format for the request content.
+    formatNameX = str
+    # The format name for the headers.
     formats = {
                Date:('full', 'long', 'medium', 'short'),
                Time:('full', 'long', 'medium', 'short'),
@@ -115,96 +74,8 @@ class BabelConversionDecodeHandler(HandlerProcessorProceed):
     def __init__(self):
         assert isinstance(self.languageDefault, str), 'Invalid default language %s' % self.languageDefault
         assert isinstance(self.formatNameX, str), 'Invalid name format %s' % self.formatNameX
-        assert isinstance(self.formatContentNameX, str), 'Invalid name content format %s' % self.formatContentNameX
         assert isinstance(self.formats, dict), 'Invalid formats %s' % self.formats
         assert isinstance(self.defaults, dict), 'Invalid defaults %s' % self.defaults
-        super().__init__()
-
-    def process(self, request:RequestDecode, response:ResponseDecode, **keyargs):
-        '''
-        @see: HandlerProcessorProceed.process
-        
-        Provide the character conversion for response content.
-        '''
-        assert isinstance(request, RequestDecode), 'Invalid request %s' % request
-        assert isinstance(response, ResponseDecode), 'Invalid response %s' % response
-        assert isinstance(request.decoderHeader, IDecoderHeader), \
-        'Invalid header decoder %s' % request.decoderHeader
-
-        formats = {}
-        for clsTyp in FORMATTED_TYPE:
-            value = request.decoderHeader.retrieve(self.formatContentNameX % clsTyp.__name__)
-            if value: formats[clsTyp] = value
-
-        locale = None
-        if RequestDecode.language in request and request.language is not None:
-            try: locale = Locale.parse(request.language, sep='-')
-            except: assert log.debug('Invalid request content language %s', request.language) or True
-
-        if locale is None:
-            if RequestDecode.language in request: request.language = self.languageDefault
-            locale = Locale.parse(self.languageDefault)
-
-        try: formats = self.processFormats(locale, formats)
-        except FormatError as e:
-            assert isinstance(e, FormatError)
-            if response.isSuccess is False: return  # Skip in case the response is in error
-            response.code, response.status, response.isSuccess = FORMATING_ERROR
-            response.text = 'Bad request content formatting'
-            response.errorMessage = 'Bad request content formatting, %s' % e.message
-            return
-
-        request.converter = ConverterBabel(locale, formats)
-
-        formats = {}
-        for clsTyp in FORMATTED_TYPE:
-            value = request.decoderHeader.retrieve(self.formatNameX % clsTyp.__name__)
-            if value: formats[clsTyp] = value
-
-        locale = None
-        if response.language:
-            try: locale = Locale.parse(response.language, sep='-')
-            except: assert log.debug('Invalid response content language %s', response.language) or True
-
-        if locale is None:
-            if RequestDecode.accLanguages in request and request.accLanguages is not None:
-                for lang in request.accLanguages:
-                    try: locale = Locale.parse(lang, sep='-')
-                    except:
-                        assert log.debug('Invalid accepted content language %s', lang) or True
-                        continue
-                    assert log.debug('Accepted language %s for response', locale) or True
-                    break
-
-            if locale is None:
-                locale = Locale.parse(self.languageDefault)
-                if RequestDecode.accLanguages in request:
-                    if request.accLanguages is not None:
-                        request.accLanguages.insert(0, self.languageDefault)
-                        accLanguages = request.accLanguages
-                    else: accLanguages = request.accLanguages = [self.languageDefault]
-                else: accLanguages = [self.languageDefault]
-                if RequestDecode.argumentsOfType in request and request.argumentsOfType is not None:
-                    request.argumentsOfType[LIST_LOCALE] = accLanguages
-                assert log.debug('No language specified for the response, set default %s', locale) or True
-
-            response.language = str(locale)
-
-            if RequestDecode.argumentsOfType in request and request.argumentsOfType is not None:
-                request.argumentsOfType[TypeLocale] = response.language
-
-        try: formats = self.processFormats(locale, formats)
-        except FormatError as e:
-            assert isinstance(e, FormatError)
-            if response.isSuccess is False: return  # Skip in case the response is in error
-            response.code, response.status, response.isSuccess = FORMATING_ERROR
-            response.text = 'Bad content formatting for response'
-            response.errorMessage = 'Bad content formatting for response, %s' % e.message
-            return
-
-        response.converter = ConverterBabel(locale, formats)
-
-    # ----------------------------------------------------------------
 
     def processFormats(self, locale, formats):
         '''
@@ -228,6 +99,225 @@ class BabelConversionDecodeHandler(HandlerProcessorProceed):
             if clsTyp not in formats: formats[clsTyp] = default
 
         return formats
+        
+# --------------------------------------------------------------------
+
+class Request(Context):
+    '''
+    The request context.
+    '''
+    # ---------------------------------------------------------------- Required
+    decoderHeader = requires(IDecoderHeader)
+
+class Response(Context):
+    '''
+    The response context.
+    '''
+    # ---------------------------------------------------------------- Defined
+    code = defines(str)
+    status = defines(int)
+    isSuccess = defines(bool)
+    text = defines(str)
+    errorMessage = defines(str)
+    
+class RequestConverter(Request):
+    '''
+    The request converter context.
+    '''
+    # ---------------------------------------------------------------- Optional
+    language = optional(str)
+    # ---------------------------------------------------------------- Defined
+    converter = defines(Converter, doc='''
+    @rtype: Converter
+    The converter to use for decoding request content.
+    ''')
+    
+class RequestExtra(Request):
+    '''
+    The request for response converter context.
+    '''
+    # ---------------------------------------------------------------- Optional
+    argumentsOfType = optional(dict)
+    accLanguages = optional(list)
+
+class ResponseConverter(Response):
+    '''
+    The response converter context.
+    '''
+    # ---------------------------------------------------------------- Defined
+    language = defines(str, doc='''
+    @rtype: string
+    The language that the converter is using for the response.
+    ''')
+    converter = defines(Converter, doc='''
+    @rtype: Converter
+    The converter to use for decoding request content.
+    ''')
+
+class ResponseEncode(Context):
+    '''
+    The response context.
+    '''
+    # ---------------------------------------------------------------- Required
+    encoderHeader = requires(IEncoderHeader)
+    converter = requires(Converter)
+
+# --------------------------------------------------------------------
+
+@injected
+class BabelConverterRequestHandler(HandlerProcessorProceed, BabelConfigurations):
+    '''
+    Implementation based on Babel for a processor that provides the converters based on language and object formating 
+    for the request.
+    '''
+
+    formatNameX = 'X-Content-Format-%s'
+    # The format name for the headers that specify the format for the request content.
+
+    def __init__(self):
+        BabelConfigurations.__init__(self)
+        HandlerProcessorProceed.__init__(self)
+
+    def process(self, request:RequestConverter, response:Response, **keyargs):
+        '''
+        @see: HandlerProcessorProceed.process
+        
+        Provide the character conversion for request.
+        '''
+        assert isinstance(request, RequestConverter), 'Invalid request %s' % request
+        assert isinstance(response, Response), 'Invalid response %s' % response
+        assert isinstance(request.decoderHeader, IDecoderHeader), \
+        'Invalid header decoder %s' % request.decoderHeader
+
+        formats = {}
+        for clsTyp in FORMATTED_TYPE:
+            value = request.decoderHeader.retrieve(self.formatNameX % clsTyp.__name__)
+            if value: formats[clsTyp] = value
+
+        locale = None
+        if RequestConverter.language in request and request.language is not None:
+            try: locale = Locale.parse(request.language, sep='-')
+            except: assert log.debug('Invalid request content language %s', request.language) or True
+
+        if locale is None:
+            if RequestConverter.language in request: request.language = self.languageDefault
+            locale = Locale.parse(self.languageDefault)
+
+        try: formats = self.processFormats(locale, formats)
+        except FormatError as e:
+            assert isinstance(e, FormatError)
+            if response.isSuccess is False: return  # Skip in case the response is in error
+            response.code, response.status, response.isSuccess = FORMATING_ERROR
+            response.text = 'Bad request content formatting'
+            response.errorMessage = 'Bad request content formatting, %s' % e.message
+            return
+
+        request.converter = ConverterBabel(locale, formats)
+
+@injected
+class BabelConverterResponseHandler(HandlerProcessorProceed, BabelConfigurations):
+    '''
+    Implementation based on Babel for a processor that provides the converters based on language and object formating 
+    for the response.
+    '''
+    
+    formatNameX = 'X-Format-%s'
+    # The format name for the headers that specify the required format for the response content.
+
+    def __init__(self):
+        BabelConfigurations.__init__(self)
+        HandlerProcessorProceed.__init__(self)
+
+    def process(self, request:RequestExtra, response:ResponseConverter, **keyargs):
+        '''
+        @see: HandlerProcessorProceed.process
+        
+        Provide the character conversion for response.
+        '''
+        assert isinstance(request, RequestExtra), 'Invalid request %s' % request
+        assert isinstance(response, ResponseConverter), 'Invalid response %s' % response
+        assert isinstance(request.decoderHeader, IDecoderHeader), \
+        'Invalid header decoder %s' % request.decoderHeader
+
+        formats = {}
+        for clsTyp in FORMATTED_TYPE:
+            value = request.decoderHeader.retrieve(self.formatNameX % clsTyp.__name__)
+            if value: formats[clsTyp] = value
+
+        locale = None
+        if response.language:
+            try: locale = Locale.parse(response.language, sep='-')
+            except: assert log.debug('Invalid response content language %s', response.language) or True
+
+        if locale is None:
+            if RequestExtra.accLanguages in request and request.accLanguages is not None:
+                for lang in request.accLanguages:
+                    try: locale = Locale.parse(lang, sep='-')
+                    except:
+                        assert log.debug('Invalid accepted content language %s', lang) or True
+                        continue
+                    assert log.debug('Accepted language %s for response', locale) or True
+                    break
+
+            if locale is None:
+                locale = Locale.parse(self.languageDefault)
+                if RequestExtra.accLanguages in request:
+                    if request.accLanguages is not None:
+                        request.accLanguages.insert(0, self.languageDefault)
+                        accLanguages = request.accLanguages
+                    else: accLanguages = request.accLanguages = [self.languageDefault]
+                else: accLanguages = [self.languageDefault]
+                if RequestExtra.argumentsOfType in request and request.argumentsOfType is not None:
+                    request.argumentsOfType[LIST_LOCALE] = accLanguages
+                assert log.debug('No language specified for the response, set default %s', locale) or True
+
+            response.language = str(locale)
+
+            if RequestExtra.argumentsOfType in request and request.argumentsOfType is not None:
+                request.argumentsOfType[TypeLocale] = response.language
+
+        try: formats = self.processFormats(locale, formats)
+        except FormatError as e:
+            assert isinstance(e, FormatError)
+            if response.isSuccess is False: return  # Skip in case the response is in error
+            response.code, response.status, response.isSuccess = FORMATING_ERROR
+            response.text = 'Bad content formatting for response'
+            response.errorMessage = 'Bad content formatting for response, %s' % e.message
+            return
+
+        response.converter = ConverterBabel(locale, formats)
+        
+# --------------------------------------------------------------------
+
+@injected
+class BabelConversionEncodeHandler(HandlerProcessorProceed):
+    '''
+    Implementation based on Babel for a processor that encodes the Babel converter format.
+    '''
+
+    formatNameX = 'X-FormatContent-%s'
+    # The format name for the headers that specify the format for the request.
+
+    def __init__(self):
+        assert isinstance(self.formatNameX, str), 'Invalid name content format %s' % self.formatNameX
+        super().__init__()
+
+    def process(self, response:ResponseEncode, **keyargs):
+        '''
+        @see: HandlerProcessorProceed.process
+        
+        Provide the response formatting header encode.
+        '''
+        assert isinstance(response, ResponseEncode), 'Invalid response %s' % response
+        assert isinstance(response.encoderHeader, IEncoderHeader), \
+        'Invalid response header encoder %s' % response.encoderHeader
+
+        if isinstance(response.converter, ConverterBabel):
+            assert isinstance(response.converter, ConverterBabel)
+            for clsTyp, format in response.converter.formats.items():
+                response.encoderHeader.encode(self.formatNameX % clsTyp.__name__, format)
+
+# --------------------------------------------------------------------
 
 class ConverterBabel(Converter):
     '''
@@ -298,43 +388,3 @@ class ConverterBabel(Converter):
         if objType.isOf(DateTime):
             return datetime.strptime(strValue, '%Y-%m-%d %H:%M:%S')
         raise TypeError('Invalid object type %s for Babel converter' % objType)
-
-# --------------------------------------------------------------------
-
-class ResponseEncode(Context):
-    '''
-    The response context.
-    '''
-    # ---------------------------------------------------------------- Required
-    encoderHeader = requires(IEncoderHeader)
-    converter = requires(Converter)
-
-# --------------------------------------------------------------------
-
-@injected
-class BabelConversionEncodeHandler(HandlerProcessorProceed):
-    '''
-    Implementation based on Babel for a processor that encodes the Babel converter format.
-    '''
-
-    formatContentNameX = 'X-FormatContent-%s'
-    # The format name for the headers that specify the format for the request content.
-
-    def __init__(self):
-        assert isinstance(self.formatContentNameX, str), 'Invalid name content format %s' % self.formatContentNameX
-        super().__init__()
-
-    def process(self, response:ResponseEncode, **keyargs):
-        '''
-        @see: HandlerProcessorProceed.process
-        
-        Provide the response formatting header encode.
-        '''
-        assert isinstance(response, ResponseEncode), 'Invalid response %s' % response
-        assert isinstance(response.encoderHeader, IEncoderHeader), \
-        'Invalid response header encoder %s' % response.encoderHeader
-
-        if isinstance(response.converter, ConverterBabel):
-            assert isinstance(response.converter, ConverterBabel)
-            for clsTyp, format in response.converter.formats.items():
-                response.encoderHeader.encode(self.formatContentNameX % clsTyp.__name__, format)

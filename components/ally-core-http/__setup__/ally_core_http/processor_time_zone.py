@@ -9,7 +9,7 @@ Created on Sep 14, 2012
 Provides the configurations for the time zone conversion processor.
 '''
 
-from ..ally_core.processor import conversion
+from ..ally_core.processor import converterRequest, converterResponse
 from ..ally_core_http.processor import assemblyResources, \
     updateAssemblyResources
 from ally.container import ioc
@@ -28,7 +28,8 @@ else:
     pytz = pytz  # Just to avoid the import warning
     # ----------------------------------------------------------------
 
-    from ally.core.http.impl.processor.time_zone import TimeZoneHandler
+    from ally.core.http.impl.processor.time_zone import TimeZoneConverterRequestHandler, \
+        TimeZoneConverterResponseHandler
     
     # --------------------------------------------------------------------
     
@@ -49,8 +50,15 @@ else:
     # --------------------------------------------------------------------
     
     @ioc.entity
-    def timeZone() -> Handler:
-        b = TimeZoneHandler()
+    def converterRequestTimeZone() -> Handler:
+        b = TimeZoneConverterRequestHandler()
+        b.baseTimeZone = base_time_zone()
+        b.defaultTimeZone = default_time_zone()
+        return b
+    
+    @ioc.entity
+    def converterResponseTimeZone() -> Handler:
+        b = TimeZoneConverterResponseHandler()
         b.baseTimeZone = base_time_zone()
         b.defaultTimeZone = default_time_zone()
         return b
@@ -59,4 +67,5 @@ else:
     
     @ioc.after(updateAssemblyResources)
     def updateAssemblyResourcesForTimeZone():
-        assemblyResources().add(timeZone(), after=conversion())
+        assemblyResources().add(converterRequestTimeZone(), after=converterRequest())
+        assemblyResources().add(converterResponseTimeZone(), after=converterResponse())

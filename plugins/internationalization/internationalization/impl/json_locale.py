@@ -6,7 +6,7 @@ Created on Mar 9, 2012
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Mugur Rus
 
-Implementation for the PO file management.
+Implementation for the JSON localization file management.
 '''
 
 from admin.introspection.api.component import IComponentService
@@ -17,12 +17,12 @@ from ally.container.ioc import injected
 from ally.container.support import setup
 from ally.exception import InputError
 from ally.internationalization import _
+from codecs import getwriter
 from datetime import datetime
 from internationalization.api.json_locale import IJSONLocaleFileService
 from internationalization.core.spec import IPOFileManager, InvalidLocaleError
 from io import BytesIO
-from json.encoder import JSONEncoder
-from sys import getdefaultencoding
+import json
 
 # --------------------------------------------------------------------
 
@@ -53,7 +53,7 @@ class JSONFileService(IJSONLocaleFileService):
         '''
         @see: IPOService.getGlobalPOFile
         '''
-        path = self._cdmPath(locale)
+        path = self.cdmPath(locale)
         try:
             try: cdmFileTimestamp = self.cdmLocale.getTimestamp(path)
             except PathNotFound: republish = True
@@ -62,7 +62,7 @@ class JSONFileService(IJSONLocaleFileService):
                 republish = False if mngFileTimestamp is None else cdmFileTimestamp < mngFileTimestamp
 
             if republish:
-                self.cdmLocale.publishContent(path, JSONEncoder().encode(self.poFileManager.getGlobalAsDict(locale)))
+                self.cdmLocale.publishContent(path, self.streamJSON(self.poFileManager.getGlobalAsDict(locale)))
         except InvalidLocaleError: raise InputError(_('Invalid locale %(locale)s') % dict(locale=locale))
         return self.cdmLocale.getURI(path, scheme)
 
@@ -71,7 +71,7 @@ class JSONFileService(IJSONLocaleFileService):
         @see: IPOService.getComponentPOFile
         '''
         self.componentService.getById(component)
-        path = self._cdmPath(locale, component=component)
+        path = self.cdmPath(locale, component=component)
         try:
             try: cdmFileTimestamp = self.cdmLocale.getTimestamp(path)
             except PathNotFound: republish = True
@@ -81,7 +81,7 @@ class JSONFileService(IJSONLocaleFileService):
                 republish = False if mngFileTimestamp is None else cdmFileTimestamp < mngFileTimestamp
 
             if republish:
-                self.cdmLocale.publishContent(path, JSONEncoder().encode(self.poFileManager.getComponentAsDict(component, locale)))
+                self.cdmLocale.publishContent(path, self.streamJSON(self.poFileManager.getComponentAsDict(component, locale)))
         except InvalidLocaleError: raise InputError(_('Invalid locale %(locale)s') % dict(locale=locale))
         return self.cdmLocale.getURI(path, scheme)
 
@@ -93,7 +93,7 @@ class JSONFileService(IJSONLocaleFileService):
         assert isinstance(pluginObj, Plugin)
         if pluginObj.Component: return self.getComponentJSONFile(pluginObj.Component, locale, scheme)
 
-        path = self._cdmPath(locale, plugin=plugin)
+        path = self.cdmPath(locale, plugin=plugin)
         try:
             try: cdmFileTimestamp = self.cdmLocale.getTimestamp(path)
             except PathNotFound: republish = True
@@ -103,14 +103,22 @@ class JSONFileService(IJSONLocaleFileService):
                 republish = False if mngFileTimestamp is None else cdmFileTimestamp < mngFileTimestamp
 
             if republish:
-                jsonString = JSONEncoder().encode(self.poFileManager.getPluginAsDict(plugin, locale))
-                self.cdmLocale.publishContent(path, BytesIO(bytes(jsonString, getdefaultencoding())))
+                self.cdmLocale.publishContent(path, self.streamJSON(self.poFileManager.getPluginAsDict(plugin, locale)))
         except InvalidLocaleError: raise InputError(_('Invalid locale %(locale)s') % dict(locale=locale))
         return self.cdmLocale.getURI(path, scheme)
 
     # ----------------------------------------------------------------
+    
+    def streamJSON(self, object):
+        '''
+        Provides the json bytes stream for the provided object. 
+        '''
+        content = BytesIO()
+        json.dump(object, getwriter(self.default_charset)(content, 'backslashreplace'))
+        content.seek(0)
+        return content
 
-    def _cdmPath(self, locale, component=None, plugin=None):
+    def cdmPath(self, locale, component=None, plugin=None):
         '''
         Returns the path to the CDM JSON file corresponding to the given locale and / or
         component / plugin. If no component of plugin was specified it returns the

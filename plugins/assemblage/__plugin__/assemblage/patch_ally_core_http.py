@@ -26,11 +26,12 @@ else:
     ally_core_http = ally_core_http  # Just to avoid the import warning
     # ----------------------------------------------------------------
     
-    from __setup__.ally_core_http.processor import encoderPathResource, conversion
-    from assemblage.core.impl.processor import resource_data, resource_encoder, resource_assemblage
+    from __setup__.ally_core_http.processor import encoderPathResource
+    from __setup__.ally_core.processor import normalizerResponse
+    from assemblage.core.impl.processor import resource_data, resource_represent, target_data, resource_assemblage
     
-    iterateResourceData = provideEncoder = assemblagesFromData = support.notCreated  # Just to avoid errors
-    support.createEntitySetup(resource_data, resource_encoder, resource_assemblage)
+    iterateResourceData = provideRepresentation = provideTargets = assemblagesFromData = support.notCreated  # Just to avoid errors
+    support.createEntitySetup(resource_data, resource_represent, target_data, resource_assemblage)
     
     # --------------------------------------------------------------------
     
@@ -39,13 +40,13 @@ else:
         return HandlerRenamer(encoderPathResource(), ('response', 'support'), ('request', 'support'))
     
     @ioc.entity
-    def conversionAssemblage() -> Handler:
-        return HandlerRenamer(conversion(), ('response', 'support'))
+    def normalizerAssemblage() -> Handler:
+        return HandlerRenamer(normalizerResponse(), ('response', 'support'))
         
     # --------------------------------------------------------------------
         
     @ioc.before(assemblagesAssembly)
     def updateAssemblagesAssembly():
-        assemblagesAssembly().add(iterateResourceData(), provideEncoder(), conversionAssemblage(), encoderPathAssemblage(),
-                                  assemblagesFromData())
+        assemblagesAssembly().add(iterateResourceData(), normalizerAssemblage(), provideRepresentation(), provideTargets(),
+                                  encoderPathAssemblage(), assemblagesFromData())
         

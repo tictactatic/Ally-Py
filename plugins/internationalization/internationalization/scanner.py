@@ -127,8 +127,9 @@ class Scanner:
         '''
         Scan the current application plugins for the localized text messages.
         '''
-        for plugin in self.pluginService.getPlugins():
-            assert isinstance(plugin, Plugin)
+        for pluginId in self.pluginService.getPlugins():
+            plugin = self.pluginService.getById(pluginId)
+            assert isinstance(plugin, Plugin), 'Invalid plugin %s' % plugin
             files = {file.Path: file for file in self.fileService.getAll(q=QFile(plugin=plugin.Id))}
             if plugin.InEgg:
                 lastModified = modificationTimeFor(plugin.Path)

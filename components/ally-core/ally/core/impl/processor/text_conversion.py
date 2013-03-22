@@ -22,9 +22,9 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
-class Content(Context):
+class Normalized(Context):
     '''
-    The content context.
+    The normalized content context.
     '''
     # ---------------------------------------------------------------- Defined
     normalizer = defines(Normalizer, doc='''
@@ -35,36 +35,105 @@ class Content(Context):
     @rtype: Converter
     The converter to use for decoding request content.
     ''')
+    
+class Converted(Context):
+    '''
+    The converted content context.
+    '''
+    # ---------------------------------------------------------------- Defined
+    converter = defines(Converter, doc='''
+    @rtype: Converter
+    The converter to use for decoding request content.
+    ''')
 
 # --------------------------------------------------------------------
 
 @injected
-class ConversionSetHandler(HandlerProcessorProceed):
+class NormalizerRequestHandler(HandlerProcessorProceed):
     '''
-    Provides the standard transform services for the model decoding, this will be populated on the response and request
-    content.
+    Provides the normalizer for the model decoding, this will be populated on the request.
     '''
     normalizer = Normalizer
-    # The normalizer to set on the content request and content response.
-    converter = Converter
-    # The converter to set on the content request and content response.
+    # The normalizer to set on the request.
 
     def __init__(self):
         assert isinstance(self.normalizer, Normalizer), 'Invalid normalizer %s' % self.normalizer
+        super().__init__()
+
+    def process(self, request:Normalized, **keyargs):
+        '''
+        @see: HandlerProcessorProceed.process
+        
+        Provide the normalizer for request.
+        '''
+        assert isinstance(request, Normalized), 'Invalid request %s' % request
+        
+        request.normalizer = self.normalizer
+
+@injected
+class NormalizerResponseHandler(HandlerProcessorProceed):
+    '''
+    Provides the normalizer for response encoding, this will be populated on the response.
+    '''
+    normalizer = Normalizer
+    # The normalizer to set on the response.
+
+    def __init__(self):
+        assert isinstance(self.normalizer, Normalizer), 'Invalid normalizer %s' % self.normalizer
+        super().__init__()
+
+    def process(self, response:Normalized, **keyargs):
+        '''
+        @see: HandlerProcessorProceed.process
+        
+        Provide the normalizer for response.
+        '''
+        assert isinstance(response, Normalized), 'Invalid response %s' % response
+        
+        response.normalizer = self.normalizer
+
+# --------------------------------------------------------------------
+
+@injected
+class ConverterRequestHandler(HandlerProcessorProceed):
+    '''
+    Provides the converter for the model decoding, this will be populated on the request content.
+    '''
+    converter = Converter
+    # The converter to set on the request.
+
+    def __init__(self):
         assert isinstance(self.converter, Converter), 'Invalid converter %s' % self.converter
         super().__init__()
 
-    def process(self, requestCnt:Content, response:Content, **keyargs):
+    def process(self, request:Converted, **keyargs):
         '''
         @see: HandlerProcessorProceed.process
         
         Provide the character conversion for request and response content.
         '''
-        assert isinstance(requestCnt, Content), 'Invalid request content %s' % requestCnt
-        assert isinstance(response, Content), 'Invalid response content %s' % response
+        assert isinstance(request, Converted), 'Invalid request %s' % request
         
-        if requestCnt.normalizer is None: requestCnt.normalizer = self.normalizer
-        if requestCnt.converter is None: requestCnt.converter = self.converter
+        request.converter = self.converter
+
+@injected
+class ConverterResponseHandler(HandlerProcessorProceed):
+    '''
+    Provides the converter for response encoding, this will be populated on the response content.
+    '''
+    converter = Converter
+    # The converter to set on the response.
+
+    def __init__(self):
+        assert isinstance(self.converter, Converter), 'Invalid converter %s' % self.converter
+        super().__init__()
+
+    def process(self, response:Converted, **keyargs):
+        '''
+        @see: HandlerProcessorProceed.process
         
-        if response.converter is None: response.converter = self.converter
-        if response.normalizer is None: response.normalizer = self.normalizer
+        Provide the character conversion for request and response content.
+        '''
+        assert isinstance(response, Converted), 'Invalid response %s' % response
+        
+        response.converter = self.converter

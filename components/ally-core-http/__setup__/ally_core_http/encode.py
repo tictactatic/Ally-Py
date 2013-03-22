@@ -56,6 +56,7 @@ def propertyOfModelPathAttributeEncode() -> Handler: return PropertyOfModelPathA
 @ioc.after(updateAssemblyEncode)
 def updateAssemblyEncodeWithPath():
     assemblyEncode().add(resourcesEncode(), pathSupport(), before=extensionAttributeEncode())
+    assemblyEncode().add(modelPathAttributeEncode(), before=modelPropertyEncode())
     assemblyEncode().add(pathUpdaterSupportEncode())
 
 @ioc.after(assemblyModelExtraEncode)
