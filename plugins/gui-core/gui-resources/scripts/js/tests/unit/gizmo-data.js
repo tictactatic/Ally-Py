@@ -20,7 +20,7 @@ define(function()
                         "Author": { "href": "Collaborator/1/", "Id": "1" }, 
                         "CreatedOn": "Jun 5, 2012 5:50:49 PM", 
                         "Creator": { "href": "User/1", "Id": "1" }, 
-                        "Content": "GEN Live Desk is a next-generation open source web tool for both individuals and teams to report live breaking news from anywhere.", 
+                        "Content": "Live Blog is a next-generation open source web tool for both individuals and teams to report live breaking news from anywhere.", 
                         "AuthorName": "Author 1", 
                         "PublishedOn": "Jun 5, 2012 5:50:49 PM", 
                         "Type": { "href": "PostType/quote", "Key": "quote" }, 
