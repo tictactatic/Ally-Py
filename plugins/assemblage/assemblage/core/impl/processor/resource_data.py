@@ -31,9 +31,9 @@ AVAILABLE_METHODS = {GET, INSERT}
                     
 # --------------------------------------------------------------------
     
-class DataResource(Context):
+class DataAssemblageResource(Context):
     '''
-    The data context.
+    The data assemblage context.
     '''
     # ---------------------------------------------------------------- Defined
     id = defines(int, doc='''
@@ -56,8 +56,8 @@ class Obtain(Context):
     # ---------------------------------------------------------------- Optional
     assemblageId = optional(int)
     # ---------------------------------------------------------------- Defined
-    datas = defines(Iterable, doc='''
-    @rtype: Iterable(Data)
+    assemblages = defines(Iterable, doc='''
+    @rtype: Iterable(DataAssemblage)
     The data's if no assemblage id is provided.
     ''')
 
@@ -77,28 +77,30 @@ class IterateResourceData(HandlerProcessor, INodeChildListener, INodeInvokerList
         assert isinstance(self.resourcesRoot, Node), 'Invalid root node %s' % self.resourcesRoot
         super().__init__()
         
-        self._datas = None
+        self._cache = None
         self.resourcesRoot.addStructureListener(self)
         
-    def process(self, chain, Data:DataResource, obtain:Obtain, **keyargs):
+    def process(self, chain, DataAssemblage:DataAssemblageResource, obtain:Obtain, **keyargs):
         '''
         @see: HandlerProcessor.process
         
         Iterates the data with tree resources or provides the data for the assemblage id.
         '''
         assert isinstance(chain, Chain), 'Invalid chain %s' % chain
-        assert issubclass(Data, DataResource), 'Invalid data class %s' % Data
+        assert issubclass(DataAssemblage, DataAssemblageResource), 'Invalid data class %s' % DataAssemblage
         assert isinstance(obtain, Obtain), 'Invalid obtain request %s' % obtain
         
         if Obtain.assemblageId not in obtain or obtain.assemblageId is None:
-            datas = self.processData(Data).values()
+            assemblages = (DataAssemblage(id=id, node=node, invoker=invoker)
+                           for id, (node, invoker) in self.invokers().items())
         else:
-            data = self.processData(Data).get(obtain.assemblageId)
+            data = self.invokers().get(obtain.assemblageId)
             if data is None: return  # We cannot proceed without a data for the assemblage id
-            datas = (data,)
+            node, invoker = data
+            assemblages = (DataAssemblage(id=obtain.assemblageId, node=node, invoker=invoker),)
             
-        if obtain.datas is None: obtain.datas = datas
-        else: obtain.datas = itertools.chain(obtain.datas, datas)
+        if obtain.assemblages is None: obtain.assemblages = assemblages
+        else: obtain.assemblages = itertools.chain(obtain.assemblages, assemblages)
             
         chain.proceed()
         
@@ -108,22 +110,22 @@ class IterateResourceData(HandlerProcessor, INodeChildListener, INodeInvokerList
         '''
         @see: INodeChildListener.onChildAdded
         '''
-        self._datas = None
+        self._cache = None
     
     def onInvokerChange(self, node, old, new):
         '''
         @see: INodeInvokerListener.onInvokerChange
         '''
-        self._datas = None
+        self._cache = None
         
     # ----------------------------------------------------------------
         
-    def processData(self, Data):
+    def invokers(self):
         '''
-        Provides the data.
+        Provides the nodes and invokers indexed by hashed id.
         '''
-        if self._datas is None:
-            self._datas = {}
+        if self._cache is None:
+            self._cache = {}
             for node in iterateNodes(self.resourcesRoot):
                 assert isinstance(node, Node), 'Invalid node %s' % node
     
@@ -131,7 +133,5 @@ class IterateResourceData(HandlerProcessor, INodeChildListener, INodeInvokerList
                     if method not in AVAILABLE_METHODS: continue
                     invoker = getattr(node, attr)
                     if not invoker: continue
-                    data = Data(id=hash((hashForNode(node), method)) & 0x7FFFFFF, node=node, invoker=invoker)
-                    assert isinstance(data, DataResource), 'Invalid data %s' % data
-                    self._datas[data.id] = data
-        return self._datas
+                    self._cache[hash((hashForNode(node), method)) & 0x7FFFFFF] = (node, invoker)
+        return self._cache

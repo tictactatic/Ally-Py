@@ -9,7 +9,8 @@ Created on Feb 19, 2013
 Provides the ally core http setup patch.
 '''
 
-from .service import assemblagesAssembly
+from .service import assemblyAssemblages, updateAssemblyAssemblages, \
+    provideMatcherPatterns
 from ally.container import ioc, support
 from ally.design.processor.handler import Handler, HandlerRenamer
 import logging
@@ -28,10 +29,11 @@ else:
     
     from __setup__.ally_core_http.processor import encoderPathResource
     from __setup__.ally_core.processor import normalizerResponse
-    from assemblage.core.impl.processor import resource_data, resource_represent, target_data, resource_assemblage
+    from __setup__.ally_core.parsing_rendering import assemblyPattern
+    from assemblage.core.impl.processor import resource_data, resource_represent, matcher_data, resource_assemblage
     
-    iterateResourceData = provideRepresentation = provideTargets = assemblagesFromData = support.notCreated  # Just to avoid errors
-    support.createEntitySetup(resource_data, resource_represent, target_data, resource_assemblage)
+    iterateResourceData = provideRepresentation = provideMatchers = assemblagesFromData = support.notCreated  # Just to avoid errors
+    support.createEntitySetup(resource_data, resource_represent, matcher_data, resource_assemblage)
     
     # --------------------------------------------------------------------
     
@@ -45,8 +47,9 @@ else:
         
     # --------------------------------------------------------------------
         
-    @ioc.before(assemblagesAssembly)
-    def updateAssemblagesAssembly():
-        assemblagesAssembly().add(iterateResourceData(), normalizerAssemblage(), provideRepresentation(), provideTargets(),
-                                  encoderPathAssemblage(), assemblagesFromData())
+    @ioc.after(updateAssemblyAssemblages)
+    def updateAssemblyAssemblagesForCore():
+        assemblyAssemblages().add(iterateResourceData(), normalizerAssemblage(), provideRepresentation(), provideMatchers(),
+                                  encoderPathAssemblage(), assemblagesFromData(), assemblyPattern(),
+                                  before=provideMatcherPatterns())
         

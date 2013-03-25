@@ -8,6 +8,7 @@ Created on Mar 21, 2013
 
 Provides representation objects for encoders. 
 '''
+from inspect import isclass
 
 # --------------------------------------------------------------------
 
@@ -15,20 +16,24 @@ class Property:
     '''
     Representation for a encoded property.
     '''
-    __slots__ = ('name', 'flags')
+    __slots__ = ('name', 'clazz', 'flags')
     
-    def __init__(self, name, *flags):
+    def __init__(self, name, clazz, *flags):
         '''
         Construct the property representation.
         
-        @param name: string|None
-            The property name, a None value means the name is not known or is dynamic by nature.
+        @param name: string
+            The property name.
+        @param clazz: class
+            The type of the property.
         @param flags: arguments[object]
             Flag objects specific for property.
         '''
-        assert name is None or isinstance(name, str), 'Invalid name %s' % name
+        assert isinstance(name, str), 'Invalid name %s' % name
+        assert isclass(clazz), 'Invalid class %s' % clazz
         
         self.name = name
+        self.clazz = clazz
         self.flags = flags
         
 class Attribute:
@@ -56,19 +61,19 @@ class Object:
         '''
         Construct the object representation.
         
-        @param name: string|None
-            The object name, a None value means the name is not known or is dynamic by nature.
+        @param name: string
+            The object name.
         @param flags: arguments[object]
             Flag objects specific for object.
         @param attributes: dictionary{string: Attribute}|None
             The attributes of the object.
         '''
-        assert name is None or isinstance(name, str), 'Invalid name %s' % name
+        assert isinstance(name, str), 'Invalid name %s' % name
         if __debug__:
             if attributes:
                 assert isinstance(attributes, dict), 'Invalid attributes %s' % attributes
-                for name, attribute in attributes.items():
-                    assert isinstance(name, str), 'Invalid name %s' % name
+                for nameAttr, attribute in attributes.items():
+                    assert isinstance(nameAttr, str), 'Invalid name %s' % nameAttr
                     assert isinstance(attribute, Attribute), 'Invalid attribute %s' % attribute
 
         self.name = name
@@ -86,8 +91,8 @@ class Collection:
         '''
         Construct the collection representation.
         
-        @param name: string|None
-            The collection name, a None value means the name is not known or is dynamic by nature.
+        @param name: string
+            The collection name.
         @param item: Object
             The object represented in the collection.
         @param flags: arguments[object]
@@ -95,13 +100,13 @@ class Collection:
         @param attributes: dictionary{string: Attribute}|None
             The attributes of the collection.
         '''
-        assert name is None or isinstance(name, str), 'Invalid name %s' % name
+        assert isinstance(name, str), 'Invalid name %s' % name
         assert isinstance(item, Object), 'Invalid item %s' % item
         if __debug__:
             if attributes:
                 assert isinstance(attributes, dict), 'Invalid attributes %s' % attributes
-                for name, attribute in attributes.items():
-                    assert isinstance(name, str), 'Invalid name %s' % name
+                for nameAttr, attribute in attributes.items():
+                    assert isinstance(nameAttr, str), 'Invalid name %s' % nameAttr
                     assert isinstance(attribute, Attribute), 'Invalid attribute %s' % attribute
                     
         self.name = name

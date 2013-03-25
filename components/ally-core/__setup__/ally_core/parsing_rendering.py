@@ -14,7 +14,8 @@ from ally.core.impl.processor.parser.text import ParseTextHandler
 from ally.core.impl.processor.parser.xml import ParseXMLHandler
 from ally.core.impl.processor.render.json import RenderJSONHandler
 from ally.core.impl.processor.render.text import RenderTextHandler
-from ally.core.impl.processor.render.xml import RenderXMLHandler
+from ally.core.impl.processor.render.xml import RenderXMLHandler, \
+    PatternXMLHandler
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.handler import Handler
 import codecs
@@ -94,30 +95,32 @@ def parseXML() -> Handler:
 # Create the renders
 
 @ioc.entity
-def renderingAssembly() -> Assembly:
+def assemblyRendering() -> Assembly:
     '''
     The assembly containing the response renders.
     '''
-    return Assembly('Renderer selection')
+    return Assembly('Renderer response')
+
+@ioc.entity
+def assemblyPattern() -> Assembly:
+    '''
+    The assembly containing the patterns support.
+    '''
+    return Assembly('Pattern support')
 
 @ioc.entity
 def renderJSON() -> Handler:
     b = RenderJSONHandler(); yield b
     b.contentTypes = content_types_json()
 
-# JSON encode by using the text renderer.
-# @ioc.entity
-# def renderJSON() -> Handler:
-#    import json
-#    def rendererJSON(obj, charSet, out): json.dump(obj, out)
-#
-#    b = RenderTextHandler(); yield b
-#    b.contentTypes = content_types_json()
-#    b.rendererTextObject = rendererJSON
-
 @ioc.entity
 def renderXML() -> Handler:
     b = RenderXMLHandler(); yield b
+    b.contentTypes = content_types_xml()
+
+@ioc.entity
+def patternXML() -> Handler:
+    b = PatternXMLHandler(); yield b
     b.contentTypes = content_types_xml()
 
 # --------------------------------------------------------------------
@@ -127,16 +130,18 @@ def updateAssemblyParsing():
     assemblyParsing().add(parseJSON())
     assemblyParsing().add(parseXML())
     
-@ioc.before(renderingAssembly)
-def updateRenderingAssembly():
-    renderingAssembly().add(renderJSON())
-    renderingAssembly().add(renderXML())
+@ioc.before(assemblyRendering)
+def updateAssemblyRendering():
+    assemblyRendering().add(renderJSON())
+    assemblyRendering().add(renderXML())
+    
+@ioc.before(assemblyPattern)
+def updateAssemblyPattern():
+    assemblyPattern().add(patternXML())
 
 try: import yaml
 except ImportError: log.info('No YAML library available, no yaml available for output or input')
 else:
-    
-    # ----------------------------------------------------------------
     
     @ioc.entity
     def renderYAML() -> Handler:
@@ -161,6 +166,6 @@ else:
     def updateAssemblyParsingWithYAML():
         assemblyParsing().add(parseYAML())
     
-    @ioc.after(updateRenderingAssembly)
+    @ioc.after(updateAssemblyRendering)
     def updateRenderingAssemblyWithYAML():
-        renderingAssembly().add(renderYAML())
+        assemblyRendering().add(renderYAML())

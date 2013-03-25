@@ -9,6 +9,8 @@ Created on Mar 22, 2013
 Provides the data resource invoker encoder.
 '''
 
+from ally.api.operator.type import TypeModelProperty
+from ally.api.type import TypeReference
 from ally.container import wire
 from ally.container.ioc import injected
 from ally.container.support import setup
@@ -21,9 +23,9 @@ from ally.design.processor.context import Context, pushIn
 from ally.design.processor.execution import Chain, Processing
 from ally.design.processor.handler import Handler, HandlerBranchingProceed
 from ally.support.core.util_resources import pathForNode
+from assemblage.api.assemblage import Matcher
 from collections import Iterable
 import logging
-from assemblage.api.assemblage import Target, Matcher, Adjuster
     
 # --------------------------------------------------------------------
 
@@ -31,9 +33,9 @@ log = logging.getLogger(__name__)
                
 # --------------------------------------------------------------------
     
-class DataResource(Context):
+class DataAssemblageResource(Context):
     '''
-    The data context.
+    The data assemblage context.
     '''
     # ---------------------------------------------------------------- Defined
     representation = defines(object, doc='''
@@ -50,7 +52,7 @@ class Obtain(Context):
     '''
     # ---------------------------------------------------------------- Required
     required = requires(type)
-    datas = requires(Iterable)
+    assemblages = requires(Iterable)
 
 class CreateEncoder(Context):
     '''
@@ -90,32 +92,42 @@ class ProvideRepresentation(HandlerBranchingProceed):
         assert isinstance(self.assemblyEncode, Assembly), 'Invalid encode assembly %s' % self.assemblyEncode
         super().__init__(Using(self.assemblyEncode, 'support', create=CreateEncoder, support=SupportEncoder))
     
-    def process(self, encodeProcessing, Data:DataResource, obtain:Obtain, support:Context, **keyargs):
+    def process(self, encodeProcessing, DataAssemblage:DataAssemblageResource, obtain:Obtain, support:Context, **keyargs):
         '''
         @see: HandlerBranchingProceed.process
         
         Provides the encoders for the data elements.
         '''
         assert isinstance(encodeProcessing, Processing), 'Invalid processing %s' % encodeProcessing
-        assert issubclass(Data, DataResource), 'Invalid data class %s' % Data
+        assert issubclass(DataAssemblage, DataAssemblageResource), 'Invalid data class %s' % DataAssemblage
         assert isinstance(obtain, Obtain), 'Invalid obtain request %s' % obtain
-        assert isinstance(obtain.datas, Iterable), 'Invalid datas %s' % obtain.datas
+        assert isinstance(obtain.assemblages, Iterable), 'Invalid assemblages %s' % obtain.assemblages
         
-        if obtain.required not in (Target, Matcher, Adjuster): return  # The required type doesn't need representations 
-        
-        obtain.datas = self.populateRepresentations(obtain.datas, encodeProcessing, support)
+        provide = obtain.required == Matcher  # The required type needs representations 
+        obtain.assemblages = self.processAssemblages(obtain.assemblages, encodeProcessing, support, provide)
         
     # ----------------------------------------------------------------
         
-    def populateRepresentations(self, datas, proc, support):
+    def processAssemblages(self, datas, proc, support, provide):
         '''
-        Provides the representation data.
+        Provides the representation data or trims data that is not useful for representations.
         '''
         assert isinstance(datas, Iterable), 'Invalid datas %s' % datas
         assert isinstance(proc, Processing), 'Invalid processing %s' % proc
+        assert isinstance(provide, bool), 'Invalid provide representation flag %s' % provide
         for data in datas:
-            assert isinstance(data, DataResource), 'Invalid data %s' % data
+            assert isinstance(data, DataAssemblageResource), 'Invalid data %s' % data
             assert isinstance(data.invoker, Invoker), 'Invalid data invoker %s' % data.invoker
+            
+            typ = data.invoker.output
+            if isinstance(typ, TypeModelProperty): typ = typ.type
+            if isinstance(typ, TypeReference): continue
+            # We need to exclude the references representations because this are automatically redirected to, @see: redirect
+            # processor from ally-core-http component.
+            
+            if not provide:
+                yield data
+                continue
             
             create = proc.ctx.create(objType=data.invoker.output)
             support = pushIn(proc.ctx.support(), support)
@@ -132,4 +144,5 @@ class ProvideRepresentation(HandlerBranchingProceed):
             assert isinstance(create.encoder, IEncoder), 'Invalid encoder %s' % create.encoder
             
             data.representation = create.encoder.represent(support)
+            
             yield data

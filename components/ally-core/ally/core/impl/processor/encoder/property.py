@@ -128,7 +128,10 @@ class EncoderProperty(IEncoder):
         assert isinstance(support, Support), 'Invalid support %s' % support
         assert isinstance(support.normalizer, Normalizer), 'Invalid normalizer %s' % support.normalizer
 
-        property = Property(support.normalizer.normalize(self.name))
+        if isinstance(self.valueType, Iter): clazz = list
+        elif isinstance(self.valueType, Dict): clazz = dict
+        else: clazz = str
+        property = Property(support.normalizer.normalize(self.name), clazz)
         
         if obj:
             assert isinstance(obj, Object), 'Invalid representation object to push in %s' % obj

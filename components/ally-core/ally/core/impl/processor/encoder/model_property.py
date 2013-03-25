@@ -15,6 +15,7 @@ from ally.container.ioc import injected
 from ally.core.spec.resources import Normalizer
 from ally.core.spec.transform.encoder import IAttributes, IEncoder
 from ally.core.spec.transform.render import IRender
+from ally.core.spec.transform.representation import Object
 from ally.design.cache import CacheWeak
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines, optional
@@ -23,7 +24,6 @@ from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain, Processing
 from ally.design.processor.handler import HandlerBranchingProceed
 from ally.exception import DevelError
-from ally.core.spec.transform.representation import Object
 
 # --------------------------------------------------------------------
 

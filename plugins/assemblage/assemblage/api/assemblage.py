@@ -14,48 +14,26 @@ from ally.api.type import Iter, List
 
 # --------------------------------------------------------------------
 
-@model
-class Replacer:
-    '''
-    Provides the replace for assemblage injected content.
-        Replacer -    contains the marked text used in the replaced content, this string can contain markers like
-                      {1}, {2} ... identifying captured blocks from the matcher pattern, also can contain markers
-                      like //1, //2 ... which represents blocks captured in the adjuster pattern.
-    '''
-    Replacer = str
-    
-@model
-class Adjuster(Replacer):
-    '''
-    The adjuster for injected content.
-        Pattern -    the regex pattern identifying what to be replaced with the Replacer in the content to be injected.
-    '''
-    Pattern = str
-
-@model(id='Id')  
+@model(id='Name')
 class Matcher:
     '''
-    The matcher provides content specific patterns for an assemblage.
-        Id -        unique identifier for the matcher.
-        Types -     the types of the content that this matcher represents.
-        Pattern -   the regex pattern used for identifying the assemblage in the main content.
-        Reference - the regex pattern used for extracting the URI where content can be fetched for injecting, this regex
-                    will be applied against the captured block from Pattern.
+    Provides the available names that can be injected in the main content.
+        Name -          the unique name of the matcher within assemblage.
+        Types -         the types of the content that this matcher represents.
+        Pattern -       the regex pattern used for identifying the assemblage in the main content.
+        Reference -     the regex pattern used for extracting the URI where content can be fetched for injecting, this regex
+                        will be applied against the captured block from Pattern.
+        AdjustPattern - the regex pattern identifying what to be replaced with the AdjustReplace in the content to be injected.
+        AdjustReplace - contains the marked text used in the replaced content, this string can contain markers like
+                        {1}, {2} ... identifying captured blocks from the matcher pattern, also can contain markers
+                        like //1, //2 ... which represents blocks captured in the adjuster pattern.
     '''
-    Id = int
+    Name = str
     Types = List(str)
     Pattern = str
     Reference = str
-
-@model(id='Id')
-class Target:
-    '''
-    The target provides the available names that can be injected in the main content.
-        Id -        unique identifier for the assemblage.
-        Name -      the name of the assemblage.
-    '''
-    Id = int
-    Name = str
+    AdjustPattern = List(str)
+    AdjustReplace = List(str)
 
 @model(id='Id')
 class Assemblage:
@@ -84,31 +62,8 @@ class IAssemblageService:
         '''
     
     @call
-    def getTargets(self, id: Assemblage.Id) -> Iter(Target):
+    def getMatchers(self, id: Assemblage.Id, name:Matcher.Name=None) -> Iter(Matcher):
         '''
-        Provides all targets that are available for the assemblage.
-        '''
-    
-    @call
-    def getChildTargets(self, id: Target.Id) -> Iter(Target):
-        '''
-        Provides the child targets for the provided target.
-        '''
-        
-    @call
-    def getMatchers(self, id: Target.Id) -> Iter(Matcher):
-        '''
-        Provides the matchers for the assemblage.
+        Provides all child matchers that are available for the assemblage and optionally the matcher name.
         '''
     
-    @call
-    def getAdjusters(self, id: Matcher.Id) -> Iter(Adjuster):
-        '''
-        Provides the adjusters for the content to be injected.
-        '''
-    
-    @call
-    def getFailedReplacers(self, id: Matcher.Id) -> Iter(Replacer):
-        '''
-        Provides the replacers to be used when a request has failed and there is no content to be injected.
-        '''

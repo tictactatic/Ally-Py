@@ -11,18 +11,19 @@ Provides the resource paths encoding.
 
 from ally.api.type import Iter, Type
 from ally.container.ioc import injected
+from ally.core.http.spec.transform.flags import ATTRIBUTE_REFERENCE
 from ally.core.spec.resources import Normalizer, Path
 from ally.core.spec.transform.encoder import IEncoder
+from ally.core.spec.transform.flags import DYNAMIC_NAME
 from ally.core.spec.transform.render import IRender
+from ally.core.spec.transform.representation import Collection, Attribute, \
+    Object
 from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessorProceed
 from ally.http.spec.server import IEncoderPath
 from ally.support.core.util_resources import pathLongName
 from collections import Iterable
-from ally.core.spec.transform.representation import Collection, Attribute, \
-    Object
-from ally.core.http.spec.transform.flags import ATTRIBUTE_REFERENCE
 
 # --------------------------------------------------------------------
 
@@ -54,18 +55,21 @@ class ResourcesEncode(HandlerProcessorProceed):
     '''
     Implementation for a handler that provides the resources encoding.
     '''
-    
+
+    nameResource = 'Resource'
+    # The name used for resource.
     nameResources = 'Resources'
     # The name used for resources paths.
     nameRef = 'href'
     # The reference attribute name.
     
     def __init__(self):
+        assert isinstance(self.nameResource, str), 'Invalid resource name %s' % self.nameResource
         assert isinstance(self.nameResources, str), 'Invalid resources name %s' % self.nameResources
         assert isinstance(self.nameRef, str), 'Invalid reference name %s' % self.nameRef
         super().__init__(support=Support)
         
-        self._encoder = EncoderResources(self.nameResources, self.nameRef)
+        self._encoder = EncoderResources(self.nameResource, self.nameResources, self.nameRef)
         
     def process(self, create:Create, **keyargs):
         '''
@@ -93,13 +97,15 @@ class EncoderResources(IEncoder):
     Implementation for a @see: IEncoder for resources.
     '''
     
-    def __init__(self, nameResources, nameRef):
+    def __init__(self, nameResource, nameResources, nameRef):
         '''
         Construct the resources encoder.
         '''
+        assert isinstance(nameResource, str), 'Invalid resource name %s' % nameResource
         assert isinstance(nameResources, str), 'Invalid resources name %s' % nameResources
         assert isinstance(nameRef, str), 'Invalid reference name %s' % nameRef
         
+        self.nameResource = nameResource
         self.nameResources = nameResources
         self.nameRef = nameRef
         
@@ -126,4 +132,5 @@ class EncoderResources(IEncoder):
         '''
         assert obj is None, 'No object expected for resources representation'
         attributes = {support.normalizer.normalize(self.nameRef): Attribute(ATTRIBUTE_REFERENCE)}
-        return Collection(None, Object(None, attributes=attributes))
+        obj = Object(support.normalizer.normalize(self.nameResource), DYNAMIC_NAME, attributes=attributes)
+        return Collection(support.normalizer.normalize(self.nameResources), obj, attributes=attributes)

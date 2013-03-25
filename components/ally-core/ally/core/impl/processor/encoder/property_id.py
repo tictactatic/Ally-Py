@@ -116,7 +116,7 @@ class EncoderPropertyId(IEncoder):
         assert isinstance(support, Support), 'Invalid support %s' % support
         assert isinstance(support.normalizer, Normalizer), 'Invalid normalizer %s' % support.normalizer
         
-        property = Property(support.normalizer.normalize(self.name))
+        property = Property(support.normalizer.normalize(self.name), str)
         
         if obj:
             assert isinstance(obj, Object), 'Invalid representation object to push in %s' % obj

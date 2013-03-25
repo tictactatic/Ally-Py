@@ -30,9 +30,9 @@ TO_HTTP_METHOD = {GET: HTTP_GET, INSERT: HTTP_POST}
                    
 # --------------------------------------------------------------------
 
-class DataResource(Context):
+class DataAssemblageResource(Context):
     '''
-    The data context.
+    The data assemblage context.
     '''
     # ---------------------------------------------------------------- Required
     id = requires(int)
@@ -44,7 +44,7 @@ class Obtain(Context):
     The data obtain context.
     '''
     # ---------------------------------------------------------------- Required
-    datas = requires(Iterable)
+    assemblages = requires(Iterable)
     required = requires(type)
     # ---------------------------------------------------------------- Defined
     objects = defines(Iterable, doc='''
@@ -68,14 +68,14 @@ class AssemblagesFromData(HandlerProcessor):
     The handler that provides the assemblages created based on data.
     '''
         
-    def process(self, chain, Data:DataResource, obtain:Obtain, support:Support, **keyargs):
+    def process(self, chain, DataAssemblage:DataAssemblageResource, obtain:Obtain, support:Support, **keyargs):
         '''
         @see: HandlerProcessor.process
         
         Populates the assemblages.
         '''
         assert isinstance(chain, Chain), 'Invalid chain %s' % chain
-        assert issubclass(Data, DataResource), 'Invalid data class %s' % Data
+        assert issubclass(DataAssemblage, DataAssemblageResource), 'Invalid data class %s' % DataAssemblage
         assert isinstance(obtain, Obtain), 'Invalid obtain request %s' % obtain
         assert isinstance(support, Support), 'Invalid support %s' % support
         
@@ -84,12 +84,12 @@ class AssemblagesFromData(HandlerProcessor):
             chain.proceed()
             return
         
-        assert isinstance(obtain.datas, Iterable), 'Invalid obtain datas %s' % obtain.datas
+        assert isinstance(obtain.assemblages, Iterable), 'Invalid obtain assemblages %s' % obtain.assemblages
         assert isinstance(support.encoderPath, IEncoderPath), 'Invalid encoder path %s' % support.encoderPath
     
-        assemblages = self.generate(obtain.datas, support.encoderPath)
-        if obtain.objects is None: obtain.objects = assemblages
-        else: obtain.objects = itertools.chain(obtain.objects, assemblages)
+        objects = self.generate(obtain.assemblages, support.encoderPath)
+        if obtain.objects is None: obtain.objects = objects
+        else: obtain.objects = itertools.chain(obtain.objects, objects)
         # We provided the assemblages so we stop the chain.
     
     # ----------------------------------------------------------------
@@ -103,7 +103,7 @@ class AssemblagesFromData(HandlerProcessor):
         
         replacer = lambda match, converterPath: '[^\\/]+'
         for data in datas:
-            assert isinstance(data, DataResource), 'Invalid data %s' % data
+            assert isinstance(data, DataAssemblageResource), 'Invalid data %s' % data
             assert isinstance(data.invoker, Invoker), 'Invalid invoker %s' % data.invoker
             
             assemblage = Assemblage()

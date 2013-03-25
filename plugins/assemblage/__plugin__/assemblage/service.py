@@ -12,6 +12,7 @@ Contains the services for assemblage.
 from ..plugin.registry import registerService
 from ally.container import support, ioc
 from ally.design.processor.assembly import Assembly
+from assemblage.core.impl.processor import matcher, matcher_patterns
 
 # --------------------------------------------------------------------
 
@@ -21,9 +22,18 @@ support.createEntitySetup('assemblage.impl.**.*')
 support.listenToEntities(SERVICES, listeners=registerService)
 support.loadAllEntities(SERVICES)
 
+provideMatcherPatterns = matchersFromData = support.notCreated  # Just to avoid errors
+support.createEntitySetup(matcher_patterns, matcher)
+    
 # --------------------------------------------------------------------
 
 @ioc.entity
-def assemblagesAssembly() -> Assembly:
+def assemblyAssemblages() -> Assembly:
     ''' Assembly used for getting the assemblages'''
     return Assembly('Assemblages')
+
+# --------------------------------------------------------------------
+
+@ioc.before(assemblyAssemblages)
+def updateAssemblyAssemblages():
+    assemblyAssemblages().add(provideMatcherPatterns(), matchersFromData())

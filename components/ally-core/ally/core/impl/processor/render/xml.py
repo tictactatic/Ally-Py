@@ -11,14 +11,16 @@ Provides the XML encoder processor handler.
 
 from .base import RenderBaseHandler, PatternBaseHandler
 from ally.container.ioc import injected
+from ally.core.spec.transform.flags import DYNAMIC_NAME
 from ally.core.spec.transform.render import IRender
+from ally.core.spec.transform.representation import Object, Property
 from ally.support.util import immut
 from ally.support.util_io import IOutputStream
 from codecs import getwriter
 from collections import deque
 from xml.sax.saxutils import XMLGenerator
-from ally.core.spec.transform.representation import Object, Collection, Property
 import logging
+import re
 
 # --------------------------------------------------------------------
 
@@ -67,31 +69,42 @@ class PatternXMLHandler(PatternBaseHandler):
         
         if isinstance(obj, Property):
             assert isinstance(obj, Property)
-        
-        
-        
-        
-        if isinstance(obj, Collection):
-            assert isinstance(obj, Collection)
-            obj = obj.item
+            if DYNAMIC_NAME in obj.flags: name = '\w+'
+            else: name = re.escape(obj.name)
             
-        matchers = {}
-        assert isinstance(obj, Object), 'Invalid representation object %s' % obj
-        for prop in obj.properties:
-            if isinstance(prop, Object):
-                assert isinstance(prop, Object)
-                name = prop.name
+            if obj.clazz == list: inner = '(?:\s*<value\s*>[^<]*<value\s*>\s*)*'
+            elif obj.clazz == dict:
+                inner = '(?:(?:\s*<key\s*>[^<]*<key\s*>\s*)*|(?:\s*<value\s*>[^<]*<value\s*>\s*)*)'
+                inner = '(?:\s*<entry\s*>%s<entry\s*>\s*)*' % inner
             else:
-                assert isinstance(prop, Property), 'Invalid property %s' % prop
-                name = prop.name
-            if not name:
-                log.info('Dynamic property found in %s, cannot handle it', obj.name)
-                continue
-            assert isinstance(name, str), 'Invalid name %s' % name
+                assert obj.clazz == str, 'Invalid property class %s' % obj.clazz
+                inner = '[^<]*'
             
-                
-        return matchers
+            if injected: return '(<%s\s*)>%s(</%s\s*>)' % (name, inner, name)
+            return '<%s\s*>%s</%s\s*>' % (name, inner, name)
         
+        if isinstance(obj, Object):
+            assert isinstance(obj, Object)
+            if DYNAMIC_NAME in obj.flags: name = '\w+'
+            else: name = re.escape(obj.name)
+            
+            if obj.attributes:
+                attrs = ['(?:%s\s*\=\s*(?:(?:"[^"\\\]*(?:\\\.[^"\\\]*)*)|(?:\'[^\'\\\]*(?:\\\.[^\'\\\]*)*))*)' % attr
+                         for attr in obj.attributes]
+                if len(attrs) > 1: attrs = '\s+(?:%s)*' % '|'.join(attrs)
+                else: attrs = '\s+%s' % attrs[0]
+            else: attrs = '\s*'
+            
+            if obj.properties:
+                props = '\s*'.join(self.matcher(prop, False) for prop in obj.properties)
+                props = '\s*%s\s*' % props
+            else: props = '\s*'
+                    
+            if injected: return '(<%s%s)>%s(</%s\s*>)' % (name, attrs, props, name)
+            return '<%s%s>%s</%s\s*>' % (name, attrs, props, name)
+            
+        raise ValueError('Cannot create a matcher for object %s' % obj)
+            
     def capture(self, obj):
         '''
         @see: PatternBaseHandler.capture
@@ -132,21 +145,21 @@ class RenderXML(IRender):
         if isinstance(value, list):
             for item in value:
                 assert isinstance(item, str), 'Invalid list item %s' % item
-                self.xml.startElement('Value', immut())
+                self.xml.startElement('value', immut())
                 self.xml.characters(item)
-                self.xml.endElement('Value')
+                self.xml.endElement('value')
         elif isinstance(value, dict):
             for key, item in value.items():
                 assert isinstance(key, str), 'Invalid dictionary key %s' % key
                 assert isinstance(item, str), 'Invalid dictionary value %s' % item
-                self.xml.startElement('Entry', immut())
-                self.xml.startElement('Key', immut())
+                self.xml.startElement('entry', immut())
+                self.xml.startElement('key', immut())
                 self.xml.characters(key)
-                self.xml.endElement('Key')
-                self.xml.startElement('Value', immut())
+                self.xml.endElement('key')
+                self.xml.startElement('value', immut())
                 self.xml.characters(item)
-                self.xml.endElement('Value')
-                self.xml.endElement('Entry')
+                self.xml.endElement('value')
+                self.xml.endElement('entry')
         else:
             self.xml.characters(value)
         self.xml.endElement(name)

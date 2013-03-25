@@ -109,6 +109,7 @@ class AttributesModelPath(AttributesJoiner):
         assert Support.encoderPath in support, 'No path encoder available in %s' % support
         assert isinstance(support.encoderPath, IEncoderPath), 'Invalid path encoder %s' % support.encoderPath
         
+        if not support.pathModel.isValid(): return
         return {support.normalizer.normalize(self.nameRef): support.encoderPath.encode(support.pathModel)}
     
     def representIntern(self, support):

@@ -20,7 +20,7 @@ from ally.design.processor.attribute import requires, defines, definesIf
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessorProceed
 from ally.support.core.util_resources import findGetModel, findGetAllAccessible, \
-    pathLongName, findEntryModel
+    pathLongName, findEntryModel, findEntries
 from collections import OrderedDict
 
 # --------------------------------------------------------------------
@@ -124,7 +124,7 @@ class PathSupport(HandlerProcessorProceed):
         support.pathModel = findGetModel(support.path, modelType)
         
         if support.pathModel:
-            pathMain = support.pathModel
+            pathAccesible = pathMain = support.pathModel
 
             if propType:
                 assert isinstance(propType, TypeModelProperty)
@@ -141,26 +141,39 @@ class PathSupport(HandlerProcessorProceed):
                 return
         else:
             pathMain = findEntryModel(support.path, modelType)
-            if not pathMain: return  # We cannot get any entry to have as the main path.
-            
-            if inCollection: support.updatePaths[modelType] = pathMain
+            if pathMain:
+                pathAccesible = pathMain
+                if inCollection: support.updatePaths[modelType] = pathMain
+            else:
+                pathAccesible = support.path
         
-        assert isinstance(modelType, TypeModel)
-        assert isinstance(modelType.container, Model)
-        for valueType in modelType.container.properties.values():
-            if isinstance(valueType, TypeModel):
-                assert isinstance(valueType, TypeModel)
-                pathProp = findGetModel(pathMain, valueType)
-                if pathProp: support.pathsProperties[valueType.propertyTypeId()] = pathProp
+        if pathMain:
+            assert isinstance(modelType, TypeModel)
+            assert isinstance(modelType.container, Model)
+            for valueType in modelType.container.properties.values():
+                if isinstance(valueType, TypeModel):
+                    assert isinstance(valueType, TypeModel)
+                    pathProp = findGetModel(pathMain, valueType)
+                    if pathProp: support.pathsProperties[valueType.propertyTypeId()] = pathProp
                 
         # Make sure when placing the accessible paths that there isn't already an accessible path
         # that already returns the inherited model see the example for MetaData and ImageData in relation
         # with MetaInfo and ImageInfo
-        accessible = findGetAllAccessible(pathMain)
+        accessible = findGetAllAccessible(pathAccesible)
         # These paths will get updated in the encode model when the data model path is updated
         # because they are extended from the base path.
+        entries = []
+        for entryPath in findEntries(pathAccesible, modelType, True):
+            assert isinstance(entryPath, Path)
+            # We need to make sure that we don't add the main path to the accessible paths.
+            if not pathMain or entryPath.node != pathMain.node: entries.append(entryPath)
+        if entries:
+            # If we have paths that are available based on the model type we add those to.
+            accessible.extend(entries)
+            for entryPath in entries: support.updatePaths[modelType] = entryPath
+            
         for parentType in modelType.parents():
-            parentPath = findGetModel(pathMain, parentType)
+            parentPath = findGetModel(pathAccesible, parentType)
             if parentPath:
                 support.updatePaths[parentType] = parentPath
                 accessible.extend(findGetAllAccessible(parentPath))

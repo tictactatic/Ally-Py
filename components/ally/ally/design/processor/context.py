@@ -42,7 +42,6 @@ def definerContext(name, bases, namespace):
         if not isinstance(value, IAttribute):
             raise TypeError('Invalid attribute \'%s\' for name \'%s\'' % (value, key))
         attributes[key] = value
-    for key in attributes: namespace.pop(key)
     
     # Adding also the parent attributes.
     for base in bases:

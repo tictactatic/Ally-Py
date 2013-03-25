@@ -11,7 +11,7 @@ Provides the accessible paths for a model.
 
 from ally.container.ioc import injected
 from ally.core.http.spec.transform.flags import ATTRIBUTE_REFERENCE
-from ally.core.spec.resources import Normalizer
+from ally.core.spec.resources import Normalizer, Path
 from ally.core.spec.transform.encoder import IEncoder
 from ally.core.spec.transform.render import IRender
 from ally.core.spec.transform.representation import Attribute, Object
@@ -101,6 +101,8 @@ class EncoderAccessiblePath(IEncoder):
         assert isinstance(support.encoderPath, IEncoderPath), 'Invalid path encoder %s' % support.encoderPath
         
         for name, path in support.pathsAccesible.items():
+            assert isinstance(path, Path)
+            if not path.isValid(): continue
             attributes = {support.normalizer.normalize(self.nameRef): support.encoderPath.encode(path)}
             render.beginObject(support.normalizer.normalize(name), attributes).end()
 

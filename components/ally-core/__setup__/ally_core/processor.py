@@ -10,7 +10,7 @@ Provides the configurations for the processors used in handling the request.
 '''
 
 from .encode import assemblyEncode
-from .parsing_rendering import renderingAssembly, assemblyParsing
+from .parsing_rendering import assemblyRendering, assemblyParsing
 from ally.container import ioc
 from ally.core.impl.processor.arguments import ArgumentsPrepareHandler, \
     ArgumentsBuildHandler
@@ -61,7 +61,7 @@ def argumentsPrepare() -> Handler: return ArgumentsPrepareHandler()
 def rendering() -> Handler:
     b = RenderingHandler()
     b.charSetDefault = default_characterset()
-    b.renderingAssembly = renderingAssembly()
+    b.renderingAssembly = assemblyRendering()
     return b
 
 @ioc.entity

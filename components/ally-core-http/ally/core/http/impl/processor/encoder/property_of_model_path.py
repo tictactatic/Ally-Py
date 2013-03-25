@@ -118,6 +118,7 @@ class AttributesPath(AttributesJoiner):
         if not path: return  # No path to construct attributes for.
         assert isinstance(path, Path), 'Invalid path %s' % path
         path.update(obj, self.propertyType)
+        if not path.isValid(): return
         return {support.normalizer.normalize(self.nameRef): support.encoderPath.encode(path)}
     
     def representIntern(self, support):

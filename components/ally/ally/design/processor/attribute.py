@@ -102,11 +102,11 @@ class Specification:
         Construct the attribute specification.
         
         @param status: integer
-            The status of the attribute.
+            The status of the attribute specification.
         @param types: Iterable(class)
-            The type(s) for the attribute.
+            The type(s) for the attribute specification.
         @param doc: string|None
-            The documentation associated with the attribute.
+            The documentation associated with the attribute specification.
         @param defined: Iterable(class)|None
             The defined classes.
         '''
@@ -133,84 +133,6 @@ class Specification:
         if self.status & OPTIONAL: status.append('OPTIONAL')
         
         return ''.join(('|'.join(status), '[', ','.join(t.__name__ for t in self.types), ']'))
-
-class Definition:
-    '''
-    Descriptor used just to provide the definition.
-    '''
-    __slots__ = ('__objclass__', '__name__')
-
-    def __init__(self, clazz, name, types):
-        '''
-        Construct the definition.
-        
-        @param clazz: class
-            The class of the definition.
-        @param name: string
-            The name of the attribute definition.
-        '''
-        assert isinstance(clazz, ContextMetaClass), 'Invalid class %s' % clazz
-        assert isinstance(name, str), 'Invalid name %s' % name
-        self.__objclass__ = clazz
-        self.__name__ = name
-
-    def __get__(self, obj, owner=None):
-        '''
-        Descriptor get.
-        '''
-        if obj is not None: raise TypeError('Operation not allowed')
-        assert owner is None or owner == self.__objclass__, 'Invalid owner class %s expected %s' % (owner, self.__objclass__) 
-        return self
-
-    def __set__(self, obj, value):
-        '''
-        Descriptor set.
-        '''
-        raise TypeError('Operation not allowed')
-        
-class Descriptor:
-    '''
-    Descriptor used by the attribute in order to validate values.
-    '''
-    __slots__ = ('descriptor', 'types')
-
-    def __init__(self, clazz, name, types):
-        '''
-        Construct the property.
-        
-        @param clazz: class
-            The class of the descriptor.
-        @param name: string
-            The name of the attribute descriptor.
-        @param types: tuple(class)
-            The types to validate the values for.
-        '''
-        assert isclass(clazz), 'Invalid class %s' % clazz
-        assert hasattr(clazz, name), 'Invalid class %s has no descriptor for %s' % (clazz, name)
-        assert isinstance(types, tuple), 'Invalid types %s' % types
-        assert types, 'At least a type is required'
-        if __debug__:
-            for typeClazz in types: assert isclass(typeClazz), 'Invalid type class %s' % typeClazz
-
-        self.types = types
-        self.descriptor = getattr(clazz, name)
-        assert isinstance(self.descriptor, IGet), 'Invalid descriptor %s' % self.descriptor
-        assert isinstance(self.descriptor, ISet), 'Invalid descriptor %s' % self.descriptor
-
-    def __get__(self, obj, owner=None):
-        '''
-        Descriptor get.
-        '''
-        if obj is None: return self
-        try: return self.descriptor.__get__(obj, owner)
-        except AttributeError: return None
-
-    def __set__(self, obj, value):
-        '''
-        Descriptor set.
-        '''
-        assert value is None or isinstance(value, self.types), 'Invalid value \'%s\' for %s' % (value, self.types)
-        self.descriptor.__set__(obj, value)
 
 class Resolver(IResolver):
     '''
@@ -258,7 +180,7 @@ class Resolver(IResolver):
                 spec = self.specifications.get(name)
                 if spec: specifications[name] = spec
                     
-        return Resolver(specifications)
+        return self.__class__(specifications)
             
     def merge(self, other, isFirst=True):
         '''
@@ -269,23 +191,12 @@ class Resolver(IResolver):
         
         if self is other: return self
         
-        if not isinstance(other, Resolver):
+        if not issubclass(self.__class__, other.__class__):
             if isFirst: return other.merge(self, False)
             raise ResolverError('Cannot merge %s with %s' % (self, other))
         assert isinstance(other, Resolver), 'Invalid other resolver %s' % other
         
-        specifications = dict(self.specifications)
-        for name, spec in other.specifications.items():
-            ownSpec = specifications.get(name)
-            if ownSpec is None: specifications[name] = spec
-            else:
-                try: specifications[name] = self.mergeSpecifications(ownSpec, spec)
-                except AttrError:
-                    raise AttrError('Cannot merge attribute \'%s\', from:%s\n, with:%s' % 
-                                    (name, ''.join(locationStack(clazz) for clazz in ownSpec.usedIn),
-                                     ''.join(locationStack(clazz) for clazz in spec.usedIn)))
-        
-        return Resolver(specifications)
+        return self.__class__(self.mergeSpecifications(self.specifications, other.specifications))
     
     def solve(self, other):
         '''
@@ -294,18 +205,10 @@ class Resolver(IResolver):
         assert isinstance(other, IResolver), 'Invalid other resolver %s' % other
         if self is other: return self
         
-        if not other.__class__ == Resolver: return other.solve(self)
+        if not issubclass(self.__class__, other.__class__): return other.solve(self)
         assert isinstance(other, Resolver), 'Invalid other resolver %s' % other
         
-        specifications = dict(self.specifications)
-        for name, spec in other.specifications.items():
-            assert isinstance(spec, Specification), 'Invalid specification %s' % spec
-            ownSpec = specifications.get(name)
-            if ownSpec is None: specifications[name] = spec
-            elif ownSpec.status & DEFINED: specifications[name] = self.mergeSpecifications(ownSpec, spec)
-            else: specifications[name] = self.mergeSpecifications(spec, ownSpec)
-        
-        return Resolver(specifications)
+        return self.__class__(self.solveSpecifications(self.specifications, other.specifications))
     
     def list(self, *flags):
         '''
@@ -353,14 +256,19 @@ class Resolver(IResolver):
         '''
         flags = set(flags)
         
+        attributes = {}
         try: flags.remove(CREATE_DEFINITION)
-        except KeyError: pass
-        else: return self.createDefinitions(self.specifications)
-        return self.createDescriptors(self.specifications)
+        except KeyError:
+            attributes = self.createDescriptors(self.specifications)
+        else:
+            attributes = self.createDefinitions(self.specifications)
+
+        assert not flags, 'Unknown flags: %s' % ', '.join(flags)
+        return attributes
                 
     # ----------------------------------------------------------------
     
-    def mergeSpecifications(self, mergeSpec, withSpec, SpecificationFactory=Specification):
+    def mergeSpecification(self, mergeSpec, withSpec, **keyargs):
         '''
         Merges the provided specifications.
         
@@ -368,14 +276,13 @@ class Resolver(IResolver):
             The specification to be merged.
         @param withSpec: Specification
             The specification to merge with.
-        @param SpecificationFactory: callable(status, types, doc, defined) -> Specification
-            The factory which to create merged specification.
+        @param keyargs: key arguments
+            Additional key arguments to be used in constructing the merged specification.
         @return: Specification
             The merged specification.
         '''
         assert isinstance(mergeSpec, Specification), 'Invalid merge specification %s' % mergeSpec
         assert isinstance(withSpec, Specification), 'Invalid with specification %s' % withSpec
-        assert callable(SpecificationFactory), 'Invalid specification factory %s' % SpecificationFactory
         
         if mergeSpec is withSpec: return mergeSpec
 
@@ -406,27 +313,82 @@ class Resolver(IResolver):
                 if mergeSpec.status & OPTIONAL and withSpec.status & OPTIONAL: status |= OPTIONAL
             else:
                 types = set(withSpec.types)
-                
+            
+        keyargs['status'] = status
+        
         defined = set(mergeSpec.defined)
         defined.update(withSpec.defined)
-        
-        types, defined = reduce(types), reduce(defined)
+        defined, types = reduce(defined), reduce(types)
         if defined != types and not types.issuperset(defined):
             raise ResolverError('Invalid types %s and defined types %s, they cannot be joined, for %s, and %s' % 
                                 (', '.join('\'%s\'' % typ.__name__ for typ in types),
                                  ', '.join('\'%s\'' % typ.__name__ for typ in defined), mergeSpec, withSpec))
         
+        keyargs['types'] = types
+        keyargs['defined'] = defined
+        
         docs = []
         if mergeSpec.doc is not None: docs.append(mergeSpec.doc)
         if withSpec.doc is not None: docs.append(withSpec.doc)
-        doc = '\n'.join(docs) if docs else None
+        keyargs['doc'] = '\n'.join(docs) if docs else None
         
-        spec = SpecificationFactory(status, types, doc, defined)
+        spec = mergeSpec.__class__(**keyargs)
         assert isinstance(spec, Specification), 'Invalid specification %s' % spec
         spec.usedIn.update(mergeSpec.usedIn)
         spec.usedIn.update(withSpec.usedIn)
         
         return spec
+    
+    def mergeSpecifications(self, mergeSpecs, withSpecs):
+        '''
+        Merges the provided specifications.
+        
+        @param mergeSpecs: dictionary{string: Specification}
+            The specifications to be merged.
+        @param withSpecs: dictionary{string: Specification}
+            The specifications to merge with.
+        @return: dictionary{string: Specification}
+            The merged specifications.
+        '''
+        assert isinstance(mergeSpecs, dict), 'Invalid specifications %s' % mergeSpecs
+        assert isinstance(withSpecs, dict), 'Invalid specifications %s' % withSpecs
+        
+        specifications = dict(mergeSpecs)
+        for name, spec in withSpecs.items():
+            ownSpec = specifications.get(name)
+            if ownSpec is None: specifications[name] = spec
+            else:
+                try: specifications[name] = self.mergeSpecification(ownSpec, spec)
+                except AttrError:
+                    raise AttrError('Cannot merge attribute \'%s\', from:%s\n, with:%s' % 
+                                    (name, ''.join(locationStack(clazz) for clazz in ownSpec.usedIn),
+                                     ''.join(locationStack(clazz) for clazz in spec.usedIn)))
+        
+        return specifications
+    
+    def solveSpecifications(self, mergeSpecs, withSpecs):
+        '''
+        Solve the provided specifications.
+        
+        @param mergeSpecs: dictionary{string: Specification}
+            The specifications to be solved.
+        @param withSpecs: dictionary{string: Specification}
+            The specifications to solve with.
+        @return: dictionary{string: Specification}
+            The solved specifications.
+        '''
+        assert isinstance(mergeSpecs, dict), 'Invalid specifications %s' % mergeSpecs
+        assert isinstance(withSpecs, dict), 'Invalid specifications %s' % withSpecs
+        
+        specifications = dict(self.specifications)
+        for name, spec in withSpecs.items():
+            assert isinstance(spec, Specification), 'Invalid specification %s' % spec
+            ownSpec = specifications.get(name)
+            if ownSpec is None: specifications[name] = spec
+            elif ownSpec.status & DEFINED: specifications[name] = self.mergeSpecification(ownSpec, spec)
+            else: specifications[name] = self.mergeSpecification(spec, ownSpec)
+        
+        return specifications
     
     def createDefinitions(self, specifications):
         '''
@@ -464,22 +426,9 @@ class Resolver(IResolver):
                 raise AttrError('Cannot generate attribute %s=%s, used in:%s' % 
                                 (name, spec, ''.join(locationStack(clazz) for clazz in spec.usedIn)))
             if spec.status & OPTIONAL: continue  # If is optional then no need to create it
-            specification = self.descriptorSpecification(spec)
-            attributes[name] = Attribute(specification, Descriptor=Descriptor)
+            attributes[name] = AttributeObject(spec)
         
         return attributes
-    
-    def descriptorSpecification(self, specification):
-        '''
-        Creates a specification used as for a descriptor.
-        
-        @param specification: Specification
-            The specification to create the descriptor specification based on.
-        @return: Specification
-            The specification to used on the descriptor attribute.
-        '''
-        assert isinstance(specification, Specification), 'Invalid specification %s' % specification
-        return Specification(specification.status, specification.types, specification.doc)
     
     def __str__(self):
         if not self.specifications: return '%s empty' % self.__class__.__name__
@@ -488,11 +437,11 @@ class Resolver(IResolver):
 
 class Attribute(IAttribute):
     '''
-    Implementation for a @see: IAttribute that manages a attributes by status.
+    Base attribute implementation for a @see: IAttribute that manages a attributes by status.
     '''
-    __slots__ = ('specification', 'Resolver', 'Descriptor', 'clazz', 'name')
+    __slots__ = ('specification', 'Resolver', 'clazz', 'name')
 
-    def __init__(self, specification, Resolver=Resolver, Descriptor=Definition):
+    def __init__(self, specification, Resolver=Resolver):
         '''
         Construct the attribute.
         
@@ -500,17 +449,12 @@ class Attribute(IAttribute):
             The attribute specification.
         @param Resolver: class
             The resolver class for the attribute.
-        @param Descriptor: callable(class, string, tuple(class)) -> object
-            The descriptor factory to use in creating the descriptors for the place command.
-            The factory receives the class the attribute name and the types.
         '''
         assert isinstance(specification, Specification), 'Invalid specification %s' % specification
         assert isclass(Resolver), 'Invalid resolver class %s' % Resolver
-        assert callable(Descriptor), 'Invalid descriptor factory %s' % Descriptor
         
         self.specification = specification
         self.Resolver = Resolver
-        self.Descriptor = Descriptor
         
         self.clazz = None
         self.name = None
@@ -520,7 +464,7 @@ class Attribute(IAttribute):
         @see: IAttribute.resolver
         '''
         return self.Resolver
-    
+
     def place(self, clazz, name):
         '''
         @see: IAttribute.place
@@ -528,8 +472,6 @@ class Attribute(IAttribute):
         if self.clazz is None:
             assert isinstance(clazz, ContextMetaClass), 'Invalid class %s' % clazz
             assert isinstance(name, str), 'Invalid name %s' % name
-            
-            setattr(clazz, name, self.Descriptor(clazz, name, self.specification.types))
             self.clazz, self.name = clazz, name
             self.specification.usedIn[clazz] = self.specification.status
         elif not issubclass(clazz, self.clazz) or self.name != name:
@@ -581,11 +523,79 @@ class Attribute(IAttribute):
         
         return True
     
+    # ----------------------------------------------------------------
+    
+    def __get__(self, obj, owner=None):
+        '''
+        Descriptor get.
+        '''
+        if obj is not None: raise TypeError('Operation not allowed')
+        assert self.clazz, 'Attribute %s, is not placed in a class' % self
+        assert owner is None or owner == self.clazz, 'Invalid owner class %s expected %s' % (owner, self.clazz) 
+        return self
+
+    def __set__(self, obj, value):
+        '''
+        Descriptor set.
+        '''
+        raise TypeError('Operation not allowed')
+    
     def __str__(self):
         st = ''.join((self.__class__.__name__, '.', str(self.specification)))
         if self.clazz:
             return ''.join((st, ' in:', locationStack(self.clazz), ' as attribute ', self.name))
         return ''.join((st, ' unplaced'))
+
+class AttributeObject(Attribute):
+    '''
+    Object descriptor implementation for a @see: Attribute.
+    '''
+    __slots__ = ('descriptor',)
+    
+    def __init__(self, specification, Resolver=Resolver):
+        '''
+        @see: Attribute.__init__
+        '''
+        super().__init__(specification, Resolver)
+        self.descriptor = None
+
+    def place(self, clazz, name):
+        '''
+        @see: IAttribute.place
+        '''
+        if self.clazz is None:
+            assert isinstance(clazz, ContextMetaClass), 'Invalid class %s' % clazz
+            assert isinstance(name, str), 'Invalid name %s' % name
+            
+            if __debug__:
+                assert hasattr(clazz, name), 'Invalid class %s has no descriptor for %s' % (clazz, name)
+                self.descriptor = getattr(clazz, name)
+                assert isinstance(self.descriptor, IGet), 'Invalid descriptor %s' % self.descriptor
+                assert isinstance(self.descriptor, ISet), 'Invalid descriptor %s' % self.descriptor
+                setattr(clazz, name, self)
+            self.clazz, self.name = clazz, name
+        elif not issubclass(clazz, self.clazz) or self.name != name:
+            raise AttrError('%s\n, is already placed in:%s as attribute %s' % (self, locationStack(self.clazz), self.name))
+        
+    # ----------------------------------------------------------------
+    
+    def __get__(self, obj, owner=None):
+        '''
+        @see: Attribute.__get__
+        '''
+        if obj is None: return self
+        assert self.descriptor, 'Attribute %s, is not placed in a class' % self
+        try: return self.descriptor.__get__(obj, owner)
+        except AttributeError: return None
+
+    def __set__(self, obj, value):
+        '''
+        @see: Attribute.__set__
+        '''
+        assert value is None or isinstance(value, self.specification.types), \
+        'Invalid value \'%s\' for %s' % (value, self.specification.types)
+        assert self.descriptor, 'Attribute %s, is not placed in a class' % self
+        self.descriptor.__set__(obj, value)
 
 # --------------------------------------------------------------------
 
