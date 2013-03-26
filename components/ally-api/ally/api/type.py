@@ -171,7 +171,7 @@ class TypeClass(Type):
         '''
         @see: Type.__hash__
         '''
-        return hash(self.clazz)
+        return hash(self.clazz.__name__)
 
     def __eq__(self, other):
         '''

@@ -107,9 +107,9 @@ class Support(Context):
     '''
     # ---------------------------------------------------------------- Defined
     patterns = defines(list, doc='''
-    @rtype: list[tuple(IPattern, set(string))]
-    The list of tuples that have on the first position the pattern support and on the second position a set containing
-    the mime types that represent the pattern.
+    @rtype: list[tuple(string, list[string], IPattern)]
+    The list of tuples that have on the first position the pattern identifier, on the second position a list containing
+    the mime types that represent the pattern, and on the last position the pattern support.
     ''')
 
 # --------------------------------------------------------------------
@@ -120,13 +120,18 @@ class PatternBaseHandler(HandlerProcessorProceed, IPattern):
     Provides the text base pattern handler.
     '''
 
+    identifier = str
+    # The identifier for the represented pattern.
     contentTypes = dict
     # The dictionary{string:string} containing as a key the content types specific for this encoder and as a value
     # the content type to set on the response, if None will use the key for the content type response. 
 
     def __init__(self):
+        assert isinstance(self.identifier, str), 'Invalid identifier %s' % self.identifier
         assert isinstance(self.contentTypes, dict), 'Invalid content types %s' % self.contentTypes
         super().__init__()
+        
+        self.types = list({value or key for key, value in self.contentTypes.items()})
         
     def process(self, support:Support, **keyargs):
         '''
@@ -137,4 +142,4 @@ class PatternBaseHandler(HandlerProcessorProceed, IPattern):
         assert isinstance(support, Support), 'Invalid support %s' % support
         
         if support.patterns is None: support.patterns = []
-        support.patterns.append((self, {value or key for key, value in self.contentTypes.items()}))
+        support.patterns.append((self.identifier, self.types, self))

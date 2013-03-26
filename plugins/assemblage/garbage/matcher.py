@@ -6,12 +6,15 @@ Created on Mar 22, 2013
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
 
-Provides the matcher data based on representation objects.
+Provides the matchers based on representation objects.
 '''
 
 from ally.container.ioc import injected
 from ally.container.support import setup
-from ally.core.spec.transform.representation import Object, Collection
+from ally.core.http.spec.transform.flags import ATTRIBUTE_REFERENCE
+from ally.core.spec.transform.render import IPattern
+from ally.core.spec.transform.representation import Object, Collection, \
+    Attribute, Property
 from ally.design.processor.attribute import defines, requires, optional
 from ally.design.processor.context import Context
 from ally.design.processor.handler import Handler, HandlerProcessorProceed
@@ -29,77 +32,70 @@ class DataAssemblage(Context):
     '''
     The data assemblage context.
     '''
-    # ---------------------------------------------------------------- Defined
-    matchers = defines(Iterable, doc='''
-    @rtype: Iterable(DataMatcher)
-    The matcher objects representations.
-    ''')
     # ---------------------------------------------------------------- Required
     representation = requires(object)
-
-class DataMatcherRepr(Context):
-    '''
-    The data matcher context.
-    '''
-    # ---------------------------------------------------------------- Defined
-    models = defines(list, doc='''
-    @rtype: list[Matcher]
-    The matchers models of this mathcer.
-    ''')
-    representation = defines(object, doc='''
-    @rtype: object
-    The representation object for the target.
-    ''')
 
 class Obtain(Context):
     '''
     The data obtain context.
     '''
+    # ---------------------------------------------------------------- Defined
+    objects = defines(Iterable, doc='''
+    @rtype: Iterable(Assemblage)
+    The generated matchers.
+    ''')
     # ---------------------------------------------------------------- Optional
     matcherName = optional(str)
     # ---------------------------------------------------------------- Required
     required = requires(type)
     assemblages = requires(Iterable)
-    
+
+class Support(Context):
+    '''
+    The support context.
+    '''
+    # ---------------------------------------------------------------- Defined
+    pattern = requires(IPattern)
+
 # --------------------------------------------------------------------
 
 @injected
 @setup(Handler, name='provideMatchers')
 class ProvideMatchers(HandlerProcessorProceed):
     '''
-    Provides the matchers data.
+    Provides the matchers.
     '''
     
     def __init__(self):
         super().__init__(DataAssemblage=DataAssemblage)
     
-    def process(self, DataMatcher:DataMatcherRepr, obtain:Obtain, **keyargs):
+    def process(self, obtain:Obtain, support:Support, **keyargs):
         '''
         @see: HandlerProcessorProceed.process
         
-        Provides the matchers data
+        Provides the matchers.
         '''
-        assert issubclass(DataMatcher, DataMatcherRepr), 'Invalid data class %s' % DataMatcher
         assert isinstance(obtain, Obtain), 'Invalid obtain request %s' % obtain
+        assert isinstance(support, Support), 'Invalid support %s' % support
         assert isinstance(obtain.assemblages, Iterable), 'Invalid assemblages %s' % obtain.assemblages
         
         if not obtain.required == Matcher: return  # Only the matcher needs representations 
+        assert isinstance(support.pattern, IPattern), 'Invalid support pattern %s' % support.pattern
+        
         if Obtain.matcherName in obtain: name = obtain.matcherName
         else: name = None
         
-        obtain.assemblages = self.processAssemblages(obtain.assemblages, DataMatcher, name)
+        obtain.objects = self.processMatchers(obtain.assemblages, name, support.pattern)
         
     # ----------------------------------------------------------------
         
-    def processAssemblages(self, datas, DataMatcher, name):
+    def processMatchers(self, datas, name, pattern):
         '''
-        Provides the matchers data.
+        Process the assemblages matchers.
         '''
         assert isinstance(datas, Iterable), 'Invalid datas %s' % datas
         for data in datas:
             assert isinstance(data, DataAssemblage), 'Invalid data %s' % data
-            
-            if data.matchers is None: data.matchers = []
             
             obj = data.representation
             if name:
@@ -116,28 +112,65 @@ class ProvideMatchers(HandlerProcessorProceed):
                             break
                     else: obj = None
             
-            if not obj or not self.processMatchers(obj, DataMatcher, data.matchers): continue
-            yield data
+            if not obj: continue
+            
+            for model in self.processMatchersForObject(obj, pattern): yield model
     
-    def processMatchers(self, obj, DataMatcher, matchers):
+    def processMatchersForObject(self, obj, pattern):
         '''
-        Process the data matchers for the provided object.
+        Process the matchers for the provided object.
         '''
-        assert isinstance(matchers, list), 'Invalid matchers %s' % matchers
         if isinstance(obj, Collection):
             assert isinstance(obj, Collection)
             assert isinstance(obj.item, Object), 'Invalid object %s' % obj
             
             model = Matcher()
             model.Name = obj.item.name
-            matchers.append(DataMatcher(models=[model], representation=obj.item))
-            return True
+            self.processPatterns(model, obj.item, pattern)
+            yield model
+            
         elif isinstance(obj, Object):
             assert isinstance(obj, Object)
-            for obj in obj.properties:
+            for objProp in obj.properties:
+                assert isinstance(objProp, (Object, Property)), 'Invalid object property %s' % objProp
+                
                 model = Matcher()
-                model.Name = obj.name
-                matchers.append(DataMatcher(models=[model], representation=obj))
-            return True
+                model.Name = objProp.name
+                self.processPatterns(model, objProp, pattern)
+                yield model
+            
+        else:
+            log.error('Cannot provide targets for representation %s', obj)
         
-        log.error('Cannot provide targets for representation %s', obj)
+    def processPatterns(self, model, obj, pattern):
+        '''
+        Process the matcher for the provided representation object.
+        '''
+        assert isinstance(model, Matcher), 'Invalid matcher model %s' % model
+        assert isinstance(obj, (Collection, Object, Property)), 'Invalid object %s' % obj
+        assert isinstance(pattern, IPattern), 'Invalid pattern %s' % pattern
+        
+        injected = self.hasReference(obj)
+        if isinstance(obj, Object) and not injected: return
+        # If no reference available then it makes no sense to capture the object
+        
+        model.Pattern = pattern.matcher(obj, injected)
+
+    def hasReference(self, obj):
+        '''
+        Checks if the provided object has reference attributes.
+        '''
+        if isinstance(obj, Object):
+            assert isinstance(obj, Object)
+            attributes = obj.attributes
+        elif isinstance(obj, Collection):
+            assert isinstance(obj, Collection)
+            attributes = obj.attributes
+        else: attributes = None
+        
+        if attributes:
+            for attr in obj.attributes.values():
+                assert isinstance(attr, Attribute)
+                if ATTRIBUTE_REFERENCE in attr.flags: return True
+        
+        return False

@@ -320,9 +320,11 @@ class Resolver(IResolver):
         defined.update(withSpec.defined)
         defined, types = reduce(defined), reduce(types)
         if defined != types and not types.issuperset(defined):
-            raise ResolverError('Invalid types %s and defined types %s, they cannot be joined, for %s, and %s' % 
-                                (', '.join('\'%s\'' % typ.__name__ for typ in types),
-                                 ', '.join('\'%s\'' % typ.__name__ for typ in defined), mergeSpec, withSpec))
+            raise ResolverError('Invalid types %s and defined types %s, they cannot be joined, for %s, and %s, '
+                                'from merged:%s\n, with:%s' % (', '.join('\'%s\'' % typ.__name__ for typ in types),
+                                 ', '.join('\'%s\'' % typ.__name__ for typ in defined), mergeSpec, withSpec,
+                                 ''.join(locationStack(clazz) for clazz in mergeSpec.usedIn),
+                                 ''.join(locationStack(clazz) for clazz in withSpec.usedIn)))
         
         keyargs['types'] = types
         keyargs['defined'] = defined

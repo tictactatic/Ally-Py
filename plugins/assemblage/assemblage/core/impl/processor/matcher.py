@@ -1,100 +1,149 @@
 '''
-Created on Mar 25, 2013
+Created on Mar 22, 2013
 
 @package: assemblage
 @copyright: 2012 Sourcefabric o.p.s.
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
 
-Provides the matchers for resource data.
+Provides the matchers based on representation object.
 '''
 
 from ally.container.ioc import injected
 from ally.container.support import setup
-from ally.design.processor.attribute import requires, defines
+from ally.core.http.spec.transform.flags import ATTRIBUTE_REFERENCE
+from ally.core.spec.transform.render import IPattern
+from ally.core.spec.transform.representation import Object, Collection, \
+    Attribute, Property
+from ally.design.processor.attribute import defines, requires
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain
 from ally.design.processor.handler import Handler, HandlerProcessor
 from assemblage.api.assemblage import Matcher
 from collections import Iterable
 import itertools
-                   
+import logging
+    
 # --------------------------------------------------------------------
 
-class DataAssemblage(Context):
-    '''
-    The data assemblage context.
-    '''
-    # ---------------------------------------------------------------- Required
-    matchers = requires(Iterable)
-
-class DataMatcher(Context):
-    '''
-    The data matcher context.
-    '''
-    # ---------------------------------------------------------------- Required
-    models = requires(list)
+log = logging.getLogger(__name__)
+               
+# --------------------------------------------------------------------
 
 class Obtain(Context):
     '''
     The data obtain context.
     '''
-    # ---------------------------------------------------------------- Required
-    assemblages = requires(Iterable)
-    required = requires(type)
     # ---------------------------------------------------------------- Defined
-    objects = defines(Iterable, doc='''
-    @rtype: Iterable(Assemblage)
-    The generated assemblages.
+    result = defines(object, doc='''
+    @rtype: Iterable(Matcher)
+    The generated matchers.
     ''')
-    
+    # ---------------------------------------------------------------- Required
+    required = requires(object)
+    representation = requires(object)
+
+class Support(Context):
+    '''
+    The support context.
+    '''
+    # ---------------------------------------------------------------- Defined
+    pattern = requires(IPattern)
+
 # --------------------------------------------------------------------
 
 @injected
-@setup(Handler, name='matchersFromData')
-class MatchersFromData(HandlerProcessor):
+@setup(Handler, name='provideMatchers')
+class ProvideMatchers(HandlerProcessor):
     '''
-    The handler that provides the matchers created based on data.
+    Provides the matchers.
     '''
     
-    def __init__(self):
-        super().__init__(DataAssemblage=DataAssemblage, DataMatcher=DataMatcher)
-        
-    def process(self, chain, obtain:Obtain, **keyargs):
+    def process(self, chain, obtain:Obtain, support:Support, **keyargs):
         '''
         @see: HandlerProcessor.process
         
-        Populates the assemblages.
+        Provides the matchers.
         '''
         assert isinstance(chain, Chain), 'Invalid chain %s' % chain
         assert isinstance(obtain, Obtain), 'Invalid obtain request %s' % obtain
+        assert isinstance(support, Support), 'Invalid support %s' % support
         
-        if obtain.required != Matcher:
-            # The matchers are not required, nothing to do, moving along.
-            chain.proceed()
+        if obtain.required == Matcher:
+            assert isinstance(support.pattern, IPattern), 'Invalid support pattern %s' % support.pattern
+            
+            matchers = self.processMatchers(obtain.representation, support.pattern)
+            
+            if obtain.result is None: obtain.result = matchers
+            else:
+                assert isinstance(obtain.result, Iterable), 'Cannot merge with result %s' % obtain.result
+                obtain.result = itertools.chain(obtain.result, matchers)
             return
         
-        assert isinstance(obtain.assemblages, Iterable), 'Invalid obtain assemblages %s' % obtain.assemblages
-    
-        objects = self.generate(obtain.assemblages)
-        if obtain.objects is None: obtain.objects = objects
-        else: obtain.objects = itertools.chain(obtain.objects, objects)
-        # We provided the assemblages so we stop the chain.
-    
-    # ----------------------------------------------------------------
-    
-    def generate(self, datas):
-        '''
-        Generates the matchers.
-        '''
-        assert isinstance(datas, Iterable), 'Invalid datas %s' % datas
+        chain.proceed()
         
-        for data in datas:
-            assert isinstance(data, DataAssemblage), 'Invalid data %s' % data
-            assert isinstance(data.matchers, Iterable), 'Invalid data matchers %s' % data.matchers
+    # ----------------------------------------------------------------
+        
+    def processMatchers(self, obj, pattern):
+        '''
+        Process the structure matchers.
+        '''
+        if isinstance(obj, Collection):
+            assert isinstance(obj, Collection)
+            assert isinstance(obj.item, Object), 'Invalid object %s' % obj
             
-            for datam in data.matchers:
-                assert isinstance(datam, DataMatcher), 'Invalid matcher data %s' % datam
-                for model in datam.models:
-                    assert isinstance(model, Matcher), 'INvalid matcher model %s' % model
+            model = Matcher()
+            model.Name = obj.item.name
+            self.processPatterns(model, obj.item, pattern)
+            yield model
+            
+        elif isinstance(obj, Object):
+            assert isinstance(obj, Object)
+            if self.hasReference(obj):
+                model = Matcher()
+                self.processPatterns(model, obj, pattern)
+                yield model
+                
+            else:
+                for objProp in obj.properties:
+                    assert isinstance(objProp, (Object, Property)), 'Invalid object property %s' % objProp
+                    
+                    model = Matcher()
+                    model.Name = objProp.name
+                    self.processPatterns(model, objProp, pattern)
                     yield model
+                
+        else: log.error('Cannot provide targets for representation %s', obj)
+        
+    def processPatterns(self, model, obj, pattern):
+        '''
+        Process the matcher patterns.
+        '''
+        assert isinstance(model, Matcher), 'Invalid matcher model %s' % model
+        assert isinstance(obj, (Collection, Object, Property)), 'Invalid object %s' % obj
+        assert isinstance(pattern, IPattern), 'Invalid pattern %s' % pattern
+        
+        injected = self.hasReference(obj)
+        if isinstance(obj, Object) and not injected: return
+        # If no reference available then it makes no sense to capture the object
+        
+        model.Pattern = pattern.matcher(obj, injected)
+
+    def hasReference(self, obj):
+        '''
+        Checks if the provided object has reference attributes.
+        '''
+        if isinstance(obj, Object):
+            assert isinstance(obj, Object)
+            attributes = obj.attributes
+        elif isinstance(obj, Collection):
+            assert isinstance(obj, Collection)
+            attributes = obj.attributes
+        else: attributes = None
+        
+        if attributes:
+            for attr in obj.attributes.values():
+                assert isinstance(attr, Attribute)
+                if ATTRIBUTE_REFERENCE in attr.flags: return True
+        
+        return False

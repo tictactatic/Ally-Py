@@ -9,7 +9,7 @@ Created on Mar 20, 2013
 Provides the implementation for assemblage data.
 '''
 
-from ..api.assemblage import Assemblage, IAssemblageService, Matcher
+from ..api.assemblage import Assemblage, Matcher, Structure, IAssemblageService
 from ally.container import wire
 from ally.container.ioc import injected
 from ally.container.support import setup
@@ -17,7 +17,7 @@ from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Processing, Chain
-from collections import Iterable
+from ally.exception import InputError
 
 # --------------------------------------------------------------------
 
@@ -26,20 +26,20 @@ class Obtain(Context):
     The obtain context.
     '''
     # ---------------------------------------------------------------- Defined
-    required = defines(type, doc='''
-    @rtype: class
-    The required class to be obtained.
+    required = defines(object, doc='''
+    @rtype: object
+    The required object to be obtained.
     ''')
-    assemblageId = defines(int, doc='''
-    @rtype: integer
+    assemblageId = defines(str, doc='''
+    @rtype: string
     The assemblage id to filter by.
     ''')
-    matcherName = defines(str, doc='''
-    @rtype: string
-    The matcher name to get the child matchers for.
+    structureId = defines(int, doc='''
+    @rtype: integer
+    The structure id to filter by.
     ''')
     # ---------------------------------------------------------------- Required
-    objects = requires(Iterable)
+    result = requires(object)
 
 # --------------------------------------------------------------------
 
@@ -62,21 +62,36 @@ class AssemblageService(IAssemblageService):
         '''
         @see: IAssemblageService.getAssemblages
         '''
-        return self.getObjects(required=Assemblage)
+        return self.getResult(True, required=Assemblage)
     
-    def getMatchers(self, id, name=None):
+    def getStructure(self, assemblageId, structureId):
+        '''
+        @see: IAssemblageService.getStructure
+        '''
+        assert isinstance(assemblageId, str), 'Invalid assemblage id %s' % assemblageId
+        assert isinstance(structureId, int), 'Invalid structure id %s' % structureId
+        return self.getResult(False, required=Structure, assemblageId=assemblageId, structureId=structureId)
+    
+    def getStructures(self, assemblageId):
+        '''
+        @see: IAssemblageService.getStructures
+        '''
+        assert isinstance(assemblageId, str), 'Invalid assemblage id %s' % assemblageId
+        return self.getResult(True, required=Structure.Id, assemblageId=assemblageId)
+    
+    def getMatchers(self, assemblageId, structureId):
         '''
         @see: IAssemblageService.getMatchers
         '''
-        assert name is None or isinstance(name, str), 'Invalid name %s' % name
-        if name is not None: return self.getObjects(assemblageId=id, matcherName=name, required=Matcher)
-        return self.getObjects(assemblageId=id, required=Matcher)
-
+        assert isinstance(assemblageId, str), 'Invalid assemblage id %s' % assemblageId
+        assert isinstance(structureId, int), 'Invalid structure id %s' % structureId
+        return self.getResult(True, required=Matcher, assemblageId=assemblageId, structureId=structureId)
+    
     # ----------------------------------------------------------------    
     
-    def getObjects(self, **keyargs):
+    def getResult(self, isIter, **keyargs):
         '''
-        Get the objects for the required class.
+        Get the result object(s) for the required class.
         '''
         proc = self._processingAssemblages
         assert isinstance(proc, Processing), 'Invalid processing %s' % proc
@@ -85,6 +100,8 @@ class AssemblageService(IAssemblageService):
         chain.process(**proc.fillIn(obtain=proc.ctx.obtain(**keyargs))).doAll()
         obtain = chain.arg.obtain
         assert isinstance(obtain, Obtain), 'Invalid obtain data %s' % obtain
-        if obtain.objects is None: return ()
+        if obtain.result is None:
+            if isIter: return ()
+            else: raise InputError('Unknown id')
     
-        return obtain.objects
+        return obtain.result

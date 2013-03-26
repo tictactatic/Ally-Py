@@ -14,38 +14,53 @@ from ally.api.type import Iter, List
 
 # --------------------------------------------------------------------
 
+@model(id='Id')
+class Assemblage:
+    '''
+    Provides the response assemblage.
+        Id -        unique identifier for the assemblage.
+        Types -     the types of the content that this assemblage represents.
+    '''
+    Id = str
+    Types = List(str)
+
+@model(id='Id')
+class Structure:
+    '''
+    Provides the assemblage structure and if available information related to identifying the
+    URI associated with the structure.
+        Id -            unique identifier for the structure.
+        Method -        the method name that this identifier applies for, if no method is provided then the structure
+                        does not apply to an URI.
+        Pattern -       the URI regex pattern to be matched, if no pattern is provided then the structure
+                        does not apply to an URI.
+    '''
+    Id = int
+    Method = str
+    Pattern = str
+
 @model(id='Name')
 class Matcher:
     '''
     Provides the available names that can be injected in the main content.
-        Name -          the unique name of the matcher within assemblage.
+        Id -            unique identifier for the matcher within structure.
+        Name -          the name of the matcher, if not present it means that this is an intermediate matcher.
         Types -         the types of the content that this matcher represents.
         Pattern -       the regex pattern used for identifying the assemblage in the main content.
         Reference -     the regex pattern used for extracting the URI where content can be fetched for injecting, this regex
                         will be applied against the captured block from Pattern.
+        Collateral -    collateral subordinated structure for this matcher.
         AdjustPattern - the regex pattern identifying what to be replaced with the AdjustReplace in the content to be injected.
         AdjustReplace - contains the marked text used in the replaced content, this string can contain markers like
                         {1}, {2} ... identifying captured blocks from the matcher pattern, also can contain markers
                         like //1, //2 ... which represents blocks captured in the adjuster pattern.
     '''
     Name = str
-    Types = List(str)
     Pattern = str
     Reference = str
+    Collateral = Structure
     AdjustPattern = List(str)
     AdjustReplace = List(str)
-
-@model(id='Id')
-class Assemblage:
-    '''
-    Used for identifying assemblage URIs that have assemblages available.
-        Id -        unique identifier for the identifier.
-        Method -    the method name that this identifier applies for.
-        Pattern -   the URI regex pattern to be matched.
-    '''
-    Id = int
-    Method = str
-    Pattern = str
 
 # --------------------------------------------------------------------
 
@@ -60,10 +75,22 @@ class IAssemblageService:
         '''
         Provides all assemblages.
         '''
-    
+   
     @call
-    def getMatchers(self, id: Assemblage.Id, name:Matcher.Name=None) -> Iter(Matcher):
+    def getStructure(self, assemblageId: Assemblage, structureId:Structure) -> Structure:
         '''
-        Provides all child matchers that are available for the assemblage and optionally the matcher name.
+        Provides the structure.
+        '''
+         
+    @call
+    def getStructures(self, assemblageId: Assemblage) -> Iter(Structure.Id):
+        '''
+        Provides all structure that are available for the assemblage.
+        '''
+        
+    @call
+    def getMatchers(self, assemblageId: Assemblage, structureId:Structure) -> Iter(Matcher):
+        '''
+        Provides all matchers that are available for the structure.
         '''
     

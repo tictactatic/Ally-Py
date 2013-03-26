@@ -9,12 +9,12 @@ Created on Dec 15, 2011
 Provides the IoC auto wiring.
 '''
 
-from ._impl._entity import Wiring, WireEntity, WireConfig
+from ._impl._entity import Wiring, WireConfig
 from ._impl._setup import normalizeConfigType, setupsOf, SetupConfig, register, \
     setupFirstOf
 from ._impl._support import SetupEntityWire
 from .error import WireError, ConfigError, SetupError
-from ally.support.util_sys import callerLocals
+from ally.support.util_sys import callerLocals, locationStack
 from copy import deepcopy
 from functools import partial
 from inspect import isclass
@@ -106,33 +106,6 @@ def wire(*classes):
 
 # --------------------------------------------------------------------
 
-def validateWiring(entity):
-    '''
-    Validates the wiring for the provided entity. Basically take all wirings and see if there is a valid value in the
-    entity.
-    
-    @param entity: object
-        The entity to validate.
-    @raise WireError: In case of missing or invalid value for a wiring.
-    '''
-    assert entity is not None, 'A entity is required'
-    wiring = Wiring.wiringOf(entity.__class__)
-    assert isinstance(wiring, Wiring), 'No wiring available for %s' % entity.__class__
-    for wentity in wiring.entities:
-        assert isinstance(wentity, WireEntity)
-        v = entity.__dict__.get(wentity.name)
-        if not isinstance(v, wentity.type):
-            raise WireError('Invalid entity value %s with expected type %s for %r' % (v, wentity.type, wentity.name))
-    for wconfig in wiring.configurations:
-        assert isinstance(wconfig, WireConfig)
-        v = entity.__dict__.get(wconfig.name)
-        if wconfig.type:
-            if not isinstance(v, wconfig.type):
-                raise WireError('Invalid configuration value %s with expected type %s for %r' % 
-                                (v, wconfig.type, wconfig.name))
-        elif not wconfig.hasValue:
-            raise WireError('No configuration value for %r' % wconfig.name)
-
 def createWirings(clazz, target, group, registry, nameEntity, nameInEntity):
     '''
     Create wiring bindings and setups for the provided parameters.
@@ -196,4 +169,4 @@ def wrapperWiredConfiguration(clazz, wconfig):
     value = clazz.__dict__.get(wconfig.name, None)
     if value and not isclass(value): return deepcopy(value)
     if wconfig.hasValue: return deepcopy(wconfig.value)
-    raise ConfigError('A configuration value is required for \'%s\' in class %s' % (wconfig.name, clazz.__name__))
+    raise ConfigError('A configuration value is required for \'%s\' in:%s' % (wconfig.name, locationStack(clazz)))

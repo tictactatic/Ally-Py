@@ -153,10 +153,7 @@ class Wiring:
         '''
         assert isinstance(register, dict), 'Invalid register %s' % register
         wiring = register.get('__ally_wiring__')
-        if wiring is None:
-            wiring = register['__ally_wiring__'] = Wiring()
-            from ally.container.wire import validateWiring
-            if '__init__' not in register: register['__init__'] = validateWiring
+        if wiring is None: wiring = register['__ally_wiring__'] = Wiring()
         return wiring
 
     @classmethod

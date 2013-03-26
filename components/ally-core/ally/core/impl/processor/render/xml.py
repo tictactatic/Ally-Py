@@ -61,6 +61,9 @@ class PatternXMLHandler(PatternBaseHandler):
     @see: PatternBaseHandler
     '''
     
+    identifier = 'xml'
+    # The identifier for the represented pattern.
+    
     def matcher(self, obj, injected):
         '''
         @see: PatternBaseHandler.matcher

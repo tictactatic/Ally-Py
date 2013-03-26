@@ -23,7 +23,7 @@ class Gateway:
     def __init__(self, obj):
         '''
         Construct the gateway based on the provided dictionary object.
-        @see: gateway-http/gateway.http.gateway
+        @see: gateway/gateway.api.gateway
         
         @param obj: dictionary{string: string|list[string]}
             The dictionary used for defining the gateway object, the object as is defined from response.
@@ -81,6 +81,8 @@ class Gateway:
             for name, value in self.putHeaders.items():
                 assert isinstance(name, str), 'Invalid put header name %s' % name
                 assert isinstance(value, str), 'Invalid put header value %s' % value
+
+# --------------------------------------------------------------------
 
 class Match:
     '''

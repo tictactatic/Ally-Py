@@ -115,11 +115,13 @@ class PathSupport(HandlerProcessorProceed):
             propType = objType
         else: return  # Cannot use the object type, moving along
         
-        assert isinstance(support.path, Path), 'Invalid path %s' % support.path
-        
         if support.updatePaths is None: support.updatePaths = {}
         if support.pathsProperties is None: support.pathsProperties = {}
         if support.pathsAccesible is None: support.pathsAccesible = OrderedDict()
+        
+        if not support.path: return  # We do not have a path to process
+        
+        assert isinstance(support.path, Path), 'Invalid path %s' % support.path
         
         support.pathModel = findGetModel(support.path, modelType)
         

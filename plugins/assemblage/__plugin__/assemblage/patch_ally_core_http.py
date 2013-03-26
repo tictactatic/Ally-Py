@@ -9,8 +9,7 @@ Created on Feb 19, 2013
 Provides the ally core http setup patch.
 '''
 
-from .service import assemblyAssemblages, updateAssemblyAssemblages, \
-    provideMatcherPatterns
+from .service import assemblyAssemblages
 from ally.container import ioc, support
 from ally.design.processor.handler import Handler, HandlerRenamer
 import logging
@@ -30,10 +29,11 @@ else:
     from __setup__.ally_core_http.processor import encoderPathResource
     from __setup__.ally_core.processor import normalizerResponse
     from __setup__.ally_core.parsing_rendering import assemblyPattern
-    from assemblage.core.impl.processor import resource_data, resource_represent, matcher_data, resource_assemblage
+    from assemblage.core.impl.processor import assemblage, structure_id, structure, representation, matcher
     
-    iterateResourceData = provideRepresentation = provideMatchers = assemblagesFromData = support.notCreated  # Just to avoid errors
-    support.createEntitySetup(resource_data, resource_represent, matcher_data, resource_assemblage)
+    provideAssemblages = provideStructuresIds = provideStructure = provideRepresentation = \
+    provideMatchers = support.notCreated  # Just to avoid errors
+    support.createEntitySetup(assemblage, structure_id, structure, representation, matcher)
     
     # --------------------------------------------------------------------
     
@@ -47,9 +47,8 @@ else:
         
     # --------------------------------------------------------------------
         
-    @ioc.after(updateAssemblyAssemblages)
+    @ioc.before(assemblyAssemblages)
     def updateAssemblyAssemblagesForCore():
-        assemblyAssemblages().add(iterateResourceData(), normalizerAssemblage(), provideRepresentation(), provideMatchers(),
-                                  encoderPathAssemblage(), assemblagesFromData(), assemblyPattern(),
-                                  before=provideMatcherPatterns())
+        assemblyAssemblages().add(assemblyPattern(), provideAssemblages(), provideStructuresIds(), encoderPathAssemblage(), 
+                                  provideStructure(), normalizerAssemblage(), provideRepresentation(), provideMatchers())
         
