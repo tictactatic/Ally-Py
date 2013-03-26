@@ -48,7 +48,7 @@
 						<li class="divider"></li>
 						-->
 						<li>
-							<a href="#" id="navbar-logout">Logout</a>
+							<a href="#" id="navbar-logout" style="color:#FFFFFF!important">Logout</a>
 						</li>
 					</ul>
 					{/user}
