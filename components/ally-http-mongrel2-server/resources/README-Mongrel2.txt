@@ -121,8 +121,6 @@ Now we need to adjust the "application_support.properties", change the following
 And in "plugins_support.properties", change the following configurations to:
 	publish_gui_resources: false
 this is to prevent the unnecessary publication of client files again by the support applications
-	scan_localized_messages: false
-if this has been enabled for the main application, this will avoid unnecessary scanning for localized messages
 	perform_cleanup: false
 this prevents the superdesk authorization to clean the expired sessions and login tokens by the support applications
 
