@@ -1,4 +1,0 @@
-__setup__
-__deploy__
-ally
-__plugin__

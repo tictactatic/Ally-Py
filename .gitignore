@@ -18,3 +18,5 @@
 /.metadata/
 
 /superdesk/
+
+*.egg-info/

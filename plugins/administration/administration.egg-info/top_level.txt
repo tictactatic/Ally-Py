@@ -1,3 +1,0 @@
-admin
-gui-resources
-__plugin__
