@@ -29,11 +29,10 @@ else:
     from __setup__.ally_core_http.processor import encoderPathResource
     from __setup__.ally_core.processor import normalizerResponse
     from __setup__.ally_core.parsing_rendering import assemblyPattern
-    from assemblage.core.impl.processor import assemblage, structure_id, structure, representation, matcher
+    from assemblage.core.impl.processor import assemblage, identifier, representation, matcher
     
-    provideAssemblages = provideStructuresIds = provideStructure = provideRepresentation = \
-    provideMatchers = support.notCreated  # Just to avoid errors
-    support.createEntitySetup(assemblage, structure_id, structure, representation, matcher)
+    provideAssemblages = provideIdentifiers = provideRepresentation = provideMatchers = support.notCreated  # Just to avoid errors
+    support.createEntitySetup(assemblage, identifier, representation, matcher)
     
     # --------------------------------------------------------------------
     
@@ -49,6 +48,6 @@ else:
         
     @ioc.before(assemblyAssemblages)
     def updateAssemblyAssemblagesForCore():
-        assemblyAssemblages().add(assemblyPattern(), provideAssemblages(), provideStructuresIds(), encoderPathAssemblage(), 
-                                  provideStructure(), normalizerAssemblage(), provideRepresentation(), provideMatchers())
+        assemblyAssemblages().add(assemblyPattern(), provideAssemblages(), encoderPathAssemblage(), provideIdentifiers(),
+                                  normalizerAssemblage(), provideRepresentation(), provideMatchers())
         

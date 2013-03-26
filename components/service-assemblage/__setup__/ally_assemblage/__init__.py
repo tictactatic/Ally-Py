@@ -1,17 +1,17 @@
 '''
 Created on Jul 15, 2011
 
-@package: service gateway
+@package: assemblage service
 @copyright 2011 Sourcefabric o.p.s.
 @license http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
 
-Contains the gateway setup files.
+Contains the assemblage setup files.
 '''
 
 # --------------------------------------------------------------------
 
-NAME = 'gateway service'
-GROUP = 'gateway'
+NAME = 'assemblage service'
+GROUP = 'assemblage'
 VERSION = '1.0'
-DESCRIPTION = 'Provides the gateway service'
+DESCRIPTION = 'Provides the assemblage service'

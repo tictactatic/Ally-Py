@@ -69,7 +69,7 @@ class RequestGateway(RequestHTTP):
 class GatewayRepositoryHandler(HandlerBranchingProceed):
     '''
     Implementation for a handler that provides the gateway repository by using REST data received from either internal or
-    external server. The Gateway structure is defined as in the @see: gateway-http plugin.
+    external server. The Gateway structure is defined as in the @see: gateway plugin.
     '''
     
     scheme = HTTP
@@ -212,7 +212,7 @@ class Repository(IRepository):
             The dictionary used for defining the repository gateways, the objects as is defined from response.
         '''
         assert isinstance(objs, dict), 'Invalid objects %s' % objs
-        assert 'GatewayList' in objs, 'Invalid objects %s, not GatewayList' % objs
+        assert 'GatewayList' in objs, 'Invalid objects %s, no GatewayList' % objs
         
         self._gateways = [Gateway(obj) for obj in objs['GatewayList']]
         self._cache = {}

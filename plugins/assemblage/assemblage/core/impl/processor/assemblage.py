@@ -27,7 +27,7 @@ class Obtain(Context):
     The data obtain context.
     '''
     # ---------------------------------------------------------------- Defined
-    result = defines(object, doc='''
+    result = defines(Iterable, doc='''
     @rtype: Iterable(Assemblage)
     The generated result assemblages.
     ''')
@@ -75,9 +75,7 @@ class ProvideAssemblages(HandlerProcessor):
                 assemblage.Types = types
                 assemblages.append(assemblage)
             if obtain.result is None: obtain.result = assemblages
-            else:
-                assert isinstance(obtain.result, Iterable), 'Cannot merge with result %s' % obtain.result
-                obtain.result = itertools.chain(obtain.result, assemblages)
+            else: obtain.result = itertools.chain(obtain.result, assemblages)
             return
         
         assert obtain.assemblageId, 'An assemblage id is required'

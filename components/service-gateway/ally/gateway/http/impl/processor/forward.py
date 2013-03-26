@@ -45,7 +45,7 @@ class GatewayForwardHandler(HandlerBranching):
     '''
     
     assembly = Assembly
-    # The assembly to be used in processing the request for the filters.
+    # The assembly to be used in processing the request.
     
     def __init__(self):
         assert isinstance(self.assembly, Assembly), 'Invalid assembly %s' % self.assembly

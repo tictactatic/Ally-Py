@@ -1,12 +1,12 @@
 '''
 Created on Jan 5, 2012
 
-@package: service CDM
+@package: service gateway
 @copyright: 2012 Sourcefabric o.p.s.
 @license http://www.gnu.org/licenses/gpl - 3.0.txt
-@author: Mugur Rus
+@author: Gabriel Nistor
 
-Provides the configurations for delivering files from the local file system.
+Provides the processors setups for gateway.
 '''
 
 from ..ally_http.processor import headerEncodeRequest, acceptRequestEncode, \

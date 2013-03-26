@@ -35,7 +35,7 @@ class Obtain(Context):
     The data obtain context.
     '''
     # ---------------------------------------------------------------- Defined
-    result = defines(object, doc='''
+    result = defines(Iterable, doc='''
     @rtype: Iterable(Matcher)
     The generated matchers.
     ''')
@@ -72,35 +72,35 @@ class ProvideMatchers(HandlerProcessor):
         if obtain.required == Matcher:
             assert isinstance(support.pattern, IPattern), 'Invalid support pattern %s' % support.pattern
             
-            matchers = self.processMatchers(obtain.representation, support.pattern)
+            matchers = self.processMatchers(obtain.representation, [], support.pattern)
             
             if obtain.result is None: obtain.result = matchers
-            else:
-                assert isinstance(obtain.result, Iterable), 'Cannot merge with result %s' % obtain.result
-                obtain.result = itertools.chain(obtain.result, matchers)
+            else: obtain.result = itertools.chain(obtain.result, matchers)
             return
         
         chain.proceed()
         
     # ----------------------------------------------------------------
         
-    def processMatchers(self, obj, pattern):
+    def processMatchers(self, obj, names, pattern):
         '''
         Process the structure matchers.
         '''
+        assert isinstance(names, list), 'Invalid names %s' % names
+        
         if isinstance(obj, Collection):
             assert isinstance(obj, Collection)
             assert isinstance(obj.item, Object), 'Invalid object %s' % obj
             
-            model = Matcher()
-            model.Name = obj.item.name
-            self.processPatterns(model, obj.item, pattern)
-            yield model
+            namesItem = list(names)
+            namesItem.append(obj.item.name)
+            for model in self.processMatchers(obj.item, namesItem, pattern): yield model
             
         elif isinstance(obj, Object):
             assert isinstance(obj, Object)
             if self.hasReference(obj):
                 model = Matcher()
+                model.Name = names
                 self.processPatterns(model, obj, pattern)
                 yield model
                 
@@ -108,8 +108,11 @@ class ProvideMatchers(HandlerProcessor):
                 for objProp in obj.properties:
                     assert isinstance(objProp, (Object, Property)), 'Invalid object property %s' % objProp
                     
+                    namesProp = list(names)
+                    namesProp.append(objProp.name)
+                    
                     model = Matcher()
-                    model.Name = objProp.name
+                    model.Name = namesProp
                     self.processPatterns(model, objProp, pattern)
                     yield model
                 

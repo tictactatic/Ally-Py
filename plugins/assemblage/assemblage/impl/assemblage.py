@@ -9,7 +9,7 @@ Created on Mar 20, 2013
 Provides the implementation for assemblage data.
 '''
 
-from ..api.assemblage import Assemblage, Matcher, Structure, IAssemblageService
+from ..api.assemblage import Assemblage, Matcher, IAssemblageService
 from ally.container import wire
 from ally.container.ioc import injected
 from ally.container.support import setup
@@ -17,7 +17,8 @@ from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Processing, Chain
-from ally.exception import InputError
+from collections import Iterable
+from assemblage.api.assemblage import Identifier
 
 # --------------------------------------------------------------------
 
@@ -34,12 +35,12 @@ class Obtain(Context):
     @rtype: string
     The assemblage id to filter by.
     ''')
-    structureId = defines(int, doc='''
+    identifierId = defines(int, doc='''
     @rtype: integer
-    The structure id to filter by.
+    The identifier id to filter by.
     ''')
     # ---------------------------------------------------------------- Required
-    result = requires(object)
+    result = requires(Iterable)
 
 # --------------------------------------------------------------------
 
@@ -62,34 +63,26 @@ class AssemblageService(IAssemblageService):
         '''
         @see: IAssemblageService.getAssemblages
         '''
-        return self.getResult(True, required=Assemblage)
+        return self.getResult(required=Assemblage)
     
-    def getStructure(self, assemblageId, structureId):
+    def getIdentifiers(self, assemblageId):
         '''
-        @see: IAssemblageService.getStructure
+        @see: IAssemblageService.getIdentifiers
         '''
         assert isinstance(assemblageId, str), 'Invalid assemblage id %s' % assemblageId
-        assert isinstance(structureId, int), 'Invalid structure id %s' % structureId
-        return self.getResult(False, required=Structure, assemblageId=assemblageId, structureId=structureId)
+        return self.getResult(required=Identifier, assemblageId=assemblageId)
     
-    def getStructures(self, assemblageId):
-        '''
-        @see: IAssemblageService.getStructures
-        '''
-        assert isinstance(assemblageId, str), 'Invalid assemblage id %s' % assemblageId
-        return self.getResult(True, required=Structure.Id, assemblageId=assemblageId)
-    
-    def getMatchers(self, assemblageId, structureId):
+    def getMatchers(self, assemblageId, identifierId):
         '''
         @see: IAssemblageService.getMatchers
         '''
         assert isinstance(assemblageId, str), 'Invalid assemblage id %s' % assemblageId
-        assert isinstance(structureId, int), 'Invalid structure id %s' % structureId
-        return self.getResult(True, required=Matcher, assemblageId=assemblageId, structureId=structureId)
+        assert isinstance(identifierId, int), 'Invalid structure id %s' % identifierId
+        return self.getResult(required=Matcher, assemblageId=assemblageId, identifierId=identifierId)
     
     # ----------------------------------------------------------------    
     
-    def getResult(self, isIter, **keyargs):
+    def getResult(self, **keyargs):
         '''
         Get the result object(s) for the required class.
         '''
@@ -100,8 +93,6 @@ class AssemblageService(IAssemblageService):
         chain.process(**proc.fillIn(obtain=proc.ctx.obtain(**keyargs))).doAll()
         obtain = chain.arg.obtain
         assert isinstance(obtain, Obtain), 'Invalid obtain data %s' % obtain
-        if obtain.result is None:
-            if isIter: return ()
-            else: raise InputError('Unknown id')
-    
+        
+        if obtain.result is None: return ()
         return obtain.result

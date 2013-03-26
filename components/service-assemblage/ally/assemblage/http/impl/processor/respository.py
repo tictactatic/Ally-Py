@@ -1,14 +1,16 @@
 '''
 Created on Apr 12, 2012
 
-@package: gateway service
+@package: assemblage service
 @copyright: 2011 Sourcefabric o.p.s.
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
 
-Provides the gateway repository processor.
+Provides the assemblage repository processor.
 '''
 
+from ally.assemblage.http.spec.assemblage import IRepository, Assemblage, \
+    Identifier, Matcher
 from ally.container.ioc import injected
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import defines
@@ -16,19 +18,16 @@ from ally.design.processor.branch import Using
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Processing, Chain
 from ally.design.processor.handler import HandlerBranchingProceed
-from ally.gateway.http.spec.gateway import IRepository, Gateway, Match
-from ally.http.spec.codes import BAD_GATEWAY, isSuccess
+from ally.http.spec.codes import isSuccess
 from ally.http.spec.server import RequestHTTP, ResponseHTTP, ResponseContentHTTP, \
     HTTP_GET, HTTP
 from ally.support.util_io import IInputStream
+from functools import partial
 from io import BytesIO
-from sched import scheduler
-from threading import Thread
 from urllib.parse import urlparse, parse_qsl
 import codecs
 import json
 import logging
-import time
 
 # --------------------------------------------------------------------
 
@@ -42,22 +41,12 @@ class Request(Context):
     '''
     # ---------------------------------------------------------------- Defined
     repository = defines(IRepository)
-    
-class Response(Context):
-    '''
-    The response context.
-    '''
-    # ---------------------------------------------------------------- Defined
-    code = defines(str)
-    status = defines(int)
-    isSuccess = defines(bool)
-    text = defines(str)
 
 # --------------------------------------------------------------------
 
-class RequestGateway(RequestHTTP):
+class RequestResource(RequestHTTP):
     '''
-    The request gateway context.
+    The request resource context.
     '''
     # ---------------------------------------------------------------- Defined
     accTypes = defines(list)
@@ -66,36 +55,34 @@ class RequestGateway(RequestHTTP):
 # --------------------------------------------------------------------
 
 @injected
-class GatewayRepositoryHandler(HandlerBranchingProceed):
+class AssemblageRepositoryHandler(HandlerBranchingProceed):
     '''
-    Implementation for a handler that provides the gateway repository by using REST data received from either internal or
-    external server. The Gateway structure is defined as in the @see: gateway-http plugin.
+    Implementation for a handler that provides the assemblage repository by using REST data received from either internal or
+    external server. The Assemblage structure is defined as in the @see: assemblage plugin.
     '''
     
     scheme = HTTP
-    # The scheme to be used in fetching the Gateway objects.
+    # The scheme to be used in fetching the resource objects.
     mimeTypeJson = 'json'
-    # The json mime type to be sent for the gateway requests.
+    # The json mime type to be sent for the resource requests.
     encodingJson = 'utf-8'
-    # The json encoding to be sent for the gateway requests.
+    # The json encoding to be sent for the resource requests.
     uri = str
-    # The URI used in fetching the gateways.
-    cleanupInterval = float
-    # The number of seconds to perform clean up for cached gateways.
+    # The URI used in fetching the assemblages.
     assembly = Assembly
-    # The assembly to be used in processing the request for the gateways.
+    # The assembly to be used in processing the request for the resource.
     
     def __init__(self):
         assert isinstance(self.scheme, str), 'Invalid scheme %s' % self.scheme
         assert isinstance(self.mimeTypeJson, str), 'Invalid json mime type %s' % self.mimeTypeJson
         assert isinstance(self.encodingJson, str), 'Invalid json encoding %s' % self.encodingJson
         assert isinstance(self.uri, str), 'Invalid URI %s' % self.uri
-        assert isinstance(self.cleanupInterval, int), 'Invalid cleanup interval %s' % self.cleanupInterval
         assert isinstance(self.assembly, Assembly), 'Invalid assembly %s' % self.assembly
-        super().__init__(Using(self.assembly, 'requestCnt', 'response', 'responseCnt', request=RequestGateway))
-        self.initialize()
+        super().__init__(Using(self.assembly, 'requestCnt', 'response', 'responseCnt', request=RequestResource))
+        
+        self._structure = None
 
-    def process(self, processing, request:Request, response:Response, **keyargs):
+    def process(self, processing, request:Request, **keyargs):
         '''
         @see: HandlerBranchingProceed.process
         
@@ -103,37 +90,35 @@ class GatewayRepositoryHandler(HandlerBranchingProceed):
         '''
         assert isinstance(processing, Processing), 'Invalid processing %s' % processing
         assert isinstance(request, Request), 'Invalid request %s' % request
-        assert isinstance(response, Response), 'Invalid response %s' % response
         
-        if not self._repository:
-            robj, status, text = self.obtainGateways(processing, self.uri)
-            if robj is None or not isSuccess(status):
-                log.info('Cannot fetch the gateways from URI \'%s\', with response %s %s', self.uri, status, text)
-                response.code, response.status, response.isSuccess = BAD_GATEWAY
-                response.text = text
+        if not self._structure:
+            robjs, status, text = self.obtainResource(processing, self.uri)
+            if robjs is None or not isSuccess(status):
+                log.error('Cannot fetch the assemblages from URI \'%s\', with response %s %s', self.uri, status, text)
                 return
-            self._repository = Repository(robj)
-        request.repository = self._repository
+            self._structure = Structure(robjs)
+            
+        request.repository = Repository(self._structure, partial(self.obtainResource, processing))
         
     # ----------------------------------------------------------------
    
-    def obtainGateways(self, processing, uri):
+    def obtainResource(self, processing, uri):
         '''
-        Get the gateway objects representation.
+        Get the resource objects representation.
         
         @param processing: Processing
             The processing used for delivering the request.
         @param uri: string
             The URI to call, parameters are allowed.
         @return: tuple(dictionary{...}|None, integer, string)
-            A tuple containing as the first position the gateway objects representation, None if the gateways cannot be fetched,
-            on the second position the response status and on the last position the response text.
+            A tuple containing as the first position the resources objects representation, None if the resources cannot 
+            be fetched, on the second position the response status and on the last position the response text.
         '''
         assert isinstance(processing, Processing), 'Invalid processing %s' % processing
         assert isinstance(uri, str), 'Invalid URI %s' % uri
         
         request = processing.ctx.request()
-        assert isinstance(request, RequestGateway), 'Invalid request %s' % request
+        assert isinstance(request, RequestResource), 'Invalid request %s' % request
         
         url = urlparse(uri)
         request.scheme, request.method = self.scheme, HTTP_GET
@@ -165,126 +150,97 @@ class GatewayRepositoryHandler(HandlerBranchingProceed):
             source.seek(0)
         return json.load(codecs.getreader(self.encodingJson)(source)), response.status, text
 
-    # ----------------------------------------------------------------
-    
-    def initialize(self):
-        '''
-        Initialize the repository.
-        '''
-        self._repository = None
-        self.startCleanupThread('Cleanup gateways thread')
-   
-    def startCleanupThread(self, name):
-        '''
-        Starts the cleanup thread.
-        
-        @param name: string
-            The name for the thread.
-        '''
-        schedule = scheduler(time.time, time.sleep)
-        def executeCleanup():
-            self.performCleanup()
-            schedule.enter(self.cleanupInterval, 1, executeCleanup, ())
-        schedule.enter(self.cleanupInterval, 1, executeCleanup, ())
-        scheduleRunner = Thread(name=name, target=schedule.run)
-        scheduleRunner.daemon = True
-        scheduleRunner.start()
-
-    def performCleanup(self):
-        '''
-        Performs the cleanup for gateways.
-        '''
-        self._repository = None
-        
 # --------------------------------------------------------------------
+
+class Structure:
+    '''
+    Structure containing the assemblage objects.
+    '''
+    __slots__ = ('assemblages', 'identifiersByAssemblage', 'matchersByIdentifier')
+    
+    def __init__(self, robjs):
+        '''
+        Construct the assemblage structure based on the provided dictionary object.
+        
+        @param objs: dictionary{string: list[dictionary{...}]}
+            The dictionary used for defining the structure assemblage, the objects as is defined from response.
+        '''
+        assert isinstance(robjs, dict), 'Invalid objects %s' % robjs
+        assert 'AssemblageList' in robjs, 'Invalid objects %s, no AssemblageList' % robjs
+        
+        self.assemblages = [Assemblage(obj) for obj in robjs['AssemblageList']]
+        self.identifiersByAssemblage = {}
+        self.matchersByIdentifier = {}
 
 class Repository(IRepository):
     '''
-    The gateways repository.
+    The assemblage repository.
     '''
-    __slots__ = ('_gateways', '_cache')
+    __slots__ = ('_structure', '_obtain')
     
-    def __init__(self, objs):
+    def __init__(self, structure, obtain):
         '''
-        Construct the gateways repository based on the provided dictionary object.
+        Construct the assemblage repository.
         
-        @param objs: dictionary{string: list[dictionary{...}]}
-            The dictionary used for defining the repository gateways, the objects as is defined from response.
+        @param structure: Structure
+            The structure containing the assemblage objects.
+        @param obtain: callable(string) -> tuple(dictionary{...}|None, integer, string)
+            The callable that provides additional resources.
         '''
-        assert isinstance(objs, dict), 'Invalid objects %s' % objs
-        assert 'GatewayList' in objs, 'Invalid objects %s, not GatewayList' % objs
+        assert isinstance(structure, Structure), 'Invalid structure %s' % structure
+        assert callable(obtain), 'Invalid obtain call %s' % obtain
         
-        self._gateways = [Gateway(obj) for obj in objs['GatewayList']]
-        self._cache = {}
-        
-    def find(self, method=None, headers=None, uri=None, error=None):
-        '''
-        @see: IRepository.find
-        '''
-        for gateway in self._gateways:
-            groupsURI = self._match(gateway, method, headers, uri, error)
-            if groupsURI is not None: return Match(gateway, groupsURI)
-        
-    def allowsFor(self, headers=None, uri=None):
-        '''
-        @see: IRepository.allowsFor
-        '''
-        allowed = set()
-        for gateway in self._gateways:
-            assert isinstance(gateway, Gateway)
-            groupsURI = self._match(gateway, None, headers, uri, None)
-            if groupsURI is not None: allowed.update(gateway.methods)
-        return allowed
-        
-    def obtainCache(self, identifier):
-        '''
-        @see: IRepository.obtainCache
-        '''
-        cache = self._cache.get(identifier)
-        if cache is None: cache = self._cache[identifier] = {}
-        return cache
-
-    # ----------------------------------------------------------------
+        self._structure = structure
+        self._obtain = obtain
     
-    def _match(self, gateway, method, headers, uri, error):
+    def matchers(self, type, method, uri):
         '''
-        Checks the match for the provided gateway and parameters.
-        
-        @return: tuple(string)|None
-            The URI match groups, None if there is no match.
+        @see: IRepository.matchers
         '''
-        assert isinstance(gateway, Gateway)
-        groupsURI = ()
+        assert isinstance(type, str), 'Invalid type %s' % type
+        assert isinstance(method, str), 'Invalid method %s' % method
+        assert isinstance(uri, str), 'Invalid uri %s' % uri
         
-        if method is not None:
-            assert isinstance(method, str), 'Invalid method %s' % method
-            if gateway.methods:
-                if method.upper() not in gateway.methods: return
+        strct = self._structure
+        assert isinstance(strct, Structure)
         
-        if headers is not None:
-            assert isinstance(headers, dict), 'Invalid headers %s' % uri
-            isOk = False
-            if gateway.headers:
-                for nameValue in headers.items():
-                    header = '%s:%s' % nameValue
-                    for pattern in gateway.headers:
-                        if pattern.match(header):
-                            isOk = True
-                            break
-                    if isOk: break
-                if not isOk: return
-                
-        if uri is not None:
-            assert isinstance(uri, str), 'Invalid URI %s' % uri
-            if gateway.pattern:
-                matcher = gateway.pattern.match(uri)
-                if matcher: groupsURI = matcher.groups()
-                else: return
-                
-        if error is not None:
-            assert isinstance(error, int), 'Invalid error %s' % error
-            if gateway.errors:
-                if error not in gateway.errors: return
-            else: return
-            
-        return groupsURI
+        for assemblage in strct.assemblages:
+            assert isinstance(assemblage, Assemblage), 'Invalid assemblage %s' % assemblage
+            if type in assemblage.types: break
+        else:
+            assert log.debug('No assemblage available for %s', type) or True
+            return
+        
+        identifiers = strct.identifiersByAssemblage.get(assemblage.id)
+        if identifiers is None:
+            robjs, status, text = self._obtain(assemblage.hrefIdentifiers)
+            if robjs is None or not isSuccess(status):
+                log.error('Cannot fetch the identifiers from URI \'%s\', with response %s %s',
+                          assemblage.hrefIdentifiers, status, text)
+                return
+            assert isinstance(robjs, dict), 'Invalid objects %s' % robjs
+            assert 'IdentifierList' in robjs, 'Invalid objects %s, no IdentifierList' % robjs
+            identifiers = [Identifier(obj) for obj in robjs['IdentifierList']]
+            strct.identifiersByAssemblage[assemblage.id] = identifiers
+        
+        method = method.upper()
+        for identifier in identifiers:
+            assert isinstance(identifier, Identifier), 'Invalid identifier %s' % identifier
+            if method == identifier.method and identifier.pattern.match(uri): break
+        else:
+            assert log.debug('No identifier available for method \'%s\', and URI \'%s\'', type, uri) or True
+            return
+        
+        matchers = strct.matchersByIdentifier.get(identifier.id)
+        if matchers is None:
+            robjs, status, text = self._obtain(identifier.hrefMatchers)
+            if robjs is None or not isSuccess(status):
+                log.error('Cannot fetch the matchers from URI \'%s\', with response %s %s',
+                          identifier.hrefMatchers, status, text)
+                return
+            assert isinstance(robjs, dict), 'Invalid objects %s' % robjs
+            assert 'MatcherList' in robjs, 'Invalid objects %s, no MatcherList' % robjs
+            matchers = [Matcher(obj) for obj in robjs['MatcherList']]
+            strct.matchersByIdentifier[identifier.id] = matchers
+        
+        return iter(matchers)
