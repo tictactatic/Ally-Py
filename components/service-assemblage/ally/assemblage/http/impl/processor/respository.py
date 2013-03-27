@@ -193,22 +193,23 @@ class Repository(IRepository):
         self._structure = structure
         self._obtain = obtain
     
-    def matchers(self, type, method, uri):
+    def matchers(self, forType, method, uri, headers=None):
         '''
         @see: IRepository.matchers
         '''
-        assert isinstance(type, str), 'Invalid type %s' % type
+        assert isinstance(forType, str), 'Invalid type %s' % forType
         assert isinstance(method, str), 'Invalid method %s' % method
         assert isinstance(uri, str), 'Invalid uri %s' % uri
         
         strct = self._structure
         assert isinstance(strct, Structure)
         
+        forType = forType.lower()
         for assemblage in strct.assemblages:
             assert isinstance(assemblage, Assemblage), 'Invalid assemblage %s' % assemblage
-            if type in assemblage.types: break
+            if forType in assemblage.types: break
         else:
-            assert log.debug('No assemblage available for %s', type) or True
+            assert log.debug('No assemblage available for %s', forType) or True
             return
         
         identifiers = strct.identifiersByAssemblage.get(assemblage.id)
@@ -226,9 +227,23 @@ class Repository(IRepository):
         method = method.upper()
         for identifier in identifiers:
             assert isinstance(identifier, Identifier), 'Invalid identifier %s' % identifier
-            if method == identifier.method and identifier.pattern.match(uri): break
+            if method != identifier.method: continue
+            if not identifier.pattern.match(uri): continue
+            if headers is not None:
+                assert isinstance(headers, dict), 'Invalid headers %s' % uri
+                isExcluded = False
+                if identifier.headersExclude:
+                    for nameValue in headers.items():
+                        header = '%s:%s' % nameValue
+                        for pattern in identifier.headersExclude:
+                            if pattern.match(header):
+                                isExcluded = True
+                                break
+                        if isExcluded: break
+                    if isExcluded: continue
+            break
         else:
-            assert log.debug('No identifier available for method \'%s\', and URI \'%s\'', type, uri) or True
+            assert log.debug('No identifier available for method \'%s\', and URI \'%s\'', forType, uri) or True
             return
         
         matchers = strct.matchersByIdentifier.get(identifier.id)
@@ -243,4 +258,5 @@ class Repository(IRepository):
             matchers = [Matcher(obj) for obj in robjs['MatcherList']]
             strct.matchersByIdentifier[identifier.id] = matchers
         
+        if not matchers: return
         return iter(matchers)

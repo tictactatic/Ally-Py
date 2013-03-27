@@ -33,10 +33,11 @@ class Assemblage:
         self.id = obj['Id']
         assert isinstance(self.id, str), 'Invalid id %s' % self.id
         
-        self.types = obj['Types']
-        assert isinstance(self.types, list), 'Invalid types %s' % self.types
+        types = obj['Types']
+        assert isinstance(types, list), 'Invalid types %s' % types
         if __debug__:
-            for item in self.types: assert isinstance(item, str), 'Invalid type %s' % item
+            for item in types: assert isinstance(item, str), 'Invalid type %s' % item
+        self.types = set(item.lower() for item in types)
         
         self.hrefIdentifiers = obj['IdentifierList']['href']
         assert isinstance(self.hrefIdentifiers, str), 'Invalid identifiers reference %s' % self.hrefIdentifiers
@@ -45,7 +46,7 @@ class Identifier:
     '''
     Provides the assemblage identifier data.
     '''
-    __slots__ = ('method', 'pattern', 'hrefMatchers')
+    __slots__ = ('id', 'method', 'pattern', 'headersExclude', 'hrefMatchers')
     
     def __init__(self, obj):
         '''
@@ -68,6 +69,14 @@ class Identifier:
         assert isinstance(pattern, str), 'Invalid pattern %s' % pattern
         self.pattern = re.compile(pattern)
         
+        headersExclude = obj.get('HeadersExclude')
+        if headersExclude:
+            if __debug__:
+                assert isinstance(headersExclude, list), 'Invalid exclude headers %s' % headersExclude
+                for item in headersExclude: assert isinstance(item, str), 'Invalid header pattern %s' % item
+            self.headersExclude = [re.compile(item) for item in headersExclude]
+        else: self.headersExclude = None
+        
         self.hrefMatchers = obj['MatcherList']['href']
         assert isinstance(self.hrefMatchers, str), 'Invalid matchers reference %s' % self.hrefMatchers
 
@@ -75,7 +84,7 @@ class Matcher:
     '''
     Provides the identifier matcher data.
     '''
-    __slots__ = ('name', 'pattern', 'reference', 'adjustPattern', 'adjustReplace')
+    __slots__ = ('names', 'pattern', 'reference', 'adjustPattern', 'adjustReplace')
     
     def __init__(self, obj):
         '''
@@ -87,10 +96,10 @@ class Matcher:
         '''
         assert isinstance(obj, dict), 'Invalid object %s' % obj
         
-        self.name = obj['Name']
-        assert isinstance(self.name, list), 'Invalid name %s' % self.name
+        self.names = obj['Names']
+        assert isinstance(self.names, list), 'Invalid names %s' % self.names
         if __debug__:
-            for item in self.name: assert isinstance(item, str), 'Invalid name %s' % item
+            for item in self.names: assert isinstance(item, str), 'Invalid name %s' % item
         
         pattern = obj['Pattern']
         assert isinstance(pattern, str), 'Invalid pattern %s' % pattern
@@ -107,15 +116,17 @@ class Matcher:
             assert isinstance(self.adjustPattern, list), 'Invalid adjust patterns %s' % self.adjustPattern
             for item in self.adjustPattern: assert isinstance(item, str), 'Invalid adjust pattern %s' % item
             
-        self.adjustReplace = obj.get('AdjustReplace')
+        adjustReplace = obj.get('AdjustReplace')
         if __debug__:
-            if self.adjustReplace:
-                assert isinstance(self.adjustReplace, list), 'Invalid adjust replace %s' % self.adjustReplace
-                assert len(self.adjustPattern) == len(self.adjustReplace), \
-                'Required the same number of entries for patterns %s and replaces %s' % (self.adjustPattern, self.adjustReplace)
-                for item in self.adjustReplace: assert isinstance(item, str), 'Invalid adjust replace %s' % item
+            if adjustReplace:
+                assert isinstance(adjustReplace, list), 'Invalid adjust replace %s' % adjustReplace
+                assert len(self.adjustPattern) == len(adjustReplace), \
+                'Required the same number of entries for patterns %s and replaces %s' % (self.adjustPattern, adjustReplace)
+                for item in adjustReplace: assert isinstance(item, str), 'Invalid adjust replace %s' % item
+                self.adjustReplace = [re.compile(item) for item in adjustReplace]
             else:
                 assert not self.adjustPattern, 'Cannot have patterns %s without replaces' % self.adjustPattern
+                self.adjustReplace = None
 
 # --------------------------------------------------------------------
 
@@ -125,16 +136,18 @@ class IRepository(metaclass=abc.ABCMeta):
     '''
     
     @abc.abstractmethod
-    def matchers(self, type, method, uri):
+    def matchers(self, forType, method, uri, headers=None):
         '''
         Finds the matchers objects for the provided parameters.
 
-        @param type: string
+        @param forType: string
             The mime type of the URI response to provide the matchers for.
         @param method: string
             The method to be matched for the matchers
         @param uri: string
             The URI that we need the matchers for.
-        @return: Iterable(Matcher)
-            The found matchers.
+        @param headers: dictionary{String, string}|None
+            The headers to be matched for the identifier.
+        @return: Iterable(Matcher)|None
+            The found matchers, None if there is no matcher available.
         '''

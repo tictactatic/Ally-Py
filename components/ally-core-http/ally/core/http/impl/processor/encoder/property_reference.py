@@ -121,8 +121,8 @@ class EncoderReference(IEncoder):
         assert isinstance(support, Support), 'Invalid support %s' % support
         assert isinstance(support.normalizer, Normalizer), 'Invalid normalizer %s' % support.normalizer
         
-        attributes = {support.normalizer.normalize(self.nameRef): Attribute(ATTRIBUTE_REFERENCE)}
-        object = Object(support.normalizer.normalize(self.name), attributes=attributes)
+        attribute = Attribute(support.normalizer.normalize(self.nameRef), ATTRIBUTE_REFERENCE)
+        object = Object(support.normalizer.normalize(self.name), attributes={attribute.name: attribute})
         
         if obj:
             assert isinstance(obj, Object), 'Invalid representation object to push in %s' % obj

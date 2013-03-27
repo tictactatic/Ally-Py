@@ -118,5 +118,5 @@ class EncoderAccessiblePath(IEncoder):
         assert isinstance(obj, Object), 'Invalid representation object to push in %s' % obj
         
         for name in support.pathsAccesible:
-            attributes = {support.normalizer.normalize(self.nameRef): Attribute(ATTRIBUTE_REFERENCE)}
-            obj.properties.append(Object(support.normalizer.normalize(name), attributes=attributes))
+            attribute = Attribute(support.normalizer.normalize(self.nameRef), ATTRIBUTE_REFERENCE)
+            obj.properties.append(Object(support.normalizer.normalize(name), attributes={attribute.name: attribute}))

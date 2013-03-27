@@ -18,6 +18,7 @@ from ally.http.spec.server import IEncoderPath
 from urllib.parse import quote
 import logging
 import re
+from itertools import chain
 
 # --------------------------------------------------------------------
 
@@ -63,10 +64,15 @@ class ResourcePathEncoderHandler(HandlerProcessorProceed):
         
         if self.resourcesRootURI:
             parts = self.resourcesRootURI.split('%s')
-            parts = (re.escape(part) for part in parts)
-            self.resourcesRootPattern = '%s'.join(parts)
+            assert len(parts) == 2, 'Invalid resource root %s, has not marker' % self.resourcesRootURI
+            prefix, suffix = parts
+            prefix, suffix = prefix.rstrip('/'), suffix.lstrip('/')
+            if prefix: self.patternPrefix = (re.escape(prefix),)
+            else: self.patternPrefix = ()
+            if suffix: self.patternSuffix = (re.escape(suffix),)
+            else: self.patternSuffix = ()
         else:
-            self.resourcesRootPattern = None
+            self.patternPrefix = self.patternSuffix = None
 
     def process(self, request:Request, response:Response, **keyargs):
         '''
@@ -162,15 +168,15 @@ class EncoderPathResource(IEncoderPath):
             
             uri, paths = [], path.toPaths(self.handler.converterPath, invalid=invalid)
             
-            uri.append('\\/'.join(paths))
+            if self.handler.patternPrefix is None: uri.append('\\/'.join(paths))
+            else: uri.append('\\/'.join(chain(self.handler.patternPrefix, paths, self.handler.patternSuffix)))
             if self.extension:
                 uri.append('\\.')
                 uri.append(self.extension)
-            
             uri = ''.join(uri)
-            if self.handler.resourcesRootPattern: uri = self.handler.resourcesRootPattern % uri
             
             if self.wrapped: return self.wrapped.encodePattern(uri, **keyargs)
+            assert not keyargs, 'Invalid key arguments %s' % keyargs
             return uri
         
         elif self.wrapped is None:

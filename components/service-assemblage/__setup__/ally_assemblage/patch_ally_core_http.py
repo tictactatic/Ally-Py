@@ -38,7 +38,6 @@ else:
     # ----------------------------------------------------------------
 
     from ..ally_core_http.server import resourcesRouter, server_provide_resources, updateAssemblyServerForResources
-    from ..ally_core_http.processor import assemblyResources
     
     # ----------------------------------------------------------------
     
@@ -54,7 +53,7 @@ else:
         if server_provide_assemblage() == ASSEMBLAGE_INTERNAL:
             if not server_provide_resources():
                 raise SetupError('Cannot configure internal assemblage because the REST resources is not enabled')
-            assemblyForward().add(assemblyResources())
+            assemblyForward().add(resourcesRouter())
     
     @ioc.after(updateAssemblyServerForResources)
     def updateAssemblyServerForGatewayInternal():

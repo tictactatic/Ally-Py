@@ -160,7 +160,7 @@ class ProvideIdentifiers(HandlerProcessor, INodeChildListener, INodeInvokerListe
             identifier = Identifier()
             identifier.Id = identifierId
             identifier.Method = method
-            identifier.Pattern = encoderPath.encodePattern(pathForNode(node), invalid=self.replace, quoted=False)
+            identifier.Pattern = '%s[\\/]?(?:\\.|$)' % encoderPath.encodePattern(pathForNode(node), invalid=self.replace)
             
             yield identifier
     

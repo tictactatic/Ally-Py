@@ -131,6 +131,6 @@ class EncoderResources(IEncoder):
         @see: IEncoder.represent
         '''
         assert obj is None, 'No object expected for resources representation'
-        attributes = {support.normalizer.normalize(self.nameRef): Attribute(ATTRIBUTE_REFERENCE)}
-        obj = Object(support.normalizer.normalize(self.nameResource), DYNAMIC_NAME, attributes=attributes)
-        return Collection(support.normalizer.normalize(self.nameResources), obj, attributes=attributes)
+        attribute = Attribute(support.normalizer.normalize(self.nameRef), ATTRIBUTE_REFERENCE)
+        obj = Object(support.normalizer.normalize(self.nameResource), DYNAMIC_NAME, attributes={attribute.name: attribute})
+        return Collection(support.normalizer.normalize(self.nameResources), obj)

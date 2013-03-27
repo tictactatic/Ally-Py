@@ -133,4 +133,5 @@ class AttributesPath(AttributesJoiner):
         
         path = support.pathsProperties.get(self.propertyType)
         if not path: return  # No path to construct attributes for.
-        return {support.normalizer.normalize(self.nameRef): Attribute(ATTRIBUTE_REFERENCE)}
+        attribute = Attribute(support.normalizer.normalize(self.nameRef), ATTRIBUTE_REFERENCE)
+        return {attribute.name: attribute}

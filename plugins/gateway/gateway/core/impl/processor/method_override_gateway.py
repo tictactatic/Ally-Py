@@ -63,7 +63,7 @@ class RegisterMethodOverride(HandlerProcessorProceed):
         '''
         @see: HandlerProcessorProceed.process
         
-        Adds the default gateways.
+        Adds the method override to gateways.
         '''
         assert isinstance(reply, Reply), 'Invalid reply %s' % reply
         if reply.gateways is None: return

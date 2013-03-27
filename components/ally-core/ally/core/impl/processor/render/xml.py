@@ -13,7 +13,7 @@ from .base import RenderBaseHandler, PatternBaseHandler
 from ally.container.ioc import injected
 from ally.core.spec.transform.flags import DYNAMIC_NAME
 from ally.core.spec.transform.render import IRender
-from ally.core.spec.transform.representation import Object, Property
+from ally.core.spec.transform.representation import Object, Property, Attribute
 from ally.support.util import immut
 from ally.support.util_io import IOutputStream
 from codecs import getwriter
@@ -66,7 +66,7 @@ class PatternXMLHandler(PatternBaseHandler):
     
     def matcher(self, obj, injected):
         '''
-        @see: PatternBaseHandler.matcher
+        @see: IPattern.matcher
         '''
         assert isinstance(injected, bool), 'Invalid injected flag %s' % injected
         
@@ -92,8 +92,7 @@ class PatternXMLHandler(PatternBaseHandler):
             else: name = re.escape(obj.name)
             
             if obj.attributes:
-                attrs = ['(?:%s\s*\=\s*(?:(?:"[^"\\\]*(?:\\\.[^"\\\]*)*)|(?:\'[^\'\\\]*(?:\\\.[^\'\\\]*)*))*)' % attr
-                         for attr in obj.attributes]
+                attrs = ['(?:%s\s*\=\s*(?:"[^"]+"|\'[^\']+\')*)' % attr.name for attr in obj.attributes.values()]
                 if len(attrs) > 1: attrs = '\s+(?:%s)*' % '|'.join(attrs)
                 else: attrs = '\s+%s' % attrs[0]
             else: attrs = '\s*'
@@ -101,22 +100,27 @@ class PatternXMLHandler(PatternBaseHandler):
             if obj.properties:
                 props = '\s*'.join(self.matcher(prop, False) for prop in obj.properties)
                 props = '\s*%s\s*' % props
-            else: props = '\s*'
-                    
-            if injected: return '(<%s%s)>%s(</%s\s*>)' % (name, attrs, props, name)
+            else:
+                props = '\s*'
+            
+            sa faci sa accepte fie <*>...<*> sau <*/> si la properties inclusiv
+            if injected: return '<(%s)(%s))>%s</%s\s*>' % (name, attrs, props, name)
             return '<%s%s>%s</%s\s*>' % (name, attrs, props, name)
             
         raise ValueError('Cannot create a matcher for object %s' % obj)
             
     def capture(self, obj):
         '''
-        @see: PatternBaseHandler.capture
+        @see: IPattern.capture
         '''
+        assert isinstance(obj, Attribute), 'Invalid object %s' % obj
+        return '%s\s*\=\s*(?:"([^"]+)"|\'([^\']+)\')*' % obj.name
         
-    def adjusters(self, obj):
+    def adjusters(self):
         '''
-        @see: PatternBaseHandler.adjusters
+        @see: IPattern.adjusters
         '''
+        return [('^\s*<\?.*\?>\s*<\w+', '<{1}{2}'), ('</\w+\s*>\s*$', '</{1}>')]
         
 # --------------------------------------------------------------------
 

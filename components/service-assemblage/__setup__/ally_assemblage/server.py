@@ -21,7 +21,7 @@ from ally.http.impl.processor.router_by_path import RoutingByPathHandler
 @ioc.config
 def server_pattern_assemblage():
     '''
-    The pattern used for matching the assemblage paths in HTTP URL's
+    The pattern used for matching the assemblage paths in HTTP URL's.
     '''
     return '(.*)'
 

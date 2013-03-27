@@ -235,8 +235,8 @@ class Chain:
         Add a call back to the chain that will be called after the chain is completed.
         Also marks the chain as proceeding.
         
-        @param callBack: callable(*keyargs)
-            The call back.
+        @param callBack: callable()
+            The call back that takes no arguments and no return value.
         @return: this chain
             This chain for chaining purposes.
         '''

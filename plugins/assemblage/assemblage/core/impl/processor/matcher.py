@@ -98,10 +98,11 @@ class ProvideMatchers(HandlerProcessor):
             
         elif isinstance(obj, Object):
             assert isinstance(obj, Object)
-            if self.hasReference(obj):
+            refer = self.attributeReference(obj)
+            if refer:
                 model = Matcher()
-                model.Name = names
-                self.processPatterns(model, obj, pattern)
+                model.Names = names
+                self.processPatterns(model, obj, pattern, refer)
                 yield model
                 
             else:
@@ -112,13 +113,13 @@ class ProvideMatchers(HandlerProcessor):
                     namesProp.append(objProp.name)
                     
                     model = Matcher()
-                    model.Name = namesProp
+                    model.Names = namesProp
                     self.processPatterns(model, objProp, pattern)
                     yield model
                 
         else: log.error('Cannot provide targets for representation %s', obj)
         
-    def processPatterns(self, model, obj, pattern):
+    def processPatterns(self, model, obj, pattern, refer=None):
         '''
         Process the matcher patterns.
         '''
@@ -126,15 +127,23 @@ class ProvideMatchers(HandlerProcessor):
         assert isinstance(obj, (Collection, Object, Property)), 'Invalid object %s' % obj
         assert isinstance(pattern, IPattern), 'Invalid pattern %s' % pattern
         
-        injected = self.hasReference(obj)
-        if isinstance(obj, Object) and not injected: return
+        if isinstance(obj, Object) and not refer: return
         # If no reference available then it makes no sense to capture the object
         
-        model.Pattern = pattern.matcher(obj, injected)
+        model.Pattern = pattern.matcher(obj, refer is not None)
+        if refer:
+            model.Reference = pattern.capture(refer)
+            if model.AdjustReplace is None: model.AdjustReplace = []
+            if model.AdjustPattern is None: model.AdjustPattern = []
+            for areplace, apattern in pattern.adjusters():
+                assert isinstance(areplace, str), 'Invalid replace %s' % areplace
+                assert isinstance(apattern, str), 'Invalid pattern %s' % apattern
+                model.AdjustReplace.append(areplace)
+                model.AdjustPattern.append(apattern)
 
-    def hasReference(self, obj):
+    def attributeReference(self, obj):
         '''
-        Checks if the provided object has reference attributes.
+        Provides the objects first reference attribute.
         '''
         if isinstance(obj, Object):
             assert isinstance(obj, Object)
@@ -147,6 +156,5 @@ class ProvideMatchers(HandlerProcessor):
         if attributes:
             for attr in obj.attributes.values():
                 assert isinstance(attr, Attribute)
-                if ATTRIBUTE_REFERENCE in attr.flags: return True
+                if ATTRIBUTE_REFERENCE in attr.flags: return attr
         
-        return False

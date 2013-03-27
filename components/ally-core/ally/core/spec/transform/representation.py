@@ -40,15 +40,20 @@ class Attribute:
     '''
     Representation for a encoded attribute.
     '''
-    __slots__ = ('flags',)
+    __slots__ = ('name', 'flags')
     
-    def __init__(self, *flags):
+    def __init__(self, name, *flags):
         '''
         Construct the attribute representation.
         
+        @param name: string
+            The attribute name.
         @param flags: arguments[object]
             Flag objects specific for attribute.
         '''
+        assert isinstance(name, str), 'Invalid name %s' % name
+        
+        self.name = name
         self.flags = flags
         
 class Object:

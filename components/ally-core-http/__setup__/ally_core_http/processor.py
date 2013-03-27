@@ -54,7 +54,8 @@ def allow_method_override():
 @ioc.config
 def root_uri_resources():
     '''
-    This will be used for adjusting the encoded URIs to have a root URI.
+    This will be used for adjusting the encoded URIs to have a root URI. The value needs to have one and only one '%s' marker
+    where the partial URI will be injected.
     !Attention this configuration needs to be in concordance with 'server_pattern_resources' configuration
     '''
     return 'resources/%s'

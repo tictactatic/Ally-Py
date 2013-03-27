@@ -112,10 +112,11 @@ class InternalErrorHandler(Handler):
         assert isinstance(response, Response), 'Invalid response %s' % response
         assert isinstance(responseCnt, ResponseContent), 'Invalid response content %s' % responseCnt
         
+        log.exception('Exception occurred while processing the chain')
+        
         # If there is an explanation for the error occurred, we do not need to make another one
         if responseCnt.source is not None: return
         
-        log.exception('Exception occurred while processing the chain')
         error = StringIO()
         traceback.print_exc(file=error)
         response.code, response.status, response.isSuccess = INTERNAL_ERROR

@@ -122,4 +122,5 @@ class AttributesModelPath(AttributesJoiner):
         assert isinstance(support.normalizer, Normalizer), 'Invalid normalizer %s' % support.normalizer
         assert isinstance(support.pathModel, Path), 'Invalid path %s' % support.pathModel
         
-        return {support.normalizer.normalize(self.nameRef): Attribute(ATTRIBUTE_REFERENCE)}
+        attribute = Attribute(support.normalizer.normalize(self.nameRef), ATTRIBUTE_REFERENCE)
+        return {attribute.name: attribute}

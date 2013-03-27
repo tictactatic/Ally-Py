@@ -28,7 +28,7 @@ def server_pattern_gateway():
         as the external server provides it.
     !Attention this configuration needs to be in concordance with 'server_pattern_resources' configuration whenever the gateway 
         is used internally.
-    !Attention this configuration needs to be in concordance with 'root_uri_resources' configuration
+    !Attention this configuration needs to be in concordance with 'root_uri_resources' configuration.
     '''
     return {
             GATEWAY_EXTERNAL: '(.*)',

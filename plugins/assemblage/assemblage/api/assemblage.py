@@ -31,27 +31,33 @@ class Identifier:
     URI associated with the structure.
         Id -            unique identifier for the structure within assemblage.
         Method -        the method name that this identifier applies for.
+        HeadersExclude -The headers to be filtered in order to validate the identifier. The headers are provided as regexes that
+                        need to be matched. In case of headers that are paired as name and value the regex will receive the matching
+                        string as 'Name:Value', the name is not allowed to contain ':'.
+                        If one header matches then the identifier is not matched.
         Pattern -       the URI regex pattern to be matched.
     '''
     Id = int
     Method = str
+    HeadersExclude = List(str)
     Pattern = str
 
 @model
 class Matcher:
     '''
     Provides the available names that can be injected in the main content.
-        Name -          the name(s) of the matcher.
+        Names -          the name(s) of the matcher.
         Types -         the types of the content that this matcher represents.
         Pattern -       the regex pattern used for identifying the assemblage in the main content.
         Reference -     the regex pattern used for extracting the URI where content can be fetched for injecting, this regex
-                        will be applied against the captured block from Pattern.
+                        will be applied against the captured block from Pattern, in case ther rederence regex provides more then
+                        one group then the first non empty group is considered.
         AdjustPattern - the regex pattern identifying what to be replaced with the AdjustReplace in the content to be injected.
         AdjustReplace - contains the marked text used in the replaced content, this string can contain markers like
                         {1}, {2} ... identifying captured blocks from the matcher pattern, also can contain markers
                         like //1, //2 ... which represents blocks captured in the adjuster pattern.
     '''
-    Name = List(str)
+    Names = List(str)
     Pattern = str
     Reference = str
     AdjustPattern = List(str)
