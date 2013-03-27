@@ -100,7 +100,7 @@ class Matcher:
         assert isinstance(self.names, list), 'Invalid names %s' % self.names
         if __debug__:
             for item in self.names: assert isinstance(item, str), 'Invalid name %s' % item
-        
+
         pattern = obj['Pattern']
         assert isinstance(pattern, str), 'Invalid pattern %s' % pattern
         self.pattern = re.compile(pattern)

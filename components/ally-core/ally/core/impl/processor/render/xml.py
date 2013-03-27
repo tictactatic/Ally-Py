@@ -70,42 +70,12 @@ class PatternXMLHandler(PatternBaseHandler):
         '''
         assert isinstance(injected, bool), 'Invalid injected flag %s' % injected
         
-        if isinstance(obj, Property):
-            assert isinstance(obj, Property)
-            if DYNAMIC_NAME in obj.flags: name = '\w+'
-            else: name = re.escape(obj.name)
-            
-            if obj.clazz == list: inner = '(?:\s*<value\s*>[^<]*<value\s*>\s*)*'
-            elif obj.clazz == dict:
-                inner = '(?:(?:\s*<key\s*>[^<]*<key\s*>\s*)*|(?:\s*<value\s*>[^<]*<value\s*>\s*)*)'
-                inner = '(?:\s*<entry\s*>%s<entry\s*>\s*)*' % inner
-            else:
-                assert obj.clazz == str, 'Invalid property class %s' % obj.clazz
-                inner = '[^<]*'
-            
-            if injected: return '(<%s\s*)>%s(</%s\s*>)' % (name, inner, name)
-            return '<%s\s*>%s</%s\s*>' % (name, inner, name)
-        
-        if isinstance(obj, Object):
-            assert isinstance(obj, Object)
-            if DYNAMIC_NAME in obj.flags: name = '\w+'
-            else: name = re.escape(obj.name)
-            
-            if obj.attributes:
-                attrs = ['(?:%s\s*\=\s*(?:"[^"]+"|\'[^\']+\')*)' % attr.name for attr in obj.attributes.values()]
-                if len(attrs) > 1: attrs = '\s+(?:%s)*' % '|'.join(attrs)
-                else: attrs = '\s+%s' % attrs[0]
-            else: attrs = '\s*'
-            
-            if obj.properties:
-                props = '\s*'.join(self.matcher(prop, False) for prop in obj.properties)
-                props = '\s*%s\s*' % props
-            else:
-                props = '\s*'
-            
-            sa faci sa accepte fie <*>...<*> sau <*/> si la properties inclusiv
-            if injected: return '<(%s)(%s))>%s</%s\s*>' % (name, attrs, props, name)
-            return '<%s%s>%s</%s\s*>' % (name, attrs, props, name)
+        if isinstance(obj, (Property, Object)):
+            assert isinstance(obj, (Property, Object))
+            if DYNAMIC_NAME in obj.flags: raise ValueError('Cannot provide matcher for a dynamic named object %s' % obj)
+            name = re.escape(obj.name)
+            if injected: return '(?s)<(%s)((?:\s+[^>]*)*)(?:(?:/>)|(?:>.*?</%s>))' % (name, name)
+            return '(?s)<%s(?:\s+[^>]*)*(?:(?:/>)|(?:>.*?</%s>))' % (name, name)
             
         raise ValueError('Cannot create a matcher for object %s' % obj)
             
@@ -113,8 +83,10 @@ class PatternXMLHandler(PatternBaseHandler):
         '''
         @see: IPattern.capture
         '''
-        assert isinstance(obj, Attribute), 'Invalid object %s' % obj
-        return '%s\s*\=\s*(?:"([^"]+)"|\'([^\']+)\')*' % obj.name
+        if isinstance(obj, Attribute):
+            assert isinstance(obj, Attribute)
+            return '%s\s*\=\s*(?:"([^"]+)"|\'([^\']+)\')*' % obj.name
+        raise ValueError('Cannot create a capture for object %s' % obj)
         
     def adjusters(self):
         '''

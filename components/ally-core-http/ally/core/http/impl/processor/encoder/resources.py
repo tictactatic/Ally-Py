@@ -56,20 +56,17 @@ class ResourcesEncode(HandlerProcessorProceed):
     Implementation for a handler that provides the resources encoding.
     '''
 
-    nameResource = 'Resource'
-    # The name used for resource.
     nameResources = 'Resources'
     # The name used for resources paths.
     nameRef = 'href'
     # The reference attribute name.
     
     def __init__(self):
-        assert isinstance(self.nameResource, str), 'Invalid resource name %s' % self.nameResource
         assert isinstance(self.nameResources, str), 'Invalid resources name %s' % self.nameResources
         assert isinstance(self.nameRef, str), 'Invalid reference name %s' % self.nameRef
         super().__init__(support=Support)
         
-        self._encoder = EncoderResources(self.nameResource, self.nameResources, self.nameRef)
+        self._encoder = EncoderResources(self.nameResources, self.nameRef)
         
     def process(self, create:Create, **keyargs):
         '''
@@ -97,15 +94,13 @@ class EncoderResources(IEncoder):
     Implementation for a @see: IEncoder for resources.
     '''
     
-    def __init__(self, nameResource, nameResources, nameRef):
+    def __init__(self, nameResources, nameRef):
         '''
         Construct the resources encoder.
         '''
-        assert isinstance(nameResource, str), 'Invalid resource name %s' % nameResource
         assert isinstance(nameResources, str), 'Invalid resources name %s' % nameResources
         assert isinstance(nameRef, str), 'Invalid reference name %s' % nameRef
         
-        self.nameResource = nameResource
         self.nameResources = nameResources
         self.nameRef = nameRef
         
@@ -132,5 +127,5 @@ class EncoderResources(IEncoder):
         '''
         assert obj is None, 'No object expected for resources representation'
         attribute = Attribute(support.normalizer.normalize(self.nameRef), ATTRIBUTE_REFERENCE)
-        obj = Object(support.normalizer.normalize(self.nameResource), DYNAMIC_NAME, attributes={attribute.name: attribute})
+        obj = Object(support.normalizer.normalize(self.nameResources), DYNAMIC_NAME, attributes={attribute.name: attribute})
         return Collection(support.normalizer.normalize(self.nameResources), obj)

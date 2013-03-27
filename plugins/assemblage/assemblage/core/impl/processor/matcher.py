@@ -114,20 +114,18 @@ class ProvideMatchers(HandlerProcessor):
                     
                     model = Matcher()
                     model.Names = namesProp
-                    self.processPatterns(model, objProp, pattern)
+                    self.processPatterns(model, objProp, pattern, self.attributeReference(objProp))
                     yield model
                 
         else: log.error('Cannot provide targets for representation %s', obj)
         
-    def processPatterns(self, model, obj, pattern, refer=None):
+    def processPatterns(self, model, obj, pattern, refer):
         '''
         Process the matcher patterns.
         '''
         assert isinstance(model, Matcher), 'Invalid matcher model %s' % model
         assert isinstance(obj, (Collection, Object, Property)), 'Invalid object %s' % obj
         assert isinstance(pattern, IPattern), 'Invalid pattern %s' % pattern
-        
-        if isinstance(obj, Object) and not refer: return
         # If no reference available then it makes no sense to capture the object
         
         model.Pattern = pattern.matcher(obj, refer is not None)

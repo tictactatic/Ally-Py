@@ -11,7 +11,7 @@ Provides the identifiers or identifier data.
 
 from ally.api.config import GET, INSERT
 from ally.api.operator.type import TypeModelProperty
-from ally.api.type import Type, TypeReference
+from ally.api.type import Type, TypeReference, Iter
 from ally.container import wire
 from ally.container.ioc import injected
 from ally.container.support import setup
@@ -146,6 +146,12 @@ class ProvideIdentifiers(HandlerProcessor, INodeChildListener, INodeInvokerListe
                     if isinstance(typ, TypeReference): continue
                     # We need to exclude the references representations because this are automatically redirected to, 
                     # @see: redirect processor from ally-core-http component.
+                    
+                    if isinstance(objType, Iter):
+                        assert isinstance(objType, Iter)
+                        assert isinstance(objType.itemType, Type)
+                        if objType.itemType.isOf(Path): continue
+                        # We need to exclude the resources types since they are dynamic and cannot create matchers for it.
                     
                     self._cache[hash((hashForNode(node), method)) & 0x7FFFFFF] = (node, name, objType)
         
