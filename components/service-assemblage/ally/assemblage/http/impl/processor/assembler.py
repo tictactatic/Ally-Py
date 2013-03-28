@@ -185,7 +185,7 @@ class AssemblerHandler(HandlerBranchingProceed):
         '''
         Provides the matchers that are associated with the provided names.
         
-        @param names: set(string)|list[string]
+        @param names: Iterable(string)
             The set of names to associate with the matchers.
         @param matchers: Iterable(Matcher)
             The matchers to associate with.
@@ -197,33 +197,55 @@ class AssemblerHandler(HandlerBranchingProceed):
             basically (matcher, include(True) or exclude(False), sub names)
             None if no matchers could be associated.
         '''
-        assert isinstance(names, (set, list)), 'Invalid names %s' % names
+        assert isinstance(names, Iterable), 'Invalid names %s' % names
         assert isinstance(matchers, Iterable), 'Invalid matchers %s' % matchers
         assert isinstance(isMain, bool), 'Invalid is main flag %s' % isMain
         
-        matchersByName, subNamesForName = {}, {}
+        names, matchers, matchersByName, subNamesForName, missing = list(names), iter(matchers), {}, {}, []
         for matcher in matchers:
             assert isinstance(matcher, Matcher), 'Invalid matcher %s' % matcher
-            for name in names:
+            isFound, k = False, 0
+            while k < len(names):
+                name = names[k]
                 assert isinstance(name, str), 'Invalid name %s' % name
                 if name == matcher.name:
+                    isFound = True
                     matchersByName[name] = matcher
-                    break
+                    del names[k]
                 elif name.startswith(matcher.namePrefix):
-                    name, sname = name[:len(matcher.namePrefix)], name[len(matcher.namePrefix):]
+                    isFound = True
+                    name, sname = name[:len(matcher.namePrefix) - 1], name[len(matcher.namePrefix):]
                     matchersByName[name] = matcher
                     subNames = subNamesForName.get(name)
                     if subNames is None: subNames = subNamesForName[name] = []
                     subNames.append(sname)
-                    break
+                    del names[k]
+                else: k += 1
+            if not isFound: missing.append(matcher)
+            if not names:
+                missing.extend(matchers)
+                break
+        
+        if '*' in names:
+            for matcher in missing: matchersByName[matcher.name] = matcher
+            missing = ()
+            
         
         if not matchersByName: return
         
         associated = []
-        if isMain:
-            for name, matcher in matchersByName.items():
-                subNames = subNamesForName.get(name)
-                if subNames: associated.append((matcher, True, subNames))
+        for name, matcher in matchersByName.items():
+            subNames = subNamesForName.get(name)
+            if subNames:
+                if matcher.present:
+                    assert isinstance(matcher.present, set)
+                    if matcher.present.issuperset(subNames): continue
+                    # If the sub names are already present then no need to add the matcher.
+                
+            associated.append((matcher, True, subNames))
+            
+        if not isMain:
+            for matcher in missing: associated.append((matcher, False, None))
         
         return associated
     
@@ -237,34 +259,44 @@ class AssemblerHandler(HandlerBranchingProceed):
         assert isinstance(content, str), 'Invalid content %s' % content
         assert isinstance(data, dict), 'Invalid data %s' % data
         
-        matcher, include, names = matchers.pop()
-        assert isinstance(matcher, Matcher), 'Invalid matcher %s' % matcher
+        while matchers:
+            matcher, include, names = matchers.pop()
+            assert isinstance(matcher, Matcher), 'Invalid matcher %s' % matcher
+            
+            if not include: break  # We need to exclude the matchers block so proceed with the matcher.
+            if matcher.reference and names: break  # We need to process the reference so proceed with the matcher
+        else:
+            # No matcher needs processing
+            return (content,)
         
         assembled, current = [], 0
         for match in matcher.pattern.finditer(content):
             mcontent = content[current:match.start()]
-            if matchers: assembled.extend(self.assemble(dict(matchers), mcontent, data))
+            if matchers: assembled.extend(self.assemble(list(matchers), mcontent, data))
             else: assembled.append(mcontent)
             current = match.end()
             
-            if not include: continue  # We remove the block
+            if not include: continue  # We exclude the block
             
-            if not matcher.reference:
-                # TODO: see how to behave here
-                continue
-            
-            rmatch = matcher.reference.search(match.group())
+            block = match.group()
+            rmatch = matcher.reference.search(block)
             if rmatch:
                 for reference in rmatch.groups():
                     if reference: break
                 else:
-                    assert log.debug('No URI reference located in:\n%s', match.group()) or True
-                    # TODO: see how to behave here
+                    assert log.debug('No URI reference located in:\n%s', block) or True
+                    assembled.append(block)
                     continue
                 
                 rurl = urlsplit(reference)
                 ruri = rurl.path.lstrip('/')
                 rparameters = parse_qsl(rurl.query, True, False)
+                
+                smatchers = self.matchersForURI(ruri, names, **data)
+                if not smatchers:
+                    # No matchers to process on the reference content
+                    assembled.append(block)
+                    continue
                 
                 rcontent, error = self.fetchForURI(ruri, rparameters, **data)
                 if not rcontent:
@@ -272,22 +304,20 @@ class AssemblerHandler(HandlerBranchingProceed):
                     # TODO: see how to behave here
                     continue
                 
-                if names:
-                    smatchers = self.matchersForURI(ruri, names, **data)
-                    if smatchers:
-                        sassembled = self.assemble(smatchers, rcontent, data)
-                        rcontent = ''.join(sassembled)
+                sassembled = self.assemble(smatchers, rcontent, data)
+                rcontent = ''.join(sassembled)
                 
+                groups = match.groups()
                 if matcher.adjustPattern and matcher.adjustReplace:
                     for replacer, value in zip(matcher.adjustReplace, matcher.adjustPattern):
-                        for k, group in enumerate(match.groups()):
+                        for k, group in enumerate(groups):
                             value = value.replace('{%s}' % (k + 1), group)
                         rcontent = replacer.sub(value, rcontent)
                 
                 assembled.append(rcontent)
         
         mcontent = content[current:]
-        if matchers: assembled.extend(self.assemble(dict(matchers), mcontent, data))
+        if matchers: assembled.extend(self.assemble(matchers, mcontent, data))
         else: assembled.append(mcontent)
         
         return assembled

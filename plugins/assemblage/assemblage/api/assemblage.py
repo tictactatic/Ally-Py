@@ -46,11 +46,12 @@ class Identifier:
 class Matcher:
     '''
     Provides the available names that can be injected in the main content.
-        Names -          the name(s) of the matcher.
+        Names -         the name(s) of the matcher.
+        Present -       the simple name of the properties that are already present in the matcher block.
         Types -         the types of the content that this matcher represents.
         Pattern -       the regex pattern used for identifying the assemblage in the main content.
         Reference -     the regex pattern used for extracting the URI where content can be fetched for injecting, this regex
-                        will be applied against the captured block from Pattern, in case ther rederence regex provides more then
+                        will be applied against the captured block from Pattern, in case the reference regex provides more then
                         one group then the first non empty group is considered.
         AdjustPattern - the regex pattern identifying what to be replaced with the AdjustReplace in the content to be injected.
         AdjustReplace - contains the marked text used in the replaced content, this string can contain markers like
@@ -58,6 +59,7 @@ class Matcher:
                         like //1, //2 ... which represents blocks captured in the adjuster pattern.
     '''
     Names = List(str)
+    Present = List(str)
     Pattern = str
     Reference = str
     AdjustPattern = List(str)

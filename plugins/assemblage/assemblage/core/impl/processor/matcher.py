@@ -130,6 +130,10 @@ class ProvideMatchers(HandlerProcessor):
         
         model.Pattern = pattern.matcher(obj, refer is not None)
         if refer:
+            if isinstance(obj, Object) and obj.properties:
+                if model.Present is None: model.Present = []
+                for objProp in obj.properties: model.Present.append(objProp.name)
+
             model.Reference = pattern.capture(refer)
             if model.AdjustReplace is None: model.AdjustReplace = []
             if model.AdjustPattern is None: model.AdjustPattern = []
