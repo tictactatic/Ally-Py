@@ -739,6 +739,36 @@ overrides
 
 		}
 
+		&.instagram {
+			.result-content {	
+
+				h3 {
+					display: none;					
+				}
+				.result-description {
+					margin-top: -110px;
+					margin-left: 0;
+					width: 110px;
+					height: 110px;
+					background: rgba(255,255,255,0.8);
+					padding: 2px;
+					position: relative;
+					cursor: pointer;
+					overflow: hidden;
+					display: none;
+					font-weight:normal;
+				}
+			}
+			&:hover {
+				.result-description {
+					display: block;
+				}
+			}
+			.attributes {
+				display: none;
+			}
+		}
+
 		&.flickr  {
 			width:85px !important;
 			height:75px !important;
