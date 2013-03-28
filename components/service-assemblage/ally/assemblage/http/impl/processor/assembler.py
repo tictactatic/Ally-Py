@@ -12,16 +12,17 @@ Provides the assembler processor.
 from ally.assemblage.http.spec.assemblage import IRepository, Matcher
 from ally.container.ioc import injected
 from ally.design.processor.assembly import Assembly
-from ally.design.processor.attribute import requires
+from ally.design.processor.attribute import requires, defines
 from ally.design.processor.branch import Using
 from ally.design.processor.context import Context, pushIn
 from ally.design.processor.execution import Processing, Chain
 from ally.design.processor.handler import HandlerBranchingProceed
 from ally.http.spec.codes import isSuccess
-from ally.http.spec.server import IDecoderHeader, ResponseContentHTTP, \
-    ResponseHTTP, RequestHTTP, HTTP_GET
+from ally.http.spec.server import IDecoderHeader, ResponseHTTP, RequestHTTP, \
+    HTTP_GET
 from ally.support.util_io import IInputStream
 from codecs import getreader, getwriter
+from collections import Iterable
 from io import BytesIO
 from urllib.parse import urlsplit, parse_qsl
 import logging
@@ -37,19 +38,28 @@ class Request(Context):
     The request context.
     '''
     # ---------------------------------------------------------------- Required
+    scheme = requires(str)
     method = requires(str)
     headers = requires(dict)
     uri = requires(str)
     repository = requires(IRepository)
     decoderHeader = requires(IDecoderHeader)
 
-class ResponseContentData(ResponseContentHTTP):
+class ResponseContent(Context):
+    '''
+    The response content context.
+    '''
+    # ---------------------------------------------------------------- Defined
+    length = defines(int)
+    
+class ResponseContentData(Context):
     '''
     The response content context containing data for assemblage.
     '''
     # ---------------------------------------------------------------- Required
     type = requires(str)
     charSet = requires(str)
+    source = requires(IInputStream, Iterable)
 
 # --------------------------------------------------------------------
 
@@ -69,7 +79,8 @@ class AssemblerHandler(HandlerBranchingProceed):
         assert isinstance(self.assembly, Assembly), 'Invalid assembly %s' % self.assembly
         super().__init__(Using(self.assembly, 'request', 'requestCnt', response=ResponseHTTP, responseCnt=ResponseContentData))
 
-    def process(self, processing, request:Request, requestCnt:Context, response:Context, responseCnt:Context, **keyargs):
+    def process(self, processing, request:Request, requestCnt:Context, response:Context,
+                responseCnt:ResponseContent, **keyargs):
         '''
         @see: HandlerBranchingProceed.process
         
@@ -77,179 +88,276 @@ class AssemblerHandler(HandlerBranchingProceed):
         '''
         assert isinstance(processing, Processing), 'Invalid processing %s' % processing
         assert isinstance(request, Request), 'Invalid request %s' % request
+        assert isinstance(responseCnt, ResponseContent), 'Invalid response content %s' % responseCnt
         assert isinstance(request.decoderHeader, IDecoderHeader), 'Invalid decoder header %s' % request.decoderHeader
         
         names = request.decoderHeader.decode(self.nameAssemblage)
-        uri = request.uri  # We capture the URI here since it might be change by internal processing.
+        if names:
+            # We capture the URI and data here since the data on request might be change by internal processing.
+            uri, data = request.uri, dict(scheme=request.scheme, headers=dict(request.headers))
+            names = set(name for name, _attr in names)
         
-        isOk, responseData, responseCntData = processResponse(processing, request, requestCnt)
+        isOk, responseData, responseCntData = self.fetchResponse(processing, request, requestCnt)
         assert isinstance(responseCntData, ResponseContentData), 'Invalid response content %s' % responseCntData
         
         pushIn(response, responseData)
         pushIn(responseCnt, responseCntData)
+        assert isinstance(responseCnt, ResponseContentData), 'Invalid response content %s' % responseCnt
         
-        if not isOk: return
-        # The main request has failed or has no content or no assemblage, nothing to do just move along.
-        if not names: return
-        # There are no assemblages required, nothing to do just move along.
+        if not isOk or not names: return
+        # The main request has failed or has no content or no assemblages required, nothing to do just move along.
         
         assert isinstance(request.repository, IRepository), 'Invalid repository %s' % request.repository
-        matchers = request.repository.matchers(responseCntData.type, request.method, uri, request.headers)
+        matchers = request.repository.matchers(responseCnt.type, request.method, uri, request.headers)
         if not matchers: return
         # No matchers to process, nothing to do.
-        
-        def fetchContentForURI(uri):
-            url = urlsplit(uri)
-            requestRef = processing.ctx.request()
-            assert isinstance(requestRef, RequestHTTP), 'Invalid request %s' % requestRef
-            
-            requestRef.scheme = request.scheme
-            requestRef.method = HTTP_GET
-            requestRef.headers = dict(request.headers)
-            requestRef.uri = url.path.lstrip('/')
-            requestRef.parameters = parse_qsl(url.query, True, False)
-            
-            isOk, _response, responseCntRef = processResponse(processing, requestRef)
-            if not isOk:
-                # TODO: see how to behave here
-                return
-            return fetchContent(responseCntRef)
-        
-        names = set(name for name, _attr in names)
-        
-        matchersSelected, index = [], 0
-        for name in names:
-            for matcher in matchers:
-                assert isinstance(matcher, Matcher), 'Invalid matcher %s' % matcher
-                if len(matcher.names) > index and name == matcher.names[index]:
-                    matchersSelected.append(matcher)
-                    break
-        
-        if not matchersSelected: return
+        matchers = self.associateMatchers(names, matchers, True)
+        if not matchers: return
         # No valid matchers have been selected, moving along.
         
-        content = fetchContent(responseCnt)
+        content, error = self.fetchContent(responseCnt)
         if not content:
-            # TODO: see how to behave here
+            log.warn('Cannot fetch content for \'%s\' because: %s', uri, error)
             return
         
-        assembled = self.processMatchers(matchersSelected, 0, content, fetchContentForURI)
-        pushContent(responseCnt, ''.join(assembled))
+        data.update(processing=processing, repository=request.repository, contentType=responseCnt.type)
+        assembled = self.assemble(matchers, content, data)
+        
+        source = BytesIO()
+        encoder = getwriter(responseCnt.charSet)(source)
+        for content in assembled: encoder.write(content)
+        responseCnt.length = source.tell()
+        source.seek(0)
+        responseCnt.source = source
         
     # ----------------------------------------------------------------
+        
+    def fetchResponse(self, processing, request, requestCnt=None):
+        '''
+        Fetch the response for the request.
+        
+        @param processing: Processing
+            The processing used for delivering the request.
+        @param request: RequestHTTP
+            The request object to deliver.
+        @return: tuple(boolean, ResponseHTTP, ResponseContentHTTP)
+            A tuple of three containing a flag indicating the success status and then the response and response content.
+        '''
+        assert isinstance(processing, Processing), 'Invalid processing %s' % processing
+        
+        if requestCnt is None: requestCnt = processing.ctx.requestCnt()
+        chain = Chain(processing)
+        chain.process(request=request, requestCnt=requestCnt,
+                      response=processing.ctx.response(), responseCnt=processing.ctx.responseCnt()).doAll()
     
-    def processMatchers(self, matchers, index, content, fetchContentForURI):
+        response, responseCnt = chain.arg.response, chain.arg.responseCnt
+        assert isinstance(response, ResponseHTTP), 'Invalid response %s' % response
+        assert isinstance(responseCnt, ResponseContentData), 'Invalid response content %s' % responseCnt
+        
+        isOk = ResponseContentData.source in responseCnt and responseCnt.source is not None and isSuccess(response.status)
+        return isOk, response, responseCnt
+    
+    def fetchContent(self, responseCnt):
+        '''
+        Fetches the text content into a string, None if the content type is no usable.
+        
+        @param responseCnt: ResponseContentData
+            The response content to fetch the content from.
+        @return: tuple(string|None, string|None)
+            A tuple of two, on the first position the content string or None if a problem occurred and on the second position
+            the error explanation if there was a problem.
+        '''
+        assert isinstance(responseCnt, ResponseContentData), 'Invalid response content %s' % responseCnt
+        
+        try: decoder = getreader(responseCnt.charSet)
+        except LookupError: return None, 'Unknown encoding \'%s\'' % responseCnt.charSet
+        
+        if isinstance(responseCnt.source, IInputStream):
+            source = responseCnt.source
+        else:
+            source = BytesIO()
+            for bytes in responseCnt.source: source.write(bytes)
+            source.seek(0)
+        
+        return decoder(source).read(), None
+    
+    def associateMatchers(self, names, matchers, isMain=False):
+        '''
+        Provides the matchers that are associated with the provided names.
+        
+        @param names: set(string)|list[string]
+            The set of names to associate with the matchers.
+        @param matchers: Iterable(Matcher)
+            The matchers to associate with.
+        @param isMain: boolean
+            Flag indicating that the matchers should be associated for the main response.
+        @return: list[tuple(Matcher, boolean, list[string]|None)]|None
+            A list of tuples containing on the first position the matcher, next the flag indicating that the matcher content
+            should be excluded or included and last the names to be fetched inside the matcher assembly if there are any,
+            basically (matcher, include(True) or exclude(False), sub names)
+            None if no matchers could be associated.
+        '''
+        assert isinstance(names, (set, list)), 'Invalid names %s' % names
+        assert isinstance(matchers, Iterable), 'Invalid matchers %s' % matchers
+        assert isinstance(isMain, bool), 'Invalid is main flag %s' % isMain
+        
+        matchersByName, subNamesForName = {}, {}
+        for matcher in matchers:
+            assert isinstance(matcher, Matcher), 'Invalid matcher %s' % matcher
+            for name in names:
+                assert isinstance(name, str), 'Invalid name %s' % name
+                if name == matcher.name:
+                    matchersByName[name] = matcher
+                    break
+                elif name.startswith(matcher.namePrefix):
+                    name, sname = name[:len(matcher.namePrefix)], name[len(matcher.namePrefix):]
+                    matchersByName[name] = matcher
+                    subNames = subNamesForName.get(name)
+                    if subNames is None: subNames = subNamesForName[name] = []
+                    subNames.append(sname)
+                    break
+        
+        if not matchersByName: return
+        
+        associated = []
+        if isMain:
+            for name, matcher in matchersByName.items():
+                subNames = subNamesForName.get(name)
+                if subNames: associated.append((matcher, True, subNames))
+        
+        return associated
+    
+    # ----------------------------------------------------------------
+        
+    def assemble(self, matchers, content, data):
         '''
         Process the assemble.
         '''
         assert isinstance(matchers, list), 'Invalid matchers %s' % matchers
-        assert isinstance(index, int), 'Invalid index %s' % index
         assert isinstance(content, str), 'Invalid content %s' % content
-        assert callable(fetchContentForURI), 'Invalid fetcher %s' % fetchContentForURI
+        assert isinstance(data, dict), 'Invalid data %s' % data
         
-        matcher = matchers[index]
+        matcher, include, names = matchers.pop()
         assert isinstance(matcher, Matcher), 'Invalid matcher %s' % matcher
         
-        assembled, current, hasMore = [], 0, index + 1 < len(matchers)
+        assembled, current = [], 0
         for match in matcher.pattern.finditer(content):
-            if hasMore:
-                assembled.extend(self.processMatchers(matchers, index + 1, content[current:match.start()], fetchResponse))
-            else:
-                assembled.append(content[current:match.start()])
+            mcontent = content[current:match.start()]
+            if matchers: assembled.extend(self.assemble(dict(matchers), mcontent, data))
+            else: assembled.append(mcontent)
             current = match.end()
             
-            if matcher.reference:
-                matchRef = matcher.reference.search(match.group())
-                if matchRef:
-                    for reference in matchRef.groups():
-                        if reference: break
-                    else:
-                        # TODO: see how to behave here
-                        continue
-                    
-                    contentRef = fetchResponse(reference)
-                    if not contentRef:
-                        # TODO: see how to behave here
-                        continue
-                    
-                    if matcher.adjustPattern and matcher.adjustReplace:
-                        for replacer, value in zip(matcher.adjustReplace, matcher.adjustPattern):
-                            for k, group in enumerate(match.groups()):
-                                value = value.replace('{%s}' % (k + 1), group)
-                            contentRef = replacer.sub(value, contentRef)
-                            
-                    assembled.append(contentRef)
+            if not include: continue  # We remove the block
+            
+            if not matcher.reference:
+                # TODO: see how to behave here
+                continue
+            
+            rmatch = matcher.reference.search(match.group())
+            if rmatch:
+                for reference in rmatch.groups():
+                    if reference: break
+                else:
+                    assert log.debug('No URI reference located in:\n%s', match.group()) or True
+                    # TODO: see how to behave here
+                    continue
+                
+                rurl = urlsplit(reference)
+                ruri = rurl.path.lstrip('/')
+                rparameters = parse_qsl(rurl.query, True, False)
+                
+                rcontent, error = self.fetchForURI(ruri, rparameters, **data)
+                if not rcontent:
+                    log.warn('Cannot fetch content for \'%s\' because: %s', ruri, error)
+                    # TODO: see how to behave here
+                    continue
+                
+                if names:
+                    smatchers = self.matchersForURI(ruri, names, **data)
+                    if smatchers:
+                        sassembled = self.assemble(smatchers, rcontent, data)
+                        rcontent = ''.join(sassembled)
+                
+                if matcher.adjustPattern and matcher.adjustReplace:
+                    for replacer, value in zip(matcher.adjustReplace, matcher.adjustPattern):
+                        for k, group in enumerate(match.groups()):
+                            value = value.replace('{%s}' % (k + 1), group)
+                        rcontent = replacer.sub(value, rcontent)
+                
+                assembled.append(rcontent)
         
-        if hasMore:
-            assembled.extend(self.processMatchers(matchers, index + 1, content[current:], fetchResponse))
-        else:
-            assembled.append(content[current:])
+        mcontent = content[current:]
+        if matchers: assembled.extend(self.assemble(dict(matchers), mcontent, data))
+        else: assembled.append(mcontent)
+        
         return assembled
-
-# --------------------------------------------------------------------
-
-def processResponse(processing, request, requestCnt=None):
-    '''
-    Get the response for the request.
-    
-    @param processing: Processing
-        The processing used for delivering the request.
-    @param request: RequestHTTP
-        The request object to deliver.
-    @return: tuple(boolean, ResponseHTTP, ResponseContentHTTP)
-        A tuple of three containing a flag indicating the success status and then the response and response content.
-    '''
-    assert isinstance(processing, Processing), 'Invalid processing %s' % processing
-    
-    if requestCnt is None: requestCnt = processing.ctx.requestCnt()
-    chain = Chain(processing)
-    chain.process(request=request, requestCnt=requestCnt,
-                  response=processing.ctx.response(), responseCnt=processing.ctx.responseCnt()).doAll()
-
-    response, responseCnt = chain.arg.response, chain.arg.responseCnt
-    assert isinstance(response, ResponseHTTP), 'Invalid response %s' % response
-    assert isinstance(responseCnt, ResponseContentHTTP), 'Invalid response content %s' % responseCnt
-    
-    isOk = ResponseContentHTTP.source in responseCnt and responseCnt.source is not None and isSuccess(response.status)
-    return isOk, response, responseCnt
-
-def fetchContent(responseCnt):
-    '''
-    Fetches the text content into a string, None if the content type is no usable.
-    
-    @param responseCnt: ResponseContentData
-        The response content to fetch the content from.
-    @return: string|None
-        The content or None if there is a problem.
-    '''
-    assert isinstance(responseCnt, ResponseContentData), 'Invalid response content %s' % responseCnt
-    
-    try: decoder = getreader(responseCnt.charSet)
-    except LookupError: return
-    
-    if isinstance(responseCnt.source, IInputStream):
-        source = responseCnt.source
-    else:
-        source = BytesIO()
-        for bytes in responseCnt.source: source.write(bytes)
-        source.seek(0)
-    
-    return decoder(source).read()
         
-def pushContent(responseCnt, content):
-    '''
-    Pushes the text content into the response content.
+    def fetchForURI(self, uri, parameters, processing, scheme, headers, **data):
+        '''
+        Fetches the content for the provided URI.
+        
+        @param uri: string
+            The URI to fetch the content for.
+        @param parameters: list[tuple(string, string)]
+            The parameters of the URI.
+        @param processing: Processing
+            The processing to use for the request.
+        @param scheme: string
+            The scheme for the request.
+        @param headers: dictionary{string: string}
+            The headers to use on the request.
+        @return: tuple(string|None, string|None)
+            A tuple of two, on the first position the content string or None if a problem occurred and on the second position
+            the error explanation if there was a problem.
+        '''
+        assert isinstance(uri, str), 'Invalid uri %s' % uri
+        assert isinstance(parameters, list), 'Invalid parameters %s' % parameters
+        assert isinstance(processing, Processing), 'Invalid processing %s' % processing
+        assert isinstance(scheme, str), 'Invalid scheme %s' % scheme
+        assert isinstance(headers, dict), 'Invalid headers %s' % headers
+        
+        request = processing.ctx.request()
+        assert isinstance(request, RequestHTTP), 'Invalid request %s' % request
+        
+        request.scheme = scheme
+        request.method = HTTP_GET
+        request.headers = dict(headers)
+        request.uri = uri
+        request.parameters = parameters
+        
+        isOk, response, responseCnt = self.fetchResponse(processing, request)
+        if not isOk:
+            assert isinstance(response, ResponseHTTP), 'Invalid response %s' % response
+            if ResponseHTTP.text in response and response.text: text = response.text
+            elif ResponseHTTP.code in response and response.code: text = response.code
+            else: text = None
+            
+            if text: text = '%s %s' % (response.status, text)
+            else: text = str(response.status)
+            return None, text
+        return self.fetchContent(responseCnt)
     
-    @param responseCnt: ResponseContentData
-        The response content to push the content to.
-    @param content: string
-        The content to push in the response content.
-    '''
-    assert isinstance(responseCnt, ResponseContentData), 'Invalid response content %s' % responseCnt
-    assert isinstance(content, str), 'Invalid content %s' % content
-    
-    source = BytesIO()
-    encoder = getwriter(responseCnt.charSet)(source)
-    encoder.write(content)
-    source.seek(0)
-    responseCnt.source = source
+    def matchersForURI(self, uri, names, repository, contentType, headers, **data):
+        '''
+        Provides the matchers obtained for URI directly associated with the provided names.
+        
+        @param uri: string
+            The URI to get the matchers for.
+        @param names: set(string)|list[string]
+            The set of names to associate with the URI matchers.
+        @param repository: IRepository
+            The repository used in getting the URI matchers.
+        @param contentType: string
+            The content type to process the matchers for.
+        @param headers: dictionary{string: string}
+            The headers to to be used on the matchers.
+        @return: dictionary{Matcher: list[string]|None}|None
+            A dictionary with the associated matchers and as a value the list of sub names to be processed for that matcher.
+            None if there is no avaialable matchers for URI.
+        '''
+        assert isinstance(repository, IRepository), 'Invalid repository %s' % repository
+        matchers = repository.matchers(contentType, HTTP_GET, uri, headers)
+        if not matchers: return
+        # No matchers to process, nothing to do.
+        return self.associateMatchers(names, matchers)
+         

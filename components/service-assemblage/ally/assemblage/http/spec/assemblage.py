@@ -84,7 +84,7 @@ class Matcher:
     '''
     Provides the identifier matcher data.
     '''
-    __slots__ = ('names', 'pattern', 'reference', 'adjustPattern', 'adjustReplace')
+    __slots__ = ('name', 'namePrefix', 'pattern', 'reference', 'adjustPattern', 'adjustReplace')
     
     def __init__(self, obj):
         '''
@@ -96,10 +96,13 @@ class Matcher:
         '''
         assert isinstance(obj, dict), 'Invalid object %s' % obj
         
-        self.names = obj['Names']
-        assert isinstance(self.names, list), 'Invalid names %s' % self.names
+        names = obj['Names']
+        assert isinstance(names, list), 'Invalid names %s' % names
         if __debug__:
-            for item in self.names: assert isinstance(item, str), 'Invalid name %s' % item
+            assert names, 'At least one name is required'
+            for item in names: assert isinstance(item, str), 'Invalid name %s' % item
+        self.name = '.'.join(names)
+        self.namePrefix = '%s.' % self.name
 
         pattern = obj['Pattern']
         assert isinstance(pattern, str), 'Invalid pattern %s' % pattern

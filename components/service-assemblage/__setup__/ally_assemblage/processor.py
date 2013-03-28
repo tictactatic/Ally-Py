@@ -9,7 +9,8 @@ Created on Jan 5, 2012
 Provides the processors setups for assemblage.
 '''
 
-from ..ally_http.processor import headerDecodeRequest, internalError
+from ..ally_http.processor import contentLengthEncode, headerDecodeRequest, \
+    internalError, headerEncodeResponse
 from ally.assemblage.http.impl.processor.assembler import AssemblerHandler
 from ally.assemblage.http.impl.processor.respository import \
     AssemblageRepositoryHandler
@@ -97,4 +98,5 @@ def assemblyAssemblage() -> Assembly:
     
 @ioc.before(assemblyAssemblage)
 def updateAssemblyAssemblage():
-    assemblyAssemblage().add(internalError(), headerDecodeRequest(), assemblageRepository(), assembler())
+    assemblyAssemblage().add(internalError(), headerDecodeRequest(), assemblageRepository(), assembler(),
+                             headerEncodeResponse(), contentLengthEncode())
