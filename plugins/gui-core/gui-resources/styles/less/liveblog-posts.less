@@ -1307,14 +1307,6 @@ overrides
 		display:block;
 		}
 
-.post-list > li.published {
-	border:1px dashed #e8e8e8 !important;
-	background:#F9F9F9;
-}
-
-
-		
-
 .post-list > li.advertisement {
 	display:block;
 	background-color:#effaff;
@@ -1324,24 +1316,7 @@ overrides
 	display:inline-block;
 	line-height: 16px;
 }
-			
 		
-.post-list > li.quote .result-text {
-	font-style:italic;
-	font-family:Georgia, "Times New Roman", Times, serif;
-	font-size:12px;
-}
-.post-list > li.quote .result-text:before {
-	
-}
-.post-list > li.quote .result-text:after {
-	content:"«";
-	padding-left:1px;
-	color:#999;
-	font-family:Georgia, "Times New Roman", Times, serif;
-	font-size:19px;
-}
-
 .post-list > li.wrapup {		
 	background: #f6f6f6;
 	border-bottom: 1px solid #EBEBEB;
@@ -1380,116 +1355,13 @@ overrides
 	.post-list > li:hover .share {
 		display:inline-block;
 		}
-.post-list .result-content > figure {
-	margin:4px 0 6px 0;
-	}
 
-.post-list .google .result-content .author-name + .attributes,
-.post-list .google .result-content .author-name + p,
-.post-list .google .result-content .author-name + p +.attributes {
-	display:inline-block;
-	
-}
 
 
 
 */
 
 
-
-
-/*
-
-#timeline-view .twitter .btn-group
-{
-	margin-top: 10px;
-}
-#timeline-view .twitter .twitter-quote
-{
-	margin: 5px 0;
-	padding: 5px 8px 8px;
-	min-height: 50px;
-	border: 1px solid #e5e5e5;
-    padding: 5px 8px 8px !important; 
-    background: #f5f5f5;
-
-}
-#timeline-view .twitter .twitter-quote .result-content
-{
-	margin-left: 55px;
-}
-#timeline-view .twitter .twitter-quote figure
-{
-	float: left;
-	margin: 3px 0 0; 
-}
-#timeline-view .flickr .result-text
-{
-	float: left;
-	margin: 0 10px 10px 0;
-}
-#timeline-view .flickr .result-content
-{
-	.clearfix();
-	color:#787878;
-	margin-left:0px;
-}
-#timeline-view .instagram .result-content,
-#timeline-view .google .result-content {
-	margin: 0 0 10px 0;
-}
-
-#timeline-view .youtube .result-content
-{
-	margin: 10px 0;
-}
-
-
-#timeline-view .google-full-content,
-#timeline-view .youtube-full-content,
-#timeline-view .twitter-full-content,
-#timeline-view .flickr-full-content,
-#timeline-view .soundcloud .result-content,
-#timeline-view .instagram-full-content {
-	padding-left: 60px;
-}
-
-#timeline-view .soundcloud .result-content {
-	margin-bottom:10px;
-}
-#timeline-view .soundcloud .editable.annotation {
-	margin-left:60px;
-}
-
-#timeline-view .soundcloud .result-text {
-	line-height:18px;
-	padding-bottom: 5px;
-}
-
-#timeline-view .youtube-full-content .result-content {
-	overflow:hidden;
-}
-
-
-#colabs .postinfo {
-	
-}
-
-#own-posts-holder {
-	li {
-		.post-info {
-			padding-bottom:0;
-		}
-		.result-content {
-			h3 {
-				display:none;
-			}
-		}
-	}
-}
-
-
-*/
 
 
 
@@ -1604,7 +1476,7 @@ overrides
 
 
 
-
+.chain-header,
 .collaborators-header, 
 .search-header, 
 .ads-header {
@@ -1619,13 +1491,39 @@ overrides
 	z-index:10;
 }
 
+.chain-header {
+	background-color: #f8f8f8 !important;
+	border-color: #e8e8e8 !important;
+	.border-radius(0px 0px 3px 3px);
+}
+.chain-search {
+	margin: -10px;
+	margin-top: 10px;
+	padding: 10px;
+	background: #fff;
+	border-top: 1px solid #e8e8e8;
+	.searchbar-container {
+		width: 100%;
+		.border-radius(3px);
+	}
+}
+.chainblogs {
+	top: 130px !important;
+	bottom: 0;
+	padding: 0 12px 30px 0;
+	left: 0;
+	right: 13px;
+	z-index: 2;
+}
+
 .ads-header {
 	h4 {
 		margin:6px 0 5px 0;
 	}
 }
 
-.collaborators-header {
+.collaborators-header,
+.chain-header {
 	background-color: #f4f6f7;
 	border-color: #c4e3e9;
 	p {
