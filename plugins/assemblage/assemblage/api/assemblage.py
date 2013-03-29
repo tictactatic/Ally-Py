@@ -10,7 +10,7 @@ API specifications for assemblage data.
 '''
 
 from ally.api.config import model, service, call
-from ally.api.type import Iter, List
+from ally.api.type import Iter, List, Dict
 
 # --------------------------------------------------------------------
 
@@ -20,9 +20,23 @@ class Assemblage:
     Provides the response assemblage.
         Id -        unique identifier for the assemblage.
         Types -     the types of the content that this assemblage represents.
+
+        AdjustPattern - the regex pattern identifying what to be replaced with the AdjustReplace in the content to be injected.
+        AdjustReplace - contains the marked text used in the replaced content, this string can contain markers like
+                        {1}, {2} ... identifying captured groups from the matcher pattern, also can contain markers
+                        like //1, //2 ... which represents groups captured in the adjuster pattern.
+        ErrorPattern -  the regex pattern identifying what to be replaced with the ErrorReplace in the content to be injected,
+                        this pattern is applied against the matcher captured block.
+        ErrorReplace -  contains the marked text used in the replaced content, this string can contain markers
+                        like //1, //2 ... which represents groups captured in the error pattern. The value to be
+                        injected is marked by '*'.
     '''
     Id = str
     Types = List(str)
+    AdjustPattern = List(str)
+    AdjustReplace = List(str)
+    ErrorPattern = Dict(str, str)
+    ErrorReplace = Dict(str, str)
 
 @model(id='Id')
 class Identifier:
@@ -46,24 +60,19 @@ class Identifier:
 class Matcher:
     '''
     Provides the available names that can be injected in the main content.
-        Names -         the name(s) of the matcher.
-        Present -       the simple name of the properties that are already present in the matcher block.
+        Name -          the name of the matcher, if there is no name it should be the only matcher and delegate directly
+                        to it.
+        Present -       the names of the properties that are already present in the matcher block.
         Types -         the types of the content that this matcher represents.
         Pattern -       the regex pattern used for identifying the assemblage in the main content.
         Reference -     the regex pattern used for extracting the URI where content can be fetched for injecting, this regex
                         will be applied against the captured block from Pattern, in case the reference regex provides more then
                         one group then the first non empty group is considered.
-        AdjustPattern - the regex pattern identifying what to be replaced with the AdjustReplace in the content to be injected.
-        AdjustReplace - contains the marked text used in the replaced content, this string can contain markers like
-                        {1}, {2} ... identifying captured blocks from the matcher pattern, also can contain markers
-                        like //1, //2 ... which represents blocks captured in the adjuster pattern.
     '''
-    Names = List(str)
+    Name = str
     Present = List(str)
     Pattern = str
     Reference = str
-    AdjustPattern = List(str)
-    AdjustReplace = List(str)
 
 # --------------------------------------------------------------------
 

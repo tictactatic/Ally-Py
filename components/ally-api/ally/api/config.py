@@ -19,7 +19,7 @@ from .operator.type import TypeModel, TypeProperty, TypeModelProperty, \
     TypeCriteria, TypeQuery, TypeCriteriaEntry, TypeService, TypeExtension
 from .type import typeFor
 from abc import ABCMeta, abstractmethod
-from ally.api.type import List
+from ally.api.type import List, Input
 from ally.exception import DevelError
 from ally.support.util_sys import locationStack
 from inspect import isclass, isfunction
@@ -46,6 +46,8 @@ RULE_QUERY_CRITERIA = ('^[a-z]{1,}[\w]*$',
 RULE_EXTENSION_PROPERTY = ('^[a-z]{1,}[\w]*$',
                            'The extension property name needs to start with a lower case, got "%s"')
 
+RULE_CALL_PARAMETERS = ('^[a-z]{1,}[\w]*$',
+                        'The call parameter name needs to start with a lower case, got "%s", at:%s')
 # The available method actions.
 GET = 1 << 1
 INSERT = 1 << 2
@@ -342,7 +344,10 @@ def call(*args, method=None, **hints):
             else: raise DevelError('Cannot deduce method for function name "%s"' % name)
 
         output, inputs = extractOuputInput(function, types, modelToId=method in (GET, DELETE))
-
+        for inp in inputs:
+            assert isinstance(inp, Input), 'Invalid input %s' % inp
+            if not match(RULE_CALL_PARAMETERS[0], inp.name):
+                raise DevelError(RULE_CALL_PARAMETERS[1] % (inp.name, locationStack(function)))
         function._ally_call = Call(name, method, output, inputs, hints)
         return abstractmethod(function)
 

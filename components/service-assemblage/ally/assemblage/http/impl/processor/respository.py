@@ -193,13 +193,11 @@ class Repository(IRepository):
         self._structure = structure
         self._obtain = obtain
     
-    def matchers(self, forType, method, uri, headers=None):
+    def assemblage(self, forType):
         '''
-        @see: IRepository.matchers
+        @see: IRepository.assemblage
         '''
         assert isinstance(forType, str), 'Invalid type %s' % forType
-        assert isinstance(method, str), 'Invalid method %s' % method
-        assert isinstance(uri, str), 'Invalid uri %s' % uri
         
         strct = self._structure
         assert isinstance(strct, Structure)
@@ -211,6 +209,19 @@ class Repository(IRepository):
         else:
             assert log.debug('No assemblage available for %s', forType) or True
             return
+        
+        return assemblage
+    
+    def matchers(self, assemblage, method, uri, headers=None):
+        '''
+        @see: IRepository.matchers
+        '''
+        assert isinstance(assemblage, Assemblage), 'Invalid assemblage %s' % assemblage
+        assert isinstance(method, str), 'Invalid method %s' % method
+        assert isinstance(uri, str), 'Invalid uri %s' % uri
+        
+        strct = self._structure
+        assert isinstance(strct, Structure)
         
         identifiers = strct.identifiersByAssemblage.get(assemblage.id)
         if identifiers is None:
@@ -243,7 +254,7 @@ class Repository(IRepository):
                     if isExcluded: continue
             break
         else:
-            assert log.debug('No identifier available for method \'%s\', and URI \'%s\'', forType, uri) or True
+            assert log.debug('No identifier available for method \'%s\', and URI \'%s\'', method, uri) or True
             return
         
         matchers = strct.matchersByIdentifier.get(identifier.id)

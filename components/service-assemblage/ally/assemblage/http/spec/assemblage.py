@@ -18,7 +18,7 @@ class Assemblage:
     '''
     Provides the assemblage data.
     '''
-    __slots__ = ('id', 'types', 'hrefIdentifiers')
+    __slots__ = ('id', 'types', 'hrefIdentifiers', 'adjusters', 'errors')
     
     def __init__(self, obj):
         '''
@@ -38,6 +38,29 @@ class Assemblage:
         if __debug__:
             for item in types: assert isinstance(item, str), 'Invalid type %s' % item
         self.types = set(item.lower() for item in types)
+
+        adjustPattern, adjustReplace = obj['AdjustPattern'], obj['AdjustReplace']
+        if __debug__:
+            assert isinstance(adjustPattern, list), 'Invalid adjust patterns %s' % adjustPattern
+            assert isinstance(adjustReplace, list), 'Invalid adjust replace %s' % adjustReplace
+            assert len(adjustPattern) == len(adjustReplace), \
+            'Required the same number of entries for patterns %s and replaces %s' % (adjustPattern, adjustReplace)
+            for item in adjustPattern: assert isinstance(item, str), 'Invalid adjust pattern %s' % item
+            for item in adjustReplace: assert isinstance(item, str), 'Invalid adjust replace %s' % item
+        self.adjusters = [(re.compile(replace), pattern) for replace, pattern in zip(adjustReplace, adjustPattern)]
+        
+        errorPattern, errorReplace = obj['ErrorPattern'], obj['ErrorReplace']
+        if __debug__:
+            assert isinstance(errorPattern, dict), 'Invalid error patterns %s' % errorPattern
+            assert isinstance(errorReplace, dict), 'Invalid error replace %s' % errorReplace
+            assert len(errorPattern) == len(errorReplace), \
+            'Required the same number of entries for patterns %s and replaces %s' % (errorPattern, errorReplace)
+            for key, value in errorPattern.items():
+                assert isinstance(key, str), 'Invalid error pattern key %s' % key
+                assert isinstance(value, str), 'Invalid error pattern value %s' % value
+                assert isinstance(errorReplace.get(key), str), \
+                'Invalid error replace value %s for key %s' % (errorReplace.get(key), key)
+        self.errors = {key: (re.compile(replace), errorPattern.get(key)) for key, replace in errorReplace.items()}
         
         self.hrefIdentifiers = obj['IdentifierList']['href']
         assert isinstance(self.hrefIdentifiers, str), 'Invalid identifiers reference %s' % self.hrefIdentifiers
@@ -84,7 +107,7 @@ class Matcher:
     '''
     Provides the identifier matcher data.
     '''
-    __slots__ = ('name', 'namePrefix', 'present', 'pattern', 'reference', 'adjustPattern', 'adjustReplace')
+    __slots__ = ('name', 'namePrefix', 'present', 'pattern', 'reference')
     
     def __init__(self, obj):
         '''
@@ -96,13 +119,10 @@ class Matcher:
         '''
         assert isinstance(obj, dict), 'Invalid object %s' % obj
         
-        names = obj['Names']
-        assert isinstance(names, list), 'Invalid names %s' % names
-        if __debug__:
-            assert names, 'At least one name is required'
-            for item in names: assert isinstance(item, str), 'Invalid name %s' % item
-        self.name = '.'.join(names)
-        self.namePrefix = '%s.' % self.name
+        self.name = obj.get('Name')
+        if self.name:
+            assert isinstance(self.name, str), 'Invalid name %s' % self.name
+            self.namePrefix = '%s.' % self.name
         
         present = obj.get('Present')
         if present:
@@ -121,23 +141,6 @@ class Matcher:
             assert isinstance(reference, str), 'Invalid reference %s' % reference
             self.reference = re.compile(reference)
         else: self.reference = None
-        
-        self.adjustPattern = obj.get('AdjustPattern')
-        if __debug__ and self.adjustPattern:
-            assert isinstance(self.adjustPattern, list), 'Invalid adjust patterns %s' % self.adjustPattern
-            for item in self.adjustPattern: assert isinstance(item, str), 'Invalid adjust pattern %s' % item
-            
-        adjustReplace = obj.get('AdjustReplace')
-        if __debug__:
-            if adjustReplace:
-                assert isinstance(adjustReplace, list), 'Invalid adjust replace %s' % adjustReplace
-                assert len(self.adjustPattern) == len(adjustReplace), \
-                'Required the same number of entries for patterns %s and replaces %s' % (self.adjustPattern, adjustReplace)
-                for item in adjustReplace: assert isinstance(item, str), 'Invalid adjust replace %s' % item
-                self.adjustReplace = [re.compile(item) for item in adjustReplace]
-            else:
-                assert not self.adjustPattern, 'Cannot have patterns %s without replaces' % self.adjustPattern
-                self.adjustReplace = None
 
 # --------------------------------------------------------------------
 
@@ -147,12 +150,23 @@ class IRepository(metaclass=abc.ABCMeta):
     '''
     
     @abc.abstractmethod
-    def matchers(self, forType, method, uri, headers=None):
+    def assemblage(self, forType):
         '''
         Finds the matchers objects for the provided parameters.
 
         @param forType: string
             The mime type of the URI response to provide the matchers for.
+        @return: Assemblage|None
+            The found assemblage, None if there is no assemblage available for type.
+        '''
+    
+    @abc.abstractmethod
+    def matchers(self, assemblage, method, uri, headers=None):
+        '''
+        Finds the matchers objects for the provided parameters.
+
+        @param assemblage: Assemblage
+            The assemblage to provide the matchers for.
         @param method: string
             The method to be matched for the matchers
         @param uri: string
@@ -160,5 +174,5 @@ class IRepository(metaclass=abc.ABCMeta):
         @param headers: dictionary{String, string}|None
             The headers to be matched for the identifier.
         @return: Iterable(Matcher)|None
-            The found matchers, None if there is no matcher available.
+            The found matchers, None if there are no matchers available.
         '''

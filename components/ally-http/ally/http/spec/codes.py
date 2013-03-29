@@ -76,3 +76,5 @@ INVALID_AUTHORIZATION = CodeHTTP('Invalid authorization', 401, False)  # HTTP co
 
 FORBIDDEN_ACCESS = CodeHTTP('Forbidden access', 403, False)  # HTTP code 403 Forbidden access
 
+UNKNOWN_ENCODING = CodeHTTP('Unknown encoding', 417, False)  # HTTP code 417 Expectation Failed
+

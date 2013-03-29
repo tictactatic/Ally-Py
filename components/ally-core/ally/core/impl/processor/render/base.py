@@ -106,10 +106,30 @@ class Support(Context):
     The support context.
     '''
     # ---------------------------------------------------------------- Defined
-    patterns = defines(list, doc='''
-    @rtype: list[tuple(string, list[string], IPattern)]
-    The list of tuples that have on the first position the pattern identifier, on the second position a list containing
-    the mime types that represent the pattern, and on the last position the pattern support.
+    patterns = defines(dict, doc='''
+    @rtype: dictionary{string: Pattern}
+    The patterns indexed by pattern unique identifier.
+    ''')
+    
+class PatternSupport(Context):
+    '''
+    The pattern context.
+    '''
+    # ---------------------------------------------------------------- Defined
+    contentTypes = defines(tuple, doc='''
+    @rtype: tuple(string)
+    The list of content types to be associated with the pattern.
+    ''')
+    pattern = defines(IPattern, doc='''
+    @rtype: IPattern
+    The pattern used for creating captures and matchers.
+    ''')
+    adjusters = defines(tuple, doc='''
+    @rtype: tuple(tuple(string, string))
+    A tuple of tuples of two elements, on the first position the regex pattern that is used inside a matcher block
+    in order to inject content, on the second position a pattern like string that contain markers
+    for using as the replaced value. Markers are like {1}, {2} ... for capture groups from the matcher and like
+    //1, //2 ... for capture groups from the replace pattern, this are handled automatically by python regex sub method.
     ''')
 
 # --------------------------------------------------------------------
@@ -124,22 +144,28 @@ class PatternBaseHandler(HandlerProcessorProceed, IPattern):
     # The identifier for the represented pattern.
     contentTypes = dict
     # The dictionary{string:string} containing as a key the content types specific for this encoder and as a value
-    # the content type to set on the response, if None will use the key for the content type response. 
+    # the content type to set on the response, if None will use the key for the content type response.
+    adjusters = tuple
+    # The tuple containing tuples of two that have on the first position the adjuster replace pattern and on the second position
+    # the adjuster replace value.
 
     def __init__(self):
         assert isinstance(self.identifier, str), 'Invalid identifier %s' % self.identifier
         assert isinstance(self.contentTypes, dict), 'Invalid content types %s' % self.contentTypes
+        assert isinstance(self.adjusters, tuple), 'Invalid adjusters %s' % self.adjusters
         super().__init__()
         
-        self.types = list({value or key for key, value in self.contentTypes.items()})
+        self.types = tuple({value or key for key, value in self.contentTypes.items()})
         
-    def process(self, support:Support, **keyargs):
+    def process(self, Pattern:PatternSupport, support:Support, **keyargs):
         '''
         @see: HandlerProcessorProceed.process
         
         Create the pattern support.
         '''
+        assert issubclass(Pattern, PatternSupport), 'Invalid pattern class %s' % Pattern
         assert isinstance(support, Support), 'Invalid support %s' % support
         
-        if support.patterns is None: support.patterns = []
-        support.patterns.append((self.identifier, self.types, self))
+        if support.patterns is None: support.patterns = {}
+        if self.identifier in support.patterns: return  # There is already a pattern for this identifier.
+        support.patterns[self.identifier] = Pattern(contentTypes=self.types, pattern=self, adjusters=self.adjusters)

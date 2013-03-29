@@ -72,7 +72,7 @@ class ProvideMatchers(HandlerProcessor):
         if obtain.required == Matcher:
             assert isinstance(support.pattern, IPattern), 'Invalid support pattern %s' % support.pattern
             
-            matchers = self.processMatchers(obtain.representation, [], support.pattern)
+            matchers = self.processMatchers(obtain.representation, support.pattern)
             
             if obtain.result is None: obtain.result = matchers
             else: obtain.result = itertools.chain(obtain.result, matchers)
@@ -82,46 +82,53 @@ class ProvideMatchers(HandlerProcessor):
         
     # ----------------------------------------------------------------
         
-    def processMatchers(self, obj, names, pattern):
+    def processMatchers(self, obj, pattern):
         '''
         Process the structure matchers.
-        '''
-        assert isinstance(names, list), 'Invalid names %s' % names
         
+        @param obj: object
+            The representation object to process the matchers for.
+        @param pattern: IPattern
+            The pattern support implementation.
+        @return: Iterable(Matcher)
+            The processed matchers.
+        '''
         if isinstance(obj, Collection):
             assert isinstance(obj, Collection)
             assert isinstance(obj.item, Object), 'Invalid object %s' % obj
             
-            namesItem = list(names)
-            namesItem.append(obj.item.name)
-            for model in self.processMatchers(obj.item, namesItem, pattern): yield model
+            for model in self.processMatchers(obj.item, pattern): yield model
             
         elif isinstance(obj, Object):
             assert isinstance(obj, Object)
             refer = self.attributeReference(obj)
             if refer:
-                model = Matcher()
-                model.Names = names
-                self.processPatterns(model, obj, pattern, refer)
-                yield model
+                yield self.processPatterns(Matcher(), obj, pattern, refer)
                 
             else:
                 for objProp in obj.properties:
                     assert isinstance(objProp, (Object, Property)), 'Invalid object property %s' % objProp
                     
-                    namesProp = list(names)
-                    namesProp.append(objProp.name)
-                    
                     model = Matcher()
-                    model.Names = namesProp
-                    self.processPatterns(model, objProp, pattern, self.attributeReference(objProp))
-                    yield model
+                    model.Name = objProp.name
+                    yield self.processPatterns(model, objProp, pattern, self.attributeReference(objProp))
                 
         else: log.error('Cannot provide targets for representation %s', obj)
         
     def processPatterns(self, model, obj, pattern, refer):
         '''
         Process the matcher patterns.
+        
+        @param model: Matcher
+            The matcher model to process the patterns in.
+        @param obj: object
+            The representation object to process the pattern on.
+        @param pattern: IPattern
+            The pattern support implementation.
+        @param refer: object
+            The representation object that contains the reference.
+        @return: Matcher
+            The same matcher.
         '''
         assert isinstance(model, Matcher), 'Invalid matcher model %s' % model
         assert isinstance(obj, (Collection, Object, Property)), 'Invalid object %s' % obj
@@ -135,17 +142,16 @@ class ProvideMatchers(HandlerProcessor):
                 for objProp in obj.properties: model.Present.append(objProp.name)
 
             model.Reference = pattern.capture(refer)
-            if model.AdjustReplace is None: model.AdjustReplace = []
-            if model.AdjustPattern is None: model.AdjustPattern = []
-            for areplace, apattern in pattern.adjusters():
-                assert isinstance(areplace, str), 'Invalid replace %s' % areplace
-                assert isinstance(apattern, str), 'Invalid pattern %s' % apattern
-                model.AdjustReplace.append(areplace)
-                model.AdjustPattern.append(apattern)
+        return model
 
     def attributeReference(self, obj):
         '''
         Provides the objects first reference attribute.
+        
+        @param obj: object
+            The representation object to find the reference attribute in.
+        @return: Attribute|None
+            The reference attribute.
         '''
         if isinstance(obj, Object):
             assert isinstance(obj, Object)

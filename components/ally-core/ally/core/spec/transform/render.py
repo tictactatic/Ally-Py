@@ -92,19 +92,19 @@ class IPattern(metaclass=abc.ABCMeta):
         @return: string
             The regex pattern that captures the data specified by object.
         '''
-    
+        
     @abc.abstractclassmethod
-    def adjusters(self, inObj, obj):
+    def injector(self, obj):
         '''
-        Create adjusters for the representation object in order to facilitate the injection.
+        Creates an injector pattern and replacer for the data represented by the provided object.
         
         @param obj: object
-            The representation object to create captures for.
-        @return: list[tuple(string, string)]
-            A list of tuples of two elements, on the first position the regex pattern that is used inside a matcher block
+            The representation object to create injector for.
+        @return: tuple(string, string)
+            A tuple of two elements, on the first position the regex pattern that is used inside a matcher block
             in order to inject content, on the second position a pattern like string that contain markers
-            for using as the replaced value. Markers are like {1}, {2} ... for capture blocks from the matcher and like
-            //1, //2 ... for capture blocks from the replace pattern, this are handled automatically by python regex sub method.
+            for using as the replaced value. Markers are like * for the value to be injected and like //1, //2 ... for capture
+            groups from the replace pattern, this are handled automatically by python regex sub method.
         '''
 
 # --------------------------------------------------------------------

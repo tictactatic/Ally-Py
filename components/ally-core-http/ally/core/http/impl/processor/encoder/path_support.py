@@ -168,7 +168,12 @@ class PathSupport(HandlerProcessorProceed):
         for entryPath in findEntries(pathAccesible, modelType, True):
             assert isinstance(entryPath, Path)
             # We need to make sure that we don't add the main path to the accessible paths.
-            if not pathMain or entryPath.node != pathMain.node: entries.append(entryPath)
+            if pathMain and entryPath.node == pathMain.node: continue
+            assert isinstance(entryPath.node, Node)
+            assert isinstance(entryPath.node.get, Invoker)
+            # We need to make sure that we don't provide an accessible path that doesn't return the same object.
+            if entryPath.node.get.output == modelType: continue
+            entries.append(entryPath)
         if entries:
             # If we have paths that are available based on the model type we add those to.
             accessible.extend(entries)

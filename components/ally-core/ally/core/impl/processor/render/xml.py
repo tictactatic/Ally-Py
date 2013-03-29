@@ -63,6 +63,8 @@ class PatternXMLHandler(PatternBaseHandler):
     
     identifier = 'xml'
     # The identifier for the represented pattern.
+    adjusters = (('^\s*<\?.*\?>\s*<\w+', '<{1}{2}'), ('</\w+\s*>\s*$', '</{1}>'))
+    # The injector adjusters.
     
     def matcher(self, obj, injected):
         '''
@@ -87,12 +89,15 @@ class PatternXMLHandler(PatternBaseHandler):
             assert isinstance(obj, Attribute)
             return '%s\s*\=\s*(?:"([^"]+)"|\'([^\']+)\')*' % obj.name
         raise ValueError('Cannot create a capture for object %s' % obj)
-        
-    def adjusters(self):
+    
+    def injector(self, obj):
         '''
-        @see: IPattern.adjusters
+        @see: IPattern.injector
         '''
-        return [('^\s*<\?.*\?>\s*<\w+', '<{1}{2}'), ('</\w+\s*>\s*$', '</{1}>')]
+        if isinstance(obj, Attribute):
+            assert isinstance(obj, Attribute)
+            return ('(^\s*<.+?)((?:>)|(?:/>)){1}', '\\1 %s="*"\\2' % obj.name)
+        raise ValueError('Cannot create a injector for object %s' % obj)
         
 # --------------------------------------------------------------------
 
