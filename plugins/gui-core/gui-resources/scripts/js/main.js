@@ -22,6 +22,7 @@ requirejs.config
 		'model': config.cjs('require/model'),
 		'i18n': config.cjs('require/i18n'),
 		'gizmo': config.cjs('gizmo'),
+		'loadaloha': config.cjs('aloha-init'),
 		'concat': config.cjs('concat'),		
 		'newgizmo': config.cjs('newgizmo')		
 	}
