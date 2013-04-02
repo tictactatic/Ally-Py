@@ -1,0 +1,432 @@
+
+@main-desk-color:  #ffffff;
+@main-desk-border: #cacaca;
+@main-desk-padding-side : 60px;
+
+@desk-width: 270px;
+
+@main-content-desk-bottom: 20px;
+
+@todo-color : #b70000 ;
+@inprogress-color : #cc7800 ;
+@done-color : #288001 ;
+
+
+
+.main-desk-container {
+  width:auto;
+  border-color:@main-desk-border;
+  position:relative;
+  z-index:1;
+  padding:@subnav-height + @subnav-level2 + @main-content-padding  0  @main-content-desk-bottom;
+  margin:0 auto;
+  min-height:100%;
+  .box-sizing(border-box);
+ 
+}
+
+.desk-toolbar {
+    width:960px;
+    margin: 0 auto !important;
+
+    .nav-pills {
+      li a {
+        padding-top: 6px !important;
+        padding-bottom: 6px !important;
+      }
+    }
+}
+
+
+.desk-content-container {
+  width:auto;
+  .box-sizing(border-box);
+  position: absolute;
+  top:@subnav-height + @subnav-level2 + @main-content-padding;
+  bottom:@main-content-desk-bottom;
+  left: 0;
+  right: 0;
+}
+
+.desk-container {
+  width: @desk-width;
+  max-width: @desk-width;
+  .box-sizing(border-box);
+  margin-right: 20px;
+  height: 100%;
+  position: relative;
+  float: left;
+  padding-top: 24px;
+
+  border-top: 5px solid #959595;
+  .border-radius(3px);  
+
+  .desk-header {
+    position: absolute;
+    top:0;
+    width: 100%;
+    .box-sizing(border-box);
+    height: 23px;
+    background: #bababa;
+    line-height: 23px;
+    color: #000;
+    font-size: 11px;
+    text-shadow: 0 1px 0 #ccc;
+    text-transform: uppercase;
+    padding-left: 7px;
+    font-weight: bold;
+  }
+
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+    margin: -1px 0;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: #b8b8b8;
+    border-left: 1px solid #f8f8f8;
+    border-bottom: 1px solid #f8f8f8;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #aaa;
+  }
+
+  &.todo-container {
+    border-top-color: @todo-color; 
+  }
+  &.inprogress-container {
+    border-top-color: @inprogress-color; 
+  }
+  &.done-container {
+    border-top-color: @done-color; 
+  }
+
+}
+
+.desk {
+  width: @desk-width;
+  max-width: @desk-width;
+  .box-sizing(border-box);
+  
+  border-bottom: 23px solid #bababa;
+  .border-radius(0 0 3px 3px);  
+
+  max-height: 100%;
+  overflow-y: auto;
+
+
+  .desk-content {
+    
+  }
+
+
+  section {
+    position: relative;
+    min-height: 40px;
+    margin-top: 21px;
+    font-size: 10px;
+    &:before {
+      height: 21px;
+      position: absolute;
+      top: -21px;
+      line-height: 21px;
+      padding-left: 3px;
+    }
+    &.todo {
+      &:before {
+        content: "TO DO";
+        color: @todo-color;
+      }
+      .assignments li {
+        border-left: 3px solid @todo-color ;
+      }
+      .subtasks.open {
+        .subtask-num-info {
+          background-color: @todo-color ;
+        }
+      }
+    }
+    &.inprogress {
+      &:before {
+        content: "IN PROGRESS";
+        color: @inprogress-color;
+      }
+      .assignments li {
+        border-left: 3px solid @inprogress-color ;
+      }
+      .subtasks.open {
+        .subtask-num-info {
+          background-color: @inprogress-color ;
+        }
+      }
+    }
+    &.done {
+      &:before {
+        content: "DONE";
+        color: @done-color;
+      }
+      .assignments li {
+        border-left: 3px solid @done-color ;
+      }
+      .subtasks.open {
+        .subtask-num-info {
+          background-color: @done-color ;
+        }
+      }
+    }
+
+  } /*end of section*/
+
+
+    .assignments {
+      list-style-type: none;
+      padding: 0;
+      margin: 0;
+      li {
+        background: #e0e0e0;
+        margin-bottom: 2px;
+        padding: 5px;
+        min-height: 24px;
+        position: relative;
+        .assign-avatar {
+          width: 22px;
+          height: 22px;
+          border: 1px solid #959595;
+          float:left;
+          margin: 0 5px 5px 0;
+          img {
+            min-width: 22px;
+            max-width: 22px;
+            min-height: 22px;
+            max-height: 22px;
+          }
+        }
+
+        .assign-description {
+          padding-left: 34px;
+          font-size: 13px;
+          color: #444;
+          min-height: 24px;
+        }
+
+        .assign-labels {
+          list-style-type: none;
+          padding: 0;
+          margin: 5px 0 0;
+          li {
+            float: left;
+            border: 0;
+            margin-right: 4px;
+            background: #959595;
+            .border-radius(2px);
+            height: 18px;
+            line-height: 18px;
+            color: #fff;
+            padding: 0 5px;
+            min-height: auto;
+            font-size: 10px;
+            
+            &.urgent {
+              background-color: #ba7474;
+            }
+            &.critical {
+              background-color: #8b0000;
+            }
+
+          }
+        }
+
+        &:last-child {
+          margin-bottom: 1px; /* because od scroller*/
+        }
+
+        .subtasks {
+          margin: 5px -5px -6px -10px;
+          padding-top: 2px;
+          background: #f8f8f8;
+          padding-left: 12px;
+          list-style-type: none;
+          position: relative;
+          li {
+            background: #f0f0f0;
+            font-size: 13px;
+            color: #6f6f6f;
+            min-height: 14px !important;
+            height: 14px !important;
+            line-height: 14px !important;
+            border-left-width: 2px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap; 
+            display: none;
+          }
+          &.open {
+            li {
+              display: block;
+            }
+          }
+        }
+
+        .subtask-num-info {
+          background: #f8f8f8 url("../../images/desk-subtasks.png") repeat-x 0 0;
+          height: 9px;
+          margin-left: -10px;
+          text-align: center;
+          line-height: 9px;
+          span {
+            height: 9px;
+            line-height: 9px;
+            padding: 0 3px ;
+            background: #f8f8f8;
+          }
+          &:hover {
+            cursor: pointer;
+          }
+        }
+
+        .open {
+          .subtask-num-info {
+            background: #f8f8f8 url("../../images/desk-subtasks-close.png") no-repeat 0 0;
+            border-bottom: 1px solid #f8f8f8;
+            position: absolute;
+            left: 2px;
+            top: 2px;
+            margin: 0;
+            width: 9px;
+            height: 5px;
+            span {
+              display: none;
+            }
+          }
+        }
+
+      }
+
+    } /*end of assignments*/
+
+}
+
+
+.compact-desk {
+  
+  .desk {
+
+    section {
+      min-height: 18px;
+      .assignments {
+
+        li {
+          min-height: 18px;
+
+          .assign-avatar {
+            display: none;
+          }
+
+          .assign-description {
+            line-height: 18px;
+            min-height: 18px;
+          }
+
+          .assign-labels {
+            position: absolute;
+            top:0px;
+            left:8px;
+            li {
+              display: none;
+              width: 14px;
+              padding: 0px 4px;
+              overflow: hidden;
+              &:first-child {
+                display: block !important;
+              }
+            }
+          }
+
+        }
+
+      }
+
+    }
+
+  }
+
+} /* end of compact desk */
+
+
+.desk-content-container {
+  &.desk-list {
+    .desk-container {
+      width: 100%;
+      max-width: 100%;
+      border-top: 1px solid #dcdcdc;
+      height: auto;
+      .desk-header {
+        height: 17px;
+        line-height: 17px;
+        top: -9px;
+        font-size: 10px;
+        width: auto;
+        .border-radius(2px 0 0 2px); 
+        padding-right: 18px;
+        color: #ffffff;
+        text-shadow: 0 -1px 0 #333;
+        background: #686868  url('../../images/desk-list-mask.png') no-repeat right 0;
+      }
+
+      &.todo-container {
+        .desk-header {
+          background-color: @todo-color;
+        }
+        .assignments li {
+            border-left: 7px solid @todo-color ;
+          }
+      }
+      &.inprogress-container {
+        .desk-header {
+          background-color: @inprogress-color;
+        }
+        .assignments li {
+            border-left: 7px solid @inprogress-color ;
+          }
+      }
+      &.done-container {
+        .desk-header {
+          background-color:  @done-color;
+        }
+        .assignments li {
+            border-left: 7px solid @done-color ;
+          }
+      }
+
+
+      .desk {
+         width: 100%;
+         max-width: 100%;
+         max-height: none;
+         border-bottom: 0;
+         margin-bottom: 30px;
+      
+         .assignments {
+          li {
+             .border-radius(2px); 
+          }
+          .assign-description {
+            font-size: 15px;
+            line-height: 24px;
+          }
+          .assign-labels {
+            margin-top: 2px;
+            padding-left: 34px;
+            li {
+              border: 0;
+            }
+          }
+         }
+      }
+
+    }
+
+
+  }
+}
