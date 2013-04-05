@@ -15,7 +15,6 @@ from ally.container.ioc import injected
 from ally.core.spec.resources import Normalizer, Converter
 from ally.core.spec.transform.encoder import IEncoder
 from ally.core.spec.transform.render import IRender
-from ally.core.spec.transform.representation import Property, Object
 from ally.design.cache import CacheWeak
 from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
@@ -121,20 +120,3 @@ class EncoderProperty(IEncoder):
         else:
             render.property(support.normalizer.normalize(self.name), support.converter.asString(obj, self.valueType))
         
-    def represent(self, support, obj=None):
-        '''
-        @see: IEncoder.represent
-        '''
-        assert isinstance(support, Support), 'Invalid support %s' % support
-        assert isinstance(support.normalizer, Normalizer), 'Invalid normalizer %s' % support.normalizer
-
-        if isinstance(self.valueType, Iter): clazz = list
-        elif isinstance(self.valueType, Dict): clazz = dict
-        else: clazz = str
-        property = Property(support.normalizer.normalize(self.name), clazz)
-        
-        if obj:
-            assert isinstance(obj, Object), 'Invalid representation object to push in %s' % obj
-            obj.properties.append(property)
-            
-        else: return property

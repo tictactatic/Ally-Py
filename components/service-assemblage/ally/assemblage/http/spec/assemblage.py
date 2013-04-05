@@ -9,170 +9,75 @@ Created on Feb 7, 2013
 Provides the assemblage specification.
 '''
 
-import abc
-import re
+# --------------------------------------------------------------------
+
+BLOCK = 1  # Marker used for blocks
+GROUP = 2  # Marker used for groups
+LINK = 3  # Marker used for links
+INJECT = 4  # Marker used for inject
 
 # --------------------------------------------------------------------
 
-class Assemblage:
+class RequestNode:
     '''
-    Provides the assemblage data.
+    Container for an assemblage node request.
     '''
-    __slots__ = ('id', 'types', 'hrefIdentifiers', 'adjusters', 'errors')
+    __slots__ = ('parameters', 'requests')
     
-    def __init__(self, obj):
+    def __init__(self):
         '''
-        Construct the assemblage based on the provided dictionary object.
-        @see: assemblage/assemblage.api.assemblage
+        Construct the node.
         
-        @param obj: dictionary{string: string|list[string]}
-            The dictionary used for defining the assemblage object, the object as is defined from response.
+        @ivar parameters: list[tuple(string, string)]
+            The parameters list of tuples.
+        @ivar requests: dictionary{string: RequestNode}
+            The sub requests of this request node.
         '''
-        assert isinstance(obj, dict), 'Invalid object %s' % obj
-        
-        self.id = obj['Id']
-        assert isinstance(self.id, str), 'Invalid id %s' % self.id
-        
-        types = obj['Types']
-        assert isinstance(types, list), 'Invalid types %s' % types
-        if __debug__:
-            for item in types: assert isinstance(item, str), 'Invalid type %s' % item
-        self.types = set(item.lower() for item in types)
+        self.parameters = []
+        self.requests = {}
 
-        adjustPattern, adjustReplace = obj['AdjustPattern'], obj['AdjustReplace']
-        if __debug__:
-            assert isinstance(adjustPattern, list), 'Invalid adjust patterns %s' % adjustPattern
-            assert isinstance(adjustReplace, list), 'Invalid adjust replace %s' % adjustReplace
-            assert len(adjustPattern) == len(adjustReplace), \
-            'Required the same number of entries for patterns %s and replaces %s' % (adjustPattern, adjustReplace)
-            for item in adjustPattern: assert isinstance(item, str), 'Invalid adjust pattern %s' % item
-            for item in adjustReplace: assert isinstance(item, str), 'Invalid adjust replace %s' % item
-        self.adjusters = [(re.compile(replace), pattern) for replace, pattern in zip(adjustReplace, adjustPattern)]
-        
-        errorPattern, errorReplace = obj['ErrorPattern'], obj['ErrorReplace']
-        if __debug__:
-            assert isinstance(errorPattern, dict), 'Invalid error patterns %s' % errorPattern
-            assert isinstance(errorReplace, dict), 'Invalid error replace %s' % errorReplace
-            assert len(errorPattern) == len(errorReplace), \
-            'Required the same number of entries for patterns %s and replaces %s' % (errorPattern, errorReplace)
-            for key, value in errorPattern.items():
-                assert isinstance(key, str), 'Invalid error pattern key %s' % key
-                assert isinstance(value, str), 'Invalid error pattern value %s' % value
-                assert isinstance(errorReplace.get(key), str), \
-                'Invalid error replace value %s for key %s' % (errorReplace.get(key), key)
-        self.errors = {key: (re.compile(replace), errorPattern.get(key)) for key, replace in errorReplace.items()}
-        
-        self.hrefIdentifiers = obj['IdentifierList']['href']
-        assert isinstance(self.hrefIdentifiers, str), 'Invalid identifiers reference %s' % self.hrefIdentifiers
-
-class Identifier:
+class Index:
     '''
-    Provides the assemblage identifier data.
+    Container for an index.
     '''
-    __slots__ = ('id', 'method', 'pattern', 'headersExclude', 'hrefMatchers')
+    __slots__ = ('mark', 'start', 'end', 'value')
     
-    def __init__(self, obj):
+    def __init__(self, mark, start, value=None):
         '''
-        Construct the identifier based on the provided dictionary object.
-        @see: assemblage/assemblage.api.assemblage
+        Construct the index.
         
-        @param obj: dictionary{string: string|list[string]}
-            The dictionary used for defining the identifier object, the object as is defined from response.
+        @param mark: integer
+            The mark flag for the index.
+        @param start: integer
+            The start of the index.
+        @param value: string|None
+            The value for the index.
+        @ivar end: integer
+            The end of the index, by default is the start index.
         '''
-        assert isinstance(obj, dict), 'Invalid object %s' % obj
+        assert isinstance(mark, int), 'Invalid mark %s' % mark
+        assert isinstance(start, int), 'Invalid start index %s' % start
+        assert value is None or isinstance(value, str), 'Invalid value %s' % value
         
-        self.id = obj['Id']
-        assert isinstance(self.id, str), 'Invalid id %s' % self.id
+        self.mark = mark
+        self.start = start
+        self.end = start
+        self.value = value
         
-        method = obj['Method']
-        assert isinstance(method, str), 'Invalid method %s' % method
-        self.method = method.upper()
-        
-        pattern = obj['Pattern']
-        assert isinstance(pattern, str), 'Invalid pattern %s' % pattern
-        self.pattern = re.compile(pattern)
-        
-        headersExclude = obj.get('HeadersExclude')
-        if headersExclude:
-            if __debug__:
-                assert isinstance(headersExclude, list), 'Invalid exclude headers %s' % headersExclude
-                for item in headersExclude: assert isinstance(item, str), 'Invalid header pattern %s' % item
-            self.headersExclude = [re.compile(item) for item in headersExclude]
-        else: self.headersExclude = None
-        
-        self.hrefMatchers = obj['MatcherList']['href']
-        assert isinstance(self.hrefMatchers, str), 'Invalid matchers reference %s' % self.hrefMatchers
-
-class Matcher:
-    '''
-    Provides the identifier matcher data.
-    '''
-    __slots__ = ('name', 'namePrefix', 'present', 'pattern', 'reference')
+    isBlock = property(lambda self: self.mark == BLOCK, doc='''
+    @rtype: boolean
+    True if the index is a block index.
+    ''')
+    isGroup = property(lambda self: self.mark == GROUP, doc='''
+    @rtype: boolean
+    True if the index is a group index.
+    ''')
+    isLink = property(lambda self: self.mark == LINK, doc='''
+    @rtype: boolean
+    True if the index is a link index.
+    ''')
+    isInject = property(lambda self: self.mark == INJECT, doc='''
+    @rtype: boolean
+    True if the index is an inject index.
+    ''')
     
-    def __init__(self, obj):
-        '''
-        Construct the identifier matcher based on the provided dictionary object.
-        @see: assemblage/assemblage.api.assemblage
-        
-        @param obj: dictionary{string: string|list[string]}
-            The dictionary used for defining the identifier matcher object, the object as is defined from response.
-        '''
-        assert isinstance(obj, dict), 'Invalid object %s' % obj
-        
-        self.name = obj.get('Name')
-        if self.name:
-            assert isinstance(self.name, str), 'Invalid name %s' % self.name
-            self.namePrefix = '%s.' % self.name
-        
-        present = obj.get('Present')
-        if present:
-            assert isinstance(present, list), 'Invalid present names %s' % present
-            if __debug__:
-                for item in present: assert isinstance(item, str), 'Invalid present name %s' % item
-            self.present = set(present)
-        else: self.present = None
-
-        pattern = obj['Pattern']
-        assert isinstance(pattern, str), 'Invalid pattern %s' % pattern
-        self.pattern = re.compile(pattern)
-        
-        reference = obj.get('Reference')
-        if reference:
-            assert isinstance(reference, str), 'Invalid reference %s' % reference
-            self.reference = re.compile(reference)
-        else: self.reference = None
-
-# --------------------------------------------------------------------
-
-class IRepository(metaclass=abc.ABCMeta):
-    '''
-    The assemblage repository.
-    '''
-    
-    @abc.abstractmethod
-    def assemblage(self, forType):
-        '''
-        Finds the matchers objects for the provided parameters.
-
-        @param forType: string
-            The mime type of the URI response to provide the matchers for.
-        @return: Assemblage|None
-            The found assemblage, None if there is no assemblage available for type.
-        '''
-    
-    @abc.abstractmethod
-    def matchers(self, assemblage, method, uri, headers=None):
-        '''
-        Finds the matchers objects for the provided parameters.
-
-        @param assemblage: Assemblage
-            The assemblage to provide the matchers for.
-        @param method: string
-            The method to be matched for the matchers
-        @param uri: string
-            The URI that we need the matchers for.
-        @param headers: dictionary{String, string}|None
-            The headers to be matched for the identifier.
-        @return: Iterable(Matcher)|None
-            The found matchers, None if there are no matchers available.
-        '''

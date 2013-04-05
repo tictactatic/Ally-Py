@@ -13,15 +13,15 @@ from ally.zip.util_zip import normOSPath, getZipFilePath, ZIPSEP
 from collections import Iterable
 from datetime import datetime
 from genericpath import isdir, exists
+from io import StringIO, BytesIO
 from os import stat, makedirs
 from os.path import isfile, normpath, join, dirname
 from shutil import copy, move
+from stat import S_IEXEC
+from tempfile import TemporaryDirectory
 from zipfile import ZipFile, ZipInfo
 import abc
 import os
-from tempfile import TemporaryDirectory
-from stat import S_IEXEC
-from io import StringIO
 
 # --------------------------------------------------------------------
 
@@ -189,13 +189,12 @@ def readGenerator(fileObj, bufferSize=1024):
     assert isinstance(fileObj, IClosable), 'Invalid file object %s' % fileObj
     assert isinstance(bufferSize, int), 'Invalid buffer size %s' % bufferSize
 
-    with fileObj:
+    try:
         while True:
             buffer = fileObj.read(bufferSize)
-            if not buffer:
-                fileObj.close()
-                break
+            if not buffer: break
             yield buffer
+    finally: fileObj.close()
 
 def writeGenerator(generator, fileObj):
     '''
@@ -233,7 +232,8 @@ def convertToBytes(iterable, charSet, encodingError):
     for value in iterable:
         assert isinstance(value, str), 'Invalid value %s received' % value
         yield value.encode(encoding=charSet, errors=encodingError)
-
+        
+# TODO: Gabriel: In the future this will become absollete when using the setup distutils proper packaging.
 def openURI(path, byteMode=True):
     '''
     Returns a read file object for the given path.
@@ -254,6 +254,7 @@ def openURI(path, byteMode=True):
         else: return StringIO(f.read().decode())
     raise IOError('Invalid file path %s' % path)
 
+# TODO: Gabriel: In the future this will become absollete when using the setup distutils proper packaging.
 def timestampURI(path):
     '''
     Returns the last modified time stamp for the given path.
@@ -269,6 +270,7 @@ def timestampURI(path):
     zipFilePath, _inZipPath = getZipFilePath(path)
     return datetime.fromtimestamp(stat(zipFilePath).st_mtime)
 
+# TODO: Gabriel: In the future this will become absollete when using the setup distutils proper packaging.
 def synchronizeURIToDir(path, dirPath):
     '''
     Publishes the entire contents from the URI path to the provided directory path.
@@ -322,26 +324,80 @@ def synchronizeURIToDir(path, dirPath):
             copy(src, dest)
             if file.endswith('.exe'): os.chmod(dest, stat(dest).st_mode | S_IEXEC)
 
-class KeepOpen:
+class StreamOnIterable(IInputStream, IClosable):
     '''
-    Keeps opened a file object, basically blocks the close calls.
+    An implementation for a @see: IInputStream that uses as a source a generator that yileds bytes.
     '''
-    __slots__ = ['_fileObj']
-
-    def __init__(self, fileObj):
+    __slots__ = ('_generator', '_closed', '_done', '_source')
+    
+    def __init__(self, generator):
         '''
-        Construct the keep open file object proxy.
-
-        @param fileObj: file
-            A file type object to keep open.
+        Construct the stream from generator.
+        
+        @param generator: Iterable(bytes)
+            The generator that yileds bytes that will be used as the stream source.
         '''
-        assert fileObj, 'A file object is required %s' % fileObj
-        self._fileObj = fileObj
-
+        assert isinstance(generator, Iterable), 'Invalid generator %s' % generator
+        
+        self._generator = iter(generator)
+        self._closed = False
+        self._done = False
+        self._source = BytesIO()
+        
+    def read(self, nbytes=None):
+        '''
+        @see: IInputStream.read
+        '''
+        if self._closed: raise ValueError('I/O operation on closed stream.')
+        if self._done: return b''
+        if nbytes:
+            assert isinstance(nbytes, int), 'Invalid number of bytes required %s' % nbytes
+            if nbytes < 0: nbytes = None
+            elif nbytes == 0: return b''
+            
+        if nbytes is None:
+            while True:
+                try: bytes = next(self._generator)
+                except StopIteration: break
+                self._source.write(bytes)
+            self._done = True
+            return self._source.getvalue()
+        
+        if self._source.tell() == nbytes:
+            value = self._source.getvalue()
+            self._source.seek(0)
+            self._source.truncate()
+        elif self._source.tell() > nbytes:
+            self._source.seek(0)
+            value = self._source.read(nbytes)
+            remaining = self._source.read()
+            self._source.truncate()
+            self._source.write(remaining)
+        else:
+            while True:
+                try: bytes = next(self._generator)
+                except StopIteration:
+                    value = self._source.getvalue()
+                    self._done = True
+                    break
+                self._source.write(bytes)
+                if self._source.tell() == nbytes:
+                    # We have the correct size
+                    value = self._source.getvalue()
+                    self._source.seek(0)
+                    self._source.truncate()
+                    break
+                elif self._source.tell() > nbytes:
+                    self._source.seek(0)
+                    value = self._source.read(nbytes)
+                    remaining = self._source.read()
+                    self._source.truncate()
+                    self._source.write(remaining)
+                    break
+        return value
+        
     def close(self):
         '''
-        Block the close action.
+        @see: IClosable.close
         '''
-
-    def __getattr__(self, name): return getattr(self._fileObj, name)
-
+        self._closed = True

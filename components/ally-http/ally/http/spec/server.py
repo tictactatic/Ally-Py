@@ -46,13 +46,13 @@ class RequestHTTP(Context):
     @rtype: string
     The relative request URI.
     ''')
-    parameters = defines(list, doc='''
-    @rtype: list[tuple(string, string)]
-    The parameters of the request.
-    ''')
     headers = defines(dict, doc='''
     @rtype: dictionary{string, string}
     The raw headers.
+    ''')
+    parameters = defines(list, doc='''
+    @rtype: list[tuple(string, string)]
+    The parameters of the request.
     ''')
 
 class RequestContentHTTP(Context):

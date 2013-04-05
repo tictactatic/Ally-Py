@@ -9,7 +9,7 @@ Created on Aug 3, 2012
 Provides the JSON encoder processor handler.
 '''
 
-from .base import RenderBaseHandler, PatternBaseHandler
+from .base import RenderBaseHandler
 from ally.container.ioc import injected
 from ally.core.spec.transform.render import IRender
 from ally.support.util_io import IOutputStream
@@ -41,30 +41,6 @@ class RenderJSONHandler(RenderBaseHandler):
         assert isinstance(output, IOutputStream), 'Invalid content output stream %s' % output
 
         return RenderJSON(getwriter(charSet)(output, self.encodingError))
-
-# --------------------------------------------------------------------
-
-#TODO: Gabriel: implement
-class PatternJSONHandler(PatternBaseHandler):
-    '''
-    Provides the JSON pattern.
-    @see: PatternBaseHandler
-    '''
-    
-    def matcher(self, obj):
-        '''
-        @see: PatternBaseHandler.matcher
-        '''
-        
-    def capture(self, obj):
-        '''
-        @see: PatternBaseHandler.trimmers
-        '''
-        
-    def adjusters(self, obj):
-        '''
-        @see: PatternBaseHandler.adjusters
-        '''
 
 # --------------------------------------------------------------------
 

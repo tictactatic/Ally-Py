@@ -14,8 +14,7 @@ from ally.core.impl.processor.parser.text import ParseTextHandler
 from ally.core.impl.processor.parser.xml import ParseXMLHandler
 from ally.core.impl.processor.render.json import RenderJSONHandler
 from ally.core.impl.processor.render.text import RenderTextHandler
-from ally.core.impl.processor.render.xml import RenderXMLHandler, \
-    PatternXMLHandler
+from ally.core.impl.processor.render.xml import RenderXMLHandler
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.handler import Handler
 import codecs
@@ -102,13 +101,6 @@ def assemblyRendering() -> Assembly:
     return Assembly('Renderer response')
 
 @ioc.entity
-def assemblyPattern() -> Assembly:
-    '''
-    The assembly containing the patterns support.
-    '''
-    return Assembly('Pattern support')
-
-@ioc.entity
 def renderJSON() -> Handler:
     b = RenderJSONHandler(); yield b
     b.contentTypes = content_types_json()
@@ -116,11 +108,6 @@ def renderJSON() -> Handler:
 @ioc.entity
 def renderXML() -> Handler:
     b = RenderXMLHandler(); yield b
-    b.contentTypes = content_types_xml()
-
-@ioc.entity
-def patternXML() -> Handler:
-    b = PatternXMLHandler(); yield b
     b.contentTypes = content_types_xml()
 
 # --------------------------------------------------------------------
@@ -134,10 +121,6 @@ def updateAssemblyParsing():
 def updateAssemblyRendering():
     assemblyRendering().add(renderJSON())
     assemblyRendering().add(renderXML())
-    
-@ioc.before(assemblyPattern)
-def updateAssemblyPattern():
-    assemblyPattern().add(patternXML())
 
 try: import yaml
 except ImportError: log.info('No YAML library available, no yaml available for output or input')

@@ -15,8 +15,8 @@ from ally.api.type import Iter
 from ally.container.ioc import injected
 from ally.core.spec.resources import Normalizer
 from ally.core.spec.transform.encoder import IAttributes, IEncoder
+from ally.core.spec.transform.index import ADJUST
 from ally.core.spec.transform.render import IRender
-from ally.core.spec.transform.representation import Collection
 from ally.design.cache import CacheWeak
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines, optional
@@ -151,19 +151,6 @@ class EncoderCollection(IEncoder):
         if self.attributes: attributes = self.attributes.provide(obj, support)
         else: attributes = None
         
-        render.beginCollection(support.normalizer.normalize(self.name), attributes)
+        render.beginCollection(support.normalizer.normalize(self.name), attributes, ADJUST)
         for objItem in obj: self.encoder.render(objItem, render, support)
         render.end()
-
-    def represent(self, support, obj=None):
-        '''
-        @see: IEncoder.represent
-        '''
-        assert isinstance(support, Support), 'Invalid support %s' % support
-        assert obj is None, 'No object expected for collection representation'
-        assert isinstance(support.normalizer, Normalizer), 'Invalid normalizer %s' % support.normalizer
-        
-        if self.attributes: attributes = self.attributes.represent(support)
-        else: attributes = None
-        
-        return Collection(support.normalizer.normalize(self.name), self.encoder.represent(support), attributes=attributes)

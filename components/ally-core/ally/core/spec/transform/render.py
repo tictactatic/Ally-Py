@@ -21,7 +21,7 @@ class IRender(metaclass=abc.ABCMeta):
     __slots__ = ()
 
     @abc.abstractclassmethod
-    def property(self, name, value):
+    def property(self, name, value, *index):
         '''
         Called to signal that a property value has to be rendered.
 
@@ -29,10 +29,12 @@ class IRender(metaclass=abc.ABCMeta):
             The property name.
         @param value: string|tuple(string)|list[string]|dictionary{string: string}
             The value.
+        @param index: arguments[Index]
+            The indexes to provide for the rendered property.
         '''
 
     @abc.abstractclassmethod
-    def beginObject(self, name, attributes=None):
+    def beginObject(self, name, attributes, *index):
         '''
         Called to signal that an object has to be rendered.
         
@@ -40,12 +42,14 @@ class IRender(metaclass=abc.ABCMeta):
             The object name.
         @param attributes: dictionary{string, string}|None
             The attributes for the value.
+        @param index: arguments[Index]
+            The indexes to provide for the rendered object.
         @return: self
             The same render instance for chaining purposes.
         '''
 
     @abc.abstractclassmethod
-    def beginCollection(self, name, attributes=None):
+    def beginCollection(self, name, attributes, *index):
         '''
         Called to signal that a collection of objects has to be rendered.
         
@@ -53,6 +57,8 @@ class IRender(metaclass=abc.ABCMeta):
             The collection name.
         @param attributes: dictionary{string, string}|None
             The attributes for the collection.
+        @param index: arguments[Index]
+            The indexes to provide for the rendered collection.
         @return: self
             The same render instance for chaining purposes.
         '''
@@ -60,51 +66,12 @@ class IRender(metaclass=abc.ABCMeta):
     @abc.abstractclassmethod
     def end(self):
         '''
-        Called to signal that the current block has ended the rendering.
-        '''
-
-class IPattern(metaclass=abc.ABCMeta):
-    '''
-    The specification for pattern creation for rendered content.
-    '''
-
-    @abc.abstractclassmethod
-    def matcher(self, obj, injected):
-        '''
-        Creates matcher for the representation object.
+        Called to signal that the current block (object or collection) has ended the rendering.
         
-        @param obj: object
-            The representation object to create matchers for.
-        @param injected: boolean
-            Flag indicating that the matcher capture can be used for injecting content in it.
-        @return: string
-            The regex pattern that captures the data block represented by the object.
-            The matcher patterns contain groups that allows for injection if the injected flag is True.
-        '''
-    
-    @abc.abstractclassmethod
-    def capture(self, obj):
-        '''
-        Creates a capture pattern for the data represented by the provided object.
-        
-        @param obj: object
-            The representation object to create captures for.
-        @return: string
-            The regex pattern that captures the data specified by object.
-        '''
-        
-    @abc.abstractclassmethod
-    def injector(self, obj):
-        '''
-        Creates an injector pattern and replacer for the data represented by the provided object.
-        
-        @param obj: object
-            The representation object to create injector for.
-        @return: tuple(string, string)
-            A tuple of two elements, on the first position the regex pattern that is used inside a matcher block
-            in order to inject content, on the second position a pattern like string that contain markers
-            for using as the replaced value. Markers are like * for the value to be injected and like //1, //2 ... for capture
-            groups from the replace pattern, this are handled automatically by python regex sub method.
+        @return: tuple(integer, tuple(integer, integer), tuple(integer, integer), integer)
+            A tuple containing the start index, then a tuple containing the start and end index of the block name,
+            then another tuple containing the start and index of the rendered attributes, and last end index of the rendered
+            block.
         '''
 
 # --------------------------------------------------------------------

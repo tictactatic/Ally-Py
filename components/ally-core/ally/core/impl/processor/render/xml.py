@@ -9,22 +9,24 @@ Created on Jun 22, 2012
 Provides the XML encoder processor handler.
 '''
 
-from .base import RenderBaseHandler, PatternBaseHandler
+from .base import RenderBaseHandler
 from ally.container.ioc import injected
-from ally.core.spec.transform.flags import DYNAMIC_NAME
+from ally.core.spec.transform.index import IIndexer, BLOCK, PREPARE, ADJUST, \
+    AttrValue
 from ally.core.spec.transform.render import IRender
-from ally.core.spec.transform.representation import Object, Property, Attribute
 from ally.support.util import immut
 from ally.support.util_io import IOutputStream
 from codecs import getwriter
 from collections import deque
-from xml.sax.saxutils import XMLGenerator
+from xml.sax.saxutils import XMLGenerator, quoteattr
 import logging
-import re
 
 # --------------------------------------------------------------------
 
 log = logging.getLogger(__name__)
+
+GROUP_NAME = '$name'  # The group that captures the prepared name
+GROUP_ATTRIBUTES = '$attributes'  # The group that captures the prepared attributes
 
 # --------------------------------------------------------------------
 
@@ -42,7 +44,7 @@ class RenderXMLHandler(RenderBaseHandler):
         assert isinstance(self.encodingError, str), 'Invalid string %s' % self.encodingError
         super().__init__()
 
-    def renderFactory(self, charSet, output):
+    def renderFactory(self, charSet, output, indexer):
         '''
         @see: RenderBaseHandler.renderFactory
         '''
@@ -50,129 +52,152 @@ class RenderXMLHandler(RenderBaseHandler):
         assert isinstance(output, IOutputStream), 'Invalid content output stream %s' % output
 
         outputb = getwriter(charSet)(output, self.encodingError)
-        xml = XMLGenerator(outputb, charSet, short_empty_elements=True)
-        return RenderXML(xml)
+        return RenderXML(indexer, out=outputb, encoding=charSet, short_empty_elements=True)
 
 # --------------------------------------------------------------------
 
-class PatternXMLHandler(PatternBaseHandler):
-    '''
-    Provides the XML pattern.
-    @see: PatternBaseHandler
-    '''
-    
-    identifier = 'xml'
-    # The identifier for the represented pattern.
-    adjusters = (('^\s*<\?.*\?>\s*<\w+', '<{1}{2}'), ('</\w+\s*>\s*$', '</{1}>'))
-    # The injector adjusters.
-    
-    def matcher(self, obj, injected):
-        '''
-        @see: IPattern.matcher
-        '''
-        assert isinstance(injected, bool), 'Invalid injected flag %s' % injected
-        
-        if isinstance(obj, (Property, Object)):
-            assert isinstance(obj, (Property, Object))
-            if DYNAMIC_NAME in obj.flags: raise ValueError('Cannot provide matcher for a dynamic named object %s' % obj)
-            name = re.escape(obj.name)
-            if injected: return '(?s)<(%s)((?:\s+[^>]*)*)(?:(?:/>)|(?:>.*?</%s>))' % (name, name)
-            return '(?s)<%s(?:\s+[^>]*)*(?:(?:/>)|(?:>.*?</%s>))' % (name, name)
-            
-        raise ValueError('Cannot create a matcher for object %s' % obj)
-            
-    def capture(self, obj):
-        '''
-        @see: IPattern.capture
-        '''
-        if isinstance(obj, Attribute):
-            assert isinstance(obj, Attribute)
-            return '%s\s*\=\s*(?:"([^"]+)"|\'([^\']+)\')*' % obj.name
-        raise ValueError('Cannot create a capture for object %s' % obj)
-    
-    def injector(self, obj):
-        '''
-        @see: IPattern.injector
-        '''
-        if isinstance(obj, Attribute):
-            assert isinstance(obj, Attribute)
-            return ('(^\s*<.+?)((?:>)|(?:/>)){1}', '\\1 %s="*"\\2' % obj.name)
-        raise ValueError('Cannot create a injector for object %s' % obj)
-        
-# --------------------------------------------------------------------
-
-class RenderXML(IRender):
+class RenderXML(XMLGenerator, IRender):
     '''
     Renderer for xml.
     '''
-    __slots__ = ('xml', 'stack')
-
-    def __init__(self, xml):
+    
+    def __init__(self, indexer, **keyargs):
         '''
         Construct the XML object renderer.
         
-        @param xml: XMLGenerator
-            The xml generator used to render the xml.
+        @param indexer: IIndexer|None
+            The indexer to push the indexes in.
+        @param keyargs: key arguments
+            The key arguments used for constructing the XML generator.
         '''
-        assert isinstance(xml, XMLGenerator), 'Invalid xml generator %s' % xml
+        assert indexer is None or isinstance(indexer, IIndexer), 'Invalid indexer %s' % indexer
+        XMLGenerator.__init__(self, **keyargs)
+        
+        self._stack = deque()
+        self._length = 0
+        self._indexer = indexer
 
-        self.xml = xml
-        self.stack = deque()
+    def _write(self, text):
+        '''
+        @see: XMLGenerator._write
+        '''
+        self._length += len(text)
+        super()._write(text)
 
-    def property(self, name, value):
+    # ----------------------------------------------------------------
+    
+    def property(self, name, value, *index):
         '''
         @see: IRender.property
         '''
         assert isinstance(value, (str, list, dict)), 'Invalid value %s' % value
-
-        self.xml.startElement(name, immut())
+        
+        block = False
+        if self._indexer and index:
+            for ind in index:
+                assert ind == BLOCK, 'Invalid index %s' % index
+                block = True
+        
+        self._finish_pending_start_element()
+        
+        if block: self._indexer.block(self._length, name)
+        self.startElement(name, immut())
         if isinstance(value, list):
             for item in value:
                 assert isinstance(item, str), 'Invalid list item %s' % item
-                self.xml.startElement('value', immut())
-                self.xml.characters(item)
-                self.xml.endElement('value')
+                self.startElement('value', immut())
+                self.characters(item)
+                self.endElement('value')
         elif isinstance(value, dict):
             for key, item in value.items():
                 assert isinstance(key, str), 'Invalid dictionary key %s' % key
                 assert isinstance(item, str), 'Invalid dictionary value %s' % item
-                self.xml.startElement('entry', immut())
-                self.xml.startElement('key', immut())
-                self.xml.characters(key)
-                self.xml.endElement('key')
-                self.xml.startElement('value', immut())
-                self.xml.characters(item)
-                self.xml.endElement('value')
-                self.xml.endElement('entry')
+                self.startElement('entry', immut())
+                self.startElement('key', immut())
+                self.characters(key)
+                self.endElement('key')
+                self.startElement('value', immut())
+                self.characters(item)
+                self.endElement('value')
+                self.endElement('entry')
         else:
-            self.xml.characters(value)
-        self.xml.endElement(name)
+            self.characters(value)
+        self.endElement(name)
+        if block: self._indexer.end(self._length)
 
-    def beginObject(self, name, attributes=None):
+    def beginObject(self, name, attributes, *index):
         '''
         @see: IRender.beginObject
         '''
-        if not self.stack: self.xml.startDocument()  # Start the document
-        self.stack.append(name)
-        self.xml.startElement(name, attributes or immut())
+        block = prepare = adjust = False
+        attrValues = None
+        if self._indexer and index:
+            for ind in index:
+                if ind == BLOCK: block = True
+                elif ind == PREPARE: prepare = True
+                elif ind == ADJUST: adjust = True
+                else:
+                    assert isinstance(ind, AttrValue), 'Invalid index %s' % ind
+                    if attrValues is None: attrValues = {}
+                    attrValues[ind.attribute] = ind.name
+        
+        if not self._stack: self.startDocument()  # Start the document
+        self._finish_pending_start_element()
+        
+        if block: self._indexer.block(self._length, name)
+        if adjust: self._indexer.inject(0).end(self._length) 
+        # For adjusting we ensure that all data is deleted until this index where the actual block starts
+        self._write('<')
+        start = self._length
+        self._write(name)
+        if prepare:
+            self._indexer.group(start, GROUP_NAME).end(self._length)
+            self._indexer.group(self._length, GROUP_ATTRIBUTES)
+        if adjust:
+            self._indexer.inject(start, GROUP_NAME).end(self._length)
+            self._indexer.inject(self._length, GROUP_ATTRIBUTES).end(self._length)
+        
+        if attributes:
+            assert isinstance(attributes, dict), 'Invalid attributes %s' % attributes
+            for nameAttr, valueAttr in attributes.items():
+                if attrValues and nameAttr in attrValues:
+                    self._write(' %s=' % nameAttr)
+                    self._indexer.group(self._length + 1, attrValues[nameAttr])  # +1 for the comma
+                    self._write(quoteattr(valueAttr))
+                    self._indexer.end(self._length - 1)  # -1 for the commas
+                else: self._write(' %s=%s' % (nameAttr, quoteattr(valueAttr)))
+        if prepare: self._indexer.end(self._length)
+                
+        if self._short_empty_elements:
+            self._pending_start_element = True
+        else:
+            self._write(">")
+            
+        self._stack.append((name, block, adjust))
         
         return self
 
-    def beginCollection(self, name, attributes=None):
+    def beginCollection(self, name, attributes, *index):
         '''
         @see: IRender.beginCollection
         '''
-        if not self.stack: self.xml.startDocument()  # Start the document
-        self.stack.append(name)
-        self.xml.startElement(name, attributes or immut())
-        
-        return self
+        return self.beginObject(name, attributes, *index)
 
     def end(self):
         '''
         @see: IRender.end
         '''
-        assert self.stack, 'No object to end'
-
-        self.xml.endElement(self.stack.pop())
-        if not self.stack: self.xml.endDocument()  # Close the document if there are no other processes queued
+        assert self._stack, 'No object to end'
+        name, block, adjust = self._stack.pop()
+        
+        if self._pending_start_element:
+            self._write('/>')
+            self._pending_start_element = False
+        else:
+            self._write('</')
+            start = self._length
+            self._write(name)
+            if adjust: self._indexer.inject(start, GROUP_NAME).end(self._length)
+            self._write('>')
+        if block: self._indexer.end(self._length)
+        if not self._stack: self.endDocument()  # Close the document if there are no other processes queued

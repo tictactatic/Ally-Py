@@ -197,8 +197,7 @@ class Chain:
     
     def update(self, **keyargs):
         '''
-        Used to update the key arguments of the processing and also mark the chain for proceeding. A *process* method
-        needs to be executed first.
+        Used to update the key arguments of the processing. A *process* method needs to be executed first.
 
         @param keyargs: key arguments
             The key arguments that need to be updated and passed on to the next processors.
@@ -207,7 +206,6 @@ class Chain:
         '''
         assert not self._consumed, 'Chain is consumed cannot update'
         for key, value in keyargs.items(): setattr(self.arg, key, value)
-        self._proceed = True
         return self
         
     def branch(self, processing):

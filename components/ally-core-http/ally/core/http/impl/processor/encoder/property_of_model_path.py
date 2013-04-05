@@ -11,10 +11,8 @@ Provides the paths for properties of model.
 
 from ally.api.operator.type import TypeModel, TypeModelProperty
 from ally.container.ioc import injected
-from ally.core.http.spec.transform.flags import ATTRIBUTE_REFERENCE
 from ally.core.spec.resources import Path, Normalizer
 from ally.core.spec.transform.encoder import IAttributes, AttributesJoiner
-from ally.core.spec.transform.representation import Attribute
 from ally.design.cache import CacheWeak
 from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
@@ -120,18 +118,3 @@ class AttributesPath(AttributesJoiner):
         path.update(obj, self.propertyType)
         if not path.isValid(): return
         return {support.normalizer.normalize(self.nameRef): support.encoderPath.encode(path)}
-    
-    def representIntern(self, support):
-        '''
-        @see: AttributesJoiner.representIntern
-        '''
-        assert isinstance(support, Support), 'Invalid support %s' % support
-        if not support.pathsProperties: return  # No paths for models.
-        
-        assert isinstance(support.normalizer, Normalizer), 'Invalid normalizer %s' % support.normalizer
-        assert isinstance(support.pathsProperties, dict), 'Invalid properties paths %s' % support.pathsProperties
-        
-        path = support.pathsProperties.get(self.propertyType)
-        if not path: return  # No path to construct attributes for.
-        attribute = Attribute(support.normalizer.normalize(self.nameRef), ATTRIBUTE_REFERENCE)
-        return {attribute.name: attribute}

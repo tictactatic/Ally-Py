@@ -12,11 +12,9 @@ Provides the reference types encoding.
 from ally.api.operator.type import TypeProperty
 from ally.api.type import TypeReference
 from ally.container.ioc import injected
-from ally.core.http.spec.transform.flags import ATTRIBUTE_REFERENCE
 from ally.core.spec.resources import Normalizer
 from ally.core.spec.transform.encoder import IEncoder
 from ally.core.spec.transform.render import IRender
-from ally.core.spec.transform.representation import Attribute, Object
 from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessorProceed
@@ -113,19 +111,3 @@ class EncoderReference(IEncoder):
         
         attributes = {support.normalizer.normalize(self.nameRef): support.encoderPath.encode(obj)}
         render.beginObject(support.normalizer.normalize(self.name), attributes).end()
-
-    def represent(self, support, obj=None):
-        '''
-        @see: IEncoder.represent
-        '''
-        assert isinstance(support, Support), 'Invalid support %s' % support
-        assert isinstance(support.normalizer, Normalizer), 'Invalid normalizer %s' % support.normalizer
-        
-        attribute = Attribute(support.normalizer.normalize(self.nameRef), ATTRIBUTE_REFERENCE)
-        object = Object(support.normalizer.normalize(self.name), attributes={attribute.name: attribute})
-        
-        if obj:
-            assert isinstance(obj, Object), 'Invalid representation object to push in %s' % obj
-            obj.properties.append(object)
-            
-        else: return object

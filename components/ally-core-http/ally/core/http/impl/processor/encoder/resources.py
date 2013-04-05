@@ -11,13 +11,11 @@ Provides the resource paths encoding.
 
 from ally.api.type import Iter, Type
 from ally.container.ioc import injected
-from ally.core.http.spec.transform.flags import ATTRIBUTE_REFERENCE
+from ally.core.http.spec.transform.index import GROUP_VALUE_REFERENCE
 from ally.core.spec.resources import Normalizer, Path
 from ally.core.spec.transform.encoder import IEncoder
-from ally.core.spec.transform.flags import DYNAMIC_NAME
+from ally.core.spec.transform.index import BLOCK, AttrValue, PREPARE
 from ally.core.spec.transform.render import IRender
-from ally.core.spec.transform.representation import Collection, Attribute, \
-    Object
 from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessorProceed
@@ -115,17 +113,10 @@ class EncoderResources(IEncoder):
         assert Support.encoderPath in support, 'No path encoder available in %s' % support
         assert isinstance(support.encoderPath, IEncoderPath), 'Invalid path encoder %s' % support.encoderPath
         
-        render.beginCollection(support.normalizer.normalize(self.nameResources))
+        render.beginCollection(support.normalizer.normalize(self.nameResources), None)
+        nameRef = support.normalizer.normalize(self.nameRef)
+        attrRef = AttrValue(GROUP_VALUE_REFERENCE, nameRef)
         for path in obj:
-            attributes = {support.normalizer.normalize(self.nameRef): support.encoderPath.encode(path)}
-            render.beginObject(support.normalizer.normalize(pathLongName(path)), attributes).end()
+            attributes = {nameRef: support.encoderPath.encode(path)}
+            render.beginObject(support.normalizer.normalize(pathLongName(path)), attributes, BLOCK, PREPARE, attrRef).end()
         render.end()
-
-    def represent(self, support, obj=None):
-        '''
-        @see: IEncoder.represent
-        '''
-        assert obj is None, 'No object expected for resources representation'
-        attribute = Attribute(support.normalizer.normalize(self.nameRef), ATTRIBUTE_REFERENCE)
-        obj = Object(support.normalizer.normalize(self.nameResources), DYNAMIC_NAME, attributes={attribute.name: attribute})
-        return Collection(support.normalizer.normalize(self.nameResources), obj)

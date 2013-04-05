@@ -103,7 +103,9 @@ class ProvideMatchers(HandlerProcessor):
             assert isinstance(obj, Object)
             refer = self.attributeReference(obj)
             if refer:
-                yield self.processPatterns(Matcher(), obj, pattern, refer)
+                model = Matcher()
+                model.Name = obj.name
+                yield self.processPatterns(model, obj, pattern, refer)
                 
             else:
                 for objProp in obj.properties:

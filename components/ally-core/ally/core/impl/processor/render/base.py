@@ -10,12 +10,10 @@ Provides the text base encoder processor handler.
 '''
 
 from ally.container.ioc import injected
-from ally.core.spec.transform.render import IPattern
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain
-from ally.design.processor.handler import HandlerProcessor, \
-    HandlerProcessorProceed
+from ally.design.processor.handler import HandlerProcessor
 from collections import Callable
 from functools import partial
 import abc
@@ -33,8 +31,9 @@ class Response(Context):
     '''
     # ---------------------------------------------------------------- Defined
     renderFactory = defines(Callable, doc='''
-    @rtype: callable(IOutputStream) -> IRender
-    The renderer factory to be used for the response.
+    @rtype: callable(IOutputStream, IIndexer) -> IRender
+    The renderer factory to be used for the response, the first argument is the output stream where the rendered content
+    will be pushed and as the second argument the indexer to be used for the rendered content, a None value is acceptable.
     ''')
 
 class ResponseContent(Context):
@@ -87,7 +86,7 @@ class RenderBaseHandler(HandlerProcessor):
     # ----------------------------------------------------------------
 
     @abc.abstractclassmethod
-    def renderFactory(self, charSet, output):
+    def renderFactory(self, charSet, output, indexer):
         '''
         Factory method used for creating a renderer.
         
@@ -95,77 +94,8 @@ class RenderBaseHandler(HandlerProcessor):
             The character set to be used by the created factory.
         @param output: IOutputStream
             The output stream to be used by the renderer.
+        @param indexer: IIndexer
+            The indexer to push the indexes for the rendered content.
         @return: IRender
             The renderer.
         '''
-
-# --------------------------------------------------------------------
-
-class Support(Context):
-    '''
-    The support context.
-    '''
-    # ---------------------------------------------------------------- Defined
-    patterns = defines(dict, doc='''
-    @rtype: dictionary{string: Pattern}
-    The patterns indexed by pattern unique identifier.
-    ''')
-    
-class PatternSupport(Context):
-    '''
-    The pattern context.
-    '''
-    # ---------------------------------------------------------------- Defined
-    contentTypes = defines(tuple, doc='''
-    @rtype: tuple(string)
-    The list of content types to be associated with the pattern.
-    ''')
-    pattern = defines(IPattern, doc='''
-    @rtype: IPattern
-    The pattern used for creating captures and matchers.
-    ''')
-    adjusters = defines(tuple, doc='''
-    @rtype: tuple(tuple(string, string))
-    A tuple of tuples of two elements, on the first position the regex pattern that is used inside a matcher block
-    in order to inject content, on the second position a pattern like string that contain markers
-    for using as the replaced value. Markers are like {1}, {2} ... for capture groups from the matcher and like
-    //1, //2 ... for capture groups from the replace pattern, this are handled automatically by python regex sub method.
-    ''')
-
-# --------------------------------------------------------------------
-
-@injected
-class PatternBaseHandler(HandlerProcessorProceed, IPattern):
-    '''
-    Provides the text base pattern handler.
-    '''
-
-    identifier = str
-    # The identifier for the represented pattern.
-    contentTypes = dict
-    # The dictionary{string:string} containing as a key the content types specific for this encoder and as a value
-    # the content type to set on the response, if None will use the key for the content type response.
-    adjusters = tuple
-    # The tuple containing tuples of two that have on the first position the adjuster replace pattern and on the second position
-    # the adjuster replace value.
-
-    def __init__(self):
-        assert isinstance(self.identifier, str), 'Invalid identifier %s' % self.identifier
-        assert isinstance(self.contentTypes, dict), 'Invalid content types %s' % self.contentTypes
-        assert isinstance(self.adjusters, tuple), 'Invalid adjusters %s' % self.adjusters
-        super().__init__()
-        
-        self.types = tuple({value or key for key, value in self.contentTypes.items()})
-        
-    def process(self, Pattern:PatternSupport, support:Support, **keyargs):
-        '''
-        @see: HandlerProcessorProceed.process
-        
-        Create the pattern support.
-        '''
-        assert issubclass(Pattern, PatternSupport), 'Invalid pattern class %s' % Pattern
-        assert isinstance(support, Support), 'Invalid support %s' % support
-        
-        if support.patterns is None: support.patterns = {}
-        if self.identifier in support.patterns: return  # There is already a pattern for this identifier.
-        support.patterns[self.identifier] = Pattern(contentTypes=self.types, pattern=self, adjusters=self.adjusters)

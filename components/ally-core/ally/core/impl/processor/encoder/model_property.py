@@ -15,7 +15,6 @@ from ally.container.ioc import injected
 from ally.core.spec.resources import Normalizer
 from ally.core.spec.transform.encoder import IAttributes, IEncoder
 from ally.core.spec.transform.render import IRender
-from ally.core.spec.transform.representation import Object
 from ally.design.cache import CacheWeak
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines, optional
@@ -155,24 +154,3 @@ class EncoderModelProperty(IEncoder):
         render.beginObject(support.normalizer.normalize(self.name), attributes)
         if not hideProperties: self.encoder.render(obj, render, support)
         render.end()
-        
-    def represent(self, support, obj=None):
-        '''
-        @see: IEncoder.represent
-        '''
-        assert isinstance(support, Support), 'Invalid support %s' % support
-        assert isinstance(support.normalizer, Normalizer), 'Invalid normalizer %s' % support.normalizer
-        
-        if self.attributes: attributes = self.attributes.represent(support)
-        else: attributes = None
-        if Support.hideProperties in support: hideProperties = support.hideProperties
-        else: hideProperties = False
-        
-        model = Object(support.normalizer.normalize(self.name), attributes=attributes)
-        if not hideProperties: self.encoder.represent(support, model)
-        
-        if obj:
-            assert isinstance(obj, Object), 'Invalid representation object to push in %s' % obj
-            obj.properties.append(model)
-            
-        else: return model

@@ -25,6 +25,7 @@ from ally.core.impl.processor.text_conversion import NormalizerRequestHandler, \
     ConverterRequestHandler, NormalizerResponseHandler, ConverterResponseHandler
 from ally.core.spec.resources import Normalizer, Converter
 from ally.design.processor.handler import Handler
+from ally.core.impl.processor.indexer import IndexerProviderHandler
 
 # --------------------------------------------------------------------
 # Creating the processors used in handling the request
@@ -56,6 +57,9 @@ def converter() -> Converter: return Converter()
 
 @ioc.entity
 def argumentsPrepare() -> Handler: return ArgumentsPrepareHandler()
+
+@ioc.entity
+def indexer() -> Handler:return IndexerProviderHandler()
 
 @ioc.entity
 def rendering() -> Handler:

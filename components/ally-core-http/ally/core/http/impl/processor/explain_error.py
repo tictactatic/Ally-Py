@@ -84,7 +84,7 @@ class ExplainErrorHandler(HandlerProcessorProceed):
                 errors.append(Object('details', response.errorDetails))
 
             output = BytesIO()
-            render = response.renderFactory(output)
+            render = response.renderFactory(output, None)
             renderObject(Object('error', *errors), render)
 
             content = output.getvalue()

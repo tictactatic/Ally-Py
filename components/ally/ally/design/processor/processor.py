@@ -103,8 +103,6 @@ class Contextual(Processor):
                 raise ProcessorError('Not a context class %s for argument %s, at:%s' % 
                                      (clazz, name, locationStack(self.function)))
             contexts[name] = clazz
-        if not contexts: raise ProcessorError('Cannot have a function with no context, at:%s' % 
-                                              locationStack(self.function))
         
         super().__init__(contexts, self.processCall(function))
     
