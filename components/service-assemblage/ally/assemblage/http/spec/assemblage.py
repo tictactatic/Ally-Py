@@ -13,7 +13,6 @@ Provides the assemblage specification.
 
 BLOCK = 1  # Marker used for blocks
 GROUP = 2  # Marker used for groups
-LINK = 3  # Marker used for links
 INJECT = 4  # Marker used for inject
 
 # --------------------------------------------------------------------
@@ -72,12 +71,7 @@ class Index:
     @rtype: boolean
     True if the index is a group index.
     ''')
-    isLink = property(lambda self: self.mark == LINK, doc='''
-    @rtype: boolean
-    True if the index is a link index.
-    ''')
     isInject = property(lambda self: self.mark == INJECT, doc='''
     @rtype: boolean
     True if the index is an inject index.
     ''')
-    

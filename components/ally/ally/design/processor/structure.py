@@ -10,6 +10,7 @@ Provides manipulator structure classes.
 '''
 
 from ally.design.processor.spec import IResolver
+from collections import Iterable
 
 # --------------------------------------------------------------------
 
@@ -50,7 +51,7 @@ def restructureResolvers(resolvers, mapping, reversed=False):
     
     @param resolvers: dictionary{string: IResolver}
         The resolvers to restructure.
-    @param mapping: tuple(string|tuple(string, string))
+    @param mapping: Iterable(string|tuple(string, string))
         The mapping to make the restructure by.
     @param reversed: boolean
         Flag indicating that the mapping should be done in reversed.
@@ -58,7 +59,7 @@ def restructureResolvers(resolvers, mapping, reversed=False):
         The restructured resolvers.
     '''
     assert isinstance(resolvers, dict), 'Invalid resolvers %s' % resolvers
-    assert isinstance(mapping, tuple), 'Invalid mapping %s' % mapping
+    assert isinstance(mapping, Iterable), 'Invalid mapping %s' % mapping
     assert isinstance(reversed, bool), 'Invalid reversed flag %s' % reversed
     
     restructured = {}

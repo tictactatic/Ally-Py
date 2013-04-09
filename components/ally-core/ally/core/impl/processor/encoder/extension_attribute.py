@@ -66,7 +66,7 @@ class ExtensionAttributeEncode(HandlerBranchingProceed):
     def __init__(self):
         assert isinstance(self.propertyEncodeAssembly, Assembly), \
         'Invalid property encode assembly %s' % self.propertyEncodeAssembly
-        super().__init__(Included(self.propertyEncodeAssembly, create=CreateProperty))
+        super().__init__(Included(self.propertyEncodeAssembly).using(create=CreateProperty))
         
         self._cache = CacheWeak()
         

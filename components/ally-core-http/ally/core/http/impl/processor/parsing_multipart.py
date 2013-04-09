@@ -133,7 +133,7 @@ class ParsingMultiPartHandler(ParsingHandler, DataMultiPart):
         assert isinstance(self.attrBoundary, str), 'Invalid attribute boundary name %s' % self.attrBoundary
         assert isinstance(self.populateAssembly, Assembly), 'Invalid populate assembly %s' % self.populateAssembly
         DataMultiPart.__init__(self)
-        ParsingHandler.__init__(self, Included(self.populateAssembly, request=RequestPopulate))
+        ParsingHandler.__init__(self, Included(self.populateAssembly).using(request=RequestPopulate))
         self._reMultipart = re.compile(self.regexMultipart)
 
     def process(self, chain, populate, parsing, request:Request, requestCnt:RequestContentMultiPart,

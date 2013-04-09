@@ -9,16 +9,16 @@ Created on Jan 5, 2012
 Provides the processors setups for assemblage.
 '''
 
-from ..ally_http.processor import contentLengthEncode, internalError, \
-    headerEncodeResponse, headerDecodeRequest
+from ..ally_http.processor import contentTypeResponseDecode, \
+    headerDecodeResponse, headerDecodeRequest, internalError
 from ally.assemblage.http.impl.processor.assembler import AssemblerHandler
-from ally.assemblage.http.impl.processor.main_request import MainRequestHandler
-from ally.assemblage.http.impl.processor.node import RequestedNodeHandler
+from ally.assemblage.http.impl.processor.content import ContentHandler
+from ally.assemblage.http.impl.processor.index import IndexProviderHandler
+from ally.assemblage.http.impl.processor.node import RequestNodeHandler
 from ally.container import ioc
 from ally.container.error import ConfigError
 from ally.design.processor.assembly import Assembly
-from ally.design.processor.handler import Handler
-from ally.assemblage.http.impl.processor.index import IndexProviderHandler
+from ally.design.processor.handler import Handler, HandlerRenamer
 
 # --------------------------------------------------------------------
 
@@ -60,24 +60,33 @@ def server_provide_assemblage():
 # Creating the processors used in handling the request
 
 @ioc.entity
-def requestedNode() -> Handler: return RequestedNodeHandler()
+def requestNode(): return RequestNodeHandler()
 
 @ioc.entity
-def mainRequest() -> Handler:
-    b = MainRequestHandler()
-    b.assembly = assemblyForward()
+def content() -> Handler:
+    b = ContentHandler()
+    b.assemblyForward = assemblyForward()
+    b.assemblyContent = assemblyContent()
     return b
 
 @ioc.entity
 def indexProvider() -> Handler: return IndexProviderHandler()
 
 @ioc.entity
-def assembler() -> Handler:
-    b = AssemblerHandler()
-    b.assembly = assemblyForwardInner()
-    return b
+def encodingProvider() -> Handler:
+    return HandlerRenamer(contentTypeResponseDecode(), 'response', ('responseCnt', 'content'))
+
+@ioc.entity
+def assembler() -> Handler: return AssemblerHandler()
 
 # --------------------------------------------------------------------
+
+@ioc.entity
+def assemblyAssemblage() -> Assembly:
+    '''
+    The assembly containing the handlers that will be used in processing the assemblages resources.
+    '''
+    return Assembly('Assemblage resources')
 
 @ioc.entity
 def assemblyForward() -> Assembly:
@@ -87,23 +96,19 @@ def assemblyForward() -> Assembly:
     return Assembly('Assemblage forward')
 
 @ioc.entity
-def assemblyForwardInner() -> Assembly:
+def assemblyContent() -> Assembly:
     '''
-    The assembly containing the handlers that will be used for forwarding the inner requests.
+    The assembly containing the handlers that will be used for processing the assemblage content.
     '''
-    return Assembly('Assemblage inner forward')
-
-@ioc.entity
-def assemblyAssemblage() -> Assembly:
-    '''
-    The assembly containing the handlers that will be used in processing the assemblages resources.
-    '''
-    return Assembly('Assemblage resources')
+    return Assembly('Assemblage content')
 
 # --------------------------------------------------------------------
     
 @ioc.before(assemblyAssemblage)
 def updateAssemblyAssemblage():
-    assemblyAssemblage().add(internalError(), headerDecodeRequest(), requestedNode(), mainRequest(), indexProvider(),
-                             assembler())
-                             # headerEncodeResponse(), contentLengthEncode())
+    assemblyAssemblage().add(internalError(), headerDecodeRequest(), requestNode(), content(), assembler())
+    
+@ioc.before(assemblyContent)
+def updateAssemblyContent():
+    assemblyContent().add(indexProvider(), headerDecodeResponse(), encodingProvider())
+    

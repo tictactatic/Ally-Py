@@ -23,21 +23,26 @@ class Request(Context):
     '''
     The request context.
     '''
-    # ---------------------------------------------------------------- Defined
-    requestNode = defines(RequestNode, doc='''
-    @rtype: RequestNode
-    The main request node to be assembled.
-    ''')
     # ---------------------------------------------------------------- Optional
     parameters = optional(list)
     # ---------------------------------------------------------------- Required
     decoderHeader = requires(IDecoderHeader)
     headers = requires(dict)
+    
+class Assemblage(Context):
+    '''
+    The assemblage context.
+    '''
+    # ---------------------------------------------------------------- Defined
+    requestNode = defines(RequestNode, doc='''
+    @rtype: RequestNode
+    The main request node to be assembled.
+    ''')
 
 # --------------------------------------------------------------------
 
 @injected
-class RequestedNodeHandler(HandlerProcessorProceed):
+class RequestNodeHandler(HandlerProcessorProceed):
     '''
     Implementation for a handler that provides the node structure to be assembled.
     '''
@@ -49,11 +54,11 @@ class RequestedNodeHandler(HandlerProcessorProceed):
         assert isinstance(self.nameAssemblage, str), 'Invalid assemblage name %s' % self.maximum_response_length
         super().__init__()
 
-    def process(self, request:Request, **keyargs):
+    def process(self, request:Request, assemblage:Assemblage, **keyargs):
         '''
         @see: HandlerProcessorProceed.process
         
-        Provide the node structure.
+        Provide the node structure assemblage.
         '''
         assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(request.decoderHeader, IDecoderHeader), 'Invalid decoder header %s' % request.decoderHeader
@@ -62,9 +67,10 @@ class RequestedNodeHandler(HandlerProcessorProceed):
         if not values: return  # No assemblage requested.
         if request.headers: request.headers.pop(self.nameAssemblage, None)  # No need to pass the assemblage header.
         # First we adjust the request node tree.
-        request.requestNode = RequestNode()
+        
+        assemblage.requestNode = RequestNode()
         for name, _attributes in values:
-            current = request.requestNode
+            current = assemblage.requestNode
             for name in name.split('.'):
                 subnode = current.requests.get(name)
                 if subnode is None: subnode = current.requests[name] = RequestNode()
@@ -73,7 +79,7 @@ class RequestedNodeHandler(HandlerProcessorProceed):
         if Request.parameters not in request or not request.parameters: return  # No parameters to process.
         # We process the parameters for each node request.
         for name, value in request.parameters:
-            current = request.requestNode
+            current = assemblage.requestNode
             names = name.split('.')
             for k, (isLast, name) in enumerate(lastCheck(names)):
                 if isLast: current.parameters.append((name, value))

@@ -80,7 +80,7 @@ class ModelPropertyEncode(HandlerBranchingProceed):
     def __init__(self):
         assert isinstance(self.propertyEncodeAssembly, Assembly), \
         'Invalid property encode assembly %s' % self.propertyEncodeAssembly
-        super().__init__(Included(self.propertyEncodeAssembly, create=CreateProperty), support=Support)
+        super().__init__(Included(self.propertyEncodeAssembly).using(create=CreateProperty), support=Support)
         
         self._cache = CacheWeak()
         

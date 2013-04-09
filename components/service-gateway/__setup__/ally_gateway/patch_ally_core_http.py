@@ -80,24 +80,25 @@ else:
     
     # ----------------------------------------------------------------
     
+    def isInternal():
+        '''
+        Auxiliar function.
+        '''
+        if server_provide_gateway() != GATEWAY_INTERNAL: return False
+        if not server_provide_resources():
+            raise SetupError('Cannot configure internal gateway because the REST resources is not enabled')
+        return True
+    
     @ioc.before(assemblyRESTRequest)
     def updateAssemblyRESTRequestForResources():
-        if server_provide_gateway() == GATEWAY_INTERNAL:
-            if not server_provide_resources():
-                raise SetupError('Cannot configure internal gateway because the REST resources is not enabled')
-            assemblyRESTRequest().add(resourcesRouter())
+        if isInternal(): assemblyRESTRequest().add(resourcesRouter())
                 
     @ioc.before(assemblyForward)
     def updateAssemblyForwardForResources():
-        if server_provide_gateway() == GATEWAY_INTERNAL:
-            if not server_provide_resources():
-                raise SetupError('Cannot configure internal gateway because the REST resources is not enabled')
+        if isInternal():
             assemblyForward().add(resourcesRouterGateway())
             if server_provide_errors(): assemblyForward().add(errorsRouter(), after=resourcesRouterGateway())
     
     @ioc.after(updateAssemblyServerForResources)
     def updateAssemblyServerForGatewayInternal():
-        if server_provide_gateway() == GATEWAY_INTERNAL:
-            if not server_provide_resources():
-                raise SetupError('Cannot configure internal gateway because the REST resources is not enabled')
-            assemblyServer().add(gatewayRouter(), before=resourcesRouter())
+        if isInternal(): assemblyServer().add(gatewayRouter(), before=resourcesRouter())

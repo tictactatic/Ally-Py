@@ -12,13 +12,14 @@ Module containing processors.
 from .branch import IBranch
 from .context import Context
 from .execution import Chain, Processing
-from .resolvers import merge, resolversFor
-from .spec import AssemblyError, IProcessor, ContextMetaClass, ProcessorError, IReport
+from .resolvers import merge
+from .spec import AssemblyError, IProcessor, ContextMetaClass, ProcessorError, \
+    IReport
 from .structure import restructureData, restructureResolvers
 from ally.support.util_sys import locationStack
 from collections import Iterable
 from inspect import ismethod, isfunction, getfullargspec
-from itertools import chain
+import itertools
 
 # --------------------------------------------------------------------
 
@@ -192,23 +193,27 @@ class Brancher(Contextual):
         self.branches = branches
         super().__init__(function, proceed)
     
-    def register(self, sources, current, extensions, calls, report):
+    def register(self, sources, resolvers, extensions, calls, report):
         '''
         @see: IProcessor.register
         '''
         assert isinstance(calls, list), 'Invalid calls %s' % calls
         assert isinstance(report, IReport), 'Invalid report %s' % report
+        
+        try: merge(resolvers, self.contexts)
+        except: raise AssemblyError('Cannot merge contexts at:%s' % locationStack(self.function))
+        
         report = report.open('Branching processor at:%s' % locationStack(self.function))
         
-        processings, processor = [], resolversFor(self.contexts)
+        processings = []
         for branch in self.branches:
             assert isinstance(branch, IBranch), 'Invalid branch %s' % branch
-            try: processing = branch.process(sources, processor, current, extensions, report)
+            try: processing = branch.process(sources, resolvers, extensions, report)
             except: raise AssemblyError('Cannot create processing at:%s' % locationStack(self.function))
             assert isinstance(processing, Processing), 'Invalid processing %s' % processing
             processings.append(processing)
         
-        def wrapper(*args, **keyargs): self.call(*chain(args, processings), **keyargs)
+        def wrapper(*args, **keyargs): self.call(*itertools.chain(args, processings), **keyargs)
         calls.append(wrapper)
         
     # ----------------------------------------------------------------
@@ -236,11 +241,11 @@ class ProcessorRenamer(IProcessor):
         '''
         Construct the processor that renames the context names for the provided processor.
         
-        @param processor: Container|Processor
+        @param processor: Processor
             Restructures the provided processor.
         @param mapping: arguments[tuple(string string)]
-            The mappings that the renamer needs to make, attention the order in which the context mappings are provided
-            is crucial, examples:
+            The mappings that the renamer needs to make, also the context to be passed along without renaming need to
+            be provided as simple names, attention the order in which the context mappings are provided is crucial, examples:
                 ('request': 'solicitation')
                     The wrapped processor will receive as the 'request' context the 'solicitation' context.
                 ('request': 'solicitation'), ('request': 'response')
@@ -251,11 +256,7 @@ class ProcessorRenamer(IProcessor):
         assert isinstance(processor, Processor), 'Invalid processor %s' % processor
         assert mapping, 'At least one mapping is required'
         if __debug__:
-            for entry in mapping:
-                assert isinstance(entry, tuple), 'Invalid entry %s' % entry
-                assert len(entry) == 2, 'Invalid entry tuple %s' % (entry,)
-                assert isinstance(entry[0], str), 'Invalid first entry name %s' % entry[0]
-                assert isinstance(entry[1], str), 'Invalid second entry name %s' % entry[1]
+            for name in mapping: assert isinstance(name, (str, tuple)), 'Invalid current context name %s' % name
         
         self.processor = processor
         self.mapping = mapping

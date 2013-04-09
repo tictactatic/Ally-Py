@@ -79,7 +79,7 @@ class CollectionEncode(HandlerBranchingProceed):
     def __init__(self):
         assert isinstance(self.itemEncodeAssembly, Assembly), 'Invalid item encode assembly %s' % self.itemEncodeAssembly
         assert isinstance(self.nameMarkedList, str), 'Invalid name list %s' % self.nameMarkedList
-        super().__init__(Included(self.itemEncodeAssembly, create=CreateItem), support=Support)
+        super().__init__(Included(self.itemEncodeAssembly).using(create=CreateItem), support=Support)
         
         self._cache = CacheWeak()
         

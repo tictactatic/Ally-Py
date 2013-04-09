@@ -33,7 +33,7 @@ class RenderTextHandler(RenderBaseHandler):
 
     def __init__(self):
         assert callable(self.rendererTextObject), 'Invalid callable renderer %s' % self.rendererTextObject
-        assert isinstance(self.encodingError, str), 'Invalid string %s' % self.encodingError
+        assert isinstance(self.encodingError, str), 'Invalid encoding error %s' % self.encodingError
         super().__init__()
 
     def renderFactory(self, charSet, output):

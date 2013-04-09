@@ -11,7 +11,8 @@ Provides the content type header decoding/encoding.
 
 from ally.container.ioc import injected
 from ally.core.http.spec.codes import CONTENT_TYPE_ERROR
-from ally.design.processor.attribute import requires, optional, defines
+from ally.design.processor.attribute import requires, optional, defines, \
+    definesIf
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessorProceed
 from ally.http.spec.server import IDecoderHeader, IEncoderHeader
@@ -121,7 +122,7 @@ class ResponseContentDecode(Context):
     The request content context decode.
     '''
     # ---------------------------------------------------------------- Defined
-    type = defines(str, doc='''
+    type = definesIf(str, doc='''
     @rtype: string
     The response content type.
     ''')
@@ -129,7 +130,7 @@ class ResponseContentDecode(Context):
     @rtype: string
     The response character set for the text content.
     ''')
-    typeAttr = defines(dict, doc='''
+    typeAttr = definesIf(dict, doc='''
     @rtype: dictionary{string, string}
     The content response type attributes.
     ''')
@@ -166,9 +167,11 @@ class ContentTypeResponseDecodeHandler(HandlerProcessorProceed, ContentTypeConfi
                 ', expected only one type entry' % (value, self.nameContentType)
                 return
             value, attributes = value[0]
-            responseCnt.type = value
+            if ResponseContentDecode.type in responseCnt:
+                responseCnt.type = value
             responseCnt.charSet = attributes.get(self.attrContentTypeCharSet, None)
-            responseCnt.typeAttr = attributes
+            if ResponseContentDecode.typeAttr in responseCnt:
+                responseCnt.typeAttr = attributes
 
 # --------------------------------------------------------------------
 

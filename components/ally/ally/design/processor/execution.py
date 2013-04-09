@@ -143,6 +143,11 @@ class Chain:
         self._callBacksErrors = deque()
         self._consumed = False
 
+    keyargs = property(lambda self: self.arg.__dict__.items(), doc='''
+    @rtype: Iterable(tuple(string, object))
+    The iterable containing key: value pairs of the key arguments.
+    ''')
+
     def process(self, **keyargs):
         '''
         Called in order to execute the next processors in the chain. This method registers the chain proceed
@@ -207,7 +212,22 @@ class Chain:
         assert not self._consumed, 'Chain is consumed cannot update'
         for key, value in keyargs.items(): setattr(self.arg, key, value)
         return self
+    
+    def fillIn(self, processing):
+        '''
+        Same behavior as @see: Processing.fillIn but in instead of updateing key arguments it updates this chain.
         
+        @param processing: Processing
+            The processing to make the fill in in this chain based on.
+        '''
+        assert not self._consumed, 'Chain is consumed cannot update'
+        assert isinstance(processing, Processing), 'Invalid processing %s' % processing
+        keyargs = dict(self.arg.__dict__)
+        keyargs = processing.fillIn(**keyargs)
+        
+        for key, value in keyargs.items():
+            if key not in self.arg.__dict__: setattr(self.arg, key, value)
+       
     def branch(self, processing):
         '''
         Branches the chain to a different processing and automatically marks the chain for proceeding.

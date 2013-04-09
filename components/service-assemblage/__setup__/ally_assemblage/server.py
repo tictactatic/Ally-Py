@@ -14,7 +14,7 @@ from .processor import assemblyAssemblage, ASSEMBLAGE_EXTERNAL, \
     server_provide_assemblage
 from ally.container import ioc
 from ally.design.processor.handler import Handler
-from ally.http.impl.processor.router_by_path import RoutingByPathHandler
+from ally.assemblage.http.impl.processor.router import RoutingAssemblageHandler
 
 # --------------------------------------------------------------------
 
@@ -22,14 +22,16 @@ from ally.http.impl.processor.router_by_path import RoutingByPathHandler
 def server_pattern_assemblage():
     '''
     The pattern used for matching the assemblage paths in HTTP URL's.
+    !Attention this configuration needs to be in concordance with 'server_pattern_resources'
+    and eventually 'server_pattern_gateway'.
     '''
-    return '(.*)'
+    return '(^resources(?:/|(?=\\.)|$).*)'
 
 # --------------------------------------------------------------------
 
 @ioc.entity
 def assemblageRouter() -> Handler:
-    b = RoutingByPathHandler()
+    b = RoutingAssemblageHandler()
     b.assembly = assemblyAssemblage()
     b.pattern = server_pattern_assemblage()
     return b

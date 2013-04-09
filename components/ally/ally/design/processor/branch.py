@@ -33,14 +33,12 @@ class IBranch(metaclass=abc.ABCMeta):
         '''
     
     @abc.abstractmethod
-    def process(self, sources, processor, resolvers, extensions, report):
+    def process(self, sources, resolvers, extensions, report):
         '''
         Process the branch for the current repository.
         
         @param sources: dictionary{string: IResolver}
             The sources resolvers that need to be solved by processors.
-        @param processor: dictionary{string: IResolver}
-            The resolvers of the processor that handles the branch.
         @param resolvers: dictionary{string: IResolver}
             The resolvers used in creating the final contexts.
         @param extensions: dictionary{string: IResolver}
@@ -58,23 +56,23 @@ class WithAssembly(IBranch):
 
     def __init__(self, assembly):
         '''
-        Construct the branch with target.
+        Construct the branch with target assembly.
         
         @param assembly: Assembly
-            The target assembly or branch to use.
+            The target assembly to use.
         '''
         assert isinstance(assembly, Assembly), 'Invalid assembly %s' % assembly
-        self.assembly = assembly
+        self._assembly = assembly
         
     def name(self):
         '''
         @see: IBranch.name
         '''
-        return self.assembly.name
+        return self._assembly.name
     
     # ----------------------------------------------------------------
     
-    def processAssembly(self, sources, current, extensions, report):
+    def _processAssembly(self, sources, current, extensions, report):
         '''
         Process the assembly.
         
@@ -82,7 +80,7 @@ class WithAssembly(IBranch):
             Returns the processed target calls.
         '''
         calls = []
-        for proc in self.assembly.processors:
+        for proc in self._assembly.processors:
             assert isinstance(proc, IProcessor), 'Invalid processor %s' % proc
             proc.register(sources, current, extensions, calls, report)
         return calls
@@ -92,52 +90,79 @@ class WithAssembly(IBranch):
 class Routing(WithAssembly):
     '''
     Branch for routed processors containers. By routing is understood that the processors will be executed separately
-    from the main chain and they need to solve the main contexts. 
+    from the main chain and they need to solve the main contexts, the routing processor uses the same contexts.
     '''
     
-    def __init__(self, assembly, merged=True):
+    def __init__(self, assembly):
         '''
         Construct the routing branch.
         @see: WithAssembly.__init__
-        
-        @param merged: boolean
-            Flag indicating that the routing should be merged with the main context, thus allowing the routing processor
-            to use the same objects.
-            Attention if this is true then no processing context will be available.
         '''
-        assert isinstance(merged, bool), 'Invalid merged flag %s' % merged
         super().__init__(assembly)
         
-        self.merged = merged
+        self._usingContexts = {}
+        self._usingNames = set()
         
-    def process(self, sources, processor, resolvers, extensions, report):
+    def using(self, *names, **contexts):
+        '''
+        Register the context names required for using, basically the contexts that need to be present on the processing.
+        
+        @param names: arguments[string]
+            The contexts names to be used rather then routed.
+        @param contexts: key arguments{string, ContextMetaClass}
+            The contexts to be used rather then routed.
+        @return: self
+            This branch for chaining purposes.
+        '''
+        assert names or contexts, 'At least a name or context is required'
+        if __debug__:
+            for name in names: assert isinstance(name, str), 'Invalid context name %s' % name
+            for name, clazz in contexts.items():
+                assert isinstance(name, str), 'Invalid context name %s' % name
+                assert isinstance(clazz, ContextMetaClass), 'Invalid context class %s' % clazz
+        self._usingContexts.update(contexts)
+        self._usingNames.update(contexts)
+        self._usingNames.update(names)
+        
+        return self
+        
+    def process(self, sources, resolvers, extensions, report):
         '''
         @see: IBrach.process
         '''
         assert isinstance(sources, dict), 'Invalid sources %s' % sources
+        assert isinstance(extensions, dict), 'Invalid extensions %s' % extensions
         assert isinstance(report, IReport), 'Invalid report %s' % report
         
         report = report.open('Routing \'%s\'' % self.name())
-        try:
-            rresolvers, rextensions = {}, {}
-            calls = self.processAssembly(sources, rresolvers, rextensions, report)
-        except: raise AssemblyError('Cannot process Routing for \'%s\'' % self.name())
         
         try:
-            solve(rresolvers, processor)
+            rresolvers, rextensions = {}, {}
+            calls = self._processAssembly(sources, rresolvers, rextensions, report)
+            
+        except: raise AssemblyError('Cannot process Routing for \'%s\'' % self.name())
+            
+        try:
             merge(resolvers, copyAttributes(rresolvers, attributesFor(sources)))
             solve(rresolvers, sources)
             if checkIf(rresolvers, LIST_UNAVAILABLE):
                 raise AssemblyError('Routing for \'%s\' has unavailable attributes:%s' % 
                                     (self.name(), reportFor(rresolvers, LIST_UNAVAILABLE)))
             solve(rresolvers, rextensions)
-            if self.merged:
-                assert isinstance(extensions, dict), 'Invalid extensions %s' % extensions
-                merge(extensions, rresolvers)
-                return Processing(calls)
+            merge(extensions, rresolvers)
             
-            report.add(rresolvers)
-            return Processing(calls, create(rresolvers))
+            uresolvers = extractContexts(rresolvers, self._usingNames)
+            uresolvers = solve(uresolvers, self._usingContexts)
+            if checkIf(uresolvers, LIST_UNAVAILABLE):
+                raise AssemblyError('Routing for \'%s\' has unavailable attributes:%s' % 
+                                    (self.name(), reportFor(uresolvers, LIST_UNAVAILABLE)))
+            solve(uresolvers, extractContexts(rextensions, self._usingNames))
+            
+            report.add(uresolvers)
+            contexts = create(uresolvers)
+            
+            return Processing(calls, contexts)
+        
         except AssemblyError: raise
         except:
             raise AssemblyError('Resolvers problems on Routing for \'%s\'\n, with resolvers:%s\n'
@@ -159,12 +184,12 @@ class Using(WithAssembly):
             The current contexts names to be used from the ongoing process, or mappings that the using needs to make,
             attention the order in which the context mappings are provided
             is crucial, examples:
-                ('request': 'solicitation')
-                    The wrapped branch will receive as the 'request' context the 'solicitation' context.
-                ('request': 'solicitation'), ('request': 'response')
-                    The wrapped branch will receive as the 'request' context the 'solicitation' and 'response' context.
-                ('solicitation': 'request'), ('response': 'request')
-                    The wrapped branch will receive as the 'solicitation' and 'response' context the 'request' context.
+                ('request', 'solicitation')
+                    The assembly will receive as the 'request' context the 'solicitation' context.
+                ('request', 'solicitation'), ('request': 'response')
+                    The assembly will receive as the 'request' context the 'solicitation' and 'response' context.
+                ('solicitation', 'request'), ('response': 'request')
+                    The assembly will receive as the 'solicitation' and 'response' context the 'request' context.
         @param contexts: key arguments{string, ContextMetaClass}
             The contexts to be solved by the used container.
         '''
@@ -176,24 +201,24 @@ class Using(WithAssembly):
                 assert isinstance(clazz, ContextMetaClass), 'Invalid context class %s' % clazz
         super().__init__(assembly)
         
-        self.current = current
-        self.contexts = contexts
+        self._current = current
+        self._contexts = contexts
     
-    def process(self, sources, processor, resolvers, extensions, report):
+    def process(self, sources, resolvers, extensions, report):
         '''
         @see: IBrach.process
         '''
         assert isinstance(report, IReport), 'Invalid report %s' % report
         
-        merge(resolvers, processor)
         report = report.open('Using \'%s\'' % self.name())
+        
         try:
-            usources = restructureResolvers(resolvers, self.current)
-            solve(usources, restructureResolvers(sources, self.current))
-            merge(usources, self.contexts)
+            usources = restructureResolvers(resolvers, self._current)
+            solve(usources, restructureResolvers(sources, self._current))
+            merge(usources, self._contexts)
             uextensions, uresolvers = {}, {}
-            calls = self.processAssembly(usources, uresolvers, uextensions, report)
-                    
+            calls = self._processAssembly(usources, uresolvers, uextensions, report)
+            
         except: raise AssemblyError('Cannot process Using for \'%s\'' % self.name())
         
         try:
@@ -202,12 +227,13 @@ class Using(WithAssembly):
                 raise AssemblyError('Using for \'%s\' has unavailable attributes:%s' % 
                                     (self.name(), reportFor(uresolvers, LIST_UNAVAILABLE)))
             solve(uresolvers, uextensions)
-            cextensions = restructureResolvers(uresolvers, self.current, True)
+            cextensions = restructureResolvers(uresolvers, self._current, True)
             cextensions = copyAttributes(cextensions, attributesFor(resolvers))
             merge(extensions, cextensions)
             
             report.add(uresolvers)
             return Processing(calls, create(uresolvers))
+        
         except AssemblyError: raise
         except:
             raise AssemblyError('Resolvers problems on Using for \'%s\'\n, with sources:%s\n, with processors:%s\n'
@@ -220,22 +246,65 @@ class Included(WithAssembly):
     over when and how they are executed.
     '''
     
-    def __init__(self, assembly, **using):
+    def __init__(self, assembly):
         '''
         Construct the included branch.
         @see: WithAssembly.__init__
-        
-        @param using: key arguments{string, ContextMetaClass}
-            The contexts to be used rather then included.
         '''
         super().__init__(assembly)
+        
+        self._names = set()
+        self._usingContexts = {}
+        self._usingNames = set()
+    
+    def only(self, *names):
+        '''
+        Register the context names required for including, if this method is not used the all contexts are used.
+        
+        @param names: arguments[string|tuple(string, string)]
+            The contexts names to be included, or mappings to alter the included context names based on, attention the
+            order in which the context mappings are provided is crucial, examples:
+                ('request', 'solicitation')
+                    The assembly will receive as the 'request' context the 'solicitation' context.
+                ('request', 'solicitation'), ('request': 'response')
+                    The assembly will receive as the 'request' context the 'solicitation' and 'response' context.
+                ('solicitation', 'request'), ('response': 'request')
+                    The assembly will receive as the 'solicitation' and 'response' context the 'request' context.
+            The altering mappings are applied also on the using contexts.
+        @return: self
+            This branch for chaining purposes.
+        '''
+        assert names, 'At least a name or mapping is required'
         if __debug__:
-            for name, clazz in using.items():
+            for name in names: assert isinstance(name, (str, tuple)), 'Invalid only name %s' % name
+        self._names.update(names)
+        
+        return self
+        
+    def using(self, *names, **contexts):
+        '''
+        Register the context names required for using, basically the contexts that need to be present on the processing.
+        
+        @param names: arguments[string]
+            The contexts names to be used rather then included.
+        @param contexts: key arguments{string, ContextMetaClass}
+            The contexts to be used rather then included.
+        @return: self
+            This branch for chaining purposes.
+        '''
+        assert names or contexts, 'At least a name or context is required'
+        if __debug__:
+            for name in names: assert isinstance(name, str), 'Invalid context name %s' % name
+            for name, clazz in contexts.items():
                 assert isinstance(name, str), 'Invalid context name %s' % name
                 assert isinstance(clazz, ContextMetaClass), 'Invalid context class %s' % clazz
-        self.using = using
+        self._usingContexts.update(contexts)
+        self._usingNames.update(contexts)
+        self._usingNames.update(names)
+        
+        return self
     
-    def process(self, sources, processor, resolvers, extensions, report):
+    def process(self, sources, resolvers, extensions, report):
         '''
         @see: IBrach.process
         '''
@@ -243,21 +312,26 @@ class Included(WithAssembly):
         assert isinstance(report, IReport), 'Invalid report %s' % report
         
         report = report.open('Included \'%s\'' % self.name())
+        
         try:
+            if self._names: sources = restructureResolvers(sources, self._names)
             iresolvers, iextensions = {}, {}
-            calls = self.processAssembly(sources, iresolvers, iextensions, report)
+            calls = self._processAssembly(sources, iresolvers, iextensions, report)
+            if self._names:
+                iresolvers = restructureResolvers(iresolvers, self._names, True)
+                iextensions = restructureResolvers(iextensions, self._names, True)
             
-            uresolvers = extractContexts(iresolvers, self.using)
-            uresolvers = solve(uresolvers, self.using)
+            uresolvers = extractContexts(iresolvers, self._usingNames)
+            uresolvers = solve(uresolvers, self._usingContexts)
             if checkIf(uresolvers, LIST_UNAVAILABLE):
                 raise AssemblyError('Included for \'%s\' has unavailable attributes:%s' % 
                                     (self.name(), reportFor(uresolvers, LIST_UNAVAILABLE)))
-            solve(uresolvers, extractContexts(iextensions, self.using))
+            solve(uresolvers, extractContexts(iextensions, self._usingNames))
             
             report.add(uresolvers)
             contexts = create(uresolvers)
             
-            merge(resolvers, solve(iresolvers, processor))
+            solve(resolvers, iresolvers)
             solve(extensions, iextensions)
             return Processing(calls, contexts)
         

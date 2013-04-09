@@ -102,8 +102,8 @@ class ModelEncode(HandlerBranchingProceed):
         assert isinstance(self.modelExtraEncodeAssembly, Assembly), \
         'Invalid model extra encode assembly %s' % self.modelExtraEncodeAssembly
         assert isinstance(self.typeOrders, list), 'Invalid type orders %s' % self.typeOrders
-        super().__init__(Included(self.propertyEncodeAssembly, create=CreateProperty),
-                         Included(self.modelExtraEncodeAssembly, create=CreateModelExtra), support=Support)
+        super().__init__(Included(self.propertyEncodeAssembly).using(create=CreateProperty),
+                         Included(self.modelExtraEncodeAssembly).using(create=CreateModelExtra), support=Support)
         
         self.typeOrders = [typeFor(typ) for typ in self.typeOrders]
         self._cache = CacheWeak()

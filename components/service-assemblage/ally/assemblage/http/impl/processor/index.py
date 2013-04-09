@@ -9,12 +9,11 @@ Created on Apr 5, 2013
 Provides the indexes for the response content.
 '''
 
-from ally.assemblage.http.spec.assemblage import Index, BLOCK, GROUP, LINK, INJECT
+from ally.assemblage.http.spec.assemblage import Index, BLOCK, GROUP, INJECT
 from ally.container.ioc import injected
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
-from ally.design.processor.execution import Chain
-from ally.design.processor.handler import HandlerProcessor
+from ally.design.processor.handler import HandlerProcessorProceed
 import json
 
 # --------------------------------------------------------------------
@@ -25,10 +24,10 @@ class Response(Context):
     '''
     # ---------------------------------------------------------------- Required
     headers = requires(dict)
-    
-class ResponseContent(Context):
+
+class Content(Context):
     '''
-    The response content context.
+    The assemblage content context.
     '''
     # ---------------------------------------------------------------- Defined
     indexes = defines(list, doc='''
@@ -39,9 +38,9 @@ class ResponseContent(Context):
 # --------------------------------------------------------------------
 
 @injected
-class IndexProviderHandler(HandlerProcessor):
+class IndexProviderHandler(HandlerProcessorProceed):
     '''
-    Provides the index for the response content, if no index is available this handler will stop the chain.
+    Provides the index for the content.
     '''
     
     nameIndex = 'Content-Index'
@@ -51,15 +50,14 @@ class IndexProviderHandler(HandlerProcessor):
         assert isinstance(self.nameIndex, str), 'Invalid content index name %s' % self.nameIndex
         super().__init__()
 
-    def process(self, chain, response:Response, responseCnt:ResponseContent, **keyargs):
+    def process(self, response:Response, content:Content, **keyargs):
         '''
-        @see: HandlerProcessor.process
+        @see: HandlerProcessorProceed.process
         
-        Provide the index for response content.
+        Provide the index for content.
         '''
-        assert isinstance(chain, Chain), 'Invalid chain %s' % chain
         assert isinstance(response, Response), 'Invalid response %s' % response
-        assert isinstance(responseCnt, ResponseContent), 'Invalid response content %s' % responseCnt
+        assert isinstance(content, Content), 'Invalid content %s' % content
         
         if not response.headers: return  # No headers available.
         
@@ -71,7 +69,6 @@ class IndexProviderHandler(HandlerProcessor):
         for at, mark, value in indexesJSON:
             if mark == 'b': mark = BLOCK
             elif mark == 'g': mark = GROUP
-            elif mark == 'l': mark = LINK
             elif mark == 'i': mark = INJECT
             else:
                 assert mark == 'e', 'Unknown mark %s' % mark
@@ -84,7 +81,5 @@ class IndexProviderHandler(HandlerProcessor):
                 indexes.append(index)
                 stack.append(index)
         
-        if responseCnt.indexes is None: responseCnt.indexes = indexes
-        else: responseCnt.indexes.extend(indexes)
-        
-        chain.proceed()
+        if content.indexes is None: content.indexes = indexes
+        else: content.indexes.extend(indexes)
