@@ -76,7 +76,7 @@ class IndexProviderHandler(HandlerProcessorProceed):
                 index.end = at
                 mark = None
             
-            if mark:
+            if mark is not None:
                 index = Index(mark, at, value)
                 indexes.append(index)
                 stack.append(index)

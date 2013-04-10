@@ -16,7 +16,7 @@ from ally.design.processor.execution import Processing, Chain
 from ally.http.spec.server import RequestHTTP, ResponseHTTP, RequestContentHTTP, \
     ResponseContentHTTP, HTTP_GET, HTTP_POST, HTTP_PUT, HTTP_DELETE, HTTP_OPTIONS, \
     HTTP
-from ally.support.util_io import readGenerator, IInputStream
+from ally.support.util_io import readGenerator, IInputStream, KeepOpen
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qsl
 import logging
@@ -80,7 +80,7 @@ class RequestHandler(BaseHTTPRequestHandler):
         request.uri = url.path.lstrip('/')
         request.parameters = parse_qsl(url.query, True, False)
         
-        requestCnt.source = self.rfile
+        requestCnt.source = KeepOpen(self.rfile)
 
         chain = Chain(proc)
         chain.process(request=request, requestCnt=requestCnt,
@@ -103,7 +103,7 @@ class RequestHandler(BaseHTTPRequestHandler):
         if ResponseContentHTTP.source in responseCnt and responseCnt.source is not None:
             if isinstance(responseCnt.source, IInputStream): source = readGenerator(responseCnt.source)
             else: source = responseCnt.source
-
+            
             for bytes in source: self.wfile.write(bytes)
 
     # ----------------------------------------------------------------

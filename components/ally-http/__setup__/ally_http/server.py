@@ -9,11 +9,14 @@ Created on Nov 23, 2011
 Runs the basic web server.
 '''
 
-from . import server_type, server_version, server_host, server_port
+from . import server_type, server_protocol, server_version, server_host, \
+    server_port
 from .processor import assemblyNotFound
 from ally.container import ioc
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.handler import Handler
+from ally.http.impl.processor.connection_close import ConnectionCloseHandler
+from ally.http.impl.processor.ensure_length import EnsureLengthHandler
 from ally.http.impl.processor.router_by_path import RoutingByPathHandler
 from ally.http.server import server_basic
 from threading import Thread
@@ -30,7 +33,8 @@ def assemblyServer() -> Assembly:
 # --------------------------------------------------------------------
 
 @ioc.entity
-def serverBasicRequestHandler(): return server_basic.RequestHandler
+def serverBasicRequestHandler():
+    return type('RequestHandler', (server_basic.RequestHandler,), {'protocol_version': server_protocol()})
 
 @ioc.entity
 def serverBasic():
@@ -51,7 +55,22 @@ def notFoundRouter() -> Handler:
     b.pattern = '(?:.*)'
     return b
 
+@ioc.entity
+def ensureLength() -> Handler: return EnsureLengthHandler()
+
+@ioc.entity
+def connectionClose() -> Handler: return ConnectionCloseHandler()
+
+# --------------------------------------------------------------------
+
 @ioc.before(assemblyServer)
+def updateAssemblyServerForProtocolSupport():
+    if server_protocol() >= 'HTTP/1.1':
+        if server_type() == 'basic': assemblyServer().add(connectionClose())
+        # For the basic version we don't need the ensure length because is closing the connection anyway.
+        else: assemblyServer().add(ensureLength())
+    
+@ioc.after(updateAssemblyServerForProtocolSupport)
 def updateAssemblyServer():
     assemblyServer().add(notFoundRouter())
 

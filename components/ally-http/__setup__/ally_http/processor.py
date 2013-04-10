@@ -12,6 +12,8 @@ Provides the configurations for the processors used in handling the request.
 from ally.container import ioc
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.handler import Handler
+from ally.http.impl.processor.chunked_transfer import \
+    ChunkedTransferEncodingHandler
 from ally.http.impl.processor.deliver_code import DeliverCodeHandler
 from ally.http.impl.processor.header import HeaderDecodeRequestHandler, \
     HeaderDecodeResponseHandler, HeaderEncodeResponseHandler, \
@@ -77,6 +79,9 @@ def contentLengthDecode() -> Handler: return ContentLengthDecodeHandler()
 
 @ioc.entity
 def contentLengthEncode() -> Handler: return ContentLengthEncodeHandler()
+
+@ioc.entity
+def chunkedTransferEncoding(): return ChunkedTransferEncodingHandler()
 
 @ioc.entity
 def methodOverride() -> Handler: return MethodOverrideHandler()

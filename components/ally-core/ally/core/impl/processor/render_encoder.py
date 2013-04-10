@@ -94,3 +94,4 @@ class RenderEncoderHandler(HandlerProcessorProceed):
         responseCnt.length = len(content)
         output.close()
         if indexer: responseCnt.index = indexer.represent()
+        

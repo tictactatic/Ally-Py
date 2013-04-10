@@ -174,7 +174,6 @@ class ContentLengthEncodeHandler(HandlerProcessorProceed):
         Encodes the content length.
         '''
         assert isinstance(response, ResponseEncode), 'Invalid response %s' % response
-        assert isinstance(response, ResponseEncode), 'Invalid response %s' % response
         assert isinstance(responseCnt, ResponseContentEncode), 'Invalid response content %s' % responseCnt
         assert isinstance(response.encoderHeader, IEncoderHeader), \
         'Invalid response header encoder %s' % response.encoderHeader

@@ -324,6 +324,35 @@ def synchronizeURIToDir(path, dirPath):
             copy(src, dest)
             if file.endswith('.exe'): os.chmod(dest, stat(dest).st_mode | S_IEXEC)
 
+class KeepOpen(IInputStream, IClosable):
+    '''
+    Keeps opened a stream, basically blocks the close calls.
+    '''
+    __slots__ = ['_stream']
+
+    def __init__(self, stream):
+        '''
+        Construct the keep open stream.
+
+        @param stream: IInputStream & IClosable
+            A stream to keep open.
+        '''
+        assert isinstance(stream, IInputStream), 'Invalid stream %s' % stream
+        assert isinstance(stream, IClosable), 'Invalid closable stream %s' % stream
+        self._stream = stream
+        
+    def read(self, nbytes=None):
+        '''
+        @see: IInputStream.read
+        '''
+        return self._stream.read(nbytes)
+
+    def close(self):
+        '''
+        @see: IClosable.close
+        Block the close action.
+        '''
+
 class StreamOnIterable(IInputStream, IClosable):
     '''
     An implementation for a @see: IInputStream that uses as a source a generator that yileds bytes.

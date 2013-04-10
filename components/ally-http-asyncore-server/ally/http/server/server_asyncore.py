@@ -82,18 +82,7 @@ class RequestHandler(dispatcher, BaseHTTPRequestHandler):
         self.server = server
         
         self.server_version = server.serverVersion
-        self.request_version = 'HTTP/1.1'
-        self.requestline = 0
-        
-        self._stage = 1
-        self.rfile = BytesIO()
-        self._readCarry = None
-        self._reader = None
-
-        self.wfile = BytesIO()
-        self._writeq = deque()
-        
-        self._next(1)
+        self._reset()
         
     def handle_read(self):
         '''
@@ -127,6 +116,22 @@ class RequestHandler(dispatcher, BaseHTTPRequestHandler):
         assert log.debug(format, *args) or True
         
     # ----------------------------------------------------------------
+    
+    def _reset(self):
+        '''
+        Resets the request handler for a new processing.
+        '''
+        self.requestline = 0
+        
+        self._stage = 1
+        self.rfile = BytesIO()
+        self._readCarry = None
+        self._reader = None
+
+        self.wfile = BytesIO()
+        self._writeq = deque()
+        
+        self._next(1)
     
     def _next(self, stage):
         '''
@@ -170,9 +175,11 @@ class RequestHandler(dispatcher, BaseHTTPRequestHandler):
             self.rfile.write(data[:-requestTerminatorLen])
             
             if self.rfile.tell() > self.maximumRequestSize:
+                # We need to make sure that the content length is set for HTTP/1.1.
+                self.send_header('Content-Length', '0')
                 self.send_response(400, 'Request to long')
                 self.end_headers()
-                self.close()
+                self._writeq.append((WRITE_CLOSE, None))
                 
     def _1_writable(self):
         '''
@@ -235,7 +242,8 @@ class RequestHandler(dispatcher, BaseHTTPRequestHandler):
                 return
         elif what == WRITE_BYTES: data = content
         elif what == WRITE_CLOSE:
-            self.close()
+            if self.close_connection: self.close()
+            else: self._reset()
             return
         
         dataLen = len(data)
@@ -279,17 +287,18 @@ class RequestHandler(dispatcher, BaseHTTPRequestHandler):
             response, responseCnt = chain.arg.response, chain.arg.responseCnt
             assert isinstance(response, ResponseHTTP), 'Invalid response %s' % response
             assert isinstance(responseCnt, ResponseContentHTTP), 'Invalid response content %s' % responseCnt
-    
-            if ResponseHTTP.headers in response and response.headers is not None:
-                for name, value in response.headers.items(): self.send_header(name, value)
-    
+            
             assert isinstance(response.status, int), 'Invalid response status code %s' % response.status
             if ResponseHTTP.text in response and response.text: text = response.text
             elif ResponseHTTP.code in response and response.code: text = response.code
             else: text = None
+            
+            if ResponseHTTP.headers in response and response.headers is not None:
+                for name, value in response.headers.items(): self.send_header(name, value)
+                
             self.send_response(response.status, text)
             self.end_headers()
-    
+            
             if ResponseContentHTTP.source in responseCnt and responseCnt.source is not None:
                 if isinstance(responseCnt.source, IInputStream): source = readGenerator(responseCnt.source, self.bufferSize)
                 else: source = responseCnt.source

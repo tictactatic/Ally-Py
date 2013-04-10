@@ -35,6 +35,13 @@ def server_type() -> str:
     return SERVER_BASIC
 
 @ioc.config
+def server_protocol() -> str:
+    '''
+    The HTTP protocol to be used for the server.
+    '''
+    return 'HTTP/1.1'
+
+@ioc.config
 def server_host() -> str:
     '''The IP address to bind the server to, something like 127.0.0.1'''
     return '0.0.0.0'

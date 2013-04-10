@@ -9,7 +9,8 @@ Created on Nov 23, 2011
 Runs the asyncore py web server.
 '''
 
-from ..ally_http import server_type, server_version, server_host, server_port
+from ..ally_http import server_type, server_protocol, server_version, \
+    server_host, server_port
 from ..ally_http.server import assemblyServer
 from ally.container import ioc
 from ally.http.server import server_asyncore
@@ -25,14 +26,15 @@ SERVER_ASYNCORE = 'asyncore'
 @ioc.replace(server_type)
 def server_type_asyncore():
     '''
-    "%s" - server made based on asyncore package, fast (runs on a single CPU) and reliable.
-    ''' % SERVER_ASYNCORE
+    "asyncore" - server made based on asyncore package, fast (runs on a single CPU) and reliable.
+    '''
     return SERVER_ASYNCORE
 
 # --------------------------------------------------------------------
 
 @ioc.entity
-def serverAsyncoreRequestHandler(): return server_asyncore.RequestHandler
+def serverAsyncoreRequestHandler():
+    return type('RequestHandler', (server_asyncore.RequestHandler,), {'protocol_version': server_protocol()})
 
 @ioc.entity
 def serverAsyncore():

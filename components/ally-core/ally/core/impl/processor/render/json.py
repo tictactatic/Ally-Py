@@ -33,7 +33,7 @@ class RenderJSONHandler(RenderBaseHandler):
         assert isinstance(self.encodingError, str), 'Invalid string %s' % self.encodingError
         super().__init__()
 
-    def renderFactory(self, charSet, output):
+    def renderFactory(self, charSet, output, indexer):
         '''
         @see: RenderBaseHandler.renderFactory
         '''
