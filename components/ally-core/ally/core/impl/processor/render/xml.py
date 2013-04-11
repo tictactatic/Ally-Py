@@ -11,8 +11,8 @@ Provides the XML encoder processor handler.
 
 from .base import RenderBaseHandler
 from ally.container.ioc import injected
-from ally.core.spec.transform.index import IIndexer, BLOCK, PREPARE, ADJUST, \
-    AttrValue
+from ally.core.spec.transform.index import IIndexer, BLOCK, PREPARE, \
+    AttrValue, Index
 from ally.core.spec.transform.render import IRender
 from ally.support.util import immut
 from ally.support.util_io import IOutputStream
@@ -76,6 +76,8 @@ class RenderXML(XMLGenerator, IRender):
         self._stack = deque()
         self._length = 0
         self._indexer = indexer
+        self._adjust = True
+        self._block = True
 
     def _write(self, text):
         '''
@@ -86,17 +88,21 @@ class RenderXML(XMLGenerator, IRender):
 
     # ----------------------------------------------------------------
     
-    def property(self, name, value, *index):
+    def property(self, name, value, index=None):
         '''
         @see: IRender.property
         '''
         assert isinstance(value, (str, list, dict)), 'Invalid value %s' % value
+        assert index is None or isinstance(index, (Index, list, tuple)), 'Invalid index %s' % index
         
         block = False
         if self._indexer and index:
-            for ind in index:
-                assert ind == BLOCK, 'Invalid index %s' % index
-                block = True
+            if isinstance(index, (list, tuple)):
+                assert len(index) == 1, 'Invalid index %s' % (index,)
+                index = index[0]
+            assert index == BLOCK, 'Invalid index %s' % index
+            block = self._block
+        else: block = False
         
         self._finish_pending_start_element()
         
@@ -125,27 +131,33 @@ class RenderXML(XMLGenerator, IRender):
         self.endElement(name)
         if block: self._indexer.end(self._length)
 
-    def beginObject(self, name, attributes, *index):
+    def beginObject(self, name, attributes=None, index=None):
         '''
         @see: IRender.beginObject
         '''
-        block = prepare = adjust = False
+        assert index is None or isinstance(index, (Index, list, tuple)), 'Invalid index %s' % index
+        
+        block = prepare = False
         attrValues = None
         if self._indexer and index:
+            if not isinstance(index, (list, tuple)): index = (index,)
             for ind in index:
-                if ind == BLOCK: block = True
+                if ind == BLOCK:
+                    block = self._block
+                    self._block = False
                 elif ind == PREPARE: prepare = True
-                elif ind == ADJUST: adjust = True
                 else:
                     assert isinstance(ind, AttrValue), 'Invalid index %s' % ind
                     if attrValues is None: attrValues = {}
                     attrValues[ind.attribute] = ind.name
+        prepare = block and prepare
+        
         
         if not self._stack: self.startDocument()  # Start the document
         self._finish_pending_start_element()
         
         if block: self._indexer.block(self._length, name)
-        if adjust: self._indexer.inject(0).end(self._length) 
+        if self._adjust: self._indexer.inject(0).end(self._length) 
         # For adjusting we ensure that all data is deleted until this index where the actual block starts
         self._write('<')
         start = self._length
@@ -153,7 +165,7 @@ class RenderXML(XMLGenerator, IRender):
         if prepare:
             self._indexer.group(start, GROUP_NAME).end(self._length)
             self._indexer.group(self._length, GROUP_ATTRIBUTES)
-        if adjust:
+        if self._adjust:
             self._indexer.inject(start, GROUP_NAME).end(self._length)
             self._indexer.inject(self._length, GROUP_ATTRIBUTES).end(self._length)
         
@@ -173,15 +185,16 @@ class RenderXML(XMLGenerator, IRender):
         else:
             self._write(">")
             
-        self._stack.append((name, block, adjust))
+        self._stack.append((name, block, self._adjust))
+        self._adjust = False
         
         return self
 
-    def beginCollection(self, name, attributes, *index):
+    def beginCollection(self, name, attributes=None, index=None):
         '''
         @see: IRender.beginCollection
         '''
-        return self.beginObject(name, attributes, *index)
+        return self.beginObject(name, attributes, index)
 
     def end(self):
         '''
@@ -199,5 +212,7 @@ class RenderXML(XMLGenerator, IRender):
             self._write(name)
             if adjust: self._indexer.inject(start, GROUP_NAME).end(self._length)
             self._write('>')
-        if block: self._indexer.end(self._length)
+        if block:
+            self._indexer.end(self._length)
+            self._block = True
         if not self._stack: self.endDocument()  # Close the document if there are no other processes queued

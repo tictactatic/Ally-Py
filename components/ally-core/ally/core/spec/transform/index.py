@@ -86,7 +86,6 @@ class Index:
 
 BLOCK = Index()  # capture the rendered block, this is a generic block capture based on the rendered name
 PREPARE = Index()  # prepare to be injected with other REST resource content
-ADJUST = Index()  # provide the injection adjusters
 
 # --------------------------------------------------------------------
 

@@ -14,8 +14,8 @@ from ally.api.operator.type import TypeModel, TypeModelProperty
 from ally.api.type import Iter
 from ally.container.ioc import injected
 from ally.core.spec.resources import Normalizer
-from ally.core.spec.transform.encoder import IAttributes, IEncoder
-from ally.core.spec.transform.index import ADJUST
+from ally.core.spec.transform.encoder import IAttributes, IEncoder, \
+    EncoderWithAttributes
 from ally.core.spec.transform.render import IRender
 from ally.design.cache import CacheWeak
 from ally.design.processor.assembly import Assembly
@@ -122,7 +122,7 @@ class CollectionEncode(HandlerBranchingProceed):
 
 # --------------------------------------------------------------------
 
-class EncoderCollection(IEncoder):
+class EncoderCollection(EncoderWithAttributes):
     '''
     Implementation for a @see: IEncoder for collections.
     '''
@@ -133,11 +133,10 @@ class EncoderCollection(IEncoder):
         '''
         assert isinstance(name, str), 'Invalid name %s' % name
         assert isinstance(encoder, IEncoder), 'Invalid item encoder %s' % encoder
-        assert attributes is None or isinstance(attributes, IAttributes), 'Invalid attributes %s' % attributes
+        super().__init__(attributes)
         
         self.name = name
         self.encoder = encoder
-        self.attributes = attributes
         
     def render(self, obj, render, support):
         '''
@@ -148,9 +147,8 @@ class EncoderCollection(IEncoder):
         assert isinstance(support, Support), 'Invalid support %s' % support
         assert isinstance(support.normalizer, Normalizer), 'Invalid normalizer %s' % support.normalizer
         
-        if self.attributes: attributes = self.attributes.provide(obj, support)
-        else: attributes = None
-        
-        render.beginCollection(support.normalizer.normalize(self.name), attributes, ADJUST)
+        render.beginCollection(support.normalizer.normalize(self.name), self.processAttributes(obj, support))
         for objItem in obj: self.encoder.render(objItem, render, support)
         render.end()
+        
+        

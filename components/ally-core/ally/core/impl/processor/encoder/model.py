@@ -15,7 +15,8 @@ from ally.api.type import Iter, Boolean, Integer, Number, Percentage, String, \
     Time, Date, DateTime, typeFor
 from ally.container.ioc import injected
 from ally.core.spec.resources import Normalizer
-from ally.core.spec.transform.encoder import IAttributes, IEncoder
+from ally.core.spec.transform.encoder import IAttributes, IEncoder, \
+    EncoderWithAttributes
 from ally.core.spec.transform.render import IRender
 from ally.design.cache import CacheWeak
 from ally.design.processor.assembly import Assembly
@@ -26,6 +27,7 @@ from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain, Processing
 from ally.design.processor.handler import HandlerBranchingProceed
 from ally.exception import DevelError
+from ally.core.spec.transform.index import BLOCK, PREPARE
 
 # --------------------------------------------------------------------
 
@@ -179,7 +181,7 @@ class ModelEncode(HandlerBranchingProceed):
        
 # --------------------------------------------------------------------
 
-class EncoderModel(IEncoder):
+class EncoderModel(EncoderWithAttributes):
     '''
     Implementation for a @see: IEncoder for model.
     '''
@@ -191,12 +193,11 @@ class EncoderModel(IEncoder):
         assert isinstance(name, str), 'Invalid model name %s' % name
         assert isinstance(properties, list), 'Invalid properties %s' % properties
         assert extra is None or isinstance(extra, IEncoder), 'Invalid extra encoder %s' % extra
-        assert attributes is None or isinstance(attributes, IAttributes), 'Invalid attributes %s' % attributes
+        super().__init__(attributes)
         
         self.name = name
         self.properties = properties
         self.extra = extra
-        self.attributes = attributes
         
     def render(self, obj, render, support):
         '''
@@ -206,12 +207,14 @@ class EncoderModel(IEncoder):
         assert isinstance(support, Support), 'Invalid support %s' % support
         assert isinstance(support.normalizer, Normalizer), 'Invalid normalizer %s' % support.normalizer
         
-        if self.attributes: attributes = self.attributes.provide(obj, support)
-        else: attributes = None
         if Support.hideProperties in support: hideProperties = support.hideProperties
         else: hideProperties = False
         
-        render.beginObject(support.normalizer.normalize(self.name), attributes)
+        if hideProperties: index = [BLOCK, PREPARE]
+        else: index = None
+        attributes = self.processAttributes(obj, support, index)
+        
+        render.beginObject(support.normalizer.normalize(self.name), attributes, index)
         if not hideProperties:
             for name, encoder in self.properties:
                 assert isinstance(encoder, IEncoder), 'Invalid property encoder %s' % encoder

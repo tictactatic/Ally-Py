@@ -13,7 +13,9 @@ from ally.api.operator.container import Model
 from ally.api.operator.type import TypeModel, TypeModelProperty
 from ally.container.ioc import injected
 from ally.core.spec.resources import Normalizer
-from ally.core.spec.transform.encoder import IAttributes, IEncoder
+from ally.core.spec.transform.encoder import IAttributes, IEncoder, \
+    EncoderWithAttributes
+from ally.core.spec.transform.index import BLOCK, PREPARE
 from ally.core.spec.transform.render import IRender
 from ally.design.cache import CacheWeak
 from ally.design.processor.assembly import Assembly
@@ -121,7 +123,7 @@ class ModelPropertyEncode(HandlerBranchingProceed):
 
 # --------------------------------------------------------------------
 
-class EncoderModelProperty(IEncoder):
+class EncoderModelProperty(EncoderWithAttributes):
     '''
     Implementation for a @see: IEncoder for model property.
     '''
@@ -132,11 +134,10 @@ class EncoderModelProperty(IEncoder):
         '''
         assert isinstance(name, str), 'Invalid model name %s' % name
         assert isinstance(encoder, IEncoder), 'Invalid property encoder %s' % encoder
-        assert attributes is None or isinstance(attributes, IAttributes), 'Invalid attributes %s' % attributes
+        super().__init__(attributes)
         
         self.name = name
         self.encoder = encoder
-        self.attributes = attributes
         
     def render(self, obj, render, support):
         '''
@@ -146,11 +147,12 @@ class EncoderModelProperty(IEncoder):
         assert isinstance(support, Support), 'Invalid support %s' % support
         assert isinstance(support.normalizer, Normalizer), 'Invalid normalizer %s' % support.normalizer
         
-        if self.attributes: attributes = self.attributes.provide(obj, support)
-        else: attributes = None
         if Support.hideProperties in support: hideProperties = support.hideProperties
         else: hideProperties = False
+        
+        index = [BLOCK, PREPARE]
+        attributes = self.processAttributes(obj, support, index)
             
-        render.beginObject(support.normalizer.normalize(self.name), attributes)
+        render.beginObject(support.normalizer.normalize(self.name), attributes, index)
         if not hideProperties: self.encoder.render(obj, render, support)
         render.end()

@@ -9,6 +9,7 @@ Created on Jan 5, 2012
 Provides the processors setups for assemblage.
 '''
 
+from ..ally_http import server_protocol
 from ..ally_http.processor import chunkedTransferEncoding, \
     contentTypeResponseDecode, headerDecodeResponse, headerDecodeRequest, \
     internalError, headerEncodeResponse
@@ -17,7 +18,7 @@ from ally.assemblage.http.impl.processor.content import ContentHandler
 from ally.assemblage.http.impl.processor.index import IndexProviderHandler
 from ally.assemblage.http.impl.processor.node import RequestNodeHandler
 from ally.container import ioc
-from ally.container.error import ConfigError
+from ally.container.error import ConfigError, SetupError
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.handler import Handler, HandlerRenamer
 
@@ -107,6 +108,9 @@ def assemblyContent() -> Assembly:
     
 @ioc.before(assemblyAssemblage)
 def updateAssemblyAssemblage():
+    if not server_protocol() >= 'HTTP/1.1':
+        raise SetupError('Invalid protocol %s for chunk transfer is available only '
+                         'for HTTP/1.1 protocol or greater' % server_protocol())
     assemblyAssemblage().add(internalError(), headerDecodeRequest(), requestNode(), content(), assembler(),
                              headerEncodeResponse(), chunkedTransferEncoding())
     

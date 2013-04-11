@@ -21,7 +21,8 @@ from ally.design.processor.spec import ContextMetaClass
 from ally.http.spec.codes import isSuccess
 from ally.http.spec.server import RequestHTTP, ResponseHTTP, HTTP_GET, \
     ResponseContentHTTP
-from ally.support.util_io import IInputStream, StreamOnIterable
+from ally.support.util_io import StreamOnIterable, IInputStreamCT, IInputStream, \
+    TellPosition
 from collections import Callable
 from functools import partial
 from urllib.parse import urlsplit, parse_qsl
@@ -57,12 +58,16 @@ class Assemblage(Context):
     ''')
     requestHandler = defines(Callable, doc='''
     @rtype: callable(string, list[tuple(string, string)]) -> Content
-    The request handler that takes as arguments the url and parameters to process the request and returns the content.
+    The request handler that takes as arguments the URL and parameters to process the request and returns the content.
     ''')
     # ---------------------------------------------------------------- Optional
     ecodingError = optional(str, doc='''
     @rtype: string
     The character set encoding error.
+    ''')
+    decode = defines(Callable, doc='''
+    @rtype: callable(bytes) -> string
+    The decoder that converts from the response encoding bytes to string.
     ''')
     # ---------------------------------------------------------------- Required
     requestNode = requires(RequestNode)
@@ -80,13 +85,13 @@ class ContentResponse(Context):
     @rtype: string
     The error text obtained when fetching the content.
     ''')
-    source = defines(IInputStream, doc='''
-    @rtype: IInputStream
+    source = defines(IInputStreamCT, doc='''
+    @rtype: IInputStreamCT
     The content input stream source.
     ''')
-    transcode = defines(Callable, doc='''
-    @rtype: callable(bytes) -> bytes
-    The transcoder that converts from the source encoding to the expected response encoding.
+    encode = defines(Callable, doc='''
+    @rtype: callable(bytes|string) -> bytes
+    The encoder that converts from the source encoding or an arbitrary string to the expected response encoding.
     ''')
     # ---------------------------------------------------------------- Required
     charSet = requires(str)
@@ -114,8 +119,8 @@ class ContentHandler(HandlerBranching):
         super().__init__(Routing(self.assemblyForward).using('request', 'requestCnt', 'response', 'responseCnt'),
                          Included(self.assemblyContent).only('response', 'assemblage', ('content', 'Content')))
 
-    def process(self, chain, processingForward, processingContent, request:Request,
-                assemblage:Assemblage, Content:ContentResponse, **keyargs):
+    def process(self, chain, processingForward, processingContent, request:Request, requestCnt:Context, response:Context,
+                responseCnt:Context, assemblage:Assemblage, Content:ContentResponse, **keyargs):
         '''
         @see: HandlerBranching.process
         
@@ -134,14 +139,14 @@ class ContentHandler(HandlerBranching):
             
             data = Data()
             data.assemblage = assemblage
-            data.processingForward = processingForward
-            data.processingContent = processingContent
+            data.processingForward, data.processingContent = processingForward, processingContent
+            data.Request, data.RequestContent = request.__class__, requestCnt.__class__
+            data.Response, data.ResponseContent = response.__class__, responseCnt.__class__
             data.Content = Content
-            data.scheme = request.scheme
-            data.headers = dict(request.headers)
+            data.scheme, data.headers = request.scheme, dict(request.headers)
         
         chainForward = Chain(processingForward)
-        chainForward.process(request=request, **keyargs).doAll()
+        chainForward.process(request=request, requestCnt=requestCnt, response=response, responseCnt=responseCnt).doAll()
         response, responseCnt = chainForward.arg.response, chainForward.arg.responseCnt
         assert isinstance(response, ResponseHTTP), 'Invalid response %s' % response
         assert isinstance(responseCnt, ResponseContentHTTP), 'Invalid response content %s' % responseCnt
@@ -166,6 +171,7 @@ class ContentHandler(HandlerBranching):
             return
 
         data.charSet = codecs.lookup(content.charSet).name
+        assemblage.decode = partial(str, encoding=data.charSet)
         
         assemblage.main = self.populate(data, content, response, responseCnt)
         assemblage.requestHandler = partial(self.handler, data)
@@ -203,37 +209,40 @@ class ContentHandler(HandlerBranching):
             content.errorStatus, content.errorText = UNAVAILABLE
             return content
         
-        if isinstance(responseCnt.source, IInputStream): content.source = responseCnt.source
-        else: content.source = StreamOnIterable(responseCnt.source)
+        if isinstance(responseCnt.source, IInputStream): source = responseCnt.source
+        else: source = StreamOnIterable(responseCnt.source)
+        content.source = TellPosition(source)
         
-        if content.charSet: content.transcode = partial(self.transcode, data, codecs.lookup(content.charSet).name)
+        if content.charSet: content.encode = partial(self.encode, data, codecs.lookup(content.charSet).name)
         
         return content
             
-    def transcode(self, data, charSet, bytes):
+    def encode(self, data, charSet, content):
         '''
-        Transcode the provided bytes.
+        Encoder the provided bytes.
         
         @param data: Data
-            The data to use for transcode.
+            The data to use for encode.
         @param charSet: string
             The character set that the bytes are encoded in.
-        @param bytes: bytes
-            The bytes to transcode.
+        @param content: bytes|string
+            The bytes to encode.
         @return: bytes
-            The transcoded bytes.
+            The encoded bytes.
         '''
         assert isinstance(data, Data), 'Invalid data %s' % data
         assert isinstance(data.assemblage, Assemblage), 'Invalid assemblage %s' % data.assemblage
         assert isinstance(data.charSet, str), 'Invalid assemblage character set %s' % data.charSet
         assert isinstance(charSet, str), 'Invalid character set %s' % charSet
         
-        if data.charSet == charSet: return bytes
-        
-        if Assemblage.ecodingError in data.assemblage and data.assemblage.ecodingError: error = data.assemblage.ecodingError
+        if Assemblage.ecodingError in data.assemblage and data.assemblage.ecodingError:
+            error = data.assemblage.ecodingError
         else: error = self.encodingError
         
-        return str(bytes, charSet).encode(data.charSet, error)
+        if isinstance(content, str): return content.encode(data.charSet, error)
+        else:
+            if data.charSet == charSet: return content
+            return str(content, charSet).encode(data.charSet, error)
     
     def handler(self, data, url, parameters=None):
         '''
@@ -254,8 +263,7 @@ class ContentHandler(HandlerBranching):
         assert isinstance(url, str), 'Invalid URL %s' % url
         assert parameters is None or isinstance(parameters, list), 'Invalid parameters %s' % parameters
         
-        ctx = data.processingForward.ctx
-        request, requestCnt = ctx.request(), ctx.requestCnt()
+        request, requestCnt = data.Request(), data.RequestContent()
         assert isinstance(request, RequestHTTP), 'Invalid request %s' % request
         
         rurl = urlsplit(url)
@@ -271,7 +279,7 @@ class ContentHandler(HandlerBranching):
         
         chainForward = Chain(data.processingForward)
         chainForward.process(request=request, requestCnt=requestCnt,
-                             response=ctx.response(), responseCnt=ctx.responseCnt()).doAll()
+                             response=data.Response(), responseCnt=data.ResponseContent()).doAll()
         chainContent = Chain(data.processingContent)
         chainContent.process(response=chainForward.arg.response,
                              assemblage=data.assemblage, content=data.Content()).doAll()
@@ -284,12 +292,17 @@ class Data:
     '''
     The data container used in processing.
     '''
-    __slots__ = ('assemblage', 'processingForward', 'processingContent', 'Content', 'scheme', 'headers', 'charSet')
+    __slots__ = ('assemblage', 'processingForward', 'processingContent', 'Response', 'ResponseContent', 'Request',
+                 'RequestContent', 'Content', 'scheme', 'headers', 'charSet')
     if False:
         # Just for auto complete.
         assemblage = Assemblage  # The assemblage containing data to use for content populating.
         processingForward = Processing  # The processing used for solving the request.
         processingContent = Processing  # The assembly to be used in handling the content.
+        Response = ContextMetaClass  # The response context.
+        ResponseContent = ContextMetaClass  # The response content context.
+        Request = ContextMetaClass  # The request context.
+        RequestContent = ContextMetaClass  # The request content context.
         Content = ContextMetaClass  # The content context class used in constructing the returned objects.
         scheme = str  # The scheme used for inner requests.
         headers = dict  # The headers to be used for inner requests.

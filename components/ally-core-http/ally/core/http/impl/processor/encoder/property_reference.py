@@ -19,6 +19,8 @@ from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessorProceed
 from ally.http.spec.server import IEncoderPath
+from ally.core.spec.transform.index import AttrValue
+from ally.core.http.spec.transform.index import GROUP_VALUE_REFERENCE
 
 # --------------------------------------------------------------------
 
@@ -109,5 +111,7 @@ class EncoderReference(IEncoder):
         assert Support.encoderPath in support, 'No path encoder available in %s' % support
         assert isinstance(support.encoderPath, IEncoderPath), 'Invalid path encoder %s' % support.encoderPath
         
-        attributes = {support.normalizer.normalize(self.nameRef): support.encoderPath.encode(obj)}
-        render.beginObject(support.normalizer.normalize(self.name), attributes).end()
+        nameRef = support.normalizer.normalize(self.nameRef)
+        attributes = {nameRef: support.encoderPath.encode(obj)}
+        index = (AttrValue(GROUP_VALUE_REFERENCE, nameRef),)  # TODO: Gabriel: add also prepare for blob
+        render.beginObject(support.normalizer.normalize(self.name), attributes, index).end()

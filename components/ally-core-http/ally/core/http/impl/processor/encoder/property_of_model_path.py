@@ -11,8 +11,10 @@ Provides the paths for properties of model.
 
 from ally.api.operator.type import TypeModel, TypeModelProperty
 from ally.container.ioc import injected
+from ally.core.http.spec.transform.index import GROUP_VALUE_REFERENCE
 from ally.core.spec.resources import Path, Normalizer
-from ally.core.spec.transform.encoder import IAttributes, AttributesJoiner
+from ally.core.spec.transform.encoder import IAttributes, AttributesWrapper
+from ally.core.spec.transform.index import AttrValue
 from ally.design.cache import CacheWeak
 from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
@@ -84,7 +86,7 @@ class PropertyOfModelPathAttributeEncode(HandlerProcessorProceed):
 
 # --------------------------------------------------------------------
 
-class AttributesPath(AttributesJoiner):
+class AttributesPath(AttributesWrapper):
     '''
     Implementation for a @see: IAttributes for paths.
     '''
@@ -100,10 +102,12 @@ class AttributesPath(AttributesJoiner):
         self.nameRef = nameRef
         self.propertyType = propertyType
         
-    def provideIntern(self, obj, support):
+    def populate(self, obj, attributes, support, index=None):
         '''
-        @see: AttributesJoiner.provideIntern
+        @see: IAttributes.populate
         '''
+        super().populate(obj, attributes, support, index)
+        
         assert isinstance(support, Support), 'Invalid support %s' % support
         if not support.pathsProperties: return  # No paths for models.
         
@@ -117,4 +121,9 @@ class AttributesPath(AttributesJoiner):
         assert isinstance(path, Path), 'Invalid path %s' % path
         path.update(obj, self.propertyType)
         if not path.isValid(): return
-        return {support.normalizer.normalize(self.nameRef): support.encoderPath.encode(path)}
+        
+        nameRef = support.normalizer.normalize(self.nameRef)
+        attributes[nameRef] = support.encoderPath.encode(path)
+        if index is not None:
+            assert isinstance(index, list), 'Invalid index %s' % index
+            index.append(AttrValue(GROUP_VALUE_REFERENCE, nameRef))

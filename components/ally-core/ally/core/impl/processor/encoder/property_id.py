@@ -14,6 +14,7 @@ from ally.api.type import Type
 from ally.container.ioc import injected
 from ally.core.spec.resources import Normalizer, Converter
 from ally.core.spec.transform.encoder import IEncoder
+from ally.core.spec.transform.index import BLOCK
 from ally.core.spec.transform.render import IRender
 from ally.design.cache import CacheWeak
 from ally.design.processor.attribute import requires, defines, optional
@@ -106,4 +107,4 @@ class EncoderPropertyId(IEncoder):
         assert Support.converterId in support, 'No id converter available in %s' % support
         assert isinstance(support.converterId, Converter), 'Invalid id converter %s' % support.converterId
         
-        render.property(support.normalizer.normalize(self.name), support.converterId.asString(obj, self.valueType))
+        render.property(support.normalizer.normalize(self.name), support.converterId.asString(obj, self.valueType), BLOCK)

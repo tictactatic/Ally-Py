@@ -14,6 +14,7 @@ from ally.api.type import Iter, Type, Dict
 from ally.container.ioc import injected
 from ally.core.spec.resources import Normalizer, Converter
 from ally.core.spec.transform.encoder import IEncoder
+from ally.core.spec.transform.index import BLOCK
 from ally.core.spec.transform.render import IRender
 from ally.design.cache import CacheWeak
 from ally.design.processor.attribute import requires, defines, optional
@@ -108,15 +109,14 @@ class EncoderProperty(IEncoder):
         if isinstance(self.valueType, Iter):
             assert isinstance(obj, Iterable), 'Invalid object %s' % obj
             itemType = self.valueType.itemType
-            obj = [support.converter.asString(item, itemType) for item in obj]
-            render.property(support.normalizer.normalize(self.name), obj)
+            value = [support.converter.asString(item, itemType) for item in obj]
         elif isinstance(self.valueType, Dict):
             assert isinstance(obj, dict), 'Invalid object %s' % obj
             keyType = self.valueType.keyType
             valueType = self.valueType.valueType
-            obj = {support.converter.asString(key, keyType): support.converter.asString(item, valueType)
-                   for key, item in obj.items()}
-            render.property(support.normalizer.normalize(self.name), obj)
+            value = {support.converter.asString(key, keyType): support.converter.asString(item, valueType)
+                     for key, item in obj.items()}
         else:
-            render.property(support.normalizer.normalize(self.name), support.converter.asString(obj, self.valueType))
+            value = support.converter.asString(obj, self.valueType)
+        render.property(support.normalizer.normalize(self.name), value, BLOCK)
         

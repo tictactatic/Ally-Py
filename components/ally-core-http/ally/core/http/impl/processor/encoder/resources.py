@@ -113,10 +113,10 @@ class EncoderResources(IEncoder):
         assert Support.encoderPath in support, 'No path encoder available in %s' % support
         assert isinstance(support.encoderPath, IEncoderPath), 'Invalid path encoder %s' % support.encoderPath
         
-        render.beginCollection(support.normalizer.normalize(self.nameResources), None)
+        render.beginCollection(support.normalizer.normalize(self.nameResources))
         nameRef = support.normalizer.normalize(self.nameRef)
-        attrRef = AttrValue(GROUP_VALUE_REFERENCE, nameRef)
+        index = (BLOCK, PREPARE, AttrValue(GROUP_VALUE_REFERENCE, nameRef))
         for path in obj:
             attributes = {nameRef: support.encoderPath.encode(path)}
-            render.beginObject(support.normalizer.normalize(pathLongName(path)), attributes, BLOCK, PREPARE, attrRef).end()
+            render.beginObject(support.normalizer.normalize(pathLongName(path)), attributes, index).end()
         render.end()

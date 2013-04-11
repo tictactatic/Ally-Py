@@ -21,7 +21,7 @@ class IRender(metaclass=abc.ABCMeta):
     __slots__ = ()
 
     @abc.abstractclassmethod
-    def property(self, name, value, *index):
+    def property(self, name, value, index=None):
         '''
         Called to signal that a property value has to be rendered.
 
@@ -29,12 +29,12 @@ class IRender(metaclass=abc.ABCMeta):
             The property name.
         @param value: string|tuple(string)|list[string]|dictionary{string: string}
             The value.
-        @param index: arguments[Index]
+        @param index: Index|list[Index]|tuple(Index)|None
             The indexes to provide for the rendered property.
         '''
 
     @abc.abstractclassmethod
-    def beginObject(self, name, attributes, *index):
+    def beginObject(self, name, attributes=None, index=None):
         '''
         Called to signal that an object has to be rendered.
         
@@ -42,14 +42,14 @@ class IRender(metaclass=abc.ABCMeta):
             The object name.
         @param attributes: dictionary{string, string}|None
             The attributes for the value.
-        @param index: arguments[Index]
+        @param index: Index|list[Index]|tuple(Index)|None
             The indexes to provide for the rendered object.
         @return: self
             The same render instance for chaining purposes.
         '''
 
     @abc.abstractclassmethod
-    def beginCollection(self, name, attributes, *index):
+    def beginCollection(self, name, attributes=None, index=None):
         '''
         Called to signal that a collection of objects has to be rendered.
         
@@ -57,7 +57,7 @@ class IRender(metaclass=abc.ABCMeta):
             The collection name.
         @param attributes: dictionary{string, string}|None
             The attributes for the collection.
-        @param index: arguments[Index]
+        @param index: Index|list[Index]|tuple(Index)|None
             The indexes to provide for the rendered collection.
         @return: self
             The same render instance for chaining purposes.

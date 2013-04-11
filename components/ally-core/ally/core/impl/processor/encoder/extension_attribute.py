@@ -13,7 +13,7 @@ from ally.api.operator.type import TypeExtension
 from ally.api.type import typeFor
 from ally.container.ioc import injected
 from ally.core.spec.transform.encoder import IAttributes, IEncoder, \
-    AttributesJoiner
+    AttributesWrapper
 from ally.core.spec.transform.render import IRender
 from ally.design.cache import CacheWeak
 from ally.design.processor.assembly import Assembly
@@ -110,7 +110,7 @@ class ExtensionAttributeEncode(HandlerBranchingProceed):
 
 # --------------------------------------------------------------------
 
-class AttributesExtension(AttributesJoiner):
+class AttributesExtension(AttributesWrapper):
     '''
     Implementation for a @see: IAttributes for extension types.
     '''
@@ -126,20 +126,19 @@ class AttributesExtension(AttributesJoiner):
         self.provider = provider
         self.processing = processing
         
-    def provideIntern(self, obj, support):
+    def populate(self, obj, attributes, support, index=None):
         '''
-        @see: AttributesJoiner.provideIntern
+        @see: IAttributes.populate
         '''
         typeExt = typeFor(obj)
         if not typeExt or not isinstance(typeExt, TypeExtension): return  # Is not an extension object, nothing to do
         
-        render = RenderAttributes()
+        render = RenderAttributes(attributes)
         for name, encoder in self.provider(typeExt, self.processing):
             assert isinstance(encoder, IEncoder), 'Invalid property encoder %s' % encoder
             objValue = getattr(obj, name)
             if objValue is None: continue
             encoder.render(objValue, render, support)
-        return render.attributes
 
 class RenderAttributes(IRender):
     '''
@@ -147,13 +146,17 @@ class RenderAttributes(IRender):
     '''
     __slots__ = ('attributes',)
     
-    def __init__(self):
+    def __init__(self, attributes):
         '''
         Construct the render attributes.
-        '''
-        self.attributes = {}
         
-    def property(self, name, value):
+        @param attributes: dictionary{string: string}
+            The attributes dictionary to render in.
+        '''
+        assert isinstance(attributes, dict), 'Invalid attributes %s' % attributes
+        self.attributes = attributes
+        
+    def property(self, name, value, index=None):
         '''
         @see: IRender.property
         '''
@@ -162,13 +165,13 @@ class RenderAttributes(IRender):
         
         self.attributes[name] = value
 
-    def beginObject(self, name, attributes=None):
+    def beginObject(self, name, attributes=None, index=None):
         '''
         @see: IRender.beginObject
         '''
         raise NotImplementedError('Not available for attributes rendering')
 
-    def beginCollection(self, name, attributes=None):
+    def beginCollection(self, name, attributes=None, index=None):
         '''
         @see: IRender.beginCollection
         '''

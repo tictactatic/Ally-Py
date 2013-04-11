@@ -15,11 +15,14 @@ from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain
 from ally.design.processor.handler import HandlerProcessor
-from ally.support.util_io import IInputStream, IClosable
+from ally.support.util_io import IInputStreamCT
 from collections import Callable, Iterable
+from functools import partial
 import logging
 
 # --------------------------------------------------------------------
+
+GROUP_VALUE_REFERENCE = 'reference'  # Indicates that the captured value contains a reference.
 
 log = logging.getLogger(__name__)
 
@@ -42,6 +45,7 @@ class Assemblage(Context):
     # ---------------------------------------------------------------- Required
     requestNode = requires(RequestNode)
     requestHandler = requires(Callable)
+    decode = requires(Callable)
     main = requires(object)
 
 class Content(Context):
@@ -51,8 +55,8 @@ class Content(Context):
     # ---------------------------------------------------------------- Required
     errorStatus = requires(int)
     errorText = requires(str)
-    source = requires(IInputStream)
-    transcode = requires(Callable)
+    source = requires(IInputStreamCT)
+    encode = requires(Callable)
     indexes = requires(list)
     
 # --------------------------------------------------------------------
@@ -83,107 +87,265 @@ class AssemblerHandler(HandlerProcessor):
         assert assemblage.main.errorStatus is None, 'Invalid main content %s, has an error status' % assemblage.main
         
         if assemblage.main.indexes is None: return  # No indexes to process
-        responseCnt.source = self.assemble(assemblage.requestNode, assemblage.main, assemblage.requestHandler)
+        
+        responseCnt.source = self.assemble(assemblage)
         chain.proceed()
         
     # --------------------------------------------------------------------
     
-    def assemble(self, node, content, requestHandler):
+    def assemble(self, assemblage):
         '''
         Assembles the content.
         
-        @param node: RequestNode
-            The request node to assemble based on.
-        @param content: Content
-            The content to assemble.
-        @param requestHandler: callable(url, parameters) -> Content
-            The request handler that provides the content for inner requests.
+        @param assemblage: Assemblage
+            The assemblage to use for assembly.
+        @return: Iterable(bytes)
+            The assembled content in chunk bytes.
         '''
-        assert isinstance(content, Content), 'Invalid content %s' % content
-        assert callable(requestHandler), 'Invalid request handler %s' % requestHandler
+        assert isinstance(assemblage, Assemblage), 'Invalid assemblage %s' % assemblage
+        assert isinstance(assemblage.main, Content), 'Invalid assemblage main content %s' % assemblage.main
+        assert callable(assemblage.decode), 'Invalid assemblage decode %s' % assemblage.decode
+        assert callable(assemblage.requestHandler), 'Invalid request handler %s' % assemblage.requestHandler
         
-        current = 0
-        for block, sblocks in self.iterBlocks(node, content.indexes):
-            assert isinstance(block, Index), 'Invalid block %s' % block
+        stack = [(False, assemblage.requestNode, assemblage.main, self.extractor, self.iterBlocks(assemblage.main.indexes))]
+        while stack:
+            isTrimmed, node, content, extractor, blocks = stack.pop()
+            assert isinstance(node, RequestNode), 'Invalid request node %s' % node
+            assert isinstance(node.requests, dict), 'Invalid requests %s' % node.requests
+            assert isinstance(content, Content), 'Invalid content %s' % content
+            assert isinstance(content.source, IInputStreamCT), 'Invalid content source %s' % content.source
+            assert callable(extractor), 'Invalid extractor %s' % extractor
             
-            length = block.start - current
-            if length > 0:
+            while True:
+                try: block, groups = next(blocks)
+                except StopIteration:
+                    # Providing the remaining bytes.
+                    for bytes in extractor(content): yield bytes
+                    break
+                assert isinstance(block, Index), 'Invalid block %s' % block
+                
                 # Provide all bytes until start.
-                for bytes in self.pull(content.source, length): yield bytes
+                for bytes in extractor(content, block.start): yield bytes
+                if block.end == content.source.tell(): continue  # No block content to process.
                 
-            length = block.end - block.start
-            if length > 0:
-                # Skip the block bytes.
-                for bytes in self.pull(content.source, length): pass
-                
-            current = block.end
-            
-        # Providing the remaining bytes.
-        for bytes in self.pull(content.source): yield bytes
+                bnode = node.requests.get(block.value)
+                if bnode is None: bnode = node.requests.get('*')
+                if bnode is None:
+                    if isTrimmed: self.discard(content, block.end)  # Skip the block bytes.
+                    else:
+                        # Provide all block bytes as they are.
+                        for bytes in extractor(content, block.end): yield bytes
+                else:
+                    assert isinstance(bnode, RequestNode), 'Invalid request node %s' % bnode
+                    for gref in groups:
+                        assert isinstance(gref, Index), 'Invalid index %s' % gref
+                        if gref.value == GROUP_VALUE_REFERENCE: break
+                    else:
+                        # If there is no reference there is no reference to fetch then just provide the group as it is.
+                        for bytes in extractor(content, block.end): yield bytes
+                        continue
+                    
+                    capture = self.capture(groups, content)
+                    if capture is None: continue
+                    cbytes, captures = capture
+                    
+                    url = assemblage.decode(captures[GROUP_VALUE_REFERENCE])
+                    bcontent = assemblage.requestHandler(url, bnode.parameters)
+                    assert isinstance(bcontent, Content), 'Invalid content %s' % bcontent
+                    if bcontent.errorStatus is not None:
+                        # TODO: handle error
+                        yield cbytes
+                        continue
+                    if not bcontent.indexes:
+                        # TODO: handle non rest content
+                        yield cbytes
+                        continue
+                    self.discard(content, block.end)  # Skip the remaining bytes from the capture
+                    
+                    stack.append((isTrimmed, node, content, extractor, blocks))
+                    isTrimmed, node, content, blocks = False, bnode, bcontent, self.iterBlocks(bcontent.indexes)
+                    extractor = partial(self.injector, self.listInject(bcontent.indexes), captures)
         
-    def iterBlocks(self, node, indexes):
+    def iterBlocks(self, indexes):
         '''
-        Iterates the blocks indexes for the provided node.
+        Iterates the blocks indexes.
         
-        @param node: RequestNode
-            The request node to iterate the blocks for.
         @param indexes: Iterable(Index)
             The iterable of indexes to search in.
         @return: Iterable(tuple(Index, list[Index]))
             Iterates the tuples containing on the first position the block index and on the second the list
-            of sub indexes of the block index.
+            of sub indexes of group capture type of the block index.
         '''
-        assert isinstance(node, RequestNode), 'Invalid request node %s' % node
-        assert isinstance(node.requests, dict), 'Invalid request node requests %s' % node.requests
         assert isinstance(indexes, Iterable), 'Invalid indexes %s' % indexes
         
-        #TODO: check '*' in requests
         indexes = iter(indexes)
         try: index = next(indexes)
         except StopIteration: return
         while True:
             assert isinstance(index, Index), 'Invalid index %s' % index
-            if index.isBlock and index.value in node.requests:
-                sblocks, finalized = [], False
+            if index.isBlock:
+                groups, finalized = [], False
                 while True:
                     try: sindex = next(indexes)
                     except StopIteration:
                         finalized = True
                         break
                     assert isinstance(sindex, Index), 'Invalid index %s' % sindex
-                    if sindex.end <= index.end: sblocks.append(sindex)
+                    if sindex.end <= index.end:
+                        if sindex.isGroup: groups.append(sindex)
                     else: break
-                yield index, sblocks
+                yield index, groups
                 if finalized: break
                 index = sindex
             else:
                 try: index = next(indexes)
                 except StopIteration: break
-        
-    def pull(self, stream, nbytes=None):
+                
+    def listInject(self, indexes):
         '''
-        Pulls from the stream the provided number of bytes.
+        Lists the inject indexes.
         
-        @param stream: IInputStream
-            The stream to pull from.
-        @param nbytes: integer|None
-            The number of bytes to pull, if None it will pull all remaining bytes
+        @param indexes: Iterable(Index)
+            The iterable of indexes to search in.
+        @return: list[Index]
+            The list of inject indexes.
+        '''
+        assert isinstance(indexes, Iterable), 'Invalid indexes %s' % indexes
+        
+        inject = []
+        for index in indexes:
+            assert isinstance(index, Index), 'Invalid index %s' % index
+            if index.isInject: inject.append(index)
+        return inject
+        
+    def extractor(self, content, until=None):
+        '''
+        Extracts from the content stream the provided number of bytes.
+        
+        @param content: Content
+            The content to extract from.
+        @param until: integer|None
+            The offset until to pull the bytes, if None it will pull all remaining bytes.
         @return: Iterable(bytes)
             Chunk size bytes pulled from the stream.
         '''
-        assert isinstance(stream, IInputStream), 'Invalid stream %s' % stream
+        assert isinstance(content, Content), 'Invalid content %s' % content
+        assert callable(content.encode), 'Invalid content encode %s' % content.encode
+        assert isinstance(content.source, IInputStreamCT), 'Invalid content source %s' % content.source
         
-        if nbytes is None:
+        if until is None:
             while True:
-                block = stream.read(self.maximumBlockSize)
+                block = content.source.read(self.maximumBlockSize)
                 if block == b'': break
-                yield block
+                yield content.encode(block)
         else:
-            assert isinstance(nbytes, int), 'Invalid number of bytes %s' % nbytes
-            assert nbytes > 0, 'Invalid number of bytes %s' % nbytes
+            assert isinstance(until, int), 'Invalid until offset %s' % until
+            if until < content.source.tell():
+                raise IOError('Invalid stream offset %s, expected a value less then %s' % (content.source.tell(), until))
+            nbytes = until - content.source.tell()
+            if nbytes == 0: return
             while nbytes > 0:
-                if nbytes <= self.maximumBlockSize: block = stream.read(nbytes)
-                else: block = stream.read(self.maximumBlockSize)
+                if nbytes <= self.maximumBlockSize: block = content.source.read(nbytes)
+                else: block = content.source.read(self.maximumBlockSize)
                 if block == b'': raise IOError('The stream is missing %s bytes' % nbytes)
                 nbytes -= len(block)
-                yield block
+                yield content.encode(block)
+                
+    def injector(self, injectors, captures, content, until=None):
+        '''
+        Extracts from the stream the provided number of bytes and injects content if so required. 
+        
+        @param injectors: list[Index]
+            The list of inject indexes to inject the values for.
+        @param captures: dictionary{string: bytes}
+            The captures that provide the values to be injected.
+        @param content: Content
+            The content to extract from.
+        @param until: integer|None
+            The offset until to pull the bytes, if None it will pull all remaining bytes.
+        @return: Iterable(bytes)
+            Chunk size bytes pulled from the stream.
+        '''
+        assert isinstance(injectors, list), 'Invalid injectors %s' % injectors
+        assert isinstance(captures, dict), 'Invalid captures %s' % captures
+        assert isinstance(content, Content), 'Invalid content %s' % content
+        assert callable(content.encode), 'Invalid content encode %s' % content.encode
+        assert isinstance(content.source, IInputStreamCT), 'Invalid content source %s' % content.source
+        assert until is None or isinstance(until, int), 'Invalid until offset %s' % until
+        
+        for inject in injectors:
+            assert isinstance(inject, Index), 'Invalid index %s' % inject
+            assert inject.isInject, 'Invalid inject %s' % inject
+            
+            if inject.start >= content.source.tell() and (until is None or inject.end <= until):
+                # We provide what is before the inject.
+                for bytes in self.extractor(content, inject.start): yield bytes
+                self.discard(content, inject.end)  # We just need to remove the content to be injected.
+                
+                if inject.value is not None and inject.value in captures: yield captures[inject.value]
+                
+        # We provide the remaining content.
+        for bytes in self.extractor(content, until): yield bytes
+                
+    def capture(self, groups, content):
+        '''
+        Captures the provided index groups.
+
+        @param groups: list[Index]
+            The list of group indexes to capture the values for.
+        @param content: Content
+            The content to capture from.
+        @param current: integer
+            The current index in the stream.
+        @return: tuple(bytes, dictionary{string: bytes})|None
+            A tuple having on the first position the bytes that have been read for the capture and on the second the
+            dictionary containing as a key the group value and as a value the captured bytes. Retuens None if ther is
+            nothing to capture.
+        '''
+        assert isinstance(groups, list), 'Invalid groups %s' % groups
+        assert groups, 'At least on group index is required %s' % groups
+        assert isinstance(content, Content), 'Invalid content %s' % content
+        assert callable(content.encode), 'Invalid content encode %s' % content.encode
+        assert isinstance(content.source, IInputStreamCT), 'Invalid content source %s' % content.source
+        
+        egroup = max(groups, key=lambda group: group.end)
+        assert isinstance(egroup, Index), 'Invalid index %s' % egroup
+        if egroup.end < content.source.tell():
+            raise IOError('Invalid stream offset %s, expected a value less then %s' % (content.source.tell(), egroup.end))
+        
+        nbytes = egroup.end - content.source.tell()
+        if nbytes == 0: return
+        offset = content.source.tell()
+        capture = content.source.read(nbytes)
+        
+        captures = {}
+        for group in groups:
+            assert isinstance(group, Index), 'Invalid index %s' % group
+            assert group.isGroup, 'Invalid group %s' % group
+            captures[group.value] = content.encode(capture[group.start - offset: group.end - offset])
+
+        return content.encode(capture), captures
+                
+    def discard(self, content, until):
+        '''
+        Discard from the content source the provided number of bytes.
+        
+        @param content: Content
+            The content to discard from.
+        @param until: integer
+            The offset until to discard bytes.
+        '''
+        assert isinstance(content, Content), 'Invalid content %s' % content
+        assert isinstance(content.source, IInputStreamCT), 'Invalid content source %s' % content.source
+        assert isinstance(until, int), 'Invalid until offset %s' % until
+        
+        if until < content.source.tell():
+            raise IOError('Invalid stream offset %s, expected a value less then %s' % (content.source.tell(), until))
+        nbytes = until - content.source.tell()
+        if nbytes == 0: return
+            
+        while nbytes > 0:
+            if nbytes <= self.maximumBlockSize: block = content.source.read(nbytes)
+            else: block = content.source.read(self.maximumBlockSize)
+            if block == b'': raise IOError('The stream is missing %s bytes' % nbytes)
+            nbytes -= len(block)

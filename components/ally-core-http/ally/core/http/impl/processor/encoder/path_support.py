@@ -250,9 +250,3 @@ class EncoderPathUpdater(IEncoder):
                 path.update(obj, objType)
         
         self.encoder.render(obj, render, support)
-        
-    def represent(self, support, obj=None):
-        '''
-        @see: IEncoder.represent
-        '''
-        return self.encoder.represent(support, obj)

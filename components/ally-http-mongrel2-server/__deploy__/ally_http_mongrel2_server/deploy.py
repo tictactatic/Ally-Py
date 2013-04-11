@@ -15,7 +15,7 @@ from __setup__.ally_http_mongrel2_server.server import send_spec, send_ident, \
     recv_spec, recv_ident
 from ally.container import aop, ioc, support, context
 from ally.container.impl.config import load, save
-from ally.support.util_io import openURI, ReplaceInFile, pipe
+from ally.support.util_io import openURI, ReplaceInStream, pipe
 from ally.support.util_sys import pythonPath
 from os import path, makedirs, renames
 from uuid import uuid4
@@ -83,7 +83,7 @@ def config():
     else:
         conf = openURI(path.join(pythonPath(), 'resources', 'ally.conf'))
         conf = codecs.getreader('utf8')(conf)
-        conf = ReplaceInFile(conf, replace)
+        conf = ReplaceInStream(conf, replace)
         with open(path.join(workspace, 'ally.conf'), 'w') as f: pipe(conf, f)
         with open(path.join(workspace, 'README-Mongrel2.txt'), 'wb') as f:
             pipe(openURI(path.join(pythonPath(), 'resources', 'README-Mongrel2.txt')), f)
