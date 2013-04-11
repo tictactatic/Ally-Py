@@ -24,25 +24,31 @@ requirejs.config
 		'gizmo': config.cjs('gizmo'),
 		'loadaloha': config.cjs('aloha-init'),
 		'concat': config.cjs('concat'),		
-		'newgizmo': config.cjs('newgizmo')		
-	}
+		'newgizmo': config.cjs('newgizmo'),
+        'backbone': config.cjs('backbone'),
+        'underscore': config.cjs('underscore')
+	},
+    shim: {
+        'backbone': {
+            deps: ['underscore', 'jquery'],
+            exports: 'Backbone'
+        }
+    }
 });
-require(['concat'], function(){
+
+// backbone must be loaded asap because it requires underscore
+// but '_' is taken later for localization
+require(['concat', 'backbone'], function(){
 	require
 	([
 	  config.cjs('views/menu.js'), 
 	  config.cjs('views/auth.js'), 
-	  'jquery', 'jquery/superdesk', 'gizmo/superdesk/action', 'jquery/i18n', 'jqueryui/ext',
-
-      config.cjs('underscore.js'),
-      config.cjs('backbone.js'),
+	  'jquery', 'jquery/superdesk', 'gizmo/superdesk/action',
+      'backbone',
+      'jquery/i18n', 'jqueryui/ext'
 	], 
-	function(MenuView, authView, $, superdesk, Action)
+	function(MenuView, authView, $, superdesk, Action, Backbone)
 	{
-        if (Backbone.$ === undefined) {
-            Backbone.$ = $;
-        }
-
 	    $(authView).on('logout login', function(){ Action.clearCache(); });
 
         // initialize menu before auth because we have some events bound to auth there
