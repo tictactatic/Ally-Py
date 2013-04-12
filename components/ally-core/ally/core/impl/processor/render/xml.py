@@ -11,8 +11,8 @@ Provides the XML encoder processor handler.
 
 from .base import RenderBaseHandler
 from ally.container.ioc import injected
-from ally.core.spec.transform.index import IIndexer, BLOCK, PREPARE, \
-    AttrValue, Index
+from ally.core.spec.transform.index import IIndexer, BLOCK, PREPARE, AttrValue, \
+    ADJUST, IMarkRegistry, DO_CAPTURE, DO_INJECT, AttrInject
 from ally.core.spec.transform.render import IRender
 from ally.support.util import immut
 from ally.support.util_io import IOutputStream
@@ -25,8 +25,10 @@ import logging
 
 log = logging.getLogger(__name__)
 
-GROUP_NAME = '$name'  # The group that captures the prepared name
-GROUP_ATTRIBUTES = '$attributes'  # The group that captures the prepared attributes
+XML_PREPARE_NAME = 'XML prepare tag name'  # The XML tag name prepare
+XML_PREPARE_ATTRIBUTES = 'XML prepare attributes'  # The XML attributes prepare
+XML_ADJUST_NAME = 'XML adjust tag name'  # The XML tag name adjust
+XML_ADJUST_ATTRIBUTES = 'XML adjust attributes'  # The XML attributes adjust
 
 # --------------------------------------------------------------------
 
@@ -43,6 +45,18 @@ class RenderXMLHandler(RenderBaseHandler):
     def __init__(self):
         assert isinstance(self.encodingError, str), 'Invalid string %s' % self.encodingError
         super().__init__()
+
+    def registerMarks(self, registry):
+        '''
+        @see: RenderBaseHandler.registerMarks
+        '''
+        assert isinstance(registry, IMarkRegistry), 'Invalid registry %s' % registry
+        
+        registry.register(XML_PREPARE_NAME, action=PREPARE, do=DO_CAPTURE)
+        registry.register(XML_PREPARE_ATTRIBUTES, action=PREPARE, do=DO_CAPTURE)
+        
+        registry.register(XML_ADJUST_NAME, action=ADJUST, do=DO_INJECT, source=XML_PREPARE_NAME)
+        registry.register(XML_ADJUST_ATTRIBUTES, action=ADJUST, do=DO_INJECT, source=XML_PREPARE_ATTRIBUTES)
 
     def renderFactory(self, charSet, output, indexer):
         '''
@@ -93,7 +107,6 @@ class RenderXML(XMLGenerator, IRender):
         @see: IRender.property
         '''
         assert isinstance(value, (str, list, dict)), 'Invalid value %s' % value
-        assert index is None or isinstance(index, (Index, list, tuple)), 'Invalid index %s' % index
         
         block = False
         if self._indexer and index:
@@ -106,7 +119,7 @@ class RenderXML(XMLGenerator, IRender):
         
         self._finish_pending_start_element()
         
-        if block: self._indexer.block(self._length, name)
+        if block: self._indexer.start(BLOCK, self._length, name)
         self.startElement(name, immut())
         if isinstance(value, list):
             for item in value:
@@ -135,59 +148,62 @@ class RenderXML(XMLGenerator, IRender):
         '''
         @see: IRender.beginObject
         '''
-        assert index is None or isinstance(index, (Index, list, tuple)), 'Invalid index %s' % index
-        
-        block = prepare = False
-        attrValues = None
-        if self._indexer and index:
-            if not isinstance(index, (list, tuple)): index = (index,)
-            for ind in index:
-                if ind == BLOCK:
-                    block = self._block
-                    self._block = False
-                elif ind == PREPARE: prepare = True
-                else:
-                    assert isinstance(ind, AttrValue), 'Invalid index %s' % ind
-                    if attrValues is None: attrValues = {}
-                    attrValues[ind.attribute] = ind.name
+        adjust = block = prepare = False
+        attrValues = attrInject = None
+        if self._indexer:
+            adjust = self._adjust
+            if index:
+                if not isinstance(index, (list, tuple)): index = (index,)
+                for ind in index:
+                    if ind == BLOCK:
+                        block = self._block
+                        self._block = False
+                    elif ind == PREPARE: prepare = True
+                    elif isinstance(ind, AttrInject):
+                        if attrInject is None: attrInject = set()
+                        attrInject.add(ind.mark)
+                    else:
+                        assert isinstance(ind, AttrValue), 'Invalid index %s' % ind
+                        if attrValues is None: attrValues = {}
+                        attrValues[ind.attribute] = ind.mark
         prepare = block and prepare
-        
+        self._adjust = False
         
         if not self._stack: self.startDocument()  # Start the document
         self._finish_pending_start_element()
         
-        if block: self._indexer.block(self._length, name)
-        if self._adjust: self._indexer.inject(0).end(self._length) 
+        if block: self._indexer.start(BLOCK, self._length, name)
+        if adjust: self._indexer.start(ADJUST, 0).end(self._length) 
         # For adjusting we ensure that all data is deleted until this index where the actual block starts
         self._write('<')
         start = self._length
         self._write(name)
         if prepare:
-            self._indexer.group(start, GROUP_NAME).end(self._length)
-            self._indexer.group(self._length, GROUP_ATTRIBUTES)
-        if self._adjust:
-            self._indexer.inject(start, GROUP_NAME).end(self._length)
-            self._indexer.inject(self._length, GROUP_ATTRIBUTES).end(self._length)
+            self._indexer.start(XML_PREPARE_NAME, start).end(self._length)
+            self._indexer.start(XML_PREPARE_ATTRIBUTES, self._length)
+        if adjust:
+            self._indexer.start(XML_ADJUST_NAME, start).end(self._length)
+            self._indexer.start(XML_ADJUST_ATTRIBUTES, self._length).end(self._length)
         
         if attributes:
             assert isinstance(attributes, dict), 'Invalid attributes %s' % attributes
             for nameAttr, valueAttr in attributes.items():
                 if attrValues and nameAttr in attrValues:
                     self._write(' %s=' % nameAttr)
-                    self._indexer.group(self._length + 1, attrValues[nameAttr])  # +1 for the comma
+                    self._indexer.start(attrValues[nameAttr], self._length + 1)  # +1 for the comma
                     self._write(quoteattr(valueAttr))
                     self._indexer.end(self._length - 1)  # -1 for the commas
                 else: self._write(' %s=%s' % (nameAttr, quoteattr(valueAttr)))
         if prepare: self._indexer.end(self._length)
+        if attrInject:
+            for mark in attrInject: self._indexer.start(mark, self._length).end(self._length)
                 
         if self._short_empty_elements:
             self._pending_start_element = True
         else:
             self._write(">")
             
-        self._stack.append((name, block, self._adjust))
-        self._adjust = False
-        
+        self._stack.append((name, block, adjust))
         return self
 
     def beginCollection(self, name, attributes=None, index=None):
@@ -210,7 +226,7 @@ class RenderXML(XMLGenerator, IRender):
             self._write('</')
             start = self._length
             self._write(name)
-            if adjust: self._indexer.inject(start, GROUP_NAME).end(self._length)
+            if adjust: self._indexer.start(XML_ADJUST_NAME, start).end(self._length)
             self._write('>')
         if block:
             self._indexer.end(self._length)

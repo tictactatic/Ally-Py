@@ -11,7 +11,7 @@ Provides the paths for a model.
 
 from ally.api.operator.type import TypeModel, TypeModelProperty
 from ally.container.ioc import injected
-from ally.core.http.spec.transform.index import GROUP_VALUE_REFERENCE
+from ally.core.http.spec.transform.index import HTTP_URL
 from ally.core.spec.resources import Path, Normalizer
 from ally.core.spec.transform.encoder import IAttributes, AttributesWrapper
 from ally.core.spec.transform.index import AttrValue
@@ -118,4 +118,4 @@ class AttributesModelPath(AttributesWrapper):
         attributes[nameRef] = support.encoderPath.encode(support.pathModel)
         if index is not None:
             assert isinstance(index, list), 'Invalid index %s' % index
-            index.append(AttrValue(GROUP_VALUE_REFERENCE, nameRef))
+            index.append(AttrValue(HTTP_URL, nameRef))

@@ -67,7 +67,7 @@ class AssemblerHandler(HandlerProcessor):
     Implementation for a handler that provides the assembling.
     '''
     
-    maximumBlockSize = 9
+    maximumBlockSize = 1024
     # The maximum block size in bytes before dispatching.
     
     def __init__(self):
@@ -137,33 +137,43 @@ class AssemblerHandler(HandlerProcessor):
                         for bytes in extractor(content, block.end): yield bytes
                 else:
                     assert isinstance(bnode, RequestNode), 'Invalid request node %s' % bnode
-                    for gref in groups:
-                        assert isinstance(gref, Index), 'Invalid index %s' % gref
-                        if gref.value == GROUP_VALUE_REFERENCE: break
-                    else:
-                        # If there is no reference there is no reference to fetch then just provide the group as it is.
+                    stop = False
+                    if not bnode.requests: stop = True  # No requests to process for sub node.
+                    
+                    if not stop:
+                        for gref in groups:
+                            assert isinstance(gref, Index), 'Invalid index %s' % gref
+                            if gref.value == GROUP_VALUE_REFERENCE: break
+                        else: stop = True  # If there is no reference to fetch then just provide the group as it is.
+                    
+                    if not stop:
+                        capture = self.capture(groups, content)
+                        if capture is None: stop = True
+                    
+                    if stop:
+                        # Stopped block processing so we provide it as it is.
                         for bytes in extractor(content, block.end): yield bytes
                         continue
                     
-                    capture = self.capture(groups, content)
-                    if capture is None: continue
                     cbytes, captures = capture
                     
                     url = assemblage.decode(captures[GROUP_VALUE_REFERENCE])
                     bcontent = assemblage.requestHandler(url, bnode.parameters)
                     assert isinstance(bcontent, Content), 'Invalid content %s' % bcontent
                     if bcontent.errorStatus is not None:
+                        assert log.debug('Error %s %s for %s', bcontent.errorStatus, bcontent.errorText, url) or True
                         # TODO: handle error
                         yield cbytes
                         continue
                     if not bcontent.indexes:
+                        assert log.debug('No index at %s', url) or True
                         # TODO: handle non rest content
                         yield cbytes
                         continue
                     self.discard(content, block.end)  # Skip the remaining bytes from the capture
                     
                     stack.append((isTrimmed, node, content, extractor, blocks))
-                    isTrimmed, node, content, blocks = False, bnode, bcontent, self.iterBlocks(bcontent.indexes)
+                    isTrimmed, node, content, blocks = True, bnode, bcontent, self.iterBlocks(bcontent.indexes)
                     extractor = partial(self.injector, self.listInject(bcontent.indexes), captures)
         
     def iterBlocks(self, indexes):

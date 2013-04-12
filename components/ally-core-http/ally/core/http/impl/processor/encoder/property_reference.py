@@ -12,15 +12,15 @@ Provides the reference types encoding.
 from ally.api.operator.type import TypeProperty
 from ally.api.type import TypeReference
 from ally.container.ioc import injected
+from ally.core.http.spec.transform.index import HTTP_URL
 from ally.core.spec.resources import Normalizer
 from ally.core.spec.transform.encoder import IEncoder
+from ally.core.spec.transform.index import AttrValue
 from ally.core.spec.transform.render import IRender
 from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessorProceed
 from ally.http.spec.server import IEncoderPath
-from ally.core.spec.transform.index import AttrValue
-from ally.core.http.spec.transform.index import GROUP_VALUE_REFERENCE
 
 # --------------------------------------------------------------------
 
@@ -113,5 +113,5 @@ class EncoderReference(IEncoder):
         
         nameRef = support.normalizer.normalize(self.nameRef)
         attributes = {nameRef: support.encoderPath.encode(obj)}
-        index = (AttrValue(GROUP_VALUE_REFERENCE, nameRef),)  # TODO: Gabriel: add also prepare for blob
+        index = (AttrValue(HTTP_URL, nameRef),)  # TODO: Gabriel: add also prepare for blob
         render.beginObject(support.normalizer.normalize(self.name), attributes, index).end()

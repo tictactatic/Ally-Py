@@ -29,8 +29,8 @@ class IRender(metaclass=abc.ABCMeta):
             The property name.
         @param value: string|tuple(string)|list[string]|dictionary{string: string}
             The value.
-        @param index: Index|list[Index]|tuple(Index)|None
-            The indexes to provide for the rendered property.
+        @param index: object|list[object]|tuple(object)|None
+            The indexes to provide for the rendered property, attention the index object need to be known by the renderer.
         '''
 
     @abc.abstractclassmethod
@@ -42,8 +42,8 @@ class IRender(metaclass=abc.ABCMeta):
             The object name.
         @param attributes: dictionary{string, string}|None
             The attributes for the value.
-        @param index: Index|list[Index]|tuple(Index)|None
-            The indexes to provide for the rendered object.
+        @param index: object|list[object]|tuple(object)|None
+            The indexes to provide for the rendered object, attention the index object need to be known by the renderer.
         @return: self
             The same render instance for chaining purposes.
         '''
@@ -57,8 +57,8 @@ class IRender(metaclass=abc.ABCMeta):
             The collection name.
         @param attributes: dictionary{string, string}|None
             The attributes for the collection.
-        @param index: Index|list[Index]|tuple(Index)|None
-            The indexes to provide for the rendered collection.
+        @param index: object|list[object]|tuple(object)|None
+            The indexes to provide for the rendered collection, attention the index object need to be known by the renderer.
         @return: self
             The same render instance for chaining purposes.
         '''
@@ -67,11 +67,6 @@ class IRender(metaclass=abc.ABCMeta):
     def end(self):
         '''
         Called to signal that the current block (object or collection) has ended the rendering.
-        
-        @return: tuple(integer, tuple(integer, integer), tuple(integer, integer), integer)
-            A tuple containing the start index, then a tuple containing the start and end index of the block name,
-            then another tuple containing the start and index of the rendered attributes, and last end index of the rendered
-            block.
         '''
 
 # --------------------------------------------------------------------

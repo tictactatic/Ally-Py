@@ -10,6 +10,7 @@ Provides the text base encoder processor handler.
 '''
 
 from ally.container.ioc import injected
+from ally.core.spec.transform.index import IMarkRegistry
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain
@@ -54,11 +55,18 @@ class RenderBaseHandler(HandlerProcessor):
 
     contentTypes = dict
     # The dictionary{string:string} containing as a key the content types specific for this encoder and as a value
-    # the content type to set on the response, if None will use the key for the content type response. 
+    # the content type to set on the response, if None will use the key for the content type response.
+    registries = ()
+    # The marks registries.
 
     def __init__(self):
         assert isinstance(self.contentTypes, dict), 'Invalid content types %s' % self.contentTypes
+        assert isinstance(self.registries, (list, tuple)), 'Invalid mark registry %s' % self.markRegistry
         super().__init__()
+        
+        for registry in self.registries:
+            assert isinstance(registry, IMarkRegistry), 'Invalid mark registry %s' % registry
+            self.registerMarks(registry)
 
     def process(self, chain, response:Response, responseCnt:ResponseContent, **keyargs):
         '''
@@ -84,6 +92,14 @@ class RenderBaseHandler(HandlerProcessor):
         chain.proceed()
 
     # ----------------------------------------------------------------
+    
+    def registerMarks(self, registry):
+        '''
+        Called in order to register the marks used in indexing.
+        
+        @param registry: IMarkRegistry
+            The registry to push the marks in.
+        '''
 
     @abc.abstractclassmethod
     def renderFactory(self, charSet, output, indexer):

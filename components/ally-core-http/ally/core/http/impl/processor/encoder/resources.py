@@ -11,7 +11,7 @@ Provides the resource paths encoding.
 
 from ally.api.type import Iter, Type
 from ally.container.ioc import injected
-from ally.core.http.spec.transform.index import GROUP_VALUE_REFERENCE
+from ally.core.http.spec.transform.index import HTTP_URL
 from ally.core.spec.resources import Normalizer, Path
 from ally.core.spec.transform.encoder import IEncoder
 from ally.core.spec.transform.index import BLOCK, AttrValue, PREPARE
@@ -115,7 +115,7 @@ class EncoderResources(IEncoder):
         
         render.beginCollection(support.normalizer.normalize(self.nameResources))
         nameRef = support.normalizer.normalize(self.nameRef)
-        index = (BLOCK, PREPARE, AttrValue(GROUP_VALUE_REFERENCE, nameRef))
+        index = (BLOCK, PREPARE, AttrValue(HTTP_URL, nameRef))
         for path in obj:
             attributes = {nameRef: support.encoderPath.encode(path)}
             render.beginObject(support.normalizer.normalize(pathLongName(path)), attributes, index).end()

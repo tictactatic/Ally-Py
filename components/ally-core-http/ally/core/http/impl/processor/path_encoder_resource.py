@@ -9,16 +9,18 @@ Created on Mar 6, 2013
 Provides the path encoder that can handle the resources path.
 '''
 
+from ally.api.type import Type
 from ally.container.ioc import injected
+from ally.core.impl.node import NodeProperty
 from ally.core.spec.resources import ConverterPath, Path
 from ally.design.processor.attribute import defines, optional
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessorProceed
 from ally.http.spec.server import IEncoderPath
+from itertools import chain
 from urllib.parse import quote
 import logging
 import re
-from itertools import chain
 
 # --------------------------------------------------------------------
 
@@ -135,6 +137,11 @@ class EncoderPathResource(IEncoderPath):
             
             uri.append('/'.join(paths))
             if self.extension:
+                if isinstance(path.node, NodeProperty):
+                    assert isinstance(path.node, NodeProperty)
+                    assert isinstance(path.node.type, Type)
+                    if path.node.type.isOf(str): uri.append('/')
+                    # Needed to separate the last string property from extension
                 uri.append('.')
                 uri.append(self.extension)
             elif path.node.isGroup: uri.append('/')

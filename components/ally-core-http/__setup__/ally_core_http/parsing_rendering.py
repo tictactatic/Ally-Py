@@ -9,10 +9,12 @@ Created on Nov 24, 2011
 Provides the configurations for encoders and decoders.
 '''
 
-from ..ally_core.parsing_rendering import assemblyParsing, updateAssemblyParsing
+from ..ally_core.parsing_rendering import assemblyParsing, updateAssemblyParsing, \
+    registriesMarkers, updateRegistriesMarkersWithDefaults
 from ally.container import ioc
 from ally.core.http.impl.processor.parser.formdata import ParseFormDataHandler
 from ally.core.http.impl.url_encoded import parseStr
+from ally.core.http.spec.transform.index import registerDefaultMarks
 from ally.core.impl.processor.parser.text import ParseTextHandler
 from ally.design.processor.handler import Handler
 import codecs
@@ -49,3 +51,7 @@ def parseFormData() -> Handler:
 def updateAssemblyParsingFormData():
     assemblyParsing().add(parseFormData())
     assemblyParsing().add(parseURLEncoded())
+
+@ioc.after(updateRegistriesMarkersWithDefaults)
+def updateRegistriesMarkersWithHTTPDefaults():
+    for registry in registriesMarkers(): registerDefaultMarks(registry)

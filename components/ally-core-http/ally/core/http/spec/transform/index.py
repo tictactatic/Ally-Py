@@ -9,6 +9,22 @@ Created on Apr 4, 2013
 Provides additional indexing data.
 '''
 
+from ally.core.spec.transform.index import IMarkRegistry, REFERENCE, DO_CAPTURE
+
 # --------------------------------------------------------------------
 
-GROUP_VALUE_REFERENCE = 'reference'  # Indicates that the captured value contains a reference.
+HTTP_URL = 'URL'  # Indicates an HTTP URL to follow.
+
+# --------------------------------------------------------------------
+
+def registerDefaultMarks(registry):
+    '''
+    Register the default markers defined in this module.
+    
+    @param registry: IMarkRegistry
+        The registry to push the marks in.
+    '''
+    assert isinstance(registry, IMarkRegistry), 'Invalid registry %s' % registry
+    
+    registry.register(HTTP_URL, action=REFERENCE, do=DO_CAPTURE)
+    # The HTTP URL reference capture.

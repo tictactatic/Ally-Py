@@ -19,6 +19,7 @@ from ally.design.processor.assembly import Assembly
 from ally.design.processor.handler import Handler
 import codecs
 import logging
+from ally.core.spec.transform.index import registerDefaultMarks
 
 # --------------------------------------------------------------------
 
@@ -101,6 +102,13 @@ def assemblyRendering() -> Assembly:
     return Assembly('Renderer response')
 
 @ioc.entity
+def registriesMarkers() -> list:
+    '''
+    The list of @see: IMarkRegistry to push the marks to.
+    '''
+    return []
+
+@ioc.entity
 def renderJSON() -> Handler:
     b = RenderJSONHandler(); yield b
     b.contentTypes = content_types_json()
@@ -109,6 +117,7 @@ def renderJSON() -> Handler:
 def renderXML() -> Handler:
     b = RenderXMLHandler(); yield b
     b.contentTypes = content_types_xml()
+    b.registries = registriesMarkers()
 
 # --------------------------------------------------------------------
 
@@ -121,7 +130,11 @@ def updateAssemblyParsing():
 def updateAssemblyRendering():
     assemblyRendering().add(renderJSON())
     assemblyRendering().add(renderXML())
-
+    
+@ioc.after(registriesMarkers)
+def updateRegistriesMarkersWithDefaults():
+    for registry in registriesMarkers(): registerDefaultMarks(registry)
+    
 try: import yaml
 except ImportError: log.info('No YAML library available, no yaml available for output or input')
 else:
@@ -150,5 +163,5 @@ else:
         assemblyParsing().add(parseYAML())
     
     @ioc.after(updateAssemblyRendering)
-    def updateRenderingAssemblyWithYAML():
+    def updateAssemblyRenderingWithYAML():
         assemblyRendering().add(renderYAML())
