@@ -29,6 +29,7 @@ class Mark(Context):
     group = requires(str)
     action = requires(str)
     target = requires(str)
+    escapes = requires(dict)
     value = requires(str)
     idSource = requires(int)
     
@@ -87,6 +88,7 @@ class AssemblageMarkerService(IAssemblageMarkerService):
         marker.Group = mark.group
         marker.Action = mark.action
         marker.Target = mark.target
+        marker.Escapes = mark.escapes
         marker.Value = mark.value
         marker.Source = mark.idSource
         

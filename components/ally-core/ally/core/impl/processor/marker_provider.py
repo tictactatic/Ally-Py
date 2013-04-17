@@ -41,6 +41,10 @@ class Mark(Context):
     @rtype: string
     Indicates the mark name that should be used as the content source for this mark.
     ''')
+    escapes = definesIf(dict, doc='''
+    @rtype: dictionary{string: string}
+    The content escapes, as a key the character that needs to be escaped and as a value the escape value.
+    ''')
     
 class Markers(Context):
     '''
@@ -72,9 +76,7 @@ class MarkersProviderHandler(HandlerProcessorProceed):
             for name, definition in self.definitions.items():
                 assert isinstance(name, str), 'Invalid definition name %s' % name
                 assert isinstance(definition, dict), 'Invalid definition %s' % definition
-                for name, value in definition.items():
-                    assert isinstance(name, str), 'Invalid definition property name %s' % name
-                    assert isinstance(value, str), 'Invalid definition property value %s' % value
+                for name in definition: assert isinstance(name, str), 'Invalid definition property name %s' % name
         super().__init__(Marker=Marker)
         
     def process(self, markers:Markers, Marker:Context, **keyargs):

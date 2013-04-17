@@ -10,7 +10,7 @@ Provides utility functions for handling I/O operations.
 '''
 
 from ally.zip.util_zip import normOSPath, getZipFilePath, ZIPSEP
-from collections import Iterable
+from collections import Iterable, deque
 from datetime import datetime
 from genericpath import isdir, exists
 from io import StringIO, BytesIO
@@ -166,7 +166,20 @@ def keepOpen(stream):
     '''
     assert isinstance(stream, IInputStream), 'Invalid stream %s' % stream
     if not isinstance(stream, IClosable): return stream
-    return PreventClose(stream)
+    return KeepOpen(stream)
+
+def tellPosition(stream):
+    '''
+    Provides a stream that keeps track of the number of bytes that are read from the stream.
+    
+    @param stream: IInputStream
+        The stream to keep track for.
+    @return: IInputStreamTeller
+        The stream that provides the tell method.
+    '''
+    assert isinstance(stream, IInputStream), 'Invalid stream %s' % stream
+    if isinstance(stream, ITeller): return stream
+    return TellPosition(stream)
     
 def pipe(srcFileObj, dstFileObj, bufferSize=1024):
     '''
@@ -335,7 +348,7 @@ def synchronizeURIToDir(path, dirPath):
             copy(src, dest)
             if file.endswith('.exe'): os.chmod(dest, stat(dest).st_mode | S_IEXEC)
 
-class PreventClose(IInputStreamClosable):
+class KeepOpen(IInputStreamClosable):
     '''
     Keeps opened a stream, basically blocks the close calls.
     '''
@@ -477,6 +490,102 @@ class StreamOnIterable(IInputStreamClosable):
         @see: IInputStreamClosable.close
         '''
         self._closed = True
+
+class RewindingStream(IInputStreamCT):
+    '''
+    Provides a stream that allows for rewinding bytes back.
+    '''
+    __slots__ = ('_stream', '_offset', '_rewind', '_available')
+    
+    def __init__(self, stream):
+        '''
+        Construct the rewinding stream.
+        
+        @param stream: IInputStream
+            The input stream to wrap.
+        '''
+        assert isinstance(stream, IInputStream), 'Invalid stream %s' % stream
+        
+        self._stream = tellPosition(stream)
+        self._rewind = deque()
+        self._available = 0
+    
+    def read(self, nbytes=None):
+        '''
+        @see: IInputStreamCT.read
+        '''
+        if nbytes:
+            assert isinstance(nbytes, int), 'Invalid number of bytes required %s' % nbytes
+            if nbytes < 0: nbytes = None
+            elif nbytes == 0: return b''
+            
+        if nbytes is None:
+            if self._available > 0:
+                self._rewind.append(self._stream.read())
+                byts = b''.join(self._rewind)
+                self._available = 0
+                self._rewind.clear()
+                return byts
+            return self._stream.read()
+        
+        if self._available > 0:
+            all = None
+            while self._rewind:
+                byts = self._rewind.popleft()
+                diff = nbytes - len(byts)
+                if diff == 0:
+                    if all is None:
+                        self._available -= nbytes
+                        return byts
+                    self._available -= len(byts)
+                    all.append(byts)
+                    return b''.join(all)
+                elif diff > 0:
+                    if all is None: all = []
+                    self._available -= len(byts)
+                    all.append(byts)
+                elif diff < 0:
+                    byts = memoryview(byts)
+                    if all is None:
+                        self._available -= nbytes
+                        self._rewind.appendleft(byts[nbytes:])
+                        return byts[:nbytes]
+                    self._available -= nbytes
+                    self._rewind.appendleft(byts[nbytes:])
+                    all.append(byts[:nbytes])
+                    return b''.join(all)
+                nbytes = diff
+            if all is not None:
+                all.append(self._stream.read(nbytes))
+                return b''.join(all)
+        return self._stream.read(nbytes)
+            
+    def tell(self):
+        '''
+        @see: IInputStreamCT.tell
+        '''
+        return self._stream.tell() - self._available
+        
+    def close(self):
+        '''
+        @see: IInputStreamCT.close
+        '''
+        self._available = 0
+        self._rewind.clear()
+        if isinstance(self._stream, IClosable): self._stream.close()
+        
+    # ----------------------------------------------------------------
+    
+    def rewind(self, rbytes):
+        '''
+        Rewind the provided bytes and make the stream provide them again.
+        
+        @param rbytes: bytes
+            The bytes to push back.
+        '''
+        assert isinstance(rbytes, bytes), 'Invalid bytes %s' % rbytes
+        self._rewind.append(rbytes)
+        self._available += len(rbytes)
 
 class ReplaceInStream(IInputStreamClosable):
     '''

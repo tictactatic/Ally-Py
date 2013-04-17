@@ -31,6 +31,9 @@ XML_ADJUST_NAME = 'XML adjust tag name'  # The XML tag name adjust
 XML_ADJUST_ATTRIBUTES = 'XML adjust attributes'  # The XML attributes adjust
 
 XML_ATTRIBUTE_INJECT_PATTERN = 'XML inject attribute %s'  # The pattern used in creating the injected attributes.
+# The escape characters for attribute value.
+XML_ATTRIBUTE_ESCAPE = immut({'&': '&amp;', '>': '&gt;', '<': '&lt;', '"': "&quot;",
+                              '\n': '&#10;', '\r': '&#13;', '\t':'&#9;'})
 
 # --------------------------------------------------------------------
 
@@ -66,6 +69,7 @@ def createXMLAttrsInjectMarkers(group, attributes):
         definition['action'] = ACTION_INJECT
         definition['target'] = name
         definition['value'] = ' %s="%s"' % (name, value)
+        definition['escapes'] = XML_ATTRIBUTE_ESCAPE
         
     return definitions
 
@@ -200,7 +204,7 @@ class RenderXML(XMLGenerator, IRender):
                     self._indexEnd(offset= -1)  # offset -1 for the comma
                 else: self._write(' %s=%s' % (nameAttr, quoteattr(valueAttr)))
         if indexPrepare: self._indexEnd()
-        for name in indexAttributesInject: self._indexAt(XML_ATTRIBUTE_INJECT_PATTERN % name)
+        for attr in indexAttributesInject: self._indexAt(XML_ATTRIBUTE_INJECT_PATTERN % attr)
                 
         if self._short_empty_elements:
             self._pending_start_element = True

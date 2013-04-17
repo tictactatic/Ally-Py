@@ -21,8 +21,7 @@ from ally.design.processor.spec import ContextMetaClass
 from ally.http.spec.codes import isSuccess
 from ally.http.spec.server import RequestHTTP, ResponseHTTP, HTTP_GET, \
     ResponseContentHTTP
-from ally.support.util_io import StreamOnIterable, IInputStreamCT, IInputStream, \
-    TellPosition
+from ally.support.util_io import StreamOnIterable, IInputStream
 from collections import Callable
 from functools import partial
 from urllib.parse import urlsplit, parse_qsl
@@ -85,8 +84,8 @@ class ContentResponse(Context):
     @rtype: string
     The error text obtained when fetching the content.
     ''')
-    source = defines(IInputStreamCT, doc='''
-    @rtype: IInputStreamCT
+    source = defines(IInputStream, doc='''
+    @rtype: IInputStream
     The content input stream source.
     ''')
     encode = defines(Callable, doc='''
@@ -211,7 +210,7 @@ class ContentHandler(HandlerBranching):
         
         if isinstance(responseCnt.source, IInputStream): source = responseCnt.source
         else: source = StreamOnIterable(responseCnt.source)
-        content.source = TellPosition(source)
+        content.source = source
         
         if content.charSet: content.encode = partial(self.encode, data, codecs.lookup(content.charSet).name)
         

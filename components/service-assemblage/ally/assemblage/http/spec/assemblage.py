@@ -36,7 +36,7 @@ class Marker:
     '''
     Provides the marker data constructed based on object.
     '''
-    __slots__ = ('id', 'group', 'action', 'sourceId')
+    __slots__ = ('id', 'group', 'action', 'target', 'escapes', 'value', 'sourceId')
     
     def __init__(self, obj):
         '''
@@ -57,6 +57,15 @@ class Marker:
         
         self.action = obj.get('Action')
         assert self.action is None or isinstance(self.action, str), 'Invalid action %s' % self.action
+        
+        self.target = obj.get('Target')
+        assert self.target is None or isinstance(self.target, str), 'Invalid target %s' % self.target
+        
+        self.escapes = obj.get('Escapes')
+        assert self.escapes is None or isinstance(self.escapes, dict), 'Invalid escapes %s' % self.escapes
+        
+        self.value = obj.get('Value')
+        assert self.value is None or isinstance(self.value, str), 'Invalid value %s' % self.value
         
         sourceId = obj.get('Source', immut()).get('Id')
         if sourceId is not None:
@@ -93,65 +102,85 @@ class Index:
         self.value = value
 
 # --------------------------------------------------------------------
-            
-def listFor(indexes, group=None, action=None):
+
+def isValidFor(index, group=None, action=None, target=None):
     '''
-    Lists the inject indexes.
+    Checks if the index is valid for the provided parameters.
+    
+    @param group: string|None
+        The group to check for, if None then all groups are considered valid.
+    @param action: string|None
+        The action to check for, if None then all actions are considered valid.
+    @param target: string|None
+        The target to check for, if None then all targets are considered valid.
+    @return: boolean
+        True if the index is valid for the provided filtering arguments, False otherwise.
+    '''
+    assert isinstance(index, Index), 'Invalid index %s' % index
+    assert isinstance(index.marker, Marker), 'Invalid index marker %s' % index.marker
+    assert group is None or isinstance(group, str), 'Invalid group %s' % group
+    assert action is None or isinstance(action, str), 'Invalid action %s' % action
+    assert target is None or isinstance(target, str), 'Invalid target %s' % target
+    
+    if group and index.marker.group != group: return False
+    if action and index.marker.action != action: return False
+    if target and index.marker.target != target: return False
+    return True
+
+def findFor(indexes, **filter):
+    '''
+    Finds the index for the provided filter.
     
     @param indexes: Iterable(Index)
         The iterable of indexes to search in.
-    @param group: string|None
-        The group to search for, if None then all groups are considered valid.
-    @param action: string|None
-        The action to search for, if None then all actions are considered valid.
+    @param filter: key arguments of string
+        The filter arguments, @see: isValidFor
+    @return: Index|None
+        The found index or None.
+    '''
+    assert isinstance(indexes, Iterable), 'Invalid indexes %s' % indexes
+    
+    for index in indexes:
+        if isValidFor(index, **filter): return index
+
+def listFor(indexes, **filter):
+    '''
+    Lists the indexes for the provided filter.
+    
+    @param indexes: Iterable(Index)
+        The iterable of indexes to search in.
+    @param filter: key arguments of string
+        The filter arguments, @see: isValidFor
     @return: list[Index]
         The list of inject indexes.
     '''
     assert isinstance(indexes, Iterable), 'Invalid indexes %s' % indexes
-    assert group is None or isinstance(group, str), 'Invalid group %s' % group
-    assert action is None or isinstance(action, str), 'Invalid action %s' % action
     
     filtered = []
     for index in indexes:
-        assert isinstance(index, Index), 'Invalid index %s' % index
-        assert isinstance(index.marker, Marker), 'Invalid index marker %s' % index.marker
-        
-        valid = True
-        if group and index.marker.group != group: valid = False
-        elif action and index.marker.action != action: valid = False
-        if valid: filtered.append(index)
+        if isValidFor(index, **filter): filtered.append(index)
         
     return filtered
 
-def iterWithInner(indexes, group=None, action=None):
+def iterWithInner(indexes, **filter):
     '''
-    Iterates the indexes for the provided filter parameters.
+    Iterates the indexes for the provided filter arguments.
     
     @param indexes: Iterable(Index)
         The iterable of indexes to search in.
-    @param group: string|None
-        The group to search for, if None then all groups are considered valid.
-    @param action: string|None
-        The action to search for, if None then all actions are considered valid.
+    @param filter: key arguments of string
+        The filter arguments, @see: isValidFor
     @return: Iterable(tuple(Index, list[Index]))
-        Iterates the tuples containing on the first position the index that respects the filtering parameters
+        Iterates the tuples containing on the first position the index that respects the filtering arguments
         and on the second the list of sub indexes regardless of their nature.
     '''
     assert isinstance(indexes, Iterable), 'Invalid indexes %s' % indexes
-    assert group is None or isinstance(group, str), 'Invalid group %s' % group
-    assert action is None or isinstance(action, str), 'Invalid action %s' % action
     
     indexes = iter(indexes)
     try: index = next(indexes)
     except StopIteration: return
     while True:
-        assert isinstance(index, Index), 'Invalid index %s' % index
-        assert isinstance(index.marker, Marker), 'Invalid index marker %s' % index.marker
-        valid = True
-        if group and index.marker.group != group: valid = False
-        elif action and index.marker.action != action: valid = False
-        
-        if valid:
+        if isValidFor(index, **filter):
             inner, finalized = [], False
             while True:
                 try: iindex = next(indexes)
