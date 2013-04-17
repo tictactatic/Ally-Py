@@ -15,8 +15,7 @@ from ally.api.type import Iter, Boolean, Integer, Number, Percentage, String, \
     Time, Date, DateTime, typeFor
 from ally.container.ioc import injected
 from ally.core.spec.resources import Normalizer
-from ally.core.spec.transform.encoder import IAttributes, IEncoder, \
-    EncoderWithAttributes
+from ally.core.spec.transform.encoder import IEncoder, EncoderWithSpecifiers
 from ally.core.spec.transform.render import IRender
 from ally.design.cache import CacheWeak
 from ally.design.processor.assembly import Assembly
@@ -27,7 +26,6 @@ from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain, Processing
 from ally.design.processor.handler import HandlerBranchingProceed
 from ally.exception import DevelError
-from ally.core.spec.transform.index import BLOCK, PREPARE
 
 # --------------------------------------------------------------------
 
@@ -42,7 +40,7 @@ class Create(Context):
     ''')
     # ---------------------------------------------------------------- Optional
     name = optional(str)
-    attributes = optional(IAttributes)
+    specifiers = optional(list)
     # ---------------------------------------------------------------- Required
     objType = requires(object)
     
@@ -129,10 +127,10 @@ class ModelEncode(HandlerBranchingProceed):
         
         if Create.name in create and create.name: name = create.name
         else: name = create.objType.container.name
-        if Create.attributes in create: attributes = create.attributes
-        else: attributes = None
+        if Create.specifiers in create: specifiers = create.specifiers or ()
+        else: specifiers = ()
         
-        cache = self._cache.key(propertyProcessing, modelExtraProcessing, name, attributes, create.objType)
+        cache = self._cache.key(propertyProcessing, modelExtraProcessing, name, create.objType, *specifiers)
         if not cache.has:
             properties = []
             for propType in self.sortedTypes(create.objType):
@@ -151,7 +149,7 @@ class ModelEncode(HandlerBranchingProceed):
             if CreateModelExtra.encoder in extraCreate: extra = extraCreate.encoder
             else: extra = None
                 
-            cache.value = EncoderModel(name, properties, extra, attributes)
+            cache.value = EncoderModel(name, properties, extra, specifiers)
         
         create.encoder = cache.value
         
@@ -181,19 +179,19 @@ class ModelEncode(HandlerBranchingProceed):
        
 # --------------------------------------------------------------------
 
-class EncoderModel(EncoderWithAttributes):
+class EncoderModel(EncoderWithSpecifiers):
     '''
     Implementation for a @see: IEncoder for model.
     '''
     
-    def __init__(self, name, properties, extra=None, attributes=None):
+    def __init__(self, name, properties, extra=None, specifiers=None):
         '''
         Construct the model encoder.
         '''
         assert isinstance(name, str), 'Invalid model name %s' % name
         assert isinstance(properties, list), 'Invalid properties %s' % properties
         assert extra is None or isinstance(extra, IEncoder), 'Invalid extra encoder %s' % extra
-        super().__init__(attributes)
+        super().__init__(specifiers)
         
         self.name = name
         self.properties = properties
@@ -210,11 +208,7 @@ class EncoderModel(EncoderWithAttributes):
         if Support.hideProperties in support: hideProperties = support.hideProperties
         else: hideProperties = False
         
-        if hideProperties: index = [BLOCK, PREPARE]
-        else: index = None
-        attributes = self.processAttributes(obj, support, index)
-        
-        render.beginObject(support.normalizer.normalize(self.name), attributes, index)
+        render.beginObject(support.normalizer.normalize(self.name), **self.populate(obj, support, indexBlock=True))
         if not hideProperties:
             for name, encoder in self.properties:
                 assert isinstance(encoder, IEncoder), 'Invalid property encoder %s' % encoder

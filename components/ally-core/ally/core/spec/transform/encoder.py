@@ -28,86 +28,63 @@ class IEncoder(metaclass=abc.ABCMeta):
         @param render: IRender
             The renderer to be used to output the encoded value.
         @param support: object
-            Support object containing additional data required for encoding.
+            Support context object containing additional data required for encoding.
         '''
 
-class IAttributes(metaclass=abc.ABCMeta):
+class ISpecifier(metaclass=abc.ABCMeta):
     '''
-    The attributes provider specification.
+    The specifications modifier for rendering.
     '''
     
     @abc.abstractmethod
-    def populate(self, obj, attributes, support, index=None):
+    def populate(self, obj, specifications, support):
         '''
-        Populates the attributes to be used by an encoder.
+        Populates the rendering specifications before being used by an encoder.
         
         @param obj: object
-            The value object to provide attributes based on.
-        @param attributes: dictionary{string: string}
-            The attributes dictionary to populate.
+            The value object to process based on.
+        @param specifications: dictionary{string: object}
+            The rendering specifications to process.
         @param support: object
-            Support object containing additional data required for attributes.
-        @param index: list[Index]|None
-            The list of index requests to push for rendering, None if no indexes are allowed from attributes.
+            Support context object containing additional data required for processing.
         '''
 
 # --------------------------------------------------------------------
 
-class EncoderWithAttributes(IEncoder):
+class EncoderWithSpecifiers(IEncoder):
     '''
-    Support implementation for a @see: IEncoder that also contains @see: IAttributes.
+    Support implementation for a @see: IEncoder that also contains @see: ISpecifier.
     '''
     
-    def __init__(self, attributes=None):
+    def __init__(self, specifiers=None):
         '''
-        Construct the encoder with attributes.
+        Construct the encoder with modifiers.
         
-        @param attributes: IAttributes|None
-            The attributes of the encoder.
+        @param specifiers: list[ISpecifier]|tuple(ISpecifier)|None
+            The specifiers of the encoder.
         '''
-        assert attributes is None or isinstance(attributes, IAttributes), 'Invalid attributes %s' % attributes
+        if __debug__:
+            if specifiers:
+                assert isinstance(specifiers, (list, tuple)), 'Invalid specifiers %s' % specifiers
+                for specifier in specifiers: assert isinstance(specifier, ISpecifier), 'Invalid specifier %s' % specifier
+                
+        self.specifiers = specifiers
         
-        self.attributes = attributes
-        
-    # ----------------------------------------------------------------
-    
-    def processAttributes(self, obj, support, index=None):
+    def populate(self, obj, support, **specifications):
         '''
-        Fetches the attributes.
+        Populates based on the contained specifiers the provided specifications.
         
         @param obj: object
-            The value object to provide attributes based on.
-        @param index: list[Index]
-            The list of index requests to push for rendering.
-        @return: dictionary{string: string}|None
-            The attributes dictionary, or None if there are no attributes.
+            The value object to process based on.
         @param support: object
-            Support object containing additional data required for attributes.
+            Support context object containing additional data required for processing.
+        @param specifications: key arguments
+            The rendering specifications to process.
+        @return: dictionary{string: object}
+            The rendering specifications.
         '''
-        if self.attributes is None: return
-        attributes = {}
-        self.attributes.populate(obj, attributes, support, index)
-        return attributes
-    
-class AttributesWrapper(IAttributes):
-    '''
-    Implementation for @see: IAttributes that wraps optionally other attributes.
-    '''
-    
-    def __init__(self, attributes=None):
-        '''
-        Construct the wrapped attributes.
-        
-        @param attributes: IAttributes|None
-            The attributes to join with.
-        '''
-        assert attributes is None or isinstance(attributes, IAttributes), 'Invalid attributes %s' % attributes
-        
-        self.attributes = attributes
-    
-    def populate(self, obj, attributes, support, index=None):
-        '''
-        @see: IAttributes.populate
-        '''
-        if self.attributes: self.attributes.populate(obj, attributes, support, index)
-        
+        if self.specifiers:
+            for specifier in self.specifiers:
+                assert isinstance(specifier, ISpecifier), 'Invalid specifier %s' % specifier
+                specifier.populate(obj, specifications, support)
+        return specifications

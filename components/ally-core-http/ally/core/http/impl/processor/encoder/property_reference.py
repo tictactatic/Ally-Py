@@ -9,13 +9,12 @@ Created on Mar 18, 2013
 Provides the reference types encoding.
 '''
 
+from .url_marker import NAME_HTTP_URL
 from ally.api.operator.type import TypeProperty
 from ally.api.type import TypeReference
 from ally.container.ioc import injected
-from ally.core.http.spec.transform.index import HTTP_URL
 from ally.core.spec.resources import Normalizer
 from ally.core.spec.transform.encoder import IEncoder
-from ally.core.spec.transform.index import AttrValue
 from ally.core.spec.transform.render import IRender
 from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
@@ -112,6 +111,6 @@ class EncoderReference(IEncoder):
         assert isinstance(support.encoderPath, IEncoderPath), 'Invalid path encoder %s' % support.encoderPath
         
         nameRef = support.normalizer.normalize(self.nameRef)
-        attributes = {nameRef: support.encoderPath.encode(obj)}
-        index = (AttrValue(HTTP_URL, nameRef),)  # TODO: Gabriel: add also prepare for blob
-        render.beginObject(support.normalizer.normalize(self.name), attributes, index).end()
+        render.beginObject(support.normalizer.normalize(self.name),
+                           attributes={nameRef: support.encoderPath.encode(obj)},
+                           indexAttributesCapture={nameRef: NAME_HTTP_URL}, indexBlock=True, indexPrepare=True).end()

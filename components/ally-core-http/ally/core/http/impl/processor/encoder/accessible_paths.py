@@ -9,11 +9,10 @@ Created on Mar 18, 2013
 Provides the accessible paths for a model.
 '''
 
+from .url_marker import NAME_HTTP_URL
 from ally.container.ioc import injected
-from ally.core.http.spec.transform.index import HTTP_URL
 from ally.core.spec.resources import Normalizer, Path
 from ally.core.spec.transform.encoder import IEncoder
-from ally.core.spec.transform.index import BLOCK, PREPARE, AttrValue
 from ally.core.spec.transform.render import IRender
 from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
@@ -101,9 +100,9 @@ class EncoderAccessiblePath(IEncoder):
         assert isinstance(support.encoderPath, IEncoderPath), 'Invalid path encoder %s' % support.encoderPath
         
         nameRef = support.normalizer.normalize(self.nameRef)
-        index = (BLOCK, PREPARE, AttrValue(HTTP_URL, nameRef))
+        indexes = dict(indexBlock=True, indexPrepare=True, indexAttributesCapture={nameRef: NAME_HTTP_URL})
         for name, path in support.pathsAccesible.items():
             assert isinstance(path, Path)
             if not path.isValid(): continue
-            attributes = {nameRef: support.encoderPath.encode(path)}
-            render.beginObject(support.normalizer.normalize(name), attributes, index).end()
+            render.beginObject(support.normalizer.normalize(name),
+                               attributes={nameRef: support.encoderPath.encode(path)}, **indexes).end()

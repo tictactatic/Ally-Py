@@ -15,6 +15,9 @@ from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessorProceed
 import json
+import binascii
+import zlib
+from io import BytesIO
 
 # --------------------------------------------------------------------
 
@@ -63,7 +66,29 @@ class IndexProviderHandler(HandlerProcessorProceed):
         
         value = response.headers.pop(self.nameIndex, None)  # Also making sure not to pass the index header.
         if not value: return  # No content index available for processing.
-        indexesJSON = json.loads(value)
+        assert isinstance(value, str), 'Invalid value %s' % value
+        bvalue = value.encode('ascii')
+        bvalue = binascii.a2b_base64(bvalue)
+        bvalue = zlib.decompress(bvalue)
+        read = BytesIO(bvalue)
+        
+        count, indexes = int.from_bytes(read.read(3), 'little'), []
+        while count > 0:
+            count -= 1
+            offset = int.from_bytes(read.read(3), 'little')
+            mark = int.from_bytes(read.read(1), 'little')
+            if mark > 0: valueId = int.from_bytes(read.read(2), 'little')
+            else: valueId = None
+            indexes.append((offset, mark, valueId))
+            
+        count, values = int.from_bytes(read.read(2), 'little'), {}
+        while count > 0:
+            count -= 1
+            valueId = int.from_bytes(read.read(2), 'little')
+            countValue = int.from_bytes(read.read(1), 'little')
+            values[valueId] = str(read.read(countValue), 'ascii')
+            
+        print(indexes, values)
         
         indexes, stack = [], []
         for at, mark, value in indexesJSON:

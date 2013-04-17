@@ -9,12 +9,11 @@ Created on Mar 8, 2013
 Provides the paths for properties of model.
 '''
 
+from .url_marker import NAME_HTTP_URL
 from ally.api.operator.type import TypeModel, TypeModelProperty
 from ally.container.ioc import injected
-from ally.core.http.spec.transform.index import HTTP_URL
 from ally.core.spec.resources import Path, Normalizer
-from ally.core.spec.transform.encoder import IAttributes, AttributesWrapper
-from ally.core.spec.transform.index import AttrValue
+from ally.core.spec.transform.encoder import ISpecifier
 from ally.design.cache import CacheWeak
 from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
@@ -28,9 +27,9 @@ class Create(Context):
     The create encoder context.
     '''
     # ---------------------------------------------------------------- Defined
-    attributes = defines(IAttributes, doc='''
-    @rtype: IAttributes
-    The attributes with the paths.
+    specifiers = defines(list, doc='''
+    @rtype: list[ISpecifier]
+    The specifiers for attributes with the paths.
     ''')
     # ---------------------------------------------------------------- Required
     objType = requires(object)
@@ -77,37 +76,33 @@ class PropertyOfModelPathAttributeEncode(HandlerProcessorProceed):
         assert isinstance(modelType, TypeModel)
         assert modelType.hasId(), 'Model type %s, has no id' % modelType
         
-        if create.attributes: attributes = create.attributes
-        else: attributes = None
+        cache = self._cache.key(modelType)
+        if not cache.has: cache.value = AttributesPath(self.nameRef, modelType.propertyTypeId())
         
-        cache = self._cache.key(modelType, attributes)
-        if not cache.has: cache.value = AttributesPath(self.nameRef, modelType.propertyTypeId(), attributes)
-        create.attributes = cache.value
+        if create.specifiers is None: create.specifiers = []
+        create.specifiers.append(cache.value)
 
 # --------------------------------------------------------------------
 
-class AttributesPath(AttributesWrapper):
+class AttributesPath(ISpecifier):
     '''
-    Implementation for a @see: IAttributes for paths.
+    Implementation for a @see: ISpecifier for attributes paths.
     '''
     
-    def __init__(self, nameRef, propertyType, attributes=None):
+    def __init__(self, nameRef, propertyType):
         '''
         Construct the paths attributes.
         '''
         assert isinstance(nameRef, str), 'Invalid reference name %s' % nameRef
         assert isinstance(propertyType, TypeModelProperty), 'Invalid property type %s' % propertyType
-        super().__init__(attributes)
         
         self.nameRef = nameRef
         self.propertyType = propertyType
         
-    def populate(self, obj, attributes, support, index=None):
+    def populate(self, obj, specifications, support, index=None):
         '''
-        @see: IAttributes.populate
+        @see: ISpecifier.populate
         '''
-        super().populate(obj, attributes, support, index)
-        
         assert isinstance(support, Support), 'Invalid support %s' % support
         if not support.pathsProperties: return  # No paths for models.
         
@@ -122,8 +117,14 @@ class AttributesPath(AttributesWrapper):
         path.update(obj, self.propertyType)
         if not path.isValid(): return
         
+        attributes = specifications.get('attributes')
+        if attributes is None: attributes = specifications['attributes'] = {}
+        assert isinstance(attributes, dict), 'Invalid attributes %s' % attributes
         nameRef = support.normalizer.normalize(self.nameRef)
         attributes[nameRef] = support.encoderPath.encode(path)
-        if index is not None:
-            assert isinstance(index, list), 'Invalid index %s' % index
-            index.append(AttrValue(HTTP_URL, nameRef))
+        
+        specifications['indexPrepare'] = True
+        indexAttributesCapture = specifications.get('indexAttributesCapture')
+        if indexAttributesCapture is None: indexAttributesCapture = specifications['indexAttributesCapture'] = {}
+        assert isinstance(indexAttributesCapture, dict), 'Invalid index attributes capture %s' % indexAttributesCapture
+        indexAttributesCapture[nameRef] = NAME_HTTP_URL

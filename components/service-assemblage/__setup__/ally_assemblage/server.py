@@ -14,7 +14,7 @@ from .processor import assemblyAssemblage, ASSEMBLAGE_EXTERNAL, \
     server_provide_assemblage
 from ally.container import ioc
 from ally.design.processor.handler import Handler
-from ally.assemblage.http.impl.processor.router import RoutingAssemblageHandler
+from ally.http.impl.processor.router_by_path import RoutingByPathHandler
 
 # --------------------------------------------------------------------
 
@@ -31,7 +31,7 @@ def server_pattern_assemblage():
 
 @ioc.entity
 def assemblageRouter() -> Handler:
-    b = RoutingAssemblageHandler()
+    b = RoutingByPathHandler()
     b.assembly = assemblyAssemblage()
     b.pattern = server_pattern_assemblage()
     return b

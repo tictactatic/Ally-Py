@@ -13,9 +13,7 @@ from ally.api.operator.container import Model
 from ally.api.operator.type import TypeModel, TypeModelProperty
 from ally.container.ioc import injected
 from ally.core.spec.resources import Normalizer
-from ally.core.spec.transform.encoder import IAttributes, IEncoder, \
-    EncoderWithAttributes
-from ally.core.spec.transform.index import BLOCK, PREPARE
+from ally.core.spec.transform.encoder import IEncoder, EncoderWithSpecifiers
 from ally.core.spec.transform.render import IRender
 from ally.design.cache import CacheWeak
 from ally.design.processor.assembly import Assembly
@@ -39,7 +37,7 @@ class Create(Context):
     ''')
     # ---------------------------------------------------------------- Optional
     name = optional(str)
-    attributes = optional(IAttributes)
+    specifiers = optional(list)
     # ---------------------------------------------------------------- Required
     objType = requires(object)
     
@@ -107,34 +105,34 @@ class ModelPropertyEncode(HandlerBranchingProceed):
         
         if Create.name in create and create.name: name = create.name
         else: name = modelType.container.name
-        if Create.attributes in create: attributes = create.attributes
-        else: attributes = None
+        if Create.specifiers in create: specifiers = create.specifiers or ()
+        else: specifiers = ()
         
-        cache = self._cache.key(propertyProcessing, name, attributes, propType)
+        cache = self._cache.key(propertyProcessing, name, propType, *specifiers)
         if not cache.has:
             chain = Chain(propertyProcessing)
             chain.process(create=propertyProcessing.ctx.create(objType=propType, name=propType.property), **keyargs).doAll()
             propCreate = chain.arg.create
             assert isinstance(propCreate, CreateProperty), 'Invalid create property %s' % propCreate
             if propCreate.encoder is None: raise DevelError('Cannot encode %s' % propType)
-            cache.value = EncoderModelProperty(name, propCreate.encoder, attributes)
+            cache.value = EncoderModelProperty(name, propCreate.encoder, specifiers)
         
         create.encoder = cache.value
 
 # --------------------------------------------------------------------
 
-class EncoderModelProperty(EncoderWithAttributes):
+class EncoderModelProperty(EncoderWithSpecifiers):
     '''
     Implementation for a @see: IEncoder for model property.
     '''
     
-    def __init__(self, name, encoder, attributes=None):
+    def __init__(self, name, encoder, specifiers=None):
         '''
         Construct the model property encoder.
         '''
         assert isinstance(name, str), 'Invalid model name %s' % name
         assert isinstance(encoder, IEncoder), 'Invalid property encoder %s' % encoder
-        super().__init__(attributes)
+        super().__init__(specifiers)
         
         self.name = name
         self.encoder = encoder
@@ -149,10 +147,7 @@ class EncoderModelProperty(EncoderWithAttributes):
         
         if Support.hideProperties in support: hideProperties = support.hideProperties
         else: hideProperties = False
-        
-        index = [BLOCK, PREPARE]
-        attributes = self.processAttributes(obj, support, index)
             
-        render.beginObject(support.normalizer.normalize(self.name), attributes, index)
+        render.beginObject(support.normalizer.normalize(self.name), **self.populate(obj, support, indexBlock=True))
         if not hideProperties: self.encoder.render(obj, render, support)
         render.end()

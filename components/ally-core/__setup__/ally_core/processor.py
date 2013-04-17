@@ -10,15 +10,13 @@ Provides the configurations for the processors used in handling the request.
 '''
 
 from .encode import assemblyEncode
-from .parsing_rendering import assemblyRendering, assemblyParsing, \
-    registriesMarkers
+from .parsing_rendering import assemblyRendering, assemblyParsing
 from ally.container import ioc
 from ally.core.impl.processor.arguments import ArgumentsPrepareHandler, \
     ArgumentsBuildHandler
 from ally.core.impl.processor.content import ContentHandler
 from ally.core.impl.processor.decoder import CreateDecoderHandler
 from ally.core.impl.processor.encoding import EncodingHandler
-from ally.core.impl.processor.indexer import IndexerProviderHandler
 from ally.core.impl.processor.invoking import InvokingHandler
 from ally.core.impl.processor.parsing import ParsingHandler
 from ally.core.impl.processor.render_encoder import RenderEncoderHandler
@@ -58,9 +56,6 @@ def converter() -> Converter: return Converter()
 
 @ioc.entity
 def argumentsPrepare() -> Handler: return ArgumentsPrepareHandler()
-
-@ioc.entity
-def indexer() -> Handler: return IndexerProviderHandler()
 
 @ioc.entity
 def rendering() -> Handler:
@@ -120,10 +115,3 @@ def invoking() -> Handler: return InvokingHandler()
 
 @ioc.entity
 def renderEncoder() -> Handler: return RenderEncoderHandler()
-
-# --------------------------------------------------------------------
-
-@ioc.before(registriesMarkers)
-def addRegistryMarkerIndexer():
-    registriesMarkers().append(indexer())
-    

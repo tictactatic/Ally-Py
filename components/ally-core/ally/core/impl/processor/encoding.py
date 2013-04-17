@@ -14,7 +14,7 @@ from ally.core.spec.resources import Invoker
 from ally.core.spec.transform.encoder import IEncoder
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines
-from ally.design.processor.branch import Using
+from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context, pushIn
 from ally.design.processor.execution import Processing, Chain
 from ally.design.processor.handler import HandlerBranchingProceed
@@ -75,7 +75,8 @@ class EncodingHandler(HandlerBranchingProceed):
     
     def __init__(self):
         assert isinstance(self.encodeAssembly, Assembly), 'Invalid encode assembly %s' % self.encodeAssembly
-        super().__init__(Using(self.encodeAssembly, ('support', 'response'), ('support', 'request'), create=Create))
+        super().__init__(Branch(self.encodeAssembly).
+                         using(('support', 'response'), ('support', 'request'), create=Create).included())
 
     def process(self, encodeProcessing, request:Request, response:Response, **keyargs):
         '''
@@ -93,7 +94,7 @@ class EncodingHandler(HandlerBranchingProceed):
         
         chain = Chain(encodeProcessing)
         chain.process(create=encodeProcessing.ctx.create(objType=request.invoker.output),
-                      support=pushIn(encodeProcessing.ctx.support(), response, request)).doAll()
+                      support=pushIn(encodeProcessing.ctx.support(), response, request), **keyargs).doAll()
         create, support = chain.arg.create, chain.arg.support
         assert isinstance(create, Create), 'Invalid create %s' % create
         if create.encoder is None: raise DevelError('Cannot encode response type \'%s\'' % request.invoker.output)

@@ -54,7 +54,7 @@ class RoutingByPathHandler(HandlerBranching):
         
         self._regex = re.compile(self.pattern)
             
-    def process(self, chain, processing, request:Request, requestCnt:Context, response:Context, responseCnt:Context):
+    def process(self, chain, processing, request:Request, **keyargs):
         '''
         @see: HandlerBranching.process
         
@@ -67,7 +67,6 @@ class RoutingByPathHandler(HandlerBranching):
         match = self._regex.match(request.uri)
         if match:
             request.uri = ''.join(match.groups())
-            chain.update(request=request, requestCnt=requestCnt, response=response, responseCnt=responseCnt)
             chain.branch(processing)
         else:
             chain.proceed()

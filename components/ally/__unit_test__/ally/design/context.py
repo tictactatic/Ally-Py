@@ -18,7 +18,7 @@ if True:
 
 from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context, create
-from ally.design.processor.spec import Resolvers
+from ally.design.processor.resolvers import merge, resolversFor
 import unittest
 
 # --------------------------------------------------------------------
@@ -43,8 +43,8 @@ class E(F, D):
     p2 = optional(str)
     p3 = optional(str)
 
-resolvers = Resolvers(contexts=dict(I=B))
-resolvers.merge(dict(I=F))
+resolvers = resolversFor(dict(I=B))
+merge(resolvers, dict(I=F))
 ctx = create(resolvers)
 I = ctx['I']
 

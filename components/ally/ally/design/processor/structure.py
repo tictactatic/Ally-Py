@@ -9,7 +9,7 @@ Created on Mar 15, 2013
 Provides manipulator structure classes.
 '''
 
-from ally.design.processor.spec import IResolver
+from .spec import IResolver
 from collections import Iterable
 
 # --------------------------------------------------------------------
@@ -44,10 +44,44 @@ def restructureData(data, mapping, reversed=False):
             
         if nameFrom in data: restructured[nameTo] = data[nameFrom]
     return restructured
-    
-def restructureResolvers(resolvers, mapping, reversed=False):
+
+def extractResolvers(resolvers, mapping, reversed=False):
     '''
-    Restructures the data based on the provided mapping.
+    Extracts the resolvers based on the provided mapping.
+    
+    @param resolvers: dictionary{string: IResolver}
+        The resolvers to extract from.
+    @param mapping: Iterable(string|tuple(string, string))
+        The mapping to make the extract by.
+    @param reversed: boolean
+        Flag indicating that the extraction should be done in reversed.
+    @return: dictionary{string: IResolver}
+        The extracted resolvers.
+    '''
+    assert isinstance(resolvers, dict), 'Invalid resolvers %s' % resolvers
+    assert isinstance(mapping, Iterable), 'Invalid mapping %s' % mapping
+    assert isinstance(reversed, bool), 'Invalid reversed flag %s' % reversed
+    
+    extracted = {}
+    for name in mapping:
+        if isinstance(name, tuple):
+            if reversed: nameFrom, nameTo = name
+            else: nameTo, nameFrom = name
+            assert isinstance(nameFrom, str), 'Invalid name from %s' % nameFrom
+            assert isinstance(nameTo, str), 'Invalid name to %s' % nameTo
+        else:
+            assert isinstance(name, str), 'Invalid mapping name %s' % name
+            nameFrom = name
+        
+        resolver = resolvers.pop(nameFrom, None)
+        if resolver:
+            assert isinstance(resolver, IResolver), 'Invalid resolver %s' % resolver
+            extracted[nameFrom] = resolver
+    return extracted
+
+def restructureResolvers(resolvers, mapping, reversed=False, remove=False):
+    '''
+    Restructures the resolvers based on the provided mapping.
     
     @param resolvers: dictionary{string: IResolver}
         The resolvers to restructure.
@@ -55,12 +89,15 @@ def restructureResolvers(resolvers, mapping, reversed=False):
         The mapping to make the restructure by.
     @param reversed: boolean
         Flag indicating that the mapping should be done in reversed.
+    @param remove: boolean
+        Flag indicating that the restructured contexts should be removed from the resolvers.
     @return: dictionary{string: IResolver}
         The restructured resolvers.
     '''
     assert isinstance(resolvers, dict), 'Invalid resolvers %s' % resolvers
     assert isinstance(mapping, Iterable), 'Invalid mapping %s' % mapping
     assert isinstance(reversed, bool), 'Invalid reversed flag %s' % reversed
+    assert isinstance(remove, bool), 'Invalid remove flag %s' % remove
     
     restructured = {}
     for name in mapping:
@@ -73,7 +110,8 @@ def restructureResolvers(resolvers, mapping, reversed=False):
             assert isinstance(name, str), 'Invalid mapping name %s' % name
             nameFrom = nameTo = name
         
-        resolver = resolvers.get(nameFrom)
+        if remove: resolver = resolvers.pop(nameFrom, None)
+        else: resolver = resolvers.get(nameFrom)
         if resolver:
             assert isinstance(resolver, IResolver), 'Invalid resolver %s' % resolver
             rresolver = restructured.get(nameTo)

@@ -9,13 +9,11 @@ Created on Mar 8, 2013
 Provides the paths for a model.
 '''
 
+from .url_marker import NAME_HTTP_URL
 from ally.api.operator.type import TypeModel, TypeModelProperty
 from ally.container.ioc import injected
-from ally.core.http.spec.transform.index import HTTP_URL
 from ally.core.spec.resources import Path, Normalizer
-from ally.core.spec.transform.encoder import IAttributes, AttributesWrapper
-from ally.core.spec.transform.index import AttrValue
-from ally.design.cache import CacheWeak
+from ally.core.spec.transform.encoder import ISpecifier
 from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessorProceed
@@ -28,9 +26,9 @@ class Create(Context):
     The create encoder context.
     '''
     # ---------------------------------------------------------------- Defined
-    attributes = defines(IAttributes, doc='''
-    @rtype: IAttributes
-    The attributes with the paths.
+    specifiers = defines(list, doc='''
+    @rtype: list[ISpecifier]
+    The specifiers for attributes with the paths.
     ''')
     # ---------------------------------------------------------------- Required
     objType = requires(object)
@@ -60,8 +58,7 @@ class ModelPathAttributeEncode(HandlerProcessorProceed):
         assert isinstance(self.nameRef, str), 'Invalid reference name %s' % self.nameRef
         super().__init__(support=Support)
         
-        self._cache = CacheWeak()
-        self._attributes = AttributesModelPath(self.nameRef)
+        self._path = AttributeModelPath(self.nameRef)
         
     def process(self, create:Create, **keyargs):
         '''
@@ -74,35 +71,28 @@ class ModelPathAttributeEncode(HandlerProcessorProceed):
         if not isinstance(create.objType, (TypeModel, TypeModelProperty)): return
         # Model not valid for paths, move along.
         
-        if create.attributes:
-            cache = self._cache.key(create.attributes)
-            if not cache.has: cache.value = AttributesModelPath(self.nameRef, create.attributes)
-            create.attributes = cache.value
-        else:
-            create.attributes = self._attributes
+        if create.specifiers is None: create.specifiers = []
+        create.specifiers.append(self._path)
 
 # --------------------------------------------------------------------
 
-class AttributesModelPath(AttributesWrapper):
+class AttributeModelPath(ISpecifier):
     '''
-    Implementation for a @see: IAttributes for paths.
+    Implementation for a @see: ISpecifier for paths.
     '''
     
-    def __init__(self, nameRef, attributes=None):
+    def __init__(self, nameRef):
         '''
         Construct the paths attributes.
         '''
         assert isinstance(nameRef, str), 'Invalid reference name %s' % nameRef
-        super().__init__(attributes)
         
         self.nameRef = nameRef
         
-    def populate(self, obj, attributes, support, index=None):
+    def populate(self, obj, specifications, support):
         '''
         @see: IAttributes.populate
         '''
-        super().populate(obj, attributes, support, index)
-        
         assert isinstance(support, Support), 'Invalid support %s' % support
         if not support.pathModel: return  # No path to construct attributes for.
         
@@ -112,10 +102,16 @@ class AttributesModelPath(AttributesWrapper):
         assert isinstance(support.encoderPath, IEncoderPath), 'Invalid path encoder %s' % support.encoderPath
         
         if not support.pathModel.isValid(): return
-        assert isinstance(attributes, dict), 'Invalid attributes %s' % attributes
+        assert isinstance(specifications, dict), 'Invalid specifications %s' % specifications
         
+        attributes = specifications.get('attributes')
+        if attributes is None: attributes = specifications['attributes'] = {}
+        assert isinstance(attributes, dict), 'Invalid attributes %s' % attributes
         nameRef = support.normalizer.normalize(self.nameRef)
         attributes[nameRef] = support.encoderPath.encode(support.pathModel)
-        if index is not None:
-            assert isinstance(index, list), 'Invalid index %s' % index
-            index.append(AttrValue(HTTP_URL, nameRef))
+        
+        specifications['indexPrepare'] = True
+        indexAttributesCapture = specifications.get('indexAttributesCapture')
+        if indexAttributesCapture is None: indexAttributesCapture = specifications['indexAttributesCapture'] = {}
+        assert isinstance(indexAttributesCapture, dict), 'Invalid index attributes capture %s' % indexAttributesCapture
+        indexAttributesCapture[nameRef] = NAME_HTTP_URL

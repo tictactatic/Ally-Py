@@ -14,8 +14,7 @@ from ally.api.operator.type import TypeModel, TypeModelProperty
 from ally.api.type import Iter
 from ally.container.ioc import injected
 from ally.core.spec.resources import Normalizer
-from ally.core.spec.transform.encoder import IAttributes, IEncoder, \
-    EncoderWithAttributes
+from ally.core.spec.transform.encoder import IEncoder, EncoderWithSpecifiers
 from ally.core.spec.transform.render import IRender
 from ally.design.cache import CacheWeak
 from ally.design.processor.assembly import Assembly
@@ -40,7 +39,7 @@ class Create(Context):
     ''')
     # ---------------------------------------------------------------- Optional
     name = optional(str)
-    attributes = optional(IAttributes)
+    specifiers = optional(list)
     # ---------------------------------------------------------------- Required
     objType = requires(object)
 
@@ -106,49 +105,48 @@ class CollectionEncode(HandlerBranchingProceed):
                 raise DevelError('Cannot get collection name for item %s' % itemType)
             assert isinstance(itemType.container, Model), 'Invalid model %s' % itemType.container
             name = self.nameMarkedList % itemType.container.name
-        if Create.attributes in create: attributes = create.attributes
-        else: attributes = None
+        if Create.specifiers in create: specifiers = create.specifiers or ()
+        else: specifiers = ()
         
-        cache = self._cache.key(itemProcessing, name, attributes, itemType)
+        cache = self._cache.key(itemProcessing, name, itemType, *specifiers)
         if not cache.has:
             chain = Chain(itemProcessing)
             chain.process(create=itemProcessing.ctx.create(objType=itemType)).doAll()
             createItem = chain.arg.create
             assert isinstance(createItem, CreateItem), 'Invalid create item %s' % createItem
             if createItem.encoder is None: raise DevelError('Cannot encode %s' % itemType)
-            cache.value = EncoderCollection(name, createItem.encoder, attributes)
+            cache.value = EncoderCollection(name, createItem.encoder, specifiers)
         
         create.encoder = cache.value
 
 # --------------------------------------------------------------------
 
-class EncoderCollection(EncoderWithAttributes):
+class EncoderCollection(EncoderWithSpecifiers):
     '''
     Implementation for a @see: IEncoder for collections.
     '''
     
-    def __init__(self, name, encoder, attributes=None):
+    def __init__(self, name, encoder, specifiers=None):
         '''
         Construct the collection encoder.
         '''
         assert isinstance(name, str), 'Invalid name %s' % name
         assert isinstance(encoder, IEncoder), 'Invalid item encoder %s' % encoder
-        super().__init__(attributes)
+        super().__init__(specifiers)
         
         self.name = name
         self.encoder = encoder
         
-    def render(self, obj, render, support):
+    def render(self, obj, renderer, support):
         '''
         @see: IEncoder.render
         '''
         assert isinstance(obj, Iterable), 'Invalid collection object %s' % obj
-        assert isinstance(render, IRender), 'Invalid render %s' % render
+        assert isinstance(renderer, IRender), 'Invalid renderer %s' % renderer
         assert isinstance(support, Support), 'Invalid support %s' % support
         assert isinstance(support.normalizer, Normalizer), 'Invalid normalizer %s' % support.normalizer
         
-        render.beginCollection(support.normalizer.normalize(self.name), self.processAttributes(obj, support))
-        for objItem in obj: self.encoder.render(objItem, render, support)
-        render.end()
-        
+        renderer.beginCollection(support.normalizer.normalize(self.name), **self.populate(obj, support))
+        for objItem in obj: self.encoder.render(objItem, renderer, support)
+        renderer.end()
         

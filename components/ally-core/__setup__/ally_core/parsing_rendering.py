@@ -12,14 +12,15 @@ Provides the setups for the parsing/rendering processors.
 from ally.container import ioc
 from ally.core.impl.processor.parser.text import ParseTextHandler
 from ally.core.impl.processor.parser.xml import ParseXMLHandler
+from ally.core.impl.processor.render.base import GeneralMarkersHandler
 from ally.core.impl.processor.render.json import RenderJSONHandler
 from ally.core.impl.processor.render.text import RenderTextHandler
-from ally.core.impl.processor.render.xml import RenderXMLHandler
+from ally.core.impl.processor.render.xml import RenderXMLHandler, \
+    XMLMarkersHandler
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.handler import Handler
 import codecs
 import logging
-from ally.core.spec.transform.index import registerDefaultMarks
 
 # --------------------------------------------------------------------
 
@@ -102,11 +103,17 @@ def assemblyRendering() -> Assembly:
     return Assembly('Renderer response')
 
 @ioc.entity
-def registriesMarkers() -> list:
+def assemblyMarkersProviders() -> Assembly:
     '''
-    The list of @see: IMarkRegistry to push the marks to.
+    The assembly containing the markers providers.
     '''
-    return []
+    return Assembly('Markers providers')
+
+@ioc.entity
+def markersGeneral() -> Handler: return GeneralMarkersHandler()
+
+@ioc.entity
+def markersXML() -> Handler: return XMLMarkersHandler()
 
 @ioc.entity
 def renderJSON() -> Handler:
@@ -117,7 +124,6 @@ def renderJSON() -> Handler:
 def renderXML() -> Handler:
     b = RenderXMLHandler(); yield b
     b.contentTypes = content_types_xml()
-    b.registries = registriesMarkers()
 
 # --------------------------------------------------------------------
 
@@ -125,15 +131,16 @@ def renderXML() -> Handler:
 def updateAssemblyParsing():
     assemblyParsing().add(parseJSON())
     assemblyParsing().add(parseXML())
-    
+
+@ioc.before(assemblyMarkersProviders)
+def updateAssemblyMarkersProviders():
+    assemblyMarkersProviders().add(markersGeneral())
+    assemblyMarkersProviders().add(markersXML())
+
 @ioc.before(assemblyRendering)
 def updateAssemblyRendering():
     assemblyRendering().add(renderJSON())
     assemblyRendering().add(renderXML())
-    
-@ioc.after(registriesMarkers)
-def updateRegistriesMarkersWithDefaults():
-    for registry in registriesMarkers(): registerDefaultMarks(registry)
     
 try: import yaml
 except ImportError: log.info('No YAML library available, no yaml available for output or input')

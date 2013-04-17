@@ -13,6 +13,19 @@ from ally.support.util import immut
 import abc
 
 # --------------------------------------------------------------------
+# Standard flags
+
+LIST_UNAVAILABLE = 'List unavailable attributes'
+# Flag indicating that the unavailable attributes names should be iterated.
+LIST_UNUSED = 'List unused attributes'
+# Flag indicating that the unused attributes names should be iterated.
+LIST_CLASSES = 'List used in classes for attributes'
+# Flag indicating that the classes where an attribute is used should be provided as a value.
+
+CREATE_DEFINITION = 'Create definition attributes'
+# Flag indicating that definition attributes need to be created.
+
+# --------------------------------------------------------------------
 
 class AttrError(Exception):
     '''
@@ -33,19 +46,6 @@ class AssemblyError(Exception):
     '''
     Raised when there is an assembly problem.
     '''
-
-# --------------------------------------------------------------------
-# Standard flags
-
-LIST_UNAVAILABLE = 'List unavailable attributes'
-# Flag indicating that the unavailable attributes names should be iterated.
-LIST_UNUSED = 'List unused attributes'
-# Flag indicating that the unused attributes names should be iterated.
-LIST_CLASSES = 'List used in classes for attributes'
-# Flag indicating that the classes where an attribute is used should be provided as a value.
-
-CREATE_DEFINITION = 'Create definition attributes'
-# Flag indicating that definition attributes need to be created.
 
 # --------------------------------------------------------------------
 
@@ -253,3 +253,18 @@ class ContextMetaClass(abc.ABCMeta):
     
     def __str__(self):
         return '<context \'%s.%s(%s)\'>' % (self.__module__, self.__name__, ', '.join(self.__attributes__))
+
+# --------------------------------------------------------------------
+
+def isNameForClass(name):
+    '''
+    Function used for determining if a context name is targeting a class rather then a value.
+    
+    @param name: string
+        The name to check.
+    @return: boolean
+        True if the name represents a context class name by convention, False otherwise.
+    '''
+    assert isinstance(name, str), 'Invalid name %s' % name
+    assert name, 'Invalid empty name'
+    return name[:1].lower() != name[:1]

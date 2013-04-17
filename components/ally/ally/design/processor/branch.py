@@ -16,7 +16,7 @@ from .resolvers import copyAttributes, attributesFor, extractContexts, solve, \
     merge, checkIf, reportFor
 from .spec import ContextMetaClass, IReport, IProcessor, AssemblyError, \
     LIST_UNAVAILABLE
-from .structure import restructureResolvers
+from .structure import restructureResolvers, extractResolvers
 import abc
 
 # --------------------------------------------------------------------
@@ -167,8 +167,159 @@ class Routing(WithAssembly):
         except:
             raise AssemblyError('Resolvers problems on Routing for \'%s\'\n, with resolvers:%s\n'
                                 ', and extensions:%s' % (self.name(), reportFor(rresolvers), reportFor(rextensions)))
+
+class Branch(WithAssembly):
+    '''
+    Multiple purpose Branch that can be configured. The order in which the configurations are provided is very important
+    since contexts are processed in the provided configuring order.
+    '''
+
+    def __init__(self, assembly):
+        '''
+        Construct the multiple purpose branch.
+        @see: WithAssembly.__init__
+        '''
+        super().__init__(assembly)
+        
+        self._configurations = []
+        
+    def using(self, *names, **contexts):
+        '''
+        Register the context names required for using, basically the contexts that need to be present on the processing.
+        
+        @param names: arguments[string|tuple(string, string)]
+            The current contexts names to be used from the ongoing process, or mappings that the using needs to make,
+            attention the order in which the context mappings are provided
+            is crucial, examples:
+                ('request', 'solicitation')
+                    The assembly will receive as the 'request' context the 'solicitation' context.
+                ('request', 'solicitation'), ('request': 'response')
+                    The assembly will receive as the 'request' context the 'solicitation' and 'response' context.
+                ('solicitation', 'request'), ('response': 'request')
+                    The assembly will receive as the 'solicitation' and 'response' context the 'request' context.
+        @param contexts: key arguments{string, ContextMetaClass}
+            The contexts to be solved by the used container.
+        @return: self
+            This branch for chaining purposes.
+        '''
+        if __debug__:
+            for name in names: assert isinstance(name, (str, tuple)), 'Invalid only name %s' % name
+            assert len(set(names)) == len(names), 'Cannot have duplicated names'
+            for name, clazz in contexts.items():
+                assert isinstance(name, str), 'Invalid context name %s' % name
+                assert isinstance(clazz, ContextMetaClass), 'Invalid context class %s' % clazz
+            assert names or contexts, 'At least a name or context is required'
             
-class Using(WithAssembly):
+        self._configurations.append(('using', names, contexts))
+        return self
+        
+    def included(self, *names):
+        '''
+        Register the context names required for including, if no names are provided then all available contexts at this point
+        (the ones that are not used or included already) are considered for including.
+        
+        @param names: arguments[string|tuple(string, string)]
+            The contexts names to be included, or mappings to alter the included context names based on, attention the
+            order in which the context mappings are provided is crucial, examples:
+                ('request', 'solicitation')
+                    The assembly will receive as the 'request' context the 'solicitation' context.
+                ('request', 'solicitation'), ('request': 'response')
+                    The assembly will receive as the 'request' context the 'solicitation' and 'response' context.
+                ('solicitation', 'request'), ('response': 'request')
+                    The assembly will receive as the 'solicitation' and 'response' context the 'request' context.
+        @return: self
+            This branch for chaining purposes.
+        '''
+        if __debug__:
+            for name in names: assert isinstance(name, (str, tuple)), 'Invalid only name %s' % name
+            assert len(set(names)) == len(names), 'Cannot have duplicated names'
+        
+        self._configurations.append(('included', names, None))
+        return self
+        
+    # ----------------------------------------------------------------
+    
+    def process(self, sources, resolvers, extensions, report):
+        '''
+        @see: IBrach.process
+        '''
+        assert self._configurations, 'No configurations available'
+        assert isinstance(report, IReport), 'Invalid report %s' % report
+        
+        report = report.open('Branch \'%s\'' % self.name())
+        
+        sourcesForInclude, sourcesForUsing, resolversForUsing = dict(sources), dict(sources), dict(resolvers)
+        unames, inames, iall = set(), set(), False
+        bsources, sourcesUsing = {}, {}
+        for action, names, contexts in self._configurations:
+            if action == 'using':
+                assert names or contexts, 'At least a name or context is required'
+                try:
+                    if names:
+                        unames.update(names)
+                        usources = restructureResolvers(resolversForUsing, names, remove=True)
+                        solve(usources, restructureResolvers(sourcesForUsing, names, remove=True))
+                        restructureResolvers(sourcesForInclude, names, remove=True)
+                        # We just need to remove from the include sources the ones that are used
+                    else: usources = {}
+                    unames.update(contexts)
+                    merge(usources, contexts)
+                    merge(bsources, usources)
+                    solve(sourcesUsing, usources)
+                except: raise AssemblyError('Cannot process Using for \'%s\'' % self.name())
+            else:
+                assert action == 'included', 'Unknown action %s' % action
+                assert not contexts, 'No contexts allowed'
+                try:
+                    if names:
+                        inames.update(names)
+                        merge(bsources, restructureResolvers(sourcesForInclude, names, remove=True))
+                    else:
+                        iall = True
+                        merge(bsources, sourcesForInclude)
+                        sourcesForInclude.clear()
+                except: raise AssemblyError('Cannot process Include for \'%s\'' % self.name())
+        
+        bresolvers, bextensions = {}, {}
+        try: calls = self._processAssembly(bsources, bresolvers, bextensions, report)
+        except: raise AssemblyError('Cannot process Branch for \'%s\'' % self.name())
+        
+        try:
+            uresolvers = solve(extractResolvers(bresolvers, unames, reversed=True), sourcesUsing, joined=False)
+            if checkIf(uresolvers, LIST_UNAVAILABLE):
+                raise AssemblyError('Using for \'%s\' has unavailable attributes:%s' % 
+                                    (self.name(), reportFor(uresolvers, LIST_UNAVAILABLE)))
+            solve(uresolvers, extractResolvers(bextensions, unames, reversed=True))
+            uextensions = restructureResolvers(uresolvers, unames, reversed=True)
+            uextensions = copyAttributes(uextensions, attributesFor(resolvers))
+            merge(extensions, uextensions)
+            
+            report.add(uresolvers)
+            contexts = create(uresolvers)
+        
+        except AssemblyError: raise
+        except:
+            raise AssemblyError('Resolvers problems on Branch using for \'%s\'\n, with sources:%s\n, with processors:%s\n'
+                    ', and extensions:%s' % (self.name(), reportFor(usources), reportFor(bresolvers), reportFor(bextensions)))
+        
+        try:
+            iresolvers = restructureResolvers(bresolvers, inames, reversed=True, remove=True)
+            iextensions = restructureResolvers(bextensions, inames, reversed=True, remove=True)
+            if iall:
+                solve(iresolvers, bresolvers)
+                solve(iextensions, bextensions)
+            
+            solve(resolvers, iresolvers)
+            solve(extensions, iextensions)
+            return Processing(calls, contexts)
+        
+        except AssemblyError: raise
+        except:
+            raise AssemblyError('Resolvers problems on Branch include for \'%s\'\n, with sources:%s\n, with processors:%s\n'
+                    ', and extensions:%s' % (self.name(), reportFor(sources), reportFor(bresolvers), reportFor(bextensions)))
+
+#TODO: replace everywhere with Branch
+class Using(Branch):
     '''
     Branch for using processors containers. By using is understood that the processors will be executed separately
     from the main chain and they need to solve the provided contexts. 
@@ -193,52 +344,9 @@ class Using(WithAssembly):
         @param contexts: key arguments{string, ContextMetaClass}
             The contexts to be solved by the used container.
         '''
-        if __debug__:
-            for name in current: assert isinstance(name, (str, tuple)), 'Invalid current context name %s' % name
-            assert len(set(current)) == len(current), 'Cannot have duplicated current names'
-            for name, clazz in contexts.items():
-                assert isinstance(name, str), 'Invalid context name %s' % name
-                assert isinstance(clazz, ContextMetaClass), 'Invalid context class %s' % clazz
-        super().__init__(assembly)
-        
-        self._current = current
-        self._contexts = contexts
-    
-    def process(self, sources, resolvers, extensions, report):
-        '''
-        @see: IBrach.process
-        '''
-        assert isinstance(report, IReport), 'Invalid report %s' % report
-        
-        report = report.open('Using \'%s\'' % self.name())
-        
-        try:
-            usources = restructureResolvers(resolvers, self._current)
-            solve(usources, restructureResolvers(sources, self._current))
-            merge(usources, self._contexts)
-            uextensions, uresolvers = {}, {}
-            calls = self._processAssembly(usources, uresolvers, uextensions, report)
-            
-        except: raise AssemblyError('Cannot process Using for \'%s\'' % self.name())
-        
-        try:
-            solve(uresolvers, usources, False)
-            if checkIf(uresolvers, LIST_UNAVAILABLE):
-                raise AssemblyError('Using for \'%s\' has unavailable attributes:%s' % 
-                                    (self.name(), reportFor(uresolvers, LIST_UNAVAILABLE)))
-            solve(uresolvers, uextensions)
-            cextensions = restructureResolvers(uresolvers, self._current, True)
-            cextensions = copyAttributes(cextensions, attributesFor(resolvers))
-            merge(extensions, cextensions)
-            
-            report.add(uresolvers)
-            return Processing(calls, create(uresolvers))
-        
-        except AssemblyError: raise
-        except:
-            raise AssemblyError('Resolvers problems on Using for \'%s\'\n, with sources:%s\n, with processors:%s\n'
-                    ', and extensions:%s' % (self.name(), reportFor(usources), reportFor(uresolvers), reportFor(uextensions)))
+        super().__init__(assembly).using(*current, **contexts)
 
+#TODO: replace everywhere with Branch
 class Included(WithAssembly):
     '''
     Branch for included processors containers. By included is understood that the processors will be executed using the
@@ -318,11 +426,11 @@ class Included(WithAssembly):
             iresolvers, iextensions = {}, {}
             calls = self._processAssembly(sources, iresolvers, iextensions, report)
             if self._names:
-                iresolvers = restructureResolvers(iresolvers, self._names, True)
-                iextensions = restructureResolvers(iextensions, self._names, True)
+                iresolvers = restructureResolvers(iresolvers, self._names, reversed=True)
+                iextensions = restructureResolvers(iextensions, self._names, reversed=True)
             
             uresolvers = extractContexts(iresolvers, self._usingNames)
-            uresolvers = solve(uresolvers, self._usingContexts)
+            solve(uresolvers, self._usingContexts)
             if checkIf(uresolvers, LIST_UNAVAILABLE):
                 raise AssemblyError('Included for \'%s\' has unavailable attributes:%s' % 
                                     (self.name(), reportFor(uresolvers, LIST_UNAVAILABLE)))

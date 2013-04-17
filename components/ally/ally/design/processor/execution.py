@@ -9,7 +9,7 @@ Created on Feb 11, 2013
 Contains the classes used in the execution of processors.
 '''
 
-from .spec import ContextMetaClass
+from .spec import ContextMetaClass, isNameForClass
 from collections import Iterable, deque
 import logging
 
@@ -102,8 +102,8 @@ class Processing:
         '''
         for name, clazz in self.contexts:
             if name not in keyargs:
-                if name[:1].lower() == name[:1]: keyargs[name] = clazz()
-                else: keyargs[name] = clazz
+                if isNameForClass(name): keyargs[name] = clazz
+                else: keyargs[name] = clazz()
         return keyargs
 
 class Chain:
@@ -296,6 +296,7 @@ class Chain:
         try: call(self, **self.arg.__dict__)
         except:
             if self._callBacksErrors:
+                assert log.exception('Problems occurred for %s', call) or True
                 self._proceed = False
                 while self._callBacksErrors: self._callBacksErrors.pop()()
             else: raise

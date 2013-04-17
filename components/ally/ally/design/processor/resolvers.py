@@ -9,8 +9,8 @@ Created on Mar 16, 2013
 Provides utility functions for handling resolvers.
 '''
 
-from ally.design.processor.spec import ContextMetaClass, IAttribute, IResolver, \
-    LIST_CLASSES
+from .spec import ContextMetaClass, IAttribute, IResolver, \
+    LIST_CLASSES, isNameForClass
 from ally.support.util_sys import locationStack
 from collections import Iterable
 
@@ -156,8 +156,14 @@ def merge(resolvers, other, joined=True):
             if joined: resolvers[name] = resolverOther
         else:
             assert isinstance(resolver, IResolver), 'Invalid resolver %s' % resolver 
-            if joined: resolvers[name] = resolver.merge(resolverOther)
-            else: resolvers[name] = resolver.merge(resolverOther.copy(resolver.list()))
+            if isNameForClass(name):
+                # In case the context name is targeting a class then we better solve the attributes since the order 
+                # is not relevant.
+                if joined: resolvers[name] = resolver.solve(resolverOther)
+                else: resolvers[name] = resolver.solve(resolverOther.copy(resolver.list()))
+            else:
+                if joined: resolvers[name] = resolver.merge(resolverOther)
+                else: resolvers[name] = resolver.merge(resolverOther.copy(resolver.list()))
     return resolvers
             
 def solve(resolvers, other, joined=True):

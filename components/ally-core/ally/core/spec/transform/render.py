@@ -21,7 +21,7 @@ class IRender(metaclass=abc.ABCMeta):
     __slots__ = ()
 
     @abc.abstractclassmethod
-    def property(self, name, value, index=None):
+    def property(self, name, value, **specifications):
         '''
         Called to signal that a property value has to be rendered.
 
@@ -29,36 +29,32 @@ class IRender(metaclass=abc.ABCMeta):
             The property name.
         @param value: string|tuple(string)|list[string]|dictionary{string: string}
             The value.
-        @param index: object|list[object]|tuple(object)|None
-            The indexes to provide for the rendered property, attention the index object need to be known by the renderer.
+        @param specifications: key arguments
+            Additional key arguments specifications dictating the rendering.
         '''
 
     @abc.abstractclassmethod
-    def beginObject(self, name, attributes=None, index=None):
+    def beginObject(self, name, **specifications):
         '''
         Called to signal that an object has to be rendered.
         
         @param name: string
             The object name.
-        @param attributes: dictionary{string, string}|None
-            The attributes for the value.
-        @param index: object|list[object]|tuple(object)|None
-            The indexes to provide for the rendered object, attention the index object need to be known by the renderer.
+        @param specifications: key arguments
+            Additional key arguments specifications dictating the rendering.
         @return: self
             The same render instance for chaining purposes.
         '''
 
     @abc.abstractclassmethod
-    def beginCollection(self, name, attributes=None, index=None):
+    def beginCollection(self, name, **specifications):
         '''
         Called to signal that a collection of objects has to be rendered.
         
         @param name: string
             The collection name.
-        @param attributes: dictionary{string, string}|None
-            The attributes for the collection.
-        @param index: object|list[object]|tuple(object)|None
-            The indexes to provide for the rendered collection, attention the index object need to be known by the renderer.
+        @param specifications: key arguments
+            Additional key arguments specifications dictating the rendering.
         @return: self
             The same render instance for chaining purposes.
         '''
@@ -141,7 +137,7 @@ class RenderToObject(IRender):
         self.stack = deque()
         self.obj = None
 
-    def property(self, name, value):
+    def property(self, name, value, **specifications):
         '''
         @see: IRender.property
         '''
@@ -160,7 +156,7 @@ class RenderToObject(IRender):
         assert isinstance(obj, dict), 'No object to set the property on'
         obj[name] = value
 
-    def beginObject(self, name, attributes=None):
+    def beginObject(self, name, attributes=None, **specifications):
         '''
         @see: IRender.beginObject
         '''
@@ -183,7 +179,7 @@ class RenderToObject(IRender):
         
         return self
 
-    def beginCollection(self, name, attributes=None):
+    def beginCollection(self, name, attributes=None, **specifications):
         '''
         @see: IRender.beginCollection
         '''
@@ -236,14 +232,14 @@ def renderObject(txt, render):
     elif isinstance(txt, Object):
         assert isinstance(txt, Object)
 
-        render.beginObject(txt.name, txt.attributes)
+        render.beginObject(txt.name, attributes=txt.attributes)
         for prop in txt.properties: renderObject(prop, render)
         render.end()
 
     elif isinstance(txt, List):
         assert isinstance(txt, List)
 
-        render.beginCollection(txt.name, txt.attributes)
+        render.beginCollection(txt.name, attributes=txt.attributes)
         for item in txt.items: renderObject(item, render)
         render.end()
 

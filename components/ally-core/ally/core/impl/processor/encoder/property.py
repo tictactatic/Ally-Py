@@ -14,7 +14,6 @@ from ally.api.type import Iter, Type, Dict
 from ally.container.ioc import injected
 from ally.core.spec.resources import Normalizer, Converter
 from ally.core.spec.transform.encoder import IEncoder
-from ally.core.spec.transform.index import BLOCK
 from ally.core.spec.transform.render import IRender
 from ally.design.cache import CacheWeak
 from ally.design.processor.attribute import requires, defines, optional
@@ -118,5 +117,5 @@ class EncoderProperty(IEncoder):
                      for key, item in obj.items()}
         else:
             value = support.converter.asString(obj, self.valueType)
-        render.property(support.normalizer.normalize(self.name), value, BLOCK)
+        render.property(support.normalizer.normalize(self.name), value, indexBlock=True)
         

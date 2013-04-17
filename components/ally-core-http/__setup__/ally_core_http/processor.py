@@ -12,13 +12,14 @@ Provides the configurations for the processors used in handling the request.
 from ..ally_core.parsing_rendering import assemblyParsing
 from ..ally_core.processor import argumentsBuild, argumentsPrepare, encoding, \
     invoking, default_characterset, rendering, createDecoder, content, renderEncoder, \
-    normalizerRequest, converterRequest, normalizerResponse, converterResponse, \
-    indexer
+    normalizerRequest, converterRequest, normalizerResponse, converterResponse
 from ..ally_core.resources import resourcesRoot
 from ..ally_http.processor import encoderPath, contentLengthDecode, \
     contentLengthEncode, methodOverride, allowEncode, headerDecodeRequest, \
     contentTypeRequestDecode, headerEncodeResponse, contentTypeResponseEncode
 from ally.container import ioc
+from ally.core.http.impl.processor.content_index import \
+    ContentIndexEncodeHandler
 from ally.core.http.impl.processor.explain_error import ExplainErrorHandler
 from ally.core.http.impl.processor.headers.accept import AcceptDecodeHandler
 from ally.core.http.impl.processor.headers.content_disposition import \
@@ -40,7 +41,6 @@ from ally.core.spec.resources import ConverterPath
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.handler import Handler
 from ally.http.impl.processor.status import StatusHandler
-from ally.core.http.impl.processor.headers.content_index import ContentIndexEncodeHandler
 
 # --------------------------------------------------------------------
 # Creating the processors used in handling the request
@@ -175,7 +175,7 @@ def updateAssemblyResources():
                             contentTypeRequestDecode(), contentLengthDecode(), contentLanguageDecode(), acceptDecode(),
                             rendering(), normalizerRequest(), converterRequest(), createDecoder(),
                             normalizerResponse(), converterResponse(), encoding(), parsingMultiPart(), content(),
-                            parameter(), argumentsBuild(), invoking(), indexer(), renderEncoder(), status(), explainError(),
+                            parameter(), argumentsBuild(), invoking(), renderEncoder(), status(), explainError(),
                             contentIndexEncode(), contentTypeResponseEncode(), contentLanguageEncode(), contentLengthEncode(),
                             allowEncode())
     

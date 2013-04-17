@@ -9,12 +9,11 @@ Created on Mar 18, 2013
 Provides the resource paths encoding.
 '''
 
+from .url_marker import NAME_HTTP_URL
 from ally.api.type import Iter, Type
 from ally.container.ioc import injected
-from ally.core.http.spec.transform.index import HTTP_URL
 from ally.core.spec.resources import Normalizer, Path
 from ally.core.spec.transform.encoder import IEncoder
-from ally.core.spec.transform.index import BLOCK, AttrValue, PREPARE
 from ally.core.spec.transform.render import IRender
 from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
@@ -115,8 +114,8 @@ class EncoderResources(IEncoder):
         
         render.beginCollection(support.normalizer.normalize(self.nameResources))
         nameRef = support.normalizer.normalize(self.nameRef)
-        index = (BLOCK, PREPARE, AttrValue(HTTP_URL, nameRef))
+        indexes = dict(indexBlock=True, indexPrepare=True, indexAttributesCapture={nameRef: NAME_HTTP_URL})
         for path in obj:
-            attributes = {nameRef: support.encoderPath.encode(path)}
-            render.beginObject(support.normalizer.normalize(pathLongName(path)), attributes, index).end()
+            render.beginObject(support.normalizer.normalize(pathLongName(path)),
+                               attributes={nameRef: support.encoderPath.encode(path)}, **indexes).end()
         render.end()

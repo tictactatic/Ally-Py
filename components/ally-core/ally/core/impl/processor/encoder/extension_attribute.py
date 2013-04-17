@@ -12,13 +12,12 @@ Provides the extension encoder.
 from ally.api.operator.type import TypeExtension
 from ally.api.type import typeFor
 from ally.container.ioc import injected
-from ally.core.spec.transform.encoder import IAttributes, IEncoder, \
-    AttributesWrapper
+from ally.core.spec.transform.encoder import IEncoder, ISpecifier
 from ally.core.spec.transform.render import IRender
 from ally.design.cache import CacheWeak
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines
-from ally.design.processor.branch import Included
+from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain, Processing
 from ally.design.processor.handler import HandlerBranchingProceed
@@ -31,11 +30,11 @@ class Create(Context):
     The create encoder context.
     '''
     # ---------------------------------------------------------------- Defined
-    attributes = defines(IAttributes, doc='''
-    @rtype: IAttributes
-    The attributes provider from the extension.
+    specifiers = defines(list, doc='''
+    @rtype: list[ISpecifier]
+    The attributes specifications provider from the extension.
     ''')
-
+    
 class CreateProperty(Context):
     '''
     The create property encoder context.
@@ -66,7 +65,7 @@ class ExtensionAttributeEncode(HandlerBranchingProceed):
     def __init__(self):
         assert isinstance(self.propertyEncodeAssembly, Assembly), \
         'Invalid property encode assembly %s' % self.propertyEncodeAssembly
-        super().__init__(Included(self.propertyEncodeAssembly).using(create=CreateProperty))
+        super().__init__(Branch(self.propertyEncodeAssembly).using(create=CreateProperty))
         
         self._cache = CacheWeak()
         
@@ -79,12 +78,11 @@ class ExtensionAttributeEncode(HandlerBranchingProceed):
         assert isinstance(propertyProcessing, Processing), 'Invalid processing %s' % propertyProcessing
         assert isinstance(create, Create), 'Invalid create %s' % create
         
-        if create.attributes: attributes = create.attributes
-        else: attributes = None
+        cache = self._cache.key(propertyProcessing)
+        if not cache.has: cache.value = AttributesExtension(self.processProperties, propertyProcessing)
         
-        cache = self._cache.key(propertyProcessing, attributes)
-        if not cache.has: cache.value = AttributesExtension(self.processProperties, propertyProcessing, attributes)
-        create.attributes = cache.value
+        if create.specifiers is None: create.specifiers = []
+        create.specifiers.append(cache.value)
         
     # ----------------------------------------------------------------
     
@@ -110,29 +108,30 @@ class ExtensionAttributeEncode(HandlerBranchingProceed):
 
 # --------------------------------------------------------------------
 
-class AttributesExtension(AttributesWrapper):
+class AttributesExtension(ISpecifier):
     '''
-    Implementation for a @see: IAttributes for extension types.
+    Implementation for a @see: ISpecifier for extension attributes types.
     '''
     
-    def __init__(self, provider, processing, attributes=None):
+    def __init__(self, provider, processing):
         '''
         Construct the extension attributes.
         '''
         assert callable(provider), 'Invalid properties provider %s' % provider
         assert isinstance(processing, Processing), 'Invalid processing %s' % processing
-        super().__init__(attributes)
         
         self.provider = provider
         self.processing = processing
         
-    def populate(self, obj, attributes, support, index=None):
+    def populate(self, obj, specifications, support):
         '''
-        @see: IAttributes.populate
+        @see: ISpecifier.populate
         '''
         typeExt = typeFor(obj)
         if not typeExt or not isinstance(typeExt, TypeExtension): return  # Is not an extension object, nothing to do
         
+        attributes = specifications.get('attributes')
+        if attributes is None: attributes = specifications['attributes'] = {}
         render = RenderAttributes(attributes)
         for name, encoder in self.provider(typeExt, self.processing):
             assert isinstance(encoder, IEncoder), 'Invalid property encoder %s' % encoder
@@ -148,7 +147,7 @@ class RenderAttributes(IRender):
     
     def __init__(self, attributes):
         '''
-        Construct the render attributes.
+        Construct the renderer attributes.
         
         @param attributes: dictionary{string: string}
             The attributes dictionary to render in.
@@ -156,7 +155,7 @@ class RenderAttributes(IRender):
         assert isinstance(attributes, dict), 'Invalid attributes %s' % attributes
         self.attributes = attributes
         
-    def property(self, name, value, index=None):
+    def property(self, name, value, **specifications):
         '''
         @see: IRender.property
         '''
@@ -165,13 +164,13 @@ class RenderAttributes(IRender):
         
         self.attributes[name] = value
 
-    def beginObject(self, name, attributes=None, index=None):
+    def beginObject(self, name, **specifications):
         '''
         @see: IRender.beginObject
         '''
         raise NotImplementedError('Not available for attributes rendering')
 
-    def beginCollection(self, name, attributes=None, index=None):
+    def beginCollection(self, name, **specifications):
         '''
         @see: IRender.beginCollection
         '''

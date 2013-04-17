@@ -77,8 +77,7 @@ class RequestHandler:
         requestCnt.source = context.get('wsgi.input')
 
         chain = Chain(proc)
-        chain.process(request=request, requestCnt=requestCnt,
-                      response=proc.ctx.response(), responseCnt=proc.ctx.responseCnt()).doAll()
+        chain.process(**proc.fillIn(request=request, requestCnt=requestCnt)).doAll()
 
         response, responseCnt = chain.arg.response, chain.arg.responseCnt
         assert isinstance(response, ResponseHTTP), 'Invalid response %s' % response

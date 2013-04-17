@@ -11,11 +11,10 @@ Provides support for explaining the errors in the content of the request.
 
 from ally.container.ioc import injected
 from ally.core.spec.transform.render import Object, Value, renderObject
-from ally.design.processor.attribute import requires, defines, optional
+from ally.design.processor.attribute import requires, optional
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessorProceed
-from collections import Iterable, Callable
-from io import BytesIO
+from collections import Callable
 import logging
 
 # --------------------------------------------------------------------
@@ -43,15 +42,7 @@ class Response(Context):
     code = requires(str)
     isSuccess = requires(bool)
     renderFactory = requires(Callable)
-
-class ResponseContent(Context):
-    '''
-    The response content context.
-    '''
-    # ---------------------------------------------------------------- Defined
-    source = defines(Iterable)
-    length = defines(int)
-
+    
 # --------------------------------------------------------------------
 
 @injected
@@ -62,14 +53,13 @@ class ExplainErrorHandler(HandlerProcessorProceed):
     response.
     '''
 
-    def process(self, response:Response, responseCnt:ResponseContent, **keyargs):
+    def process(self, response:Response, responseCnt:Context, **keyargs):
         '''
         @see: HandlerProcessorProceed.process
         
         Process the error into a response content.
         '''
         assert isinstance(response, Response), 'Invalid response %s' % response
-        assert isinstance(responseCnt, ResponseContent), 'Invalid response content %s' % responseCnt
 
         if response.isSuccess is False and response.renderFactory is not None:
             errors = [Value('code', str(response.status))]
@@ -83,10 +73,4 @@ class ExplainErrorHandler(HandlerProcessorProceed):
             if Response.errorDetails in response and response.errorDetails:
                 errors.append(Object('details', response.errorDetails))
 
-            output = BytesIO()
-            render = response.renderFactory(output, None)
-            renderObject(Object('error', *errors), render)
-
-            content = output.getvalue()
-            responseCnt.length = len(content)
-            responseCnt.source = (output.getvalue(),)
+            renderObject(Object('error', *errors), response.renderFactory(responseCnt))

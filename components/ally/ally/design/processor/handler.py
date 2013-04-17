@@ -10,6 +10,7 @@ Contains the handlers support.
 '''
 
 from .assembly import Container
+from .context import Context
 from .processor import Contextual, Brancher, ProcessorRenamer
 from .spec import ContextMetaClass, IProcessor, ProcessorError
 from ally.support.util_sys import locationStack
@@ -185,7 +186,7 @@ def push(processor, contexts):
     for name, context in contexts.items():
         assert isinstance(name, str), 'Invalid name %s' % name
         assert isinstance(context, ContextMetaClass), 'Invalid context class %s' % context
-        if name in processor.contexts:
+        if name in processor.contexts and processor.contexts[name] is not Context:
             raise ProcessorError('There is already a context for name \'%s\ in:%s' % (name, locationStack(processor.function)))
         processor.contexts[name] = context
     return processor
