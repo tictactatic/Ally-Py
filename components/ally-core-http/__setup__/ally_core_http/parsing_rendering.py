@@ -44,7 +44,7 @@ def parseFormData() -> Handler:
     b.contentTypeUrlEncoded = next(iter(content_types_urlencoded()))
 
 # --------------------------------------------------------------------
-
+    
 @ioc.before(updateAssemblyParsing)
 def updateAssemblyParsingFormData():
     assemblyParsing().add(parseFormData())

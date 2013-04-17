@@ -13,7 +13,7 @@ from ally.assemblage.http.spec.assemblage import RequestNode
 from ally.container.ioc import injected
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines, optional
-from ally.design.processor.branch import Included, Routing
+from ally.design.processor.branch import Routing, Branch
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain, Processing
 from ally.design.processor.handler import HandlerBranching
@@ -117,7 +117,7 @@ class ContentHandler(HandlerBranching):
         assert isinstance(self.assemblyContent, Assembly), 'Invalid content assembly %s' % self.assemblyContent
         assert isinstance(self.encodingError, str), 'Invalid encoding error %s' % self.encodingError
         super().__init__(Routing(self.assemblyForward).using('request', 'requestCnt', 'response', 'responseCnt'),
-                         Included(self.assemblyContent).only('response', 'assemblage', ('content', 'Content')))
+                         Branch(self.assemblyContent).included('response', 'assemblage', ('content', 'Content')))
 
     def process(self, chain, processingForward, processingContent, request:Request, requestCnt:Context, response:Context,
                 responseCnt:Context, assemblage:Assemblage, Content:ContentResponse, **keyargs):
@@ -256,14 +256,12 @@ class ContentHandler(HandlerBranching):
             The list of parameters for the request.
         '''
         assert isinstance(data, Data), 'Invalid data %s' % data
-        assert isinstance(data.processingForward, Processing), 'Invalid processing %s' % data.processingForward
-        assert isinstance(data.processingContent, Processing), 'Invalid processing %s' % data.processingContent
         assert isinstance(data.Content, ContextMetaClass), 'Invalid content class %s' % data.Content
         assert isinstance(data.assemblage, Assemblage), 'Invalid assemblage %s' % data.assemblage
         assert isinstance(url, str), 'Invalid URL %s' % url
         assert parameters is None or isinstance(parameters, list), 'Invalid parameters %s' % parameters
         
-        request, requestCnt = data.Request(), data.RequestContent()
+        request = data.Request()
         assert isinstance(request, RequestHTTP), 'Invalid request %s' % request
         
         rurl = urlsplit(url)
@@ -277,12 +275,18 @@ class ContentHandler(HandlerBranching):
         request.uri = rurl.path.lstrip('/')
         request.parameters = params
         
-        chainForward = Chain(data.processingForward)
-        chainForward.process(request=request, requestCnt=requestCnt,
-                             response=data.Response(), responseCnt=data.ResponseContent()).doAll()
-        chainContent = Chain(data.processingContent)
-        chainContent.process(response=chainForward.arg.response,
-                             assemblage=data.assemblage, content=data.Content()).doAll()
+        proc = data.processingForward
+        assert isinstance(proc, Processing), 'Invalid processing %s' % proc
+        chainForward = Chain(proc)
+        keyargs = proc.fillIn(request=request, requestCnt=data.RequestContent(), response=data.Response(),
+                              responseCnt=data.ResponseContent())
+        chainForward.process(**keyargs).doAll()
+        
+        proc = data.processingContent
+        assert isinstance(proc, Processing), 'Invalid processing %s' % proc
+        chainContent = Chain(proc)
+        keyargs = proc.fillIn(response=chainForward.arg.response, assemblage=data.assemblage, content=data.Content())
+        chainContent.process(**keyargs).doAll()
                 
         return self.populate(data, chainContent.arg.content, chainForward.arg.response, chainForward.arg.responseCnt)
 

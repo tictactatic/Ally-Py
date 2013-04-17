@@ -9,7 +9,8 @@ Created on Mar 27, 2013
 Provides the assembler processor.
 '''
 
-from ally.assemblage.http.spec.assemblage import RequestNode, Index
+from ally.assemblage.http.spec.assemblage import RequestNode, Index, \
+    iterWithInner, listFor, Marker
 from ally.container.ioc import injected
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
@@ -22,7 +23,16 @@ import logging
 
 # --------------------------------------------------------------------
 
-GROUP_VALUE_REFERENCE = 'reference'  # Indicates that the captured value contains a reference.
+GROUP_BLOCK = 'block'  # The group name for block.
+GROUP_PREPARE = 'prepare'  # The group name for prepare.
+GROUP_ADJUST = 'adjust'  # The group name for adjust.
+GROUP_URL = 'URL'  # The group name for URL reference.
+
+ACTION_INJECT = 'inject'  # The action name for inject.
+ACTION_CAPTURE = 'capture'  # The action name for capture.
+
+ERROR_STATUS = 'ERROR'  # The attribute name for error status.
+ERROR_MESSAGE = 'ERROR_TEXT'  # The attribute name for error message.
 
 log = logging.getLogger(__name__)
 
@@ -107,7 +117,8 @@ class AssemblerHandler(HandlerProcessor):
         assert callable(assemblage.decode), 'Invalid assemblage decode %s' % assemblage.decode
         assert callable(assemblage.requestHandler), 'Invalid request handler %s' % assemblage.requestHandler
         
-        stack = [(False, assemblage.requestNode, assemblage.main, self.extractor, self.iterBlocks(assemblage.main.indexes))]
+        blocks = iterWithInner(assemblage.main.indexes, GROUP_BLOCK)
+        stack = [(False, assemblage.requestNode, assemblage.main, self.extractor, blocks)]
         while stack:
             isTrimmed, node, content, extractor, blocks = stack.pop()
             assert isinstance(node, RequestNode), 'Invalid request node %s' % node
@@ -117,12 +128,19 @@ class AssemblerHandler(HandlerProcessor):
             assert callable(extractor), 'Invalid extractor %s' % extractor
             
             while True:
-                try: block, groups = next(blocks)
+                try: block, inner = next(blocks)
                 except StopIteration:
                     # Providing the remaining bytes.
                     for bytes in extractor(content): yield bytes
                     break
                 assert isinstance(block, Index), 'Invalid block %s' % block
+                reference = listFor(inner, GROUP_URL, ACTION_CAPTURE)
+                if not reference: continue  # No reference to process
+                reference = reference[0]  # In case there are more we just use the first one.
+                assert isinstance(reference, Index), 'Invalid index %s' % reference
+                assert isinstance(reference.marker, Marker), 'Invalid index marker %s' % reference.marker
+                preparers = listFor(inner, GROUP_PREPARE, ACTION_CAPTURE)
+                preparers.append(reference)
                 
                 # Provide all bytes until start.
                 for bytes in extractor(content, block.start): yield bytes
@@ -139,15 +157,8 @@ class AssemblerHandler(HandlerProcessor):
                     assert isinstance(bnode, RequestNode), 'Invalid request node %s' % bnode
                     stop = False
                     if not bnode.requests: stop = True  # No requests to process for sub node.
-                    
-                    if not stop:
-                        for gref in groups:
-                            assert isinstance(gref, Index), 'Invalid index %s' % gref
-                            if gref.value == GROUP_VALUE_REFERENCE: break
-                        else: stop = True  # If there is no reference to fetch then just provide the group as it is.
-                    
-                    if not stop:
-                        capture = self.capture(groups, content)
+                    else:
+                        capture = self.capture(preparers, content)
                         if capture is None: stop = True
                     
                     if stop:
@@ -156,8 +167,9 @@ class AssemblerHandler(HandlerProcessor):
                         continue
                     
                     cbytes, captures = capture
+                    assert isinstance(captures, dict), 'Invalid captures %s' % captures
                     
-                    url = assemblage.decode(captures[GROUP_VALUE_REFERENCE])
+                    url = assemblage.decode(captures.pop(reference.marker.id))
                     bcontent = assemblage.requestHandler(url, bnode.parameters)
                     assert isinstance(bcontent, Content), 'Invalid content %s' % bcontent
                     if bcontent.errorStatus is not None:
@@ -173,60 +185,10 @@ class AssemblerHandler(HandlerProcessor):
                     self.discard(content, block.end)  # Skip the remaining bytes from the capture
                     
                     stack.append((isTrimmed, node, content, extractor, blocks))
-                    isTrimmed, node, content, blocks = True, bnode, bcontent, self.iterBlocks(bcontent.indexes)
-                    extractor = partial(self.injector, self.listInject(bcontent.indexes), captures)
-        
-    def iterBlocks(self, indexes):
-        '''
-        Iterates the blocks indexes.
-        
-        @param indexes: Iterable(Index)
-            The iterable of indexes to search in.
-        @return: Iterable(tuple(Index, list[Index]))
-            Iterates the tuples containing on the first position the block index and on the second the list
-            of sub indexes of group capture type of the block index.
-        '''
-        assert isinstance(indexes, Iterable), 'Invalid indexes %s' % indexes
-        
-        indexes = iter(indexes)
-        try: index = next(indexes)
-        except StopIteration: return
-        while True:
-            assert isinstance(index, Index), 'Invalid index %s' % index
-            if index.isBlock:
-                groups, finalized = [], False
-                while True:
-                    try: sindex = next(indexes)
-                    except StopIteration:
-                        finalized = True
-                        break
-                    assert isinstance(sindex, Index), 'Invalid index %s' % sindex
-                    if sindex.end <= index.end:
-                        if sindex.isGroup: groups.append(sindex)
-                    else: break
-                yield index, groups
-                if finalized: break
-                index = sindex
-            else:
-                try: index = next(indexes)
-                except StopIteration: break
-                
-    def listInject(self, indexes):
-        '''
-        Lists the inject indexes.
-        
-        @param indexes: Iterable(Index)
-            The iterable of indexes to search in.
-        @return: list[Index]
-            The list of inject indexes.
-        '''
-        assert isinstance(indexes, Iterable), 'Invalid indexes %s' % indexes
-        
-        inject = []
-        for index in indexes:
-            assert isinstance(index, Index), 'Invalid index %s' % index
-            if index.isInject: inject.append(index)
-        return inject
+                    isTrimmed, node, content = True, bnode, bcontent 
+                    blocks = iterWithInner(bcontent.indexes, GROUP_BLOCK)
+                    injectors = listFor(bcontent.indexes, GROUP_ADJUST, ACTION_INJECT)
+                    extractor = partial(self.injector, injectors, captures)
         
     def extractor(self, content, until=None):
         '''
@@ -267,7 +229,7 @@ class AssemblerHandler(HandlerProcessor):
         
         @param injectors: list[Index]
             The list of inject indexes to inject the values for.
-        @param captures: dictionary{string: bytes}
+        @param captures: dictionary{integer: bytes}
             The captures that provide the values to be injected.
         @param content: Content
             The content to extract from.
@@ -283,56 +245,58 @@ class AssemblerHandler(HandlerProcessor):
         assert isinstance(content.source, IInputStreamCT), 'Invalid content source %s' % content.source
         assert until is None or isinstance(until, int), 'Invalid until offset %s' % until
         
-        for inject in injectors:
-            assert isinstance(inject, Index), 'Invalid index %s' % inject
-            assert inject.isInject, 'Invalid inject %s' % inject
+        for index in injectors:
+            assert isinstance(index, Index), 'Invalid index %s' % index
+            assert isinstance(index.marker, Marker), 'Invalid index marker %s' % index.marker
             
-            if inject.start >= content.source.tell() and (until is None or inject.end <= until):
+            if index.start >= content.source.tell() and (until is None or index.end <= until):
                 # We provide what is before the inject.
-                for bytes in self.extractor(content, inject.start): yield bytes
-                self.discard(content, inject.end)  # We just need to remove the content to be injected.
+                for bytes in self.extractor(content, index.start): yield bytes
+                self.discard(content, index.end)  # We just need to remove the content to be injected.
                 
-                if inject.value is not None and inject.value in captures: yield captures[inject.value]
+                if index.marker.sourceId is not None:
+                    replace = captures.get(index.marker.sourceId)
+                    if replace is not None: yield replace
                 
         # We provide the remaining content.
         for bytes in self.extractor(content, until): yield bytes
                 
-    def capture(self, groups, content):
+    def capture(self, capturers, content):
         '''
         Captures the provided index groups.
 
-        @param groups: list[Index]
-            The list of group indexes to capture the values for.
+        @param capturers: list[Index]
+            The list of capturers indexes to capture the values for.
         @param content: Content
             The content to capture from.
         @param current: integer
             The current index in the stream.
-        @return: tuple(bytes, dictionary{string: bytes})|None
+        @return: tuple(bytes, dictionary{integer: bytes})|None
             A tuple having on the first position the bytes that have been read for the capture and on the second the
-            dictionary containing as a key the group value and as a value the captured bytes. Retuens None if ther is
+            dictionary containing as a key the marker id and as a value the captured bytes. Returns None if there is
             nothing to capture.
         '''
-        assert isinstance(groups, list), 'Invalid groups %s' % groups
-        assert groups, 'At least on group index is required %s' % groups
+        assert isinstance(capturers, list), 'Invalid capturers %s' % capturers
+        assert capturers, 'At least on capture index is required %s' % capturers
         assert isinstance(content, Content), 'Invalid content %s' % content
         assert callable(content.encode), 'Invalid content encode %s' % content.encode
         assert isinstance(content.source, IInputStreamCT), 'Invalid content source %s' % content.source
         
-        egroup = max(groups, key=lambda group: group.end)
-        assert isinstance(egroup, Index), 'Invalid index %s' % egroup
-        if egroup.end < content.source.tell():
-            raise IOError('Invalid stream offset %s, expected a value less then %s' % (content.source.tell(), egroup.end))
+        ecapture = max(capturers, key=lambda group: group.end)
+        assert isinstance(ecapture, Index), 'Invalid index %s' % ecapture
+        if ecapture.end < content.source.tell():
+            raise IOError('Invalid stream offset %s, expected a value less then %s' % (content.source.tell(), ecapture.end))
         
-        nbytes = egroup.end - content.source.tell()
+        nbytes = ecapture.end - content.source.tell()
         if nbytes == 0: return
         offset = content.source.tell()
         capture = content.source.read(nbytes)
         
         captures = {}
-        for group in groups:
-            assert isinstance(group, Index), 'Invalid index %s' % group
-            assert group.isGroup, 'Invalid group %s' % group
-            captures[group.value] = content.encode(capture[group.start - offset: group.end - offset])
+        for index in capturers:
+            assert isinstance(index, Index), 'Invalid index %s' % index
+            assert isinstance(index.marker, Marker), 'Invalid index marker %s' % index.marker
+            captures[index.marker.id] = content.encode(capture[index.start - offset: index.end - offset])
 
         return content.encode(capture), captures
                 

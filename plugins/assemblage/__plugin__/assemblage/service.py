@@ -10,8 +10,7 @@ Contains the services for assemblage.
 '''
     
 from ..plugin.registry import registerService
-from ally.container import support, ioc
-from ally.design.processor.assembly import Assembly
+from ally.container import support
 
 # --------------------------------------------------------------------
 
@@ -20,11 +19,3 @@ SERVICES = 'assemblage.api.**.I*Service'
 support.createEntitySetup('assemblage.impl.**.*')
 support.listenToEntities(SERVICES, listeners=registerService)
 support.loadAllEntities(SERVICES)
-    
-# --------------------------------------------------------------------
-
-@ioc.entity
-def assemblyAssemblages() -> Assembly:
-    ''' Assembly used for getting the assemblages'''
-    return Assembly('Assemblages')
-

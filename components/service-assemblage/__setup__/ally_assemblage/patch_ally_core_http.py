@@ -11,7 +11,7 @@ Provides the server patch configuration when used internally with REST.
 
 from ..ally_http.server import assemblyServer
 from .processor import assemblyForward, server_provide_assemblage, \
-    ASSEMBLAGE_INTERNAL
+    ASSEMBLAGE_INTERNAL, updateAssemblyForward
 from .server import assemblageRouter
 from ally.container import ioc
 from ally.container.error import SetupError
@@ -48,7 +48,7 @@ else:
             raise SetupError('Cannot configure internal assemblage because the REST resources is not enabled')
         return True
     
-    @ioc.before(assemblyForward)
+    @ioc.before(updateAssemblyForward)
     def updateAssemblyForwardForResources():
         if isInternal(): assemblyForward().add(resourcesRouter())
     

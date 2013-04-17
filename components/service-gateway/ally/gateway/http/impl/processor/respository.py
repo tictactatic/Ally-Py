@@ -12,7 +12,7 @@ Provides the gateway repository processor.
 from ally.container.ioc import injected
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import defines
-from ally.design.processor.branch import Using
+from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Processing, Chain
 from ally.design.processor.handler import HandlerBranchingProceed
@@ -92,7 +92,7 @@ class GatewayRepositoryHandler(HandlerBranchingProceed):
         assert isinstance(self.uri, str), 'Invalid URI %s' % self.uri
         assert isinstance(self.cleanupInterval, int), 'Invalid cleanup interval %s' % self.cleanupInterval
         assert isinstance(self.assembly, Assembly), 'Invalid assembly %s' % self.assembly
-        super().__init__(Using(self.assembly, 'requestCnt', 'response', 'responseCnt', request=RequestGateway))
+        super().__init__(Branch(self.assembly).using('requestCnt', 'response', 'responseCnt', request=RequestGateway))
         self.initialize()
 
     def process(self, processing, request:Request, response:Response, **keyargs):
@@ -144,8 +144,7 @@ class GatewayRepositoryHandler(HandlerBranchingProceed):
         request.accCharSets = [self.encodingJson]
         
         chain = Chain(processing)
-        chain.process(request=request, requestCnt=processing.ctx.requestCnt(),
-                      response=processing.ctx.response(), responseCnt=processing.ctx.responseCnt()).doAll()
+        chain.process(**processing.fillIn(request=request)).doAll()
 
         response, responseCnt = chain.arg.response, chain.arg.responseCnt
         assert isinstance(response, ResponseHTTP), 'Invalid response %s' % response

@@ -10,9 +10,13 @@ Provides the content index header encoding.
 '''
 
 from ally.container.ioc import injected
+from ally.design.cache import CacheWeak
+from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires
+from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessorProceed
+from ally.design.processor.execution import Processing, Chain
+from ally.design.processor.handler import HandlerBranchingProceed
 from ally.http.spec.server import IEncoderHeader
 from io import BytesIO
 import binascii
@@ -34,18 +38,34 @@ class ResponseContent(Context):
     '''
     # ---------------------------------------------------------------- Required
     indexes = requires(list)
+
+class Mark(Context):
+    '''
+    The mark context.
+    '''
+    # ---------------------------------------------------------------- Required
+    id = requires(int)
     
+class Markers(Context):
+    '''
+    The indexing markers context.
+    '''
+    # ---------------------------------------------------------------- Required
+    markers = requires(dict)
+
 # --------------------------------------------------------------------
 
 @injected
-class ContentIndexEncodeHandler(HandlerProcessorProceed):
+class ContentIndexEncodeHandler(HandlerBranchingProceed):
     '''
     Implementation for a processor that provides the encoding of the index as a header.
     '''
     
+    assembly = Assembly
+    # The assembly used for processing markers.
+    
     nameIndex = 'Content-Index'
     # The name for the content index header
-    
     byteOrder = 'little'
     # The byte order to use in encoding values.
     bytesIndexCount = 3
@@ -62,6 +82,8 @@ class ContentIndexEncodeHandler(HandlerProcessorProceed):
     # The string encoding. 
 
     def __init__(self):
+        assert isinstance(self.assembly, Assembly), 'Invalid assembly %s' % self.assembly
+        assert isinstance(self.nameIndex, str), 'Invalid header name index %s' % self.nameIndex
         assert isinstance(self.byteOrder, str), 'Invalid byte order %s' % self.byteOrder
         assert isinstance(self.bytesIndexCount, int), 'Invalid bytes index count %s' % self.bytesIndexCount
         assert isinstance(self.bytesOffset, int), 'Invalid bytes offset %s' % self.bytesOffset
@@ -69,14 +91,17 @@ class ContentIndexEncodeHandler(HandlerProcessorProceed):
         assert isinstance(self.bytesValueId, int), 'Invalid bytes value id %s' % self.bytesValueId
         assert isinstance(self.bytesValueSize, int), 'Invalid bytes value size %s' % self.bytesValueSize
         assert isinstance(self.encoding, str), 'Invalid encoding %s' % self.encoding
-        super().__init__()
+        super().__init__(Branch(self.assembly).using(markers=Markers, Marker=Mark))
+        
+        self._cache = CacheWeak()
 
-    def process(self, response:Response, responseCnt:ResponseContent, **keyargs):
+    def process(self, processing, response:Response, responseCnt:ResponseContent, **keyargs):
         '''
         @see: HandlerProcessorProceed.process
         
         Encode the index header.
         '''
+        assert isinstance(processing, Processing), 'Invalid processing %s' % processing
         assert isinstance(response, Response), 'Invalid response %s' % response
         assert isinstance(responseCnt, ResponseContent), 'Invalid response content %s' % responseCnt
         
@@ -84,6 +109,16 @@ class ContentIndexEncodeHandler(HandlerProcessorProceed):
         if not responseCnt.indexes: return  # There is no index
         assert isinstance(responseCnt.indexes, list), 'Invalid indexes %s' % responseCnt.indexes
         assert isinstance(response.encoderHeader, IEncoderHeader), 'Invalid header encoder %s' % response.encoderHeader
+        
+        cache = self._cache.key(processing)
+        if not cache.has:
+            chain = Chain(processing)
+            chain.process(**processing.fillIn()).doAll()
+            assert isinstance(chain.arg.markers, Markers), 'Invalid markers %s' % chain.arg.markers
+            assert isinstance(chain.arg.markers.markers, dict), 'Invalid markers %s' % chain.arg.markers.markers
+            cache.value = chain.arg.markers.markers
+        markers = cache.value
+        assert isinstance(markers, dict), 'Invalid markers %s' % markers
         
         out = BytesIO()
         out.write(len(responseCnt.indexes).to_bytes(self.bytesIndexCount, self.byteOrder))
@@ -96,10 +131,12 @@ class ContentIndexEncodeHandler(HandlerProcessorProceed):
             if header is None: out.write(int(0).to_bytes(self.bytesMark, self.byteOrder))
             else:
                 mark, value = header
-                # TODO: temo
-                mark = 1
+                assert mark in markers, 'Invalid mark %s for markers %s' % (mark, markers)
+                marker = markers[mark]
+                assert isinstance(marker, Mark), 'Invalid marker %s' % marker
+                assert isinstance(marker.id, int), 'Invalid marker id %s' % marker.id
                 
-                out.write(mark.to_bytes(self.bytesMark, self.byteOrder))
+                out.write(marker.id.to_bytes(self.bytesMark, self.byteOrder))
                 if value is None: out.write(int(0).to_bytes(self.bytesValueId, self.byteOrder))
                 else:
                     assert isinstance(value, str), 'Invalid value %s' % value
@@ -114,5 +151,4 @@ class ContentIndexEncodeHandler(HandlerProcessorProceed):
             out.write(value.encode(self.encoding))
         
         index = str(binascii.b2a_base64(zlib.compress(out.getvalue()))[:-1], self.encoding)
-        
         response.encoderHeader.encode(self.nameIndex, index)

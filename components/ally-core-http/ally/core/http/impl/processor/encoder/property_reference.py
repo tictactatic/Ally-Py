@@ -9,10 +9,11 @@ Created on Mar 18, 2013
 Provides the reference types encoding.
 '''
 
-from .url_marker import NAME_HTTP_URL
 from ally.api.operator.type import TypeProperty
 from ally.api.type import TypeReference
 from ally.container.ioc import injected
+from ally.core.http.spec.transform.index import NAME_URL, ERROR_STATUS, \
+    ERROR_MESSAGE
 from ally.core.spec.resources import Normalizer
 from ally.core.spec.transform.encoder import IEncoder
 from ally.core.spec.transform.render import IRender
@@ -112,5 +113,6 @@ class EncoderReference(IEncoder):
         
         nameRef = support.normalizer.normalize(self.nameRef)
         render.beginObject(support.normalizer.normalize(self.name),
-                           attributes={nameRef: support.encoderPath.encode(obj)},
-                           indexAttributesCapture={nameRef: NAME_HTTP_URL}, indexBlock=True, indexPrepare=True).end()
+                           attributes={nameRef: support.encoderPath.encode(obj)}, indexBlock=True, indexPrepare=True,
+                           indexAttributesCapture={nameRef: NAME_URL},
+                           indexAttributesInject=(ERROR_STATUS, ERROR_MESSAGE)).end()

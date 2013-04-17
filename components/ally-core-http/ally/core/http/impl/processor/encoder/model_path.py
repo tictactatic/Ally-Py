@@ -9,11 +9,12 @@ Created on Mar 8, 2013
 Provides the paths for a model.
 '''
 
-from .url_marker import NAME_HTTP_URL
 from ally.api.operator.type import TypeModel, TypeModelProperty
 from ally.container.ioc import injected
+from ally.core.http.spec.transform.index import NAME_URL, ERROR_MESSAGE, \
+    ERROR_STATUS
 from ally.core.spec.resources import Path, Normalizer
-from ally.core.spec.transform.encoder import ISpecifier
+from ally.core.spec.transform.encoder import ISpecifier, IEncoder
 from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessorProceed
@@ -30,6 +31,8 @@ class Create(Context):
     @rtype: list[ISpecifier]
     The specifiers for attributes with the paths.
     ''')
+    # ---------------------------------------------------------------- Optional
+    encoder = optional(IEncoder)
     # ---------------------------------------------------------------- Required
     objType = requires(object)
     
@@ -68,6 +71,8 @@ class ModelPathAttributeEncode(HandlerProcessorProceed):
         '''
         assert isinstance(create, Create), 'Invalid create %s' % create
         
+        if Create.encoder in create and create.encoder is not None: return 
+        # There is already an encoder, nothing to do.
         if not isinstance(create.objType, (TypeModel, TypeModelProperty)): return
         # Model not valid for paths, move along.
         
@@ -114,4 +119,11 @@ class AttributeModelPath(ISpecifier):
         indexAttributesCapture = specifications.get('indexAttributesCapture')
         if indexAttributesCapture is None: indexAttributesCapture = specifications['indexAttributesCapture'] = {}
         assert isinstance(indexAttributesCapture, dict), 'Invalid index attributes capture %s' % indexAttributesCapture
-        indexAttributesCapture[nameRef] = NAME_HTTP_URL
+        indexAttributesCapture[nameRef] = NAME_URL
+        
+        indexAttributesInject = specifications.get('indexAttributesInject')
+        if indexAttributesInject is None: indexAttributesInject = specifications['indexAttributesInject'] = []
+        elif isinstance(indexAttributesInject, tuple): indexAttributesInject = list(indexAttributesInject)
+        assert isinstance(indexAttributesInject, list), 'Invalid index attributes inject %s' % indexAttributesInject
+        indexAttributesInject.append(ERROR_STATUS)
+        indexAttributesInject.append(ERROR_MESSAGE)

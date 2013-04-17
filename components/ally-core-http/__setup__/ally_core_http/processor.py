@@ -12,7 +12,8 @@ Provides the configurations for the processors used in handling the request.
 from ..ally_core.parsing_rendering import assemblyParsing
 from ..ally_core.processor import argumentsBuild, argumentsPrepare, encoding, \
     invoking, default_characterset, rendering, createDecoder, content, renderEncoder, \
-    normalizerRequest, converterRequest, normalizerResponse, converterResponse
+    normalizerRequest, converterRequest, normalizerResponse, converterResponse, \
+    providerMarkers, provideMarkersId
 from ..ally_core.resources import resourcesRoot
 from ..ally_http.processor import encoderPath, contentLengthDecode, \
     contentLengthEncode, methodOverride, allowEncode, headerDecodeRequest, \
@@ -92,7 +93,10 @@ def methodInvoker() -> Handler: return MethodInvokerHandler()
 def contentLanguageEncode() -> Handler: return ContentLanguageEncodeHandler()
 
 @ioc.entity
-def contentIndexEncode() -> Handler: return ContentIndexEncodeHandler()
+def contentIndexEncode() -> Handler:
+    b = ContentIndexEncodeHandler()
+    b.assembly = assemblyMarkers()
+    return b
 
 # --------------------------------------------------------------------
 
@@ -166,6 +170,13 @@ def assemblyRedirect() -> Assembly:
     '''
     return Assembly('Redirect')
 
+@ioc.entity
+def assemblyMarkers() -> Assembly:
+    '''
+    The assembly containing the markers providers.
+    '''
+    return Assembly('Markers')
+
 # --------------------------------------------------------------------
 
 @ioc.before(assemblyResources)
@@ -188,3 +199,8 @@ def updateAssemblyMultiPartPopulate():
 @ioc.before(assemblyRedirect)
 def updateAssemblyRedirect():
     assemblyRedirect().add(argumentsBuild(), invoking())
+    
+@ioc.before(assemblyMarkers)
+def updateAssemblyMarkers():
+    assemblyMarkers().add(providerMarkers(), provideMarkersId())
+

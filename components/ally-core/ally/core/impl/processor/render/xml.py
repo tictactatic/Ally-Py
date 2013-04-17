@@ -9,9 +9,10 @@ Created on Jun 22, 2012
 Provides the XML encoder processor handler.
 '''
 
-from .base import GROUP_PREPARE, ACTION_CAPTURE, GROUP_ADJUST, ACTION_INJECT, \
-    Content, MarkersBaseHandler, NAME_BLOCK, NAME_ADJUST, Mark, RenderBaseHandler
+from .base import Content, RenderBaseHandler
 from ally.container.ioc import injected
+from ally.core.spec.transform.index import GROUP_PREPARE, ACTION_CAPTURE, \
+    GROUP_ADJUST, ACTION_INJECT, NAME_BLOCK, NAME_ADJUST
 from ally.core.spec.transform.render import IRender
 from ally.support.util import immut
 from codecs import getwriter
@@ -28,41 +29,45 @@ XML_PREPARE_NAME = 'XML prepare tag name'  # The XML tag name prepare
 XML_PREPARE_ATTRIBUTES = 'XML prepare attributes'  # The XML attributes prepare
 XML_ADJUST_NAME = 'XML adjust tag name'  # The XML tag name adjust
 XML_ADJUST_ATTRIBUTES = 'XML adjust attributes'  # The XML attributes adjust
-    
+
+XML_ATTRIBUTE_INJECT_PATTERN = 'XML inject attribute %s'  # The pattern used in creating the injected attributes.
+
 # --------------------------------------------------------------------
 
-@injected
-class XMLMarkersHandler(MarkersBaseHandler):
+# Provides the general markers definitions.
+XML_MARKERS = immut({
+                     XML_PREPARE_NAME: immut(group=GROUP_PREPARE, action=ACTION_CAPTURE),
+                     XML_PREPARE_ATTRIBUTES: immut(group=GROUP_PREPARE, action=ACTION_CAPTURE),
+                     XML_ADJUST_NAME: immut(group=GROUP_ADJUST, action=ACTION_INJECT, source=XML_PREPARE_NAME),
+                     XML_ADJUST_ATTRIBUTES: immut(group=GROUP_ADJUST, action=ACTION_INJECT, source=XML_PREPARE_ATTRIBUTES),
+                     })
+
+def createXMLAttrsInjectMarkers(group, attributes):
     '''
-    Provides the the XML markers.
+    Provides the the XML markers definitions for injecting attributes, the attributes names are declared as marker targets.
+    
+    @param group: string
+        The group of the attributes inject markers.
+    @param attributes: dictionary{string: string}
+        The attributes to be injected, a dictionary containing on the first position the attribute name
+        and as a value the attribute value to be injected.
     '''
+    assert isinstance(attributes, dict), 'Invalid attributes %s' % attributes
+    assert attributes, 'At least an attribute name is required'
+    assert isinstance(group, str), 'Invalid group %s' % group
+    
+    definitions = {}
+    for name, value in attributes.items():
+        assert isinstance(name, str), 'Invalid attribute name %s' % name
+        assert isinstance(value, str), 'Invalid attribute value %s' % value
         
-    def create(self, Marker):
-        '''
-        @see: MarkersBaseHandler.create
-        '''
-        markers = {}
+        definition = definitions[XML_ATTRIBUTE_INJECT_PATTERN % name] = {}
+        definition['group'] = group
+        definition['action'] = ACTION_INJECT
+        definition['target'] = name
+        definition['value'] = ' %s="%s"' % (name, value)
         
-        marker = markers[XML_PREPARE_NAME] = Marker()
-        assert isinstance(marker, Mark), 'Invalid marker %s' % marker
-        if Mark.group in marker: marker.group = GROUP_PREPARE
-        if Mark.action in marker: marker.action = ACTION_CAPTURE
-        
-        marker = markers[XML_PREPARE_ATTRIBUTES] = Marker()
-        if Mark.group in marker: marker.group = GROUP_PREPARE
-        if Mark.action in marker: marker.action = ACTION_CAPTURE
-        
-        marker = markers[XML_ADJUST_NAME] = Marker()
-        if Mark.group in marker: marker.group = GROUP_ADJUST
-        if Mark.action in marker: marker.action = ACTION_INJECT
-        if Mark.source in marker: marker.source = XML_PREPARE_NAME
-        
-        marker = markers[XML_ADJUST_ATTRIBUTES] = Marker()
-        if Mark.group in marker: marker.group = GROUP_ADJUST
-        if Mark.action in marker: marker.action = ACTION_INJECT
-        if Mark.source in marker: marker.source = XML_PREPARE_ATTRIBUTES
-        
-        return markers
+    return definitions
 
 # --------------------------------------------------------------------
 
@@ -101,8 +106,6 @@ class RenderXML(XMLGenerator, IRender):
             The encoding error resolving.
         @param content: Content
             The content to render in.
-        @param markers: Markers
-            The markers to be used in indexing.
         '''
         assert isinstance(content, Content), 'Invalid content %s' % content
         assert isinstance(content.charSet, str), 'Invalid content char set %s' % content.charSet
@@ -197,7 +200,7 @@ class RenderXML(XMLGenerator, IRender):
                     self._indexEnd(offset= -1)  # offset -1 for the comma
                 else: self._write(' %s=%s' % (nameAttr, quoteattr(valueAttr)))
         if indexPrepare: self._indexEnd()
-        for mark in indexAttributesInject: self._indexAt(mark)
+        for name in indexAttributesInject: self._indexAt(XML_ATTRIBUTE_INJECT_PATTERN % name)
                 
         if self._short_empty_elements:
             self._pending_start_element = True

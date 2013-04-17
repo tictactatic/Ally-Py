@@ -205,10 +205,12 @@ class EncoderModel(EncoderWithSpecifiers):
         assert isinstance(support, Support), 'Invalid support %s' % support
         assert isinstance(support.normalizer, Normalizer), 'Invalid normalizer %s' % support.normalizer
         
-        if Support.hideProperties in support: hideProperties = support.hideProperties
+        if Support.hideProperties in support and support.hideProperties is not None:
+            hideProperties = support.hideProperties
         else: hideProperties = False
         
-        render.beginObject(support.normalizer.normalize(self.name), **self.populate(obj, support, indexBlock=True))
+        render.beginObject(support.normalizer.normalize(self.name),
+                           **self.populate(obj, support, indexBlock=hideProperties))
         if not hideProperties:
             for name, encoder in self.properties:
                 assert isinstance(encoder, IEncoder), 'Invalid property encoder %s' % encoder

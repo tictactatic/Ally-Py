@@ -12,11 +12,10 @@ Provides the setups for the parsing/rendering processors.
 from ally.container import ioc
 from ally.core.impl.processor.parser.text import ParseTextHandler
 from ally.core.impl.processor.parser.xml import ParseXMLHandler
-from ally.core.impl.processor.render.base import GeneralMarkersHandler
 from ally.core.impl.processor.render.json import RenderJSONHandler
 from ally.core.impl.processor.render.text import RenderTextHandler
-from ally.core.impl.processor.render.xml import RenderXMLHandler, \
-    XMLMarkersHandler
+from ally.core.impl.processor.render.xml import RenderXMLHandler, XML_MARKERS
+from ally.core.spec.transform.index import GENERAL_MARKERS
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.handler import Handler
 import codecs
@@ -103,17 +102,11 @@ def assemblyRendering() -> Assembly:
     return Assembly('Renderer response')
 
 @ioc.entity
-def assemblyMarkersProviders() -> Assembly:
+def markersDefinitions() -> dict:
     '''
-    The assembly containing the markers providers.
+    The markers definitions for rendering.
     '''
-    return Assembly('Markers providers')
-
-@ioc.entity
-def markersGeneral() -> Handler: return GeneralMarkersHandler()
-
-@ioc.entity
-def markersXML() -> Handler: return XMLMarkersHandler()
+    return {}
 
 @ioc.entity
 def renderJSON() -> Handler:
@@ -127,15 +120,15 @@ def renderXML() -> Handler:
 
 # --------------------------------------------------------------------
 
+@ioc.before(markersDefinitions)
+def updateMarkersDefinitions():
+    markersDefinitions().update(GENERAL_MARKERS)
+    markersDefinitions().update(XML_MARKERS)
+
 @ioc.before(assemblyParsing)
 def updateAssemblyParsing():
     assemblyParsing().add(parseJSON())
     assemblyParsing().add(parseXML())
-
-@ioc.before(assemblyMarkersProviders)
-def updateAssemblyMarkersProviders():
-    assemblyMarkersProviders().add(markersGeneral())
-    assemblyMarkersProviders().add(markersXML())
 
 @ioc.before(assemblyRendering)
 def updateAssemblyRendering():

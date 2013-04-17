@@ -10,7 +10,8 @@ Provides the configurations for the processors used in handling the request.
 '''
 
 from .encode import assemblyEncode
-from .parsing_rendering import assemblyRendering, assemblyParsing
+from .parsing_rendering import assemblyRendering, assemblyParsing, \
+    markersDefinitions
 from ally.container import ioc
 from ally.core.impl.processor.arguments import ArgumentsPrepareHandler, \
     ArgumentsBuildHandler
@@ -18,6 +19,8 @@ from ally.core.impl.processor.content import ContentHandler
 from ally.core.impl.processor.decoder import CreateDecoderHandler
 from ally.core.impl.processor.encoding import EncodingHandler
 from ally.core.impl.processor.invoking import InvokingHandler
+from ally.core.impl.processor.marker_id import ProvideMarkersIdHandler
+from ally.core.impl.processor.marker_provider import MarkersProviderHandler
 from ally.core.impl.processor.parsing import ParsingHandler
 from ally.core.impl.processor.render_encoder import RenderEncoderHandler
 from ally.core.impl.processor.rendering import RenderingHandler
@@ -115,3 +118,14 @@ def invoking() -> Handler: return InvokingHandler()
 
 @ioc.entity
 def renderEncoder() -> Handler: return RenderEncoderHandler()
+
+# --------------------------------------------------------------------
+
+@ioc.entity
+def providerMarkers() -> Handler:
+    b = MarkersProviderHandler()
+    b.definitions = markersDefinitions()
+    return b
+
+@ioc.entity
+def provideMarkersId() -> Handler: return ProvideMarkersIdHandler()

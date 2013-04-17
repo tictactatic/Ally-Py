@@ -280,8 +280,7 @@ class RequestHandler(dispatcher, BaseHTTPRequestHandler):
         requestCnt.source = self.rfile
         
         chain = Chain(proc)
-        chain.process(request=request, requestCnt=requestCnt,
-                      response=proc.ctx.response(), responseCnt=proc.ctx.responseCnt())
+        chain.process(**proc.fillIn(request=request, requestCnt=requestCnt))
         
         def respond():
             response, responseCnt = chain.arg.response, chain.arg.responseCnt

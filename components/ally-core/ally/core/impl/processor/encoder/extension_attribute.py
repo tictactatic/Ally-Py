@@ -10,13 +10,13 @@ Provides the extension encoder.
 '''
 
 from ally.api.operator.type import TypeExtension
-from ally.api.type import typeFor
+from ally.api.type import typeFor, Iter
 from ally.container.ioc import injected
 from ally.core.spec.transform.encoder import IEncoder, ISpecifier
 from ally.core.spec.transform.render import IRender
 from ally.design.cache import CacheWeak
 from ally.design.processor.assembly import Assembly
-from ally.design.processor.attribute import requires, defines
+from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain, Processing
@@ -34,6 +34,8 @@ class Create(Context):
     @rtype: list[ISpecifier]
     The attributes specifications provider from the extension.
     ''')
+    # ---------------------------------------------------------------- Optional
+    encoder = optional(IEncoder)
     
 class CreateProperty(Context):
     '''
@@ -77,6 +79,11 @@ class ExtensionAttributeEncode(HandlerBranchingProceed):
         '''
         assert isinstance(propertyProcessing, Processing), 'Invalid processing %s' % propertyProcessing
         assert isinstance(create, Create), 'Invalid create %s' % create
+        
+        if Create.encoder in create and create.encoder is not None: return 
+        # There is already an encoder, nothing to do.
+        if not isinstance(create.objType, Iter): return
+        # The type is not for a collection so no extension, nothing to do, just move along
         
         cache = self._cache.key(propertyProcessing)
         if not cache.has: cache.value = AttributesExtension(self.processProperties, propertyProcessing)

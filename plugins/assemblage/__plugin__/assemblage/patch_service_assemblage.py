@@ -27,13 +27,12 @@ else:
     ally_core_http = ally_core_http  # Just to avoid the import warning
     # ----------------------------------------------------------------
     
-    from __setup__.ally_assemblage.processor import assemblage_uri
+    from __setup__.ally_assemblage.processor import assemblage_marker_uri
     from __setup__.ally_core_http.processor import root_uri_resources
     
-    @ioc.replace(assemblage_uri)
-    def assemblage_uri_anonymous():
+    @ioc.replace(assemblage_marker_uri)
+    def assemblage_marker_uri_internal():
         '''
-        The assemblage URI.
+        The assemblage marker URI.
         '''
-        return root_uri_resources() % 'Assemblage'
-
+        return root_uri_resources() % 'Assemblage/Marker'

@@ -162,6 +162,8 @@ def model(*args, id=None, name=None, **hints):
             propType = TypeModelProperty(modelType, prop)
             reference[prop] = Reference(propType)
             if isinstance(typ, TypeModel):
+                assert typ.container.propertyId, \
+                'A property id is required for %s in order to be used as a referenced model in %s' % (typ, modelType)
                 propType = TypeModelProperty(modelType, prop, typ.container.properties[typ.container.propertyId])
             setattr(clazz, prop, Property(propType))
     

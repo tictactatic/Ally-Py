@@ -13,9 +13,11 @@ from ..ally_http import server_protocol
 from ..ally_http.processor import chunkedTransferEncoding, \
     contentTypeResponseDecode, headerDecodeResponse, headerDecodeRequest, \
     internalError, headerEncodeResponse
+from ..ally_http.server import notFoundRouter
 from ally.assemblage.http.impl.processor.assembler import AssemblerHandler
 from ally.assemblage.http.impl.processor.content import ContentHandler
 from ally.assemblage.http.impl.processor.index import IndexProviderHandler
+from ally.assemblage.http.impl.processor.marker import MarkerHandler
 from ally.assemblage.http.impl.processor.node import RequestNodeHandler
 from ally.container import ioc
 from ally.container.error import ConfigError, SetupError
@@ -42,9 +44,9 @@ def external_port():
     return 80
 
 @ioc.config
-def assemblage_uri() -> str:
-    ''' The assemblage URI to fetch the assemblage resources objects from'''
-    raise ConfigError('There is no assemblage URI provided')
+def assemblage_marker_uri() -> str:
+    ''' The assemblage URI to fetch the assemblage markers objects from'''
+    raise ConfigError('There is no assemblage marker URI provided')
 
 @ioc.config
 def server_provide_assemblage():
@@ -63,6 +65,13 @@ def server_provide_assemblage():
 
 @ioc.entity
 def requestNode(): return RequestNodeHandler()
+
+@ioc.entity
+def marker() -> Handler:
+    b = MarkerHandler()
+    b.uri = assemblage_marker_uri()
+    b.assembly = assemblyForward()
+    return b
 
 @ioc.entity
 def content() -> Handler:
@@ -111,10 +120,14 @@ def updateAssemblyAssemblage():
     if not server_protocol() >= 'HTTP/1.1':
         raise SetupError('Invalid protocol %s for chunk transfer is available only '
                          'for HTTP/1.1 protocol or greater' % server_protocol())
-    assemblyAssemblage().add(internalError(), headerDecodeRequest(), requestNode(), content(), assembler(),
+    assemblyAssemblage().add(internalError(), headerDecodeRequest(), requestNode(), marker(), content(), assembler(),
                              headerEncodeResponse(), chunkedTransferEncoding())
     
 @ioc.before(assemblyContent)
 def updateAssemblyContent():
     assemblyContent().add(indexProvider(), headerDecodeResponse(), encodingProvider())
+    
+@ioc.before(assemblyForward)
+def updateAssemblyForward():
+    assemblyForward().add(notFoundRouter())
     

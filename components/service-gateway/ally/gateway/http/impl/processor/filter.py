@@ -12,10 +12,10 @@ Provides the gateway filter processor.
 from ally.container.ioc import injected
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines
+from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Processing, Chain
 from ally.design.processor.handler import HandlerBranchingProceed
-from ally.design.processor.branch import Using
 from ally.gateway.http.spec.gateway import IRepository, Match, Gateway
 from ally.http.spec.codes import FORBIDDEN_ACCESS, BAD_GATEWAY, isSuccess
 from ally.http.spec.server import HTTP, RequestHTTP, ResponseContentHTTP, \
@@ -84,7 +84,7 @@ class GatewayFilterHandler(HandlerBranchingProceed):
         assert isinstance(self.mimeTypeJson, str), 'Invalid json mime type %s' % self.mimeTypeJson
         assert isinstance(self.encodingJson, str), 'Invalid json encoding %s' % self.encodingJson
         assert isinstance(self.assembly, Assembly), 'Invalid assembly %s' % self.assembly
-        super().__init__(Using(self.assembly, 'requestCnt', 'response', 'responseCnt', request=RequestFilter))
+        super().__init__(Branch(self.assembly).using('requestCnt', 'response', 'responseCnt', request=RequestFilter))
 
     def process(self, processing, request:Request, response:Response, **keyargs):
         '''

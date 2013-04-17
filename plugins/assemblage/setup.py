@@ -17,7 +17,7 @@ setup(
     name="assemblage",
     version="1.0",
     packages=find_packages(),
-    install_requires=['ally_api >= 1.0'],
+    install_requires=['ally_core >= 1.0'],
     platforms=['all'],
     zip_safe=True,
 

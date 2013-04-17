@@ -9,15 +9,16 @@ Created on Apr 5, 2013
 Provides the indexes for the response content.
 '''
 
-from ally.assemblage.http.spec.assemblage import Index, BLOCK, GROUP, INJECT
+from ally.assemblage.http.spec.assemblage import Index
 from ally.container.ioc import injected
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessorProceed
-import json
+from ally.support.util_io import IInputStream
+from collections import deque
+from io import BytesIO
 import binascii
 import zlib
-from io import BytesIO
 
 # --------------------------------------------------------------------
 
@@ -27,6 +28,13 @@ class Response(Context):
     '''
     # ---------------------------------------------------------------- Required
     headers = requires(dict)
+
+class Assemblage(Context):
+    '''
+    The assemblage context.
+    '''
+    # ---------------------------------------------------------------- Required
+    markers = requires(dict)
 
 class Content(Context):
     '''
@@ -48,63 +56,104 @@ class IndexProviderHandler(HandlerProcessorProceed):
     
     nameIndex = 'Content-Index'
     # The name for the content index header
+    byteOrder = 'little'
+    # The byte order to use in decode values.
+    bytesIndexCount = 3
+    # The number of bytes to represent the indexes count.
+    bytesOffset = 3
+    # The number of bytes to represent the index offset.
+    bytesMark = 1
+    # The number of bytes to represent the index mark.
+    bytesValueId = 2
+    # The number of bytes to represent the index values id's.
+    bytesValueSize = 1
+    # The number of bytes to represent the value size.
+    encode = 'ascii'
+    # The string encode. 
     
     def __init__(self):
         assert isinstance(self.nameIndex, str), 'Invalid content index name %s' % self.nameIndex
+        assert isinstance(self.byteOrder, str), 'Invalid byte order %s' % self.byteOrder
+        assert isinstance(self.bytesIndexCount, int), 'Invalid bytes index count %s' % self.bytesIndexCount
+        assert isinstance(self.bytesOffset, int), 'Invalid bytes offset %s' % self.bytesOffset
+        assert isinstance(self.bytesMark, int), 'Invalid bytes mark %s' % self.bytesMark
+        assert isinstance(self.bytesValueId, int), 'Invalid bytes value id %s' % self.bytesValueId
+        assert isinstance(self.bytesValueSize, int), 'Invalid bytes value size %s' % self.bytesValueSize
+        assert isinstance(self.encode, str), 'Invalid encode %s' % self.encode
         super().__init__()
 
-    def process(self, response:Response, content:Content, **keyargs):
+    def process(self, response:Response, assemblage:Assemblage, content:Content, **keyargs):
         '''
         @see: HandlerProcessorProceed.process
         
         Provide the index for content.
         '''
         assert isinstance(response, Response), 'Invalid response %s' % response
+        assert isinstance(assemblage, Assemblage), 'Invalid assemblage %s' % assemblage
         assert isinstance(content, Content), 'Invalid content %s' % content
         
         if not response.headers: return  # No headers available.
+        if not assemblage.markers: return  # No markers available
+        assert isinstance(response.headers, dict), 'Invalid headers %s' % response.headers
+        assert isinstance(assemblage.markers, dict), 'Invalid markers %s' % assemblage.markers
         
         value = response.headers.pop(self.nameIndex, None)  # Also making sure not to pass the index header.
         if not value: return  # No content index available for processing.
         assert isinstance(value, str), 'Invalid value %s' % value
-        bvalue = value.encode('ascii')
+        bvalue = value.encode(self.encode)
         bvalue = binascii.a2b_base64(bvalue)
         bvalue = zlib.decompress(bvalue)
         read = BytesIO(bvalue)
         
-        count, indexes = int.from_bytes(read.read(3), 'little'), []
+        count, current, indexes, valuesIds, stack = self.intFrom(read, self.bytesIndexCount), 0, [], [], deque()
         while count > 0:
             count -= 1
-            offset = int.from_bytes(read.read(3), 'little')
-            mark = int.from_bytes(read.read(1), 'little')
-            if mark > 0: valueId = int.from_bytes(read.read(2), 'little')
+            offset = self.intFrom(read, self.bytesOffset)
+            current += offset
+            
+            mark = self.intFrom(read, self.bytesMark)
+            if mark > 0: valueId = self.intFrom(read, self.bytesValueId)
             else: valueId = None
-            indexes.append((offset, mark, valueId))
             
-        count, values = int.from_bytes(read.read(2), 'little'), {}
+            if mark == 0:  # This means an end marker
+                index = stack.pop()
+                if index: index.end = current
+            else:
+                marker = assemblage.markers.get(mark)
+                if marker:
+                    index = Index(marker, current)
+                    indexes.append(index)
+                    valuesIds.append(valueId)
+                    stack.append(index)
+                else:
+                    # Unknown marker, but we still need to push it on the stack as none so the end markers will match.
+                    stack.append(None)
+            
+        count, values = self.intFrom(read, self.bytesValueId), {}
         while count > 0:
             count -= 1
-            valueId = int.from_bytes(read.read(2), 'little')
-            countValue = int.from_bytes(read.read(1), 'little')
-            values[valueId] = str(read.read(countValue), 'ascii')
+            valueId = self.intFrom(read, self.bytesValueId)
+            countValue = self.intFrom(read, self.bytesValueSize)
+            value = read.read(countValue)
+            if len(value) != countValue: raise IOError()
+            values[valueId] = str(value, self.encode)
             
-        print(indexes, values)
-        
-        indexes, stack = [], []
-        for at, mark, value in indexesJSON:
-            if mark == 'b': mark = BLOCK
-            elif mark == 'g': mark = GROUP
-            elif mark == 'i': mark = INJECT
-            else:
-                assert mark == 'e', 'Unknown mark %s' % mark
-                index = stack.pop()
-                index.end = at
-                mark = None
-            
-            if mark is not None:
-                index = Index(mark, at, value)
-                indexes.append(index)
-                stack.append(index)
+        for index, valueId in zip(indexes, valuesIds):
+            if valueId: index.value = values[valueId]
         
         if content.indexes is None: content.indexes = indexes
         else: content.indexes.extend(indexes)
+
+    # ----------------------------------------------------------------
+    
+    def intFrom(self, inp, nbytes):
+        '''
+        Creates the integer value from the provided input stream.
+        '''
+        assert isinstance(inp, IInputStream), 'Invalid input stream %s' % inp
+        assert isinstance(nbytes, int), 'Invalid number of bytes %s' % nbytes
+        
+        byts = inp.read(nbytes)
+        if byts == b'': raise IOError()
+        
+        return int.from_bytes(byts, self.byteOrder)

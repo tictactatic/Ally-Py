@@ -9,8 +9,9 @@ Created on Mar 18, 2013
 Provides the accessible paths for a model.
 '''
 
-from .url_marker import NAME_HTTP_URL
 from ally.container.ioc import injected
+from ally.core.http.spec.transform.index import NAME_URL, ERROR_MESSAGE, \
+    ERROR_STATUS
 from ally.core.spec.resources import Normalizer, Path
 from ally.core.spec.transform.encoder import IEncoder
 from ally.core.spec.transform.render import IRender
@@ -100,7 +101,8 @@ class EncoderAccessiblePath(IEncoder):
         assert isinstance(support.encoderPath, IEncoderPath), 'Invalid path encoder %s' % support.encoderPath
         
         nameRef = support.normalizer.normalize(self.nameRef)
-        indexes = dict(indexBlock=True, indexPrepare=True, indexAttributesCapture={nameRef: NAME_HTTP_URL})
+        indexes = dict(indexBlock=True, indexPrepare=True, indexAttributesCapture={nameRef: NAME_URL},
+                       indexAttributesInject=(ERROR_STATUS, ERROR_MESSAGE))
         for name, path in support.pathsAccesible.items():
             assert isinstance(path, Path)
             if not path.isValid(): continue
