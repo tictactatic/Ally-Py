@@ -11,8 +11,8 @@ Provides the resource paths encoding.
 
 from ally.api.type import Iter, Type
 from ally.container.ioc import injected
-from ally.core.http.spec.transform.index import NAME_URL, ERROR_MESSAGE, \
-    ERROR_STATUS
+from ally.core.http.spec.transform.index import NAME_URL, ATTR_ERROR_MESSAGE, \
+    ATTR_ERROR_STATUS
 from ally.core.spec.resources import Normalizer, Path
 from ally.core.spec.transform.encoder import IEncoder
 from ally.core.spec.transform.render import IRender
@@ -115,8 +115,9 @@ class EncoderResources(IEncoder):
         
         render.beginCollection(support.normalizer.normalize(self.nameResources))
         nameRef = support.normalizer.normalize(self.nameRef)
-        indexes = dict(indexBlock=True, indexPrepare=True, indexAttributesCapture={nameRef: NAME_URL},
-                       indexAttributesInject=(ERROR_STATUS, ERROR_MESSAGE))
+        indexes = dict(indexBlock=True, indexPrepare=True,
+                       indexAttributesInject=(ATTR_ERROR_STATUS, ATTR_ERROR_MESSAGE),
+                       indexAttributesCapture={nameRef: NAME_URL})
         for path in obj:
             render.beginObject(support.normalizer.normalize(pathLongName(path)),
                                attributes={nameRef: support.encoderPath.encode(path)}, **indexes).end()

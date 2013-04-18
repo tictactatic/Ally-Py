@@ -47,6 +47,6 @@ def assemblyContent() -> Assembly:
 
 @ioc.before(assemblyContent)
 def updateAssemblyContent():
-    assemblyContent().add(internalError(), headerEncodeResponse(), contentDelivery(), allowEncode(), contentTypeResponseEncode(),
-                          contentLengthEncode())
+    assemblyContent().add(internalError(), headerEncodeResponse(), contentDelivery(), allowEncode(), 
+                          contentTypeResponseEncode(), contentLengthEncode())
     

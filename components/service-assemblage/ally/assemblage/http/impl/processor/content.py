@@ -12,7 +12,7 @@ Provides the content handler, this refers also to inner an main response content
 from ally.assemblage.http.spec.assemblage import RequestNode
 from ally.container.ioc import injected
 from ally.design.processor.assembly import Assembly
-from ally.design.processor.attribute import requires, defines, optional
+from ally.design.processor.attribute import requires, defines
 from ally.design.processor.branch import Routing, Branch
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain, Processing
@@ -58,11 +58,6 @@ class Assemblage(Context):
     requestHandler = defines(Callable, doc='''
     @rtype: callable(string, list[tuple(string, string)]) -> Content
     The request handler that takes as arguments the URL and parameters to process the request and returns the content.
-    ''')
-    # ---------------------------------------------------------------- Optional
-    ecodingError = optional(str, doc='''
-    @rtype: string
-    The character set encoding error.
     ''')
     decode = defines(Callable, doc='''
     @rtype: callable(bytes) -> string
@@ -234,14 +229,10 @@ class ContentHandler(HandlerBranching):
         assert isinstance(data.charSet, str), 'Invalid assemblage character set %s' % data.charSet
         assert isinstance(charSet, str), 'Invalid character set %s' % charSet
         
-        if Assemblage.ecodingError in data.assemblage and data.assemblage.ecodingError:
-            error = data.assemblage.ecodingError
-        else: error = self.encodingError
-        
-        if isinstance(content, str): return content.encode(data.charSet, error)
+        if isinstance(content, str): return content.encode(data.charSet, self.encodingError)
         else:
             if data.charSet == charSet: return content
-            return str(content, charSet).encode(data.charSet, error)
+            return str(content, charSet).encode(data.charSet, self.encodingError)
     
     def handler(self, data, url, parameters=None):
         '''

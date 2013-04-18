@@ -12,7 +12,7 @@ Provides the XML encoder processor handler.
 from .base import Content, RenderBaseHandler
 from ally.container.ioc import injected
 from ally.core.spec.transform.index import GROUP_PREPARE, ACTION_CAPTURE, \
-    GROUP_ADJUST, ACTION_INJECT, NAME_BLOCK, NAME_ADJUST
+    GROUP_ADJUST, ACTION_INJECT, NAME_BLOCK, NAME_ADJUST, PLACE_HOLDER
 from ally.core.spec.transform.render import IRender
 from ally.support.util import immut
 from codecs import getwriter
@@ -30,20 +30,47 @@ XML_PREPARE_ATTRIBUTES = 'XML prepare attributes'  # The XML attributes prepare
 XML_ADJUST_NAME = 'XML adjust tag name'  # The XML tag name adjust
 XML_ADJUST_ATTRIBUTES = 'XML adjust attributes'  # The XML attributes adjust
 
+XML_CONTENT_INJECT_PATTERN = 'XML inject content %s'  # The pattern used in creating the injected content.
+# The escape characters for content value.
+XML_CONTENT_ESCAPE = {'&': '&amp;', '>': '&gt;', '<': '&lt;'}
+
 XML_ATTRIBUTE_INJECT_PATTERN = 'XML inject attribute %s'  # The pattern used in creating the injected attributes.
 # The escape characters for attribute value.
-XML_ATTRIBUTE_ESCAPE = immut({'&': '&amp;', '>': '&gt;', '<': '&lt;', '"': "&quot;",
-                              '\n': '&#10;', '\r': '&#13;', '\t':'&#9;'})
+XML_ATTRIBUTE_ESCAPE = {'"': "&quot;", '\n': '&#10;', '\r': '&#13;', '\t':'&#9;'}
+XML_ATTRIBUTE_ESCAPE.update(XML_CONTENT_ESCAPE)
 
 # --------------------------------------------------------------------
 
 # Provides the general markers definitions.
-XML_MARKERS = immut({
-                     XML_PREPARE_NAME: immut(group=GROUP_PREPARE, action=ACTION_CAPTURE),
-                     XML_PREPARE_ATTRIBUTES: immut(group=GROUP_PREPARE, action=ACTION_CAPTURE),
-                     XML_ADJUST_NAME: immut(group=GROUP_ADJUST, action=ACTION_INJECT, source=XML_PREPARE_NAME),
-                     XML_ADJUST_ATTRIBUTES: immut(group=GROUP_ADJUST, action=ACTION_INJECT, source=XML_PREPARE_ATTRIBUTES),
-                     })
+XML_MARKERS = {
+               XML_PREPARE_NAME: immut(group=GROUP_PREPARE, action=ACTION_CAPTURE),
+               XML_PREPARE_ATTRIBUTES: immut(group=GROUP_PREPARE, action=ACTION_CAPTURE),
+               XML_ADJUST_NAME: immut(group=GROUP_ADJUST, action=ACTION_INJECT, source=XML_PREPARE_NAME),
+               XML_ADJUST_ATTRIBUTES: immut(group=GROUP_ADJUST, action=ACTION_INJECT, source=XML_PREPARE_ATTRIBUTES),
+               }
+
+def createXMLContentInjectMarker(group, value):
+    '''
+    Provides the the XML marker definitions for injecting content.
+    
+    @param group: string
+        The group of the content inject marker.
+    @param value: string
+        The value of the content inject marker.
+    '''
+    assert isinstance(group, str), 'Invalid group %s' % group
+    assert isinstance(value, str), 'Invalid group %s' % value
+    
+    definitions = {}
+    definition = definitions[XML_CONTENT_INJECT_PATTERN % group] = {}
+    definition['group'] = group
+    definition['action'] = ACTION_INJECT
+    # We need to recreate the XML tags that will contain the content.
+    definition['values'] = ['<', PLACE_HOLDER % XML_PREPARE_NAME, PLACE_HOLDER % XML_PREPARE_ATTRIBUTES, '>', value,
+                            '</', PLACE_HOLDER % XML_PREPARE_NAME, '>']
+    definition['escapes'] = XML_CONTENT_ESCAPE
+        
+    return definitions
 
 def createXMLAttrsInjectMarkers(group, attributes):
     '''
@@ -54,6 +81,8 @@ def createXMLAttrsInjectMarkers(group, attributes):
     @param attributes: dictionary{string: string}
         The attributes to be injected, a dictionary containing on the first position the attribute name
         and as a value the attribute value to be injected.
+    @return: dictionary{string: ...}
+        The inject attributes definitions.
     '''
     assert isinstance(attributes, dict), 'Invalid attributes %s' % attributes
     assert attributes, 'At least an attribute name is required'
@@ -68,7 +97,7 @@ def createXMLAttrsInjectMarkers(group, attributes):
         definition['group'] = group
         definition['action'] = ACTION_INJECT
         definition['target'] = name
-        definition['value'] = ' %s="%s"' % (name, value)
+        definition['values'] = [' %s="' % name, value, '"']
         definition['escapes'] = XML_ATTRIBUTE_ESCAPE
         
     return definitions
@@ -162,18 +191,37 @@ class RenderXML(XMLGenerator, IRender):
         self.endElement(name)
         if indexBlock: self._indexEnd()
 
-    def beginObject(self, name, attributes=None, indexBlock=False, indexPrepare=False,
-                    indexAttributesCapture=immut(), indexAttributesInject=()):
+    def beginObject(self, name, attributes=None, indexBlock=False, indexPrepare=False, indexContentInject=(),
+                    indexAttributesInject=(), indexAttributesCapture=immut()):
         '''
         @see: IRender.beginObject
+        
+        @param attributes: dictionary{string: string}
+            The attributes to associate with the object.
+        @param indexBlock: boolean
+            Flag indicating that a block index should be created for the object.
+        @param indexPrepare: boolean
+            Flag indicating that the object should be prepared to be injected with another REST content.
+        @param indexContentInject: list[string]|tuple(string)
+            The list or tuple containing the group names to be injected instead of object block.
+        @param indexAttributesInject: list[string]|tuple(string)
+            The list or tuple containing the attribute names (previously registered with @see: createXMLAttrsInjectMarkers)
+            to be injected.
+        @param indexAttributesCapture: dictionary{string: string}
+            The dictionary containing as a key the attribute name and as a value the marker to associate with the attribute
+            capture.
         '''
         assert isinstance(indexBlock, bool), 'Invalid index block flag %s' % indexBlock
         assert isinstance(indexPrepare, bool), 'Invalid index prepare flag %s' % indexPrepare
-        assert isinstance(indexAttributesCapture, dict), 'Invalid index attributes capture %s' % indexAttributesCapture
+        assert isinstance(indexContentInject, (tuple, list)), 'Invalid index content inject %s' % indexContentInject
         assert isinstance(indexAttributesInject, (tuple, list)), 'Invalid index attributes inject %s' % indexAttributesInject
+        assert isinstance(indexAttributesCapture, dict), 'Invalid index attributes capture %s' % indexAttributesCapture
+        
         indexAdjust, indexBlock = self._adjust, self._block and indexBlock
         indexPrepare = indexBlock and indexPrepare
         self._adjust = False
+        
+        for group in indexContentInject: self._indexStart(XML_CONTENT_INJECT_PATTERN % group)
         
         if indexAdjust: self._indexStart(NAME_ADJUST)
         if not self._stack: self.startDocument()  # Start the document
@@ -209,14 +257,16 @@ class RenderXML(XMLGenerator, IRender):
         if self._short_empty_elements:
             self._pending_start_element = True
         else:
-            self._write(">")
+            self._write('>')
             
-        self._stack.append((name, indexBlock, indexAdjust))
+        self._stack.append((name, indexBlock, indexAdjust, indexContentInject))
         return self
 
     def beginCollection(self, name, **specifications):
         '''
         @see: IRender.beginCollection
+        
+        @see: beginObject
         '''
         return self.beginObject(name, **specifications)
 
@@ -225,7 +275,7 @@ class RenderXML(XMLGenerator, IRender):
         @see: IRender.end
         '''
         assert self._stack, 'No object to end'
-        name, indexBlock, indexAdjust = self._stack.pop()
+        name, indexBlock, indexAdjust, indexContentInject = self._stack.pop()
         
         if self._pending_start_element:
             self._write('/>')
@@ -239,6 +289,8 @@ class RenderXML(XMLGenerator, IRender):
         if indexBlock:
             self._indexEnd()
             self._block = True
+        for _group in indexContentInject: self._indexEnd()
+        
         if not self._stack:
             self.endDocument()  # Close the document if there are no other processes queued
             content = self._content

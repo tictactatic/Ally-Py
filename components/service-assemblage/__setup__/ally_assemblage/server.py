@@ -22,10 +22,8 @@ from ally.http.impl.processor.router_by_path import RoutingByPathHandler
 def server_pattern_assemblage():
     '''
     The pattern used for matching the assemblage paths in HTTP URL's.
-    !Attention this configuration needs to be in concordance with 'server_pattern_resources'
-    and eventually 'server_pattern_gateway'.
     '''
-    return '(^resources(?:/|(?=\\.)|$).*)'
+    return '(.*)'
 
 # --------------------------------------------------------------------
 

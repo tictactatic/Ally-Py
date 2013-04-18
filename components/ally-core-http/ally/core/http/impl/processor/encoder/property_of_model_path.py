@@ -18,8 +18,8 @@ from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessorProceed
 from ally.http.spec.server import IEncoderPath
-from ally.core.http.spec.transform.index import NAME_URL, ERROR_STATUS, \
-    ERROR_MESSAGE
+from ally.core.http.spec.transform.index import NAME_URL, ATTR_ERROR_STATUS, \
+    ATTR_ERROR_MESSAGE
 
 # --------------------------------------------------------------------
     
@@ -138,5 +138,5 @@ class AttributesPath(ISpecifier):
         if indexAttributesInject is None: indexAttributesInject = specifications['indexAttributesInject'] = []
         elif isinstance(indexAttributesInject, tuple): indexAttributesInject = list(indexAttributesInject)
         assert isinstance(indexAttributesInject, list), 'Invalid index attributes inject %s' % indexAttributesInject
-        indexAttributesInject.append(ERROR_STATUS)
-        indexAttributesInject.append(ERROR_MESSAGE)
+        indexAttributesInject.append(ATTR_ERROR_STATUS)
+        indexAttributesInject.append(ATTR_ERROR_MESSAGE)

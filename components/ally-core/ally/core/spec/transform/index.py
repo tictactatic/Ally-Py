@@ -8,7 +8,6 @@ Created on Apr 17, 2013
 
 Provides general specifications for indexes. 
 '''
-from ally.support.util import immut
 
 # --------------------------------------------------------------------
 
@@ -28,8 +27,12 @@ ACTION_CAPTURE = 'capture'  # The action name for capture.
 
 # --------------------------------------------------------------------
 
+PLACE_HOLDER = '${%s}'  # Used for creating place holders.
+
+# --------------------------------------------------------------------
+
 # Provides the general markers definitions.
-GENERAL_MARKERS = immut({
-                         NAME_BLOCK: immut(group=GROUP_BLOCK),
-                         NAME_ADJUST: immut(group=GROUP_ADJUST, action=ACTION_INJECT),
-                         })
+GENERAL_MARKERS = {
+                   NAME_BLOCK: dict(group=GROUP_BLOCK),
+                   NAME_ADJUST: dict(group=GROUP_ADJUST, action=ACTION_INJECT),
+                   }

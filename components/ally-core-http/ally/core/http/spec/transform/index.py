@@ -9,9 +9,9 @@ Created on Apr 17, 2013
 Provides HTTP specifications for indexes. 
 '''
 
-from ally.core.impl.processor.render.xml import createXMLAttrsInjectMarkers
+from ally.core.impl.processor.render.xml import createXMLAttrsInjectMarkers, \
+    createXMLContentInjectMarker
 from ally.core.spec.transform.index import ACTION_CAPTURE
-from ally.support.util import immut
 
 # --------------------------------------------------------------------
 
@@ -22,16 +22,19 @@ NAME_URL = 'URL'  # The marker name for HTTP URL.
 GROUP_URL = 'URL'  # The group name for URL reference.
 GROUP_ERROR = 'error'  # The group name for errors occurred while fetching URLs.
 
-ERROR_STATUS = 'ERROR'  # The attribute name for error status.
-ERROR_MESSAGE = 'ERROR_TEXT'  # The attribute name for error message.
-
-MARKER_VALUE = '*'  # The marker to be used for injecting the attribute value.
+CONTENT_CLOB = 'clob'  # The name for character blobs injection from reference URLs.
+ATTR_ERROR_STATUS = 'ERROR'  # The attribute name for error status.
+ATTR_ERROR_MESSAGE = 'ERROR_TEXT'  # The attribute name for error message.
 
 # --------------------------------------------------------------------
 
 # Provides the URL markers definitions.
-URL_MARKERS = {
-               NAME_URL: immut(group=GROUP_URL, action=ACTION_CAPTURE),
-               }
-# We populate the error markers, the error attributes have the place holder '*' for injecting values.
-URL_MARKERS.update(createXMLAttrsInjectMarkers(GROUP_ERROR, {ERROR_STATUS:MARKER_VALUE, ERROR_MESSAGE:MARKER_VALUE}))
+HTTP_MARKERS = {
+                NAME_URL: dict(group=GROUP_URL, action=ACTION_CAPTURE),
+                }
+# We populate the error markers, the error attributes will have an empty value signaling the proxy server to
+# fill in the values.
+HTTP_MARKERS.update(createXMLAttrsInjectMarkers(GROUP_ERROR, {ATTR_ERROR_STATUS:'', ATTR_ERROR_MESSAGE:''}))
+# We populate the clob markers for injecting character content, the content will have an empty value signaling
+# the proxy server to fill in the values.
+HTTP_MARKERS.update(createXMLContentInjectMarker(CONTENT_CLOB, ''))

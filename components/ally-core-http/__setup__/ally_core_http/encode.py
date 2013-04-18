@@ -27,7 +27,7 @@ from ally.core.http.impl.processor.encoder.property_of_model_path import \
 from ally.core.http.impl.processor.encoder.property_reference import \
     PropertyReferenceEncode
 from ally.core.http.impl.processor.encoder.resources import ResourcesEncode
-from ally.core.http.spec.transform.index import URL_MARKERS
+from ally.core.http.spec.transform.index import HTTP_MARKERS
 from ally.design.processor.handler import Handler
 
 # --------------------------------------------------------------------
@@ -80,4 +80,4 @@ def updateAssemblyPropertyEncodeWithPath():
 
 @ioc.before(markersDefinitions)
 def updateMarkersDefinitionsForURL():
-    markersDefinitions().update(URL_MARKERS)
+    markersDefinitions().update(HTTP_MARKERS)

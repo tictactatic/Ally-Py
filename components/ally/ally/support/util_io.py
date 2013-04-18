@@ -491,9 +491,10 @@ class StreamOnIterable(IInputStreamClosable):
         '''
         self._closed = True
 
-class RewindingStream(IInputStreamCT):
+class AdjustableStream(IInputStreamCT):
     '''
-    Provides a stream that allows for rewinding bytes back.
+    Provides a stream that allows for adjusting, at this point this means:
+        - rewinding bytes back.
     '''
     __slots__ = ('_stream', '_offset', '_rewind', '_available')
     
@@ -564,7 +565,8 @@ class RewindingStream(IInputStreamCT):
         '''
         @see: IInputStreamCT.tell
         '''
-        return self._stream.tell() - self._available
+        offset = self._stream.tell() - self._available
+        return 0 if offset < 0 else offset
         
     def close(self):
         '''
@@ -586,6 +588,27 @@ class RewindingStream(IInputStreamCT):
         assert isinstance(rbytes, bytes), 'Invalid bytes %s' % rbytes
         self._rewind.append(rbytes)
         self._available += len(rbytes)
+        
+    def discard(self, until):
+        '''
+        Discard from the stream bytes until the tell method equals with the until value.
+        
+        @param until: integer
+            The position until to discard bytes.
+        '''
+        assert isinstance(until, int), 'Invalid until offset %s' % until
+        
+        if until < self.tell():
+            raise IOError('Invalid stream offset %s, expected a value less then %s' % (self.tell(), until))
+        nbytes = until - self.tell()
+        if nbytes == 0: return
+        
+        # Discarding 1 kilo at a time.
+        while nbytes > 0:
+            if nbytes <= 1024: block = self.read(nbytes)
+            else: block = self.read(1024)
+            if block == b'': raise IOError('The stream is missing %s bytes' % nbytes)
+            nbytes -= len(block)
 
 class ReplaceInStream(IInputStreamClosable):
     '''

@@ -33,9 +33,9 @@ class Mark(Context):
     @rtype: string
     Indicates the mark target.
     ''')
-    value = definesIf(str, doc='''
-    @rtype: string
-    Indicates the value should be used as the content source for this mark.
+    values = definesIf(list, doc='''
+    @rtype: list[string]
+    Indicates the values that should be used as the content source for this mark.
     ''')
     source = definesIf(str, doc='''
     @rtype: string

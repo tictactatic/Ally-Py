@@ -19,7 +19,6 @@ from ally.design.processor.handler import Handler
 from ally.http.impl.processor.router_by_path import RoutingByPathHandler
 import logging
 
-
 # --------------------------------------------------------------------
 
 log = logging.getLogger(__name__)

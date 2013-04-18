@@ -11,7 +11,7 @@ API specifications for assemblage markers.
 
 from .domain_assemblage import modelAssemblage
 from ally.api.config import model, service, call
-from ally.api.type import Iter, Dict
+from ally.api.type import Iter, Dict, List
 
 # --------------------------------------------------------------------
 
@@ -24,7 +24,8 @@ class MarkerPrototype:
         Group -         the group of the marker.
         Action -        the action of the marker.
         Target -        the target of the marker.
-        Value -         the value source of the marker.
+        Values -        the list of values source of the marker, an entry value might contain place holders for prepared data,
+                        an empty value marks a value that needs to be provided by the proxy server.
         Escapes -       the content inject escapes.
     '''
     Id = int
@@ -33,7 +34,7 @@ class MarkerPrototype:
     Action = str
     Target = str
     Escapes = Dict(str, str)
-    Value = str
+    Values = List(str)
     
 @modelAssemblage(replace=MarkerPrototype)
 class Marker(MarkerPrototype):

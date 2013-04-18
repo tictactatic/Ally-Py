@@ -71,6 +71,10 @@ class ResponseContent(Context):
     @rtype: string
     The type for the streamed content.
     ''')
+    charSet = defines(str, doc='''
+    @rtype: string
+    The char set encoding for streamed content.
+    ''')
 
 # --------------------------------------------------------------------
 
@@ -153,7 +157,7 @@ class ContentDeliveryHandler(HandlerProcessorProceed):
                     response.code, response.status, response.isSuccess = PATH_FOUND
                     responseCnt.source = rf
                     responseCnt.length = size
-                    responseCnt.type, _encoding = guess_type(entryPath)
+                    responseCnt.type, responseCnt.charSet = guess_type(entryPath)
                     if not responseCnt.type: responseCnt.type = self.defaultContentType
                     return
 

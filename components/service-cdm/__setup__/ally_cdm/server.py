@@ -38,5 +38,4 @@ def contentRouter() -> Handler:
     
 @ioc.before(updateAssemblyServer)
 def updateAssemblyServerForContent():
-    if server_provide_content():
-        assemblyServer().add(contentRouter())
+    if server_provide_content(): assemblyServer().add(contentRouter())

@@ -36,7 +36,7 @@ class Marker:
     '''
     Provides the marker data constructed based on object.
     '''
-    __slots__ = ('id', 'group', 'action', 'target', 'escapes', 'value', 'sourceId')
+    __slots__ = ('id', 'name', 'group', 'action', 'target', 'escapes', 'values', 'sourceId')
     
     def __init__(self, obj):
         '''
@@ -52,6 +52,9 @@ class Marker:
         assert isinstance(id, str), 'Invalid id %s' % id
         self.id = int(id)
         
+        self.name = obj['Name']
+        assert isinstance(self.name, str), 'Invalid name %s' % self.name
+        
         self.group = obj['Group']
         assert isinstance(self.group, str), 'Invalid group %s' % self.group
         
@@ -64,8 +67,8 @@ class Marker:
         self.escapes = obj.get('Escapes')
         assert self.escapes is None or isinstance(self.escapes, dict), 'Invalid escapes %s' % self.escapes
         
-        self.value = obj.get('Value')
-        assert self.value is None or isinstance(self.value, str), 'Invalid value %s' % self.value
+        self.values = obj.get('Values')
+        assert self.values is None or isinstance(self.values, list), 'Invalid values %s' % self.values
         
         sourceId = obj.get('Source', immut()).get('Id')
         if sourceId is not None:
@@ -103,7 +106,7 @@ class Index:
 
 # --------------------------------------------------------------------
 
-def isValidFor(index, group=None, action=None, target=None):
+def isValidFor(index, group=None, action=None, target=None, hasSource=None):
     '''
     Checks if the index is valid for the provided parameters.
     
@@ -113,6 +116,9 @@ def isValidFor(index, group=None, action=None, target=None):
         The action to check for, if None then all actions are considered valid.
     @param target: string|None
         The target to check for, if None then all targets are considered valid.
+    @param hasSource: boolean|None
+        The index is required (True) to have a source or not to have one (False), if None then is valid 
+        regardless if it has or not a source.
     @return: boolean
         True if the index is valid for the provided filtering arguments, False otherwise.
     '''
@@ -121,10 +127,16 @@ def isValidFor(index, group=None, action=None, target=None):
     assert group is None or isinstance(group, str), 'Invalid group %s' % group
     assert action is None or isinstance(action, str), 'Invalid action %s' % action
     assert target is None or isinstance(target, str), 'Invalid target %s' % target
+    assert hasSource is None or isinstance(hasSource, bool), 'Invalid has source flag %s' % hasSource
     
-    if group and index.marker.group != group: return False
-    if action and index.marker.action != action: return False
-    if target and index.marker.target != target: return False
+    if group is not None and index.marker.group != group: return False
+    if action is not None and index.marker.action != action: return False
+    if target is not None and index.marker.target != target: return False
+    if hasSource is not None:
+        if hasSource:
+            if index.marker.sourceId is None: return False
+        else:
+            if index.marker.sourceId is not None: return False
     return True
 
 def findFor(indexes, **filter):

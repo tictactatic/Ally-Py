@@ -11,8 +11,8 @@ Provides the paths for a model.
 
 from ally.api.operator.type import TypeModel, TypeModelProperty
 from ally.container.ioc import injected
-from ally.core.http.spec.transform.index import NAME_URL, ERROR_MESSAGE, \
-    ERROR_STATUS
+from ally.core.http.spec.transform.index import NAME_URL, ATTR_ERROR_MESSAGE, \
+    ATTR_ERROR_STATUS
 from ally.core.spec.resources import Path, Normalizer
 from ally.core.spec.transform.encoder import ISpecifier, IEncoder
 from ally.design.processor.attribute import requires, defines, optional
@@ -125,5 +125,5 @@ class AttributeModelPath(ISpecifier):
         if indexAttributesInject is None: indexAttributesInject = specifications['indexAttributesInject'] = []
         elif isinstance(indexAttributesInject, tuple): indexAttributesInject = list(indexAttributesInject)
         assert isinstance(indexAttributesInject, list), 'Invalid index attributes inject %s' % indexAttributesInject
-        indexAttributesInject.append(ERROR_STATUS)
-        indexAttributesInject.append(ERROR_MESSAGE)
+        indexAttributesInject.append(ATTR_ERROR_STATUS)
+        indexAttributesInject.append(ATTR_ERROR_MESSAGE)
