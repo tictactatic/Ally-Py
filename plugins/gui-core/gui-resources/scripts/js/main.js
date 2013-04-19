@@ -26,9 +26,9 @@ requirejs.config
 		'concat': config.cjs('concat'),		
 		'newgizmo': config.cjs('newgizmo'),
         'backbone': config.cjs('backbone'),
+        'underscore': config.cjs('underscore'),
         'moment': config.cjs('moment'),
-        'router': config.cjs('router'),
-        'vendor': config.cjs('vendor')
+        'router': config.cjs('router')
 	},
     shim: {
         'vendor/backbone': {
@@ -56,22 +56,13 @@ require(['concat', 'backbone'], function(){
         // initialize menu before auth because we have some events bound to auth there
         var menu = new MenuView({ el: $('#navbar-top') });
 
-        var Router = Backbone.Router.extend({
-            routes: {
-                '': 'home'
-            },
-
-            home: function() {
-	            $.superdesk.applyLayout('layouts/dashboard', {}, function() {
-                    Action.initApps('modules.dashboard.*', $($.superdesk.layoutPlaceholder));
-                });
-            }
-        });
-
 	    // render auth view
         $(superdesk.layoutPlaceholder).html(authView.render().el);
 
-        new Router();
-        Backbone.history.start({root: window.location.pathname});
+        router.route('', 'home', function() {
+	        $.superdesk.applyLayout('layouts/dashboard', {}, function() {
+                Action.initApps('modules.dashboard.*', $($.superdesk.layoutPlaceholder));
+            });
+        });
 	});
 });
