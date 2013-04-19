@@ -38,7 +38,7 @@ def default_language():
     return 'en'
 
 @ioc.config
-def default_characterset() -> str:
+def default_charset() -> str:
     '''The default character set to use if none is provided in the request'''
     return 'UTF-8'
 
@@ -63,7 +63,7 @@ def argumentsPrepare() -> Handler: return ArgumentsPrepareHandler()
 @ioc.entity
 def rendering() -> Handler:
     b = RenderingHandler()
-    b.charSetDefault = default_characterset()
+    b.charSetDefault = default_charset()
     b.renderingAssembly = assemblyRendering()
     return b
 
@@ -103,7 +103,7 @@ def createDecoder() -> Handler: return CreateDecoderHandler()
 @ioc.entity
 def parsing() -> Handler:
     b = ParsingHandler()
-    b.charSetDefault = default_characterset()
+    b.charSetDefault = default_charset()
     b.parsingAssembly = assemblyParsing()
     return b
 

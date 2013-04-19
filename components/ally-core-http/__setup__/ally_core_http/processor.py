@@ -11,7 +11,7 @@ Provides the configurations for the processors used in handling the request.
 
 from ..ally_core.parsing_rendering import assemblyParsing
 from ..ally_core.processor import argumentsBuild, argumentsPrepare, encoding, \
-    invoking, default_characterset, rendering, createDecoder, content, renderEncoder, \
+    invoking, default_charset, rendering, createDecoder, content, renderEncoder, \
     normalizerRequest, converterRequest, normalizerResponse, converterResponse, \
     providerMarkers, provideMarkersId
 from ..ally_core.resources import resourcesRoot
@@ -120,7 +120,7 @@ def parameter() -> Handler: return ParameterHandler()
 @ioc.entity
 def parsingMultiPart() -> Handler:
     b = ParsingMultiPartHandler()
-    b.charSetDefault = default_characterset()
+    b.charSetDefault = default_charset()
     b.parsingAssembly = assemblyParsing()
     b.populateAssembly = assemblyMultiPartPopulate()
     return b

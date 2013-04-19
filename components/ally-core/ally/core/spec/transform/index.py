@@ -28,6 +28,7 @@ ACTION_CAPTURE = 'capture'  # The action name for capture.
 # --------------------------------------------------------------------
 
 PLACE_HOLDER = '${%s}'  # Used for creating place holders.
+PLACE_HOLDER_CONTENT = '' # The values entry that marks the proxy side content.
 
 # --------------------------------------------------------------------
 

@@ -41,9 +41,19 @@ class Mark(Context):
     @rtype: string
     Indicates the mark name that should be used as the content source for this mark.
     ''')
-    escapes = definesIf(dict, doc='''
+    replace = definesIf(str, doc='''
+    @rtype: string
+    The regex pattern used for replace marker source content.
+    ''')
+    replaceMapping = definesIf(dict, doc='''
     @rtype: dictionary{string: string}
-    The content escapes, as a key the character that needs to be escaped and as a value the escape value.
+    The content replace, as a key the value that needs to be replaced and as a value the replacing value.
+    If the replace provides a value that is not in this mapping then an empty string will be used.
+    ''')
+    replaceValue = definesIf(str, doc='''
+    @rtype: string
+    The replace value for replace regex, this can contain group markers like \1,\2 .. identifying groups that
+    are captured by replace.
     ''')
     
 class Markers(Context):

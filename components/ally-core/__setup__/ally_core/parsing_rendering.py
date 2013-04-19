@@ -12,7 +12,7 @@ Provides the setups for the parsing/rendering processors.
 from ally.container import ioc
 from ally.core.impl.processor.parser.text import ParseTextHandler
 from ally.core.impl.processor.parser.xml import ParseXMLHandler
-from ally.core.impl.processor.render.json import RenderJSONHandler
+from ally.core.impl.processor.render.json import RenderJSONHandler, JSON_MARKERS
 from ally.core.impl.processor.render.text import RenderTextHandler
 from ally.core.impl.processor.render.xml import RenderXMLHandler, XML_MARKERS
 from ally.core.spec.transform.index import GENERAL_MARKERS
@@ -124,6 +124,7 @@ def renderXML() -> Handler:
 def updateMarkersDefinitions():
     markersDefinitions().update(GENERAL_MARKERS)
     markersDefinitions().update(XML_MARKERS)
+    markersDefinitions().update(JSON_MARKERS)
 
 @ioc.before(assemblyParsing)
 def updateAssemblyParsing():

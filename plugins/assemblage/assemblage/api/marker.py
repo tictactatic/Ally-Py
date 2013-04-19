@@ -26,14 +26,20 @@ class MarkerPrototype:
         Target -        the target of the marker.
         Values -        the list of values source of the marker, an entry value might contain place holders for prepared data,
                         an empty value marks a value that needs to be provided by the proxy server.
-        Escapes -       the content inject escapes.
+        Replace -       the regex pattern used for replace marker source content.
+        ReplaceMapping -the content replace, as a key the value that needs to be replaced and as a value the replacing value.
+                        if the replace provides a value that is not in this mapping then an empty string will be used.
+        ReplaceValue -  the replace value for replace regex, this can contain group markers like \1,\2 .. identifying 
+                        groups that are captured by replace regex.
     '''
     Id = int
     Name = str
     Group = str
     Action = str
     Target = str
-    Escapes = Dict(str, str)
+    Replace = str
+    ReplaceMapping = Dict(str, str)
+    ReplaceValue = str
     Values = List(str)
     
 @modelAssemblage(replace=MarkerPrototype)

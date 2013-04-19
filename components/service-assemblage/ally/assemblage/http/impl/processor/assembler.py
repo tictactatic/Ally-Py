@@ -37,8 +37,8 @@ ACTION_CAPTURE = 'capture'  # The action name for capture.
 ERROR_STATUS = 'ERROR'  # The attribute name for error status.
 ERROR_MESSAGE = 'ERROR_TEXT'  # The attribute name for error message.
 
-REGEX_PLACE_HOLDER = re.compile('\$\{(\w+)\}')  # The regex used to identify and extract value markers.
-CONTENT_MARKER = ''  # The values entry that marks the proxy side content.
+REGEX_PLACE_HOLDER = re.compile('^\$\{(.+?)\}$')  # The regex used to identify and extract value markers.
+PLACE_HOLDER_CONTENT = ''  # The values entry that marks the proxy side content.
 
 log = logging.getLogger(__name__)
 
@@ -61,7 +61,6 @@ class Assemblage(Context):
     # ---------------------------------------------------------------- Required
     requestNode = requires(RequestNode)
     requestHandler = requires(Callable)
-    decode = requires(Callable)
     main = requires(object)
 
 class Content(Context):
@@ -73,6 +72,7 @@ class Content(Context):
     errorText = requires(str)
     source = requires(IInputStream)
     encode = requires(Callable)
+    decode = requires(Callable)
     indexes = requires(list)
     
 # --------------------------------------------------------------------
@@ -120,7 +120,6 @@ class AssemblerHandler(HandlerProcessor):
         '''
         assert isinstance(assemblage, Assemblage), 'Invalid assemblage %s' % assemblage
         assert isinstance(assemblage.main, Content), 'Invalid assemblage main content %s' % assemblage.main
-        assert callable(assemblage.decode), 'Invalid assemblage decode %s' % assemblage.decode
         assert callable(assemblage.requestHandler), 'Invalid request handler %s' % assemblage.requestHandler
         
         blocks = iterWithInner(assemblage.main.indexes, group=GROUP_BLOCK)
@@ -131,18 +130,19 @@ class AssemblerHandler(HandlerProcessor):
             assert isinstance(node.requests, dict), 'Invalid requests %s' % node.requests
             assert isinstance(content, Content), 'Invalid content %s' % content
             assert isinstance(content.source, AdjustableStream), 'Invalid content source %s' % content.source
+            assert callable(content.decode), 'Invalid content decode %s' % content.decode
             assert callable(extractor), 'Invalid extractor %s' % extractor
             
             while True:
                 try: block, inner = next(blocks)
                 except StopIteration:
                     # Providing the remaining bytes.
-                    for bytes in extractor(content): yield bytes
+                    for byts in extractor(content): yield byts
                     break
                 assert isinstance(block, Index), 'Invalid block %s' % block
                 
                 # Provide all bytes until start.
-                for bytes in extractor(content, block.start): yield bytes
+                for byts in extractor(content, block.start): yield byts
                 if block.end == content.source.tell(): continue  # No block content to process.
                 
                 bnode = node.requests.get(block.value)
@@ -150,61 +150,54 @@ class AssemblerHandler(HandlerProcessor):
                 if bnode is None:
                     if isTrimmed: content.source.discard(block.end)  # Skip the block bytes.
                     continue
+                assert isinstance(bnode, RequestNode), 'Invalid request node %s' % bnode
 
-                reference = findFor(inner, group=GROUP_URL, action=ACTION_CAPTURE)
+                reference = findFor(inner, group=GROUP_URL)
                 if not reference: continue  # No reference to process
                 assert isinstance(reference, Index), 'Invalid index %s' % reference
                 assert isinstance(reference.marker, Marker), 'Invalid index marker %s' % reference.marker
                 
-                preparers = listFor(inner, group=GROUP_PREPARE, action=ACTION_CAPTURE)
+                clob = findFor(inner, group=GROUP_CLOB)
+                if not bnode.requests and not clob: continue 
+                # No requests to process for sub node and character blob to inject.
+                
+                preparers = listFor(inner, group=GROUP_PREPARE)
                 preparers.append(reference)
                 
-                assert isinstance(bnode, RequestNode), 'Invalid request node %s' % bnode
-                if not bnode.requests: continue  # No requests to process for sub node.
-                captures = self.capture(preparers, content)
+                captures = self.capture(content, preparers)
                 if captures is None: continue  # No captures available.
-                
                 assert isinstance(captures, dict), 'Invalid captures %s' % captures
                 
-                url = assemblage.decode(captures.pop(reference.marker.id))
+                url = captures.pop(reference, None)
+                if url is None: continue  # No URL available.
+                url = content.decode(b''.join(url))
+                
                 bcontent = assemblage.requestHandler(url, bnode.parameters)
                 assert isinstance(bcontent, Content), 'Invalid content %s' % bcontent
                 if bcontent.errorStatus is not None:
                     assert log.debug('Error %s %s for %s', bcontent.errorStatus, bcontent.errorText, url) or True
-                    injectors = self.injectorsForErrors(inner, content, bcontent)
-                    for bytes in self.injector(injectors, content, block.end): yield bytes
+                    injectors = self.injectorsForErrors(content, inner, captures, bcontent)
+                    for byts in self.injector(injectors, content, block.end): yield byts
                     continue
+                
+                if clob:
+                    assert isinstance(clob, Index), 'Invalid index %s' % clob
+                    injectors = [(clob, self.obtain(content, clob.marker, captures, self.prepare(bcontent)))]
+                    for byts in self.injector(injectors, content, block.end): yield byts
+                    continue
+                
                 if not bcontent.indexes:
                     assert log.debug('No index at %s', url) or True
-                    injectors = self.injectorsForCLOB(inner, preparers, bcontent, captures)
-                    if injectors:
-                        content.source.discard(block.end)  # Skip the block bytes.
-                        for bytes in self.injector(injectors, content, block.end): yield bytes
-                    # TODO: handle non rest content
                     continue
+                
                 content.source.discard(block.end)  # Skip the block bytes.
                 
                 stack.append((isTrimmed, node, content, extractor, blocks))
                 isTrimmed, node, content = True, bnode, self.prepare(bcontent)
                 blocks = iterWithInner(content.indexes, group=GROUP_BLOCK)
                 
-                injectors = self.injectorsForCaptures(content, captures)
+                injectors = self.injectorsForAdjust(content, captures)
                 extractor = partial(self.injector, injectors)
-    
-    def prepare(self, content):
-        '''
-        Prepare the content for compatibility.
-        
-        @param content: Content
-            The content to process.
-        @return: Content
-            The processed provided content.
-        '''
-        assert isinstance(content, Content), 'Invalid content %s' % content
-        if content.source is not None and not isinstance(content.source, AdjustableStream):
-            content.source = AdjustableStream(content.source)
-        
-        return content
     
     def extractor(self, content, until=None):
         '''
@@ -243,7 +236,7 @@ class AssemblerHandler(HandlerProcessor):
         '''
         Extracts from the stream the provided number of bytes and injects content if so required. 
         
-        @param injectors: list[(Index, bytes|None)]
+        @param injectors: list[(Index, list[bytes|Content]|tuple(bytes|Content)|None)]
             The list of tuples with inject index and the value on the second position.
         @param content: Content
             The content to extract from.
@@ -264,33 +257,58 @@ class AssemblerHandler(HandlerProcessor):
             
             if index.start >= content.source.tell() and (until is None or index.end <= until):
                 # We provide what is before the inject.
-                for bytes in self.extractor(content, index.start): yield bytes
+                for byts in self.extractor(content, index.start): yield byts
                 content.source.discard(index.end)  # We just need to remove the content to be injected.
                 
-                if value is not None: yield value
+                if value is not None:
+                    assert isinstance(value, (list, tuple)), 'Invalid value %s' % value
+                    for val in value:
+                        if isinstance(val, Content):
+                            for byts in self.extractor(val): yield byts
+                        else:
+                            assert isinstance(val, bytes), 'Invalid value %s' % val
+                            yield val
                 
         # We provide the remaining content.
-        for bytes in self.extractor(content, until): yield bytes
+        for byts in self.extractor(content, until): yield byts
+        
+    # --------------------------------------------------------------------
+    
+    def prepare(self, content):
+        '''
+        Prepare the content for compatibility.
+        
+        @param content: Content
+            The content to process.
+        @return: Content
+            The processed provided content.
+        '''
+        assert isinstance(content, Content), 'Invalid content %s' % content
+        if content.source is not None and not isinstance(content.source, AdjustableStream):
+            content.source = AdjustableStream(content.source)
+        
+        return content
                 
-    def capture(self, capturers, content):
+    def capture(self, content, capturers):
         '''
         Captures the provided index groups.
 
-        @param capturers: list[Index]
-            The list of capturers indexes to capture the values for.
         @param content: Content
             The content to capture from.
+        @param capturers: list[Index]
+            The list of indexes to capture the values for, if the index is not of a capture action then the marker value
+            is provided if there is one.
         @param current: integer
             The current index in the stream.
-        @return: dictionary{integer: bytes}|None
-            The dictionary containing as a key the marker id and as a value the captured bytes. Returns None if there is
+        @return: dictionary{Index: bytes}|None
+            The dictionary containing as a key the index and as a value the captured bytes. Returns None if there is
             nothing to capture.
         '''
-        assert isinstance(capturers, list), 'Invalid capturers %s' % capturers
-        assert capturers, 'At least on capture index is required %s' % capturers
         assert isinstance(content, Content), 'Invalid content %s' % content
+        assert isinstance(capturers, list), 'Invalid capturers %s' % capturers
         assert callable(content.encode), 'Invalid content encode %s' % content.encode
         assert isinstance(content.source, AdjustableStream), 'Invalid content source %s' % content.source
+        assert capturers, 'At least on capture index is required %s' % capturers
         
         ecapture = max(capturers, key=lambda group: group.end)
         assert isinstance(ecapture, Index), 'Invalid index %s' % ecapture
@@ -306,14 +324,24 @@ class AssemblerHandler(HandlerProcessor):
         for index in capturers:
             assert isinstance(index, Index), 'Invalid index %s' % index
             assert isinstance(index.marker, Marker), 'Invalid index marker %s' % index.marker
-            captures[index.marker.id] = content.encode(capture[index.start - offset: index.end - offset])
+            if index.marker.action == ACTION_CAPTURE:
+                value = content.encode(capture[index.start - offset: index.end - offset])
+                if index.marker.values: value = self.obtain(content, index.marker, captures, value)
+                else: value = (value,)
+                captures[index] = value
+            elif index.value is not None:
+                captures[index] = (content.encode(index.value),)
+            
+        for index in capturers:
+            if index.marker.action != ACTION_CAPTURE and index.value is None:
+                if index.marker.values: captures[index] = self.obtain(content, index.marker, captures)
         
         content.source.rewind(capture)
         return captures
-            
+    
     def escape(self, marker, value):
         '''
-        Escapes the provided value based on 
+        Escapes in the provided value based on the marker.
         
         @param marker: Marker
             The marker to use for escaping the value.
@@ -325,15 +353,70 @@ class AssemblerHandler(HandlerProcessor):
         assert isinstance(marker, Marker), 'Invalid marker %s' % marker
         assert isinstance(value, str), 'Invalid value %s' % value
         
-        if marker.escapes:
-            assert isinstance(marker.escapes, dict), 'Invalid escapes %s' % marker.escapes
-            for replaced, replacer in marker.escapes.items(): value = value.replace(replaced, replacer)
-
+        if marker.replace:
+            if marker.replaceMapping:
+                def replace(match): return marker.replaceMapping.get(match.group(0), '')
+            else: replace = marker.replaceValue
+            return marker.replace.sub(replace, value)
         return value
+    
+    def obtain(self, content, marker, captures, value=None):
+        '''
+        Provides the value of the marker to be used for an injector.
+        '''
+        assert isinstance(content, Content), 'Invalid content %s' % content
+        assert isinstance(marker, Marker), 'Invalid marker %s' % marker
+        assert isinstance(captures, dict), 'Invalid captures %s' % captures
+        assert isinstance(marker.values, list), 'Invalid marker values %s' % marker.values
+        assert marker.values, 'Required at least a value'
+        
+        values, current, isAdded = [], [], None
+        for val in marker.values:
+            if val == PLACE_HOLDER_CONTENT and not isAdded:
+                if value is None: current.append(val)
+                else:
+                    if current: 
+                        values.append(content.encode(''.join(current)))
+                        current = []
+                    if isinstance(value, str):
+                        values.append(content.encode(self.escape(marker, value)))
+                    else: values.append(value)
+                isAdded = True
+            else:
+                match = REGEX_PLACE_HOLDER.match(val)
+                if match:
+                    name = match.groups()[0]
+                    for index, replace in captures.items():
+                        assert isinstance(index, Index), 'Invalid index %s' % index
+                        assert isinstance(index.marker, Marker), 'Invalid index marker %s' % index.marker
+                        if index.marker.name == name:
+                            if replace is not None:
+                                assert isinstance(replace, (list, tuple)), 'Invalid replace value %s' % replace
+                                if current:
+                                    values.append(content.encode(''.join(current)))
+                                    current = []
+                                values.extend(replace)
+                            break
+                        
+                else: current.append(val)
+                
+        if current: values.append(content.encode(''.join(current)))
+        
+        if isAdded and isinstance(value, Content):
+            # We need to adjust the value content encode in order to escape also the characters.
+            assert isinstance(value, Content)
+            oencode = value.encode
+            def encode(content):
+                if not isinstance(content, str): content = value.decode(content)
+                content = self.escape(marker, content)
+                return oencode(content)
+            value.encode = encode
+        
+        return values
     
     # --------------------------------------------------------------------
     
-    def injectorsForErrors(self, inner, content, econtent):
+    def injectorsForErrors(self, content, inner, captures, econtent):
         '''
         Provides the injectors list for errors.
         '''
@@ -341,76 +424,32 @@ class AssemblerHandler(HandlerProcessor):
         assert isinstance(econtent, Content), 'Invalid error content %s' % econtent
         
         injectors = []
-        for index in listFor(inner, group=GROUP_ERROR, action=ACTION_INJECT):
+        for index in listFor(inner, group=GROUP_ERROR, action=ACTION_INJECT, hasValues=True):
             assert isinstance(index, Index), 'Invalid index %s' % index
             assert isinstance(index.marker, Marker), 'Invalid index maker %s' % index.marker
-            if index.marker.values:
-                value = None
-                if index.marker.target == ERROR_STATUS:
-                    value = self.escape(index.marker, str(econtent.errorStatus))
-                elif index.marker.target == ERROR_MESSAGE and econtent.errorText:
-                    value = self.escape(index.marker, econtent.errorText)
-                if value:
-                    values = list(index.marker.values)
-                    try: values[values.index(CONTENT_MARKER)] = value
-                    except ValueError: pass
-                    injectors.append((index, content.encode(''.join(values))))
+            
+            value = None
+            if index.marker.target == ERROR_STATUS:
+                value = str(econtent.errorStatus)
+            elif index.marker.target == ERROR_MESSAGE and econtent.errorText:
+                value = str(econtent.errorText)
+            injectors.append((index, self.obtain(content, index.marker, captures, value)))
+                
         return injectors
     
-    def injectorsForCaptures(self, content, captures):
+    def injectorsForAdjust(self, content, captures):
         '''
-        Provides the injectors for adjusting captures.
+        Provides the injectors for adjusting with captures.
         '''
         assert isinstance(content, Content), 'Invalid content %s' % content
         assert isinstance(captures, dict), 'Invalid captures %s' % captures
+        captures = {index.marker.id: replace for index, replace in captures.items()}
         
         injectors = []
         for index in listFor(content.indexes, group=GROUP_ADJUST, action=ACTION_INJECT):
             assert isinstance(index, Index), 'Invalid index %s' % index
             assert isinstance(index.marker, Marker), 'Invalid index maker %s' % index.marker
-            if index.marker.sourceId is not None: value = captures.get(index.marker.sourceId)
-            else: value = None
-            injectors.append((index, value))
+            if index.marker.sourceId is not None: replace = captures.get(index.marker.sourceId)
+            else: replace = None
+            injectors.append((index, replace))
         return injectors
-
-    def injectorsForCLOB(self, inner, preparers, content, captures):
-        '''
-        Provides the injectors for character blob injection.
-        '''
-        assert isinstance(preparers, list), 'Invalid preparers %s' % preparers
-        assert isinstance(content, Content), 'Invalid content %s' % content
-        assert isinstance(captures, dict), 'Invalid captures %s' % captures
-        
-        clob = findFor(inner, group=GROUP_CLOB, action=ACTION_INJECT)
-        assert isinstance(clob, Index), 'Invalid index %s' % clob
-        assert isinstance(clob.marker, Marker), 'Invalid index maker %s' % clob.marker
-        assert isinstance(clob.marker.values, Marker), 'Invalid index maker %s' % clob.marker
-            
-        values, current = [], []
-        for value in clob.marker.values:
-            if value == CONTENT_MARKER:
-                if current:
-                    values.append(content.encode(''.join(current)))
-                    current = []
-                values.append(content)
-            else:
-                match = REGEX_PLACE_HOLDER.match(value)
-                if match:
-                    name = match.groups(0)
-                    for index in preparers:
-                        assert isinstance(index, Index), 'Invalid index %s' % index
-                        assert isinstance(index.marker, Marker), 'Invalid index maker %s' % index.marker
-                        if index.marker.name == name: break
-                    else: continue  # There is no value available for place holder.
-                    
-                    replace = captures.get(index.marker.id)
-                    if replace:
-                        if current:
-                            values.append(content.encode(''.join(current)))
-                            current = []
-                        values.append(replace)
-                        
-                else: current.append(value)
-        if current: values.append(content.encode(''.join(current)))
-                
-        return [(clob, values)]

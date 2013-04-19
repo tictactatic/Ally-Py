@@ -49,6 +49,11 @@ def assemblage_marker_uri() -> str:
     raise ConfigError('There is no assemblage marker URI provided')
 
 @ioc.config
+def default_response_charset() -> str:
+    '''The default response character set to use if none is provided in the request'''
+    return 'ISO-8859-1'
+
+@ioc.config
 def server_provide_assemblage():
     '''
     Indicates that this server should provide the assemblage service, possible values are:
@@ -78,6 +83,7 @@ def content() -> Handler:
     b = ContentHandler()
     b.assemblyForward = assemblyForward()
     b.assemblyContent = assemblyContent()
+    b.charSetDefault = default_response_charset()
     return b
 
 @ioc.entity

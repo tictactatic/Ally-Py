@@ -11,7 +11,7 @@ Provides HTTP specifications for indexes.
 
 from ally.core.impl.processor.render.xml import createXMLAttrsInjectMarkers, \
     createXMLContentInjectMarker
-from ally.core.spec.transform.index import ACTION_CAPTURE
+from ally.core.spec.transform.index import ACTION_CAPTURE, PLACE_HOLDER_CONTENT
 
 # --------------------------------------------------------------------
 
@@ -34,7 +34,8 @@ HTTP_MARKERS = {
                 }
 # We populate the error markers, the error attributes will have an empty value signaling the proxy server to
 # fill in the values.
-HTTP_MARKERS.update(createXMLAttrsInjectMarkers(GROUP_ERROR, {ATTR_ERROR_STATUS:'', ATTR_ERROR_MESSAGE:''}))
+HTTP_MARKERS.update(createXMLAttrsInjectMarkers(GROUP_ERROR, {ATTR_ERROR_STATUS:PLACE_HOLDER_CONTENT,
+                                                              ATTR_ERROR_MESSAGE:PLACE_HOLDER_CONTENT}))
 # We populate the clob markers for injecting character content, the content will have an empty value signaling
 # the proxy server to fill in the values.
-HTTP_MARKERS.update(createXMLContentInjectMarker(CONTENT_CLOB, ''))
+HTTP_MARKERS.update(createXMLContentInjectMarker(CONTENT_CLOB, PLACE_HOLDER_CONTENT))

@@ -22,7 +22,7 @@ from ally.http.spec.codes import isSuccess
 from ally.http.spec.server import RequestHTTP, ResponseHTTP, HTTP_GET, \
     ResponseContentHTTP
 from ally.support.util_io import StreamOnIterable, IInputStream
-from collections import Callable
+from collections import Callable, Iterable
 from functools import partial
 from urllib.parse import urlsplit, parse_qsl
 import codecs
@@ -59,10 +59,6 @@ class Assemblage(Context):
     @rtype: callable(string, list[tuple(string, string)]) -> Content
     The request handler that takes as arguments the URL and parameters to process the request and returns the content.
     ''')
-    decode = defines(Callable, doc='''
-    @rtype: callable(bytes) -> string
-    The decoder that converts from the response encoding bytes to string.
-    ''')
     # ---------------------------------------------------------------- Required
     requestNode = requires(RequestNode)
 
@@ -82,6 +78,10 @@ class ContentResponse(Context):
     source = defines(IInputStream, doc='''
     @rtype: IInputStream
     The content input stream source.
+    ''')
+    decode = defines(Callable, doc='''
+    @rtype: callable(bytes) -> string
+    The decoder that converts from the response encoding bytes to string.
     ''')
     encode = defines(Callable, doc='''
     @rtype: callable(bytes|string) -> bytes
@@ -103,6 +103,8 @@ class ContentHandler(HandlerBranching):
     # The assembly to be used in forwarding the request.
     assemblyContent = Assembly
     # The assembly to be used in handling the content.
+    charSetDefault = str
+    # The default character set to be used if none provided for the content.
     encodingError = 'replace'
     # The encoding error resolving if none provided.
     
@@ -110,6 +112,7 @@ class ContentHandler(HandlerBranching):
         assert isinstance(self.assemblyForward, Assembly), 'Invalid request forward assembly %s' % self.assemblyForward
         assert isinstance(self.assemblyContent, Assembly), 'Invalid content assembly %s' % self.assemblyContent
         assert isinstance(self.encodingError, str), 'Invalid encoding error %s' % self.encodingError
+        assert isinstance(self.charSetDefault, str), 'Invalid default character set %s' % self.charSetDefault
         super().__init__(Routing(self.assemblyForward).using('request', 'requestCnt', 'response', 'responseCnt'),
                          Branch(self.assemblyContent).included('response', 'assemblage', ('content', 'Content')))
 
@@ -165,8 +168,6 @@ class ContentHandler(HandlerBranching):
             return
 
         data.charSet = codecs.lookup(content.charSet).name
-        assemblage.decode = partial(str, encoding=data.charSet)
-        
         assemblage.main = self.populate(data, content, response, responseCnt)
         assemblage.requestHandler = partial(self.handler, data)
         
@@ -192,22 +193,23 @@ class ContentHandler(HandlerBranching):
         assert isinstance(content, ContentResponse), 'Invalid content %s' % content
         assert isinstance(response, ResponseHTTP), 'Invalid response %s' % response
         assert isinstance(responseCnt, ResponseContentHTTP), 'Invalid response content %s' % responseCnt
-        
-        if not isSuccess(response.status):
-            content.errorStatus = response.status
-            if ResponseHTTP.text in response and response.text: content.errorText = response.text
-            elif ResponseHTTP.code in response and response.code: content.errorText = response.code
-            return content
             
         if ResponseContentHTTP.source not in responseCnt or responseCnt.source is None:
             content.errorStatus, content.errorText = UNAVAILABLE
             return content
         
-        if isinstance(responseCnt.source, IInputStream): source = responseCnt.source
-        else: source = StreamOnIterable(responseCnt.source)
-        content.source = source
+        if isinstance(responseCnt.source, IInputStream): content.source = responseCnt.source
+        elif isinstance(responseCnt.source, Iterable): content.source = StreamOnIterable(responseCnt.source)
         
-        if content.charSet: content.encode = partial(self.encode, data, codecs.lookup(content.charSet).name)
+        if content.charSet: charSet = codecs.lookup(content.charSet).name
+        else: charSet = codecs.lookup(self.charSetDefault).name
+        content.encode = partial(self.encode, data, charSet)
+        content.decode = partial(str, encoding=charSet, errors=self.encodingError)
+        
+        if not isSuccess(response.status):
+            content.errorStatus = response.status
+            if ResponseHTTP.text in response and response.text: content.errorText = response.text
+            elif ResponseHTTP.code in response and response.code: content.errorText = response.code
         
         return content
             

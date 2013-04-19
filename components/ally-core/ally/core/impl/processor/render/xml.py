@@ -19,11 +19,8 @@ from codecs import getwriter
 from collections import deque
 from io import BytesIO
 from xml.sax.saxutils import XMLGenerator, quoteattr
-import logging
 
 # --------------------------------------------------------------------
-
-log = logging.getLogger(__name__)
 
 XML_PREPARE_NAME = 'XML prepare tag name'  # The XML tag name prepare
 XML_PREPARE_ATTRIBUTES = 'XML prepare attributes'  # The XML attributes prepare
@@ -32,16 +29,18 @@ XML_ADJUST_ATTRIBUTES = 'XML adjust attributes'  # The XML attributes adjust
 
 XML_CONTENT_INJECT_PATTERN = 'XML inject content %s'  # The pattern used in creating the injected content.
 # The escape characters for content value.
-XML_CONTENT_ESCAPE = {'&': '&amp;', '>': '&gt;', '<': '&lt;'}
+XML_CONTENT_ESCAPE = '[\&\>\<]'
+XML_CONTENT_ESCAPE_DICT = {'&': '&amp;', '>': '&gt;', '<': '&lt;'}
 
 XML_ATTRIBUTE_INJECT_PATTERN = 'XML inject attribute %s'  # The pattern used in creating the injected attributes.
 # The escape characters for attribute value.
-XML_ATTRIBUTE_ESCAPE = {'"': "&quot;", '\n': '&#10;', '\r': '&#13;', '\t':'&#9;'}
-XML_ATTRIBUTE_ESCAPE.update(XML_CONTENT_ESCAPE)
+XML_ATTRIBUTE_ESCAPE = '%s\"\n\r\t]' % XML_CONTENT_ESCAPE[:-1]
+XML_ATTRIBUTE_ESCAPE_DICT = {'"': "&quot;", '\n': '&#10;', '\r': '&#13;', '\t':'&#9;'}
+XML_ATTRIBUTE_ESCAPE_DICT.update(XML_CONTENT_ESCAPE_DICT)
 
 # --------------------------------------------------------------------
 
-# Provides the general markers definitions.
+# Provides the XML markers definitions.
 XML_MARKERS = {
                XML_PREPARE_NAME: immut(group=GROUP_PREPARE, action=ACTION_CAPTURE),
                XML_PREPARE_ATTRIBUTES: immut(group=GROUP_PREPARE, action=ACTION_CAPTURE),
@@ -68,7 +67,8 @@ def createXMLContentInjectMarker(group, value):
     # We need to recreate the XML tags that will contain the content.
     definition['values'] = ['<', PLACE_HOLDER % XML_PREPARE_NAME, PLACE_HOLDER % XML_PREPARE_ATTRIBUTES, '>', value,
                             '</', PLACE_HOLDER % XML_PREPARE_NAME, '>']
-    definition['escapes'] = XML_CONTENT_ESCAPE
+    definition['replace'] = XML_CONTENT_ESCAPE
+    definition['replaceMapping'] = XML_CONTENT_ESCAPE_DICT
         
     return definitions
 
@@ -98,7 +98,9 @@ def createXMLAttrsInjectMarkers(group, attributes):
         definition['action'] = ACTION_INJECT
         definition['target'] = name
         definition['values'] = [' %s="' % name, value, '"']
-        definition['escapes'] = XML_ATTRIBUTE_ESCAPE
+        
+        definition['replace'] = XML_ATTRIBUTE_ESCAPE
+        definition['replaceMapping'] = XML_ATTRIBUTE_ESCAPE_DICT
         
     return definitions
 
@@ -203,7 +205,8 @@ class RenderXML(XMLGenerator, IRender):
         @param indexPrepare: boolean
             Flag indicating that the object should be prepared to be injected with another REST content.
         @param indexContentInject: list[string]|tuple(string)
-            The list or tuple containing the group names to be injected instead of object block.
+            The list or tuple containing the group names (previously registered with @see: createXMLContentInjectMarkers)
+            to be injected instead of object block.
         @param indexAttributesInject: list[string]|tuple(string)
             The list or tuple containing the attribute names (previously registered with @see: createXMLAttrsInjectMarkers)
             to be injected.
@@ -217,11 +220,9 @@ class RenderXML(XMLGenerator, IRender):
         assert isinstance(indexAttributesInject, (tuple, list)), 'Invalid index attributes inject %s' % indexAttributesInject
         assert isinstance(indexAttributesCapture, dict), 'Invalid index attributes capture %s' % indexAttributesCapture
         
-        indexAdjust, indexBlock = self._adjust, self._block and indexBlock
+        indexAdjust, indexBlock = self._adjust, self._block and indexBlock and not self._adjust
         indexPrepare = indexBlock and indexPrepare
         self._adjust = False
-        
-        for group in indexContentInject: self._indexStart(XML_CONTENT_INJECT_PATTERN % group)
         
         if indexAdjust: self._indexStart(NAME_ADJUST)
         if not self._stack: self.startDocument()  # Start the document
@@ -229,6 +230,7 @@ class RenderXML(XMLGenerator, IRender):
         if indexAdjust: self._indexEnd()
         
         if indexBlock: self._indexStart(NAME_BLOCK, name)
+        for group in indexContentInject: self._indexStart(XML_CONTENT_INJECT_PATTERN % group)
         
         self._write('<')
         if indexAdjust: self._indexStart(XML_ADJUST_NAME)
@@ -237,12 +239,10 @@ class RenderXML(XMLGenerator, IRender):
         if indexPrepare: self._indexEnd()
         if indexAdjust: self._indexEnd()
         
-        if indexAdjust:
-            self._indexStart(XML_ADJUST_ATTRIBUTES)
-            self._indexEnd()
-        if indexPrepare: self._indexStart(XML_PREPARE_ATTRIBUTES)
+        if indexAdjust:self._indexAt(XML_ADJUST_ATTRIBUTES)
         
         if attributes:
+            if indexPrepare: self._indexStart(XML_PREPARE_ATTRIBUTES)
             assert isinstance(attributes, dict), 'Invalid attributes %s' % attributes
             for nameAttr, valueAttr in attributes.items():
                 if nameAttr in indexAttributesCapture:
@@ -251,7 +251,8 @@ class RenderXML(XMLGenerator, IRender):
                     self._write(quoteattr(valueAttr))
                     self._indexEnd(offset= -1)  # offset -1 for the comma
                 else: self._write(' %s=%s' % (nameAttr, quoteattr(valueAttr)))
-        if indexPrepare: self._indexEnd()
+            if indexPrepare: self._indexEnd()
+            
         for attr in indexAttributesInject: self._indexAt(XML_ATTRIBUTE_INJECT_PATTERN % attr)
                 
         if self._short_empty_elements:
@@ -259,7 +260,7 @@ class RenderXML(XMLGenerator, IRender):
         else:
             self._write('>')
             
-        self._stack.append((name, indexBlock, indexAdjust, indexContentInject))
+        self._stack.append((name, indexAdjust, indexBlock, indexContentInject))
         return self
 
     def beginCollection(self, name, **specifications):
@@ -275,7 +276,7 @@ class RenderXML(XMLGenerator, IRender):
         @see: IRender.end
         '''
         assert self._stack, 'No object to end'
-        name, indexBlock, indexAdjust, indexContentInject = self._stack.pop()
+        name, indexAdjust, indexBlock, indexContentInject = self._stack.pop()
         
         if self._pending_start_element:
             self._write('/>')
@@ -286,10 +287,10 @@ class RenderXML(XMLGenerator, IRender):
             self._write(name)
             if indexAdjust: self._indexEnd()
             self._write('>')
+        for _group in indexContentInject: self._indexEnd()
         if indexBlock:
             self._indexEnd()
             self._block = True
-        for _group in indexContentInject: self._indexEnd()
         
         if not self._stack:
             self.endDocument()  # Close the document if there are no other processes queued

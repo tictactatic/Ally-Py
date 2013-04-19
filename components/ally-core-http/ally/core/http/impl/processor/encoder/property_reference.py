@@ -114,6 +114,6 @@ class EncoderReference(IEncoder):
         nameRef = support.normalizer.normalize(self.nameRef)
         render.beginObject(support.normalizer.normalize(self.name),
                            attributes={nameRef: support.encoderPath.encode(obj)}, indexBlock=True, indexPrepare=True,
-                           indexContentInject=(CONTENT_CLOB),
+                           indexContentInject=(CONTENT_CLOB,),
                            indexAttributesInject=(ATTR_ERROR_STATUS, ATTR_ERROR_MESSAGE),
                            indexAttributesCapture={nameRef: NAME_URL}).end()

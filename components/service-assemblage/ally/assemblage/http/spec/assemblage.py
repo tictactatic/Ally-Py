@@ -11,6 +11,7 @@ Provides the assemblage specification.
 
 from ally.support.util import immut
 from collections import Iterable
+import re
 
 # --------------------------------------------------------------------
 
@@ -36,7 +37,7 @@ class Marker:
     '''
     Provides the marker data constructed based on object.
     '''
-    __slots__ = ('id', 'name', 'group', 'action', 'target', 'escapes', 'values', 'sourceId')
+    __slots__ = ('id', 'name', 'group', 'action', 'target', 'replace', 'replaceMapping', 'replaceValue', 'values', 'sourceId')
     
     def __init__(self, obj):
         '''
@@ -64,8 +65,19 @@ class Marker:
         self.target = obj.get('Target')
         assert self.target is None or isinstance(self.target, str), 'Invalid target %s' % self.target
         
-        self.escapes = obj.get('Escapes')
-        assert self.escapes is None or isinstance(self.escapes, dict), 'Invalid escapes %s' % self.escapes
+        replace = obj.get('Replace')
+        if replace:
+            assert isinstance(replace, str), 'Invalid replace %s' % replace
+            self.replace = re.compile(replace)
+        else: self.replace = None
+            
+        self.replaceMapping = obj.get('ReplaceMapping')
+        assert self.replaceMapping is None or isinstance(self.replaceMapping, dict), \
+        'Invalid replace mapping %s' % self.replaceMapping
+        
+        self.replaceValue = obj.get('ReplaceValue')
+        assert self.replaceValue is None or isinstance(self.replaceValue, str), \
+        'Invalid replace value %s' % self.replaceValue
         
         self.values = obj.get('Values')
         assert self.values is None or isinstance(self.values, list), 'Invalid values %s' % self.values
@@ -106,7 +118,7 @@ class Index:
 
 # --------------------------------------------------------------------
 
-def isValidFor(index, group=None, action=None, target=None, hasSource=None):
+def isValidFor(index, group=None, action=None, target=None, hasValues=None):
     '''
     Checks if the index is valid for the provided parameters.
     
@@ -116,9 +128,9 @@ def isValidFor(index, group=None, action=None, target=None, hasSource=None):
         The action to check for, if None then all actions are considered valid.
     @param target: string|None
         The target to check for, if None then all targets are considered valid.
-    @param hasSource: boolean|None
-        The index is required (True) to have a source or not to have one (False), if None then is valid 
-        regardless if it has or not a source.
+    @param hasValues: boolean|None
+        The index is required (True) to have a values or not to have (False), if None then is valid 
+        regardless if it has or not a value.
     @return: boolean
         True if the index is valid for the provided filtering arguments, False otherwise.
     '''
@@ -127,16 +139,16 @@ def isValidFor(index, group=None, action=None, target=None, hasSource=None):
     assert group is None or isinstance(group, str), 'Invalid group %s' % group
     assert action is None or isinstance(action, str), 'Invalid action %s' % action
     assert target is None or isinstance(target, str), 'Invalid target %s' % target
-    assert hasSource is None or isinstance(hasSource, bool), 'Invalid has source flag %s' % hasSource
+    assert hasValues is None or isinstance(hasValues, bool), 'Invalid has values flag %s' % hasValues
     
     if group is not None and index.marker.group != group: return False
     if action is not None and index.marker.action != action: return False
     if target is not None and index.marker.target != target: return False
-    if hasSource is not None:
-        if hasSource:
-            if index.marker.sourceId is None: return False
+    if hasValues is not None:
+        if hasValues:
+            if not index.marker.values: return False
         else:
-            if index.marker.sourceId is not None: return False
+            if index.marker.values: return False
     return True
 
 def findFor(indexes, **filter):
