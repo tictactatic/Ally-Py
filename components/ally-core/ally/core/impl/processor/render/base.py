@@ -45,10 +45,8 @@ class Content(Context):
     source = defines(IInputStream)
     length = defines(int)
     indexes = defines(list, doc='''
-    @rtype: list[tuple(integer, tuple(string, string|None)|None)]
-    The indexes table, basically a list of tuples that have on the first position the start index, on the second 
-    position none if is an end index or another tuple that contains in the first position the marker name of the index,
-    on the second an optional value.
+    @rtype: list[Index]
+    The indexes list.
     ''')
     # ---------------------------------------------------------------- Required
     charSet = requires(str)

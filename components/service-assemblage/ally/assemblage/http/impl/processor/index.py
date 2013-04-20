@@ -15,7 +15,6 @@ from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessorProceed
 from ally.support.util_io import IInputStream
-from collections import deque
 from io import BytesIO
 import binascii
 import zlib
@@ -105,29 +104,20 @@ class IndexProviderHandler(HandlerProcessorProceed):
         bvalue = zlib.decompress(bvalue)
         read = BytesIO(bvalue)
         
-        count, current, indexes, valuesIds, stack = self.intFrom(read, self.bytesIndexCount), 0, [], [], deque()
+        count, current, indexes, valuesIds = self.intFrom(read, self.bytesIndexCount), 0, [], []
         while count > 0:
             count -= 1
-            offset = self.intFrom(read, self.bytesOffset)
-            current += offset
             
             mark = self.intFrom(read, self.bytesMark)
-            if mark > 0: valueId = self.intFrom(read, self.bytesValueId)
-            else: valueId = None
+            current += self.intFrom(read, self.bytesOffset)
+            length = self.intFrom(read, self.bytesOffset)
+            valueId = self.intFrom(read, self.bytesValueId)
             
-            if mark == 0:  # This means an end marker
-                index = stack.pop()
-                if index: index.end = current
-            else:
-                marker = assemblage.markers.get(mark)
-                if marker:
-                    index = Index(marker, current)
-                    indexes.append(index)
-                    valuesIds.append(valueId)
-                    stack.append(index)
-                else:
-                    # Unknown marker, but we still need to push it on the stack as none so the end markers will match.
-                    stack.append(None)
+            marker = assemblage.markers.get(mark)
+            if marker:
+                index = Index(marker, current, current + length)
+                indexes.append(index)
+                valuesIds.append(valueId)
             
         count, values = self.intFrom(read, self.bytesValueId), {}
         while count > 0:

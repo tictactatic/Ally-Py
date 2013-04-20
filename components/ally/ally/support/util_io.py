@@ -598,10 +598,8 @@ class AdjustableStream(IInputStreamCT):
         '''
         assert isinstance(until, int), 'Invalid until offset %s' % until
         
-        if until < self.tell():
-            raise IOError('Invalid stream offset %s, expected a value less then %s' % (self.tell(), until))
+        if until <= self.tell(): return
         nbytes = until - self.tell()
-        if nbytes == 0: return
         
         # Discarding 1 kilo at a time.
         while nbytes > 0:

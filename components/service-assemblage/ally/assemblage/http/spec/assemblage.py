@@ -37,7 +37,7 @@ class Marker:
     '''
     Provides the marker data constructed based on object.
     '''
-    __slots__ = ('id', 'name', 'group', 'action', 'target', 'replace', 'replaceMapping', 'replaceValue', 'values', 'sourceId')
+    __slots__ = ('id', 'name', 'group', 'action', 'target', 'escape', 'escapeDict', 'values', 'sourceId')
     
     def __init__(self, obj):
         '''
@@ -65,19 +65,13 @@ class Marker:
         self.target = obj.get('Target')
         assert self.target is None or isinstance(self.target, str), 'Invalid target %s' % self.target
         
-        replace = obj.get('Replace')
-        if replace:
-            assert isinstance(replace, str), 'Invalid replace %s' % replace
-            self.replace = re.compile(replace)
-        else: self.replace = None
-            
-        self.replaceMapping = obj.get('ReplaceMapping')
-        assert self.replaceMapping is None or isinstance(self.replaceMapping, dict), \
-        'Invalid replace mapping %s' % self.replaceMapping
-        
-        self.replaceValue = obj.get('ReplaceValue')
-        assert self.replaceValue is None or isinstance(self.replaceValue, str), \
-        'Invalid replace value %s' % self.replaceValue
+        escape = obj.get('Escape')
+        if escape:
+            assert isinstance(escape, dict), 'Invalid escape %s' % escape
+            pattern = '|'.join('(%s)' % re.escape(escaped) for escaped in escape)
+            self.escape = re.compile(pattern)
+            self.escapeDict = escape
+        else: self.escape = None
         
         self.values = obj.get('Values')
         assert self.values is None or isinstance(self.values, list), 'Invalid values %s' % self.values
@@ -94,7 +88,7 @@ class Index:
     '''
     __slots__ = ('marker', 'start', 'end', 'value')
     
-    def __init__(self, marker, start, value=None):
+    def __init__(self, marker, start, end, value=None):
         '''
         Construct the index.
         
@@ -102,18 +96,19 @@ class Index:
             The marker for the index.
         @param start: integer
             The start of the index.
+        @param end: integer
+            The end of the index.
         @param value: string|None
             The value for the index.
-        @ivar end: integer
-            The end of the index, by default is the start index.
         '''
         assert isinstance(marker, Marker), 'Invalid marker %s' % marker
         assert isinstance(start, int), 'Invalid start index %s' % start
+        assert isinstance(end, int), 'Invalid end index %s' % end
         assert value is None or isinstance(value, str), 'Invalid value %s' % value
         
         self.marker = marker
         self.start = start
-        self.end = start
+        self.end = end
         self.value = value
 
 # --------------------------------------------------------------------

@@ -16,7 +16,7 @@ from ally.design.processor.handler import HandlerProcessorProceed
 from ally.http.spec.server import IEncoderHeader
 from ally.support.util_io import IInputStream, readGenerator
 from codecs import ascii_encode
-from collections import Iterable
+from collections import Iterable, deque
 
 # --------------------------------------------------------------------
 
@@ -53,8 +53,8 @@ class ChunkedTransferEncodingHandler(HandlerProcessorProceed):
     # The mark used to represent chunks.
     chunkEnding = '\r\n'
     # The chunck ending.
-    streamChunkSize = 1024
-    # The chunck size in bytes used in case the source is a stream.
+    maximumChunkSize = 1024
+    # The maximum chunck size in bytes, also used in case the source is a stream.
 
     def __init__(self):
         assert isinstance(self.nameTransferEncoding, str), 'Invalid transfer encoding name %s' % self.nameTransferEncoding
@@ -62,7 +62,7 @@ class ChunkedTransferEncodingHandler(HandlerProcessorProceed):
         assert isinstance(self.nameContentLength, str), 'Invalid content length name %s' % self.nameContentLength
         assert isinstance(self.chunkMark, str), 'Invalid chunk mark %s' % self.chunkMark
         assert isinstance(self.chunkEnding, str), 'Invalid chunk ending %s' % self.chunkEnding
-        assert isinstance(self.streamChunkSize, int), 'Invalid stream chunck size %s' % self.streamChunkSize
+        assert isinstance(self.maximumChunkSize, int), 'Invalid stream chunck size %s' % self.maximumChunkSize
         super().__init__()
         
         self._chunkEndingBytes = ascii_encode(self.chunkEnding)[0]
@@ -87,7 +87,7 @@ class ChunkedTransferEncodingHandler(HandlerProcessorProceed):
             # We make sure that no content length is not on the headers since this will create a conflict.
                 
         if isinstance(responseCnt.source, IInputStream):
-            responseCnt.source = self.chuncks(readGenerator(responseCnt.source, self.streamChunkSize))
+            responseCnt.source = self.chuncks(readGenerator(responseCnt.source, self.maximumChunkSize))
         else:
             assert isinstance(responseCnt.source, Iterable), 'Invalid source %s' % responseCnt.source
             responseCnt.source = self.chuncks(responseCnt.source)
@@ -104,9 +104,30 @@ class ChunkedTransferEncodingHandler(HandlerProcessorProceed):
             The transfer chuncks.
         '''
         assert isinstance(source, Iterable), 'Invalid source %s' % source
-        for chunk in source:
+        buffer, size = deque(), 0
+        source = iter(source)
+        while True:
+            try: chunk = next(source)
+            except StopIteration:
+                if not buffer: break
+                chunk = b''.join(buffer)
+                buffer.clear()
+                size = 0
+            else:
+                if size < self.maximumChunkSize and len(chunk) < self.maximumChunkSize:
+                    buffer.append(chunk)
+                    size += len(chunk)
+                    continue
+            
+            if buffer:
+                buffer.append(chunk)
+                chunk = b''.join(buffer)
+                buffer.clear()
+                size = 0
+                
             yield ascii_encode(self.chunkMark % hex(len(chunk))[2:])[0]
             yield chunk
             yield self._chunkEndingBytes
+            
         yield ascii_encode(self.chunkMark % '0')[0]
         yield self._chunkEndingBytes

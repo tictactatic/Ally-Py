@@ -19,7 +19,8 @@ NAME_URL = 'URL'  # The marker name for HTTP URL.
 
 # --------------------------------------------------------------------
 
-GROUP_URL = 'URL'  # The group name for URL reference.
+# The group name for URL reference, the markers with this group have to be found in just one index per block.
+GROUP_URL = 'URL'
 GROUP_ERROR = 'error'  # The group name for errors occurred while fetching URLs.
 
 CONTENT_CLOB = 'clob'  # The name for character blobs injection from reference URLs.

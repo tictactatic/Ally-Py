@@ -29,9 +29,7 @@ class Mark(Context):
     group = requires(str)
     action = requires(str)
     target = requires(str)
-    replace = requires(str)
-    replaceMapping = requires(dict)
-    replaceValue = requires(str)
+    escape = requires(dict)
     values = requires(list)
     idSource = requires(int)
     
@@ -90,9 +88,7 @@ class AssemblageMarkerService(IAssemblageMarkerService):
         marker.Group = mark.group
         marker.Action = mark.action
         marker.Target = mark.target
-        marker.Replace = mark.replace
-        marker.ReplaceMapping = mark.replaceMapping
-        marker.ReplaceValue = mark.replaceValue
+        marker.Escape = mark.escape
         marker.Values = mark.values
         marker.Source = mark.idSource
         

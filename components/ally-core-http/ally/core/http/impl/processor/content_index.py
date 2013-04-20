@@ -21,6 +21,7 @@ from ally.http.spec.server import IEncoderHeader
 from io import BytesIO
 import binascii
 import zlib
+from ally.core.spec.transform.index import Index
 
 # --------------------------------------------------------------------
 
@@ -123,26 +124,26 @@ class ContentIndexEncodeHandler(HandlerBranchingProceed):
         out = BytesIO()
         out.write(len(responseCnt.indexes).to_bytes(self.bytesIndexCount, self.byteOrder))
         current, values = 0, {}
-        for index, header in responseCnt.indexes:
-            offset = index - current
-            current = index
+        for index in responseCnt.indexes:
+            assert isinstance(index, Index), 'Invalid index %s' % index
+            offset = index.start - current
+            current = index.start
             
+            assert index.name in markers, 'Invalid mark %s for markers %s' % (index.name, markers)
+            marker = markers[index.name]
+            assert isinstance(marker, Mark), 'Invalid marker %s' % marker
+            assert isinstance(marker.id, int), 'Invalid marker id %s' % marker.id
+            
+            out.write(marker.id.to_bytes(self.bytesMark, self.byteOrder))
             out.write(offset.to_bytes(self.bytesOffset, self.byteOrder))
-            if header is None: out.write(int(0).to_bytes(self.bytesMark, self.byteOrder))
+            out.write((index.end - index.start).to_bytes(self.bytesOffset, self.byteOrder))
+            
+            if index.value is None: out.write(int(0).to_bytes(self.bytesValueId, self.byteOrder))
             else:
-                mark, value = header
-                assert mark in markers, 'Invalid mark %s for markers %s' % (mark, markers)
-                marker = markers[mark]
-                assert isinstance(marker, Mark), 'Invalid marker %s' % marker
-                assert isinstance(marker.id, int), 'Invalid marker id %s' % marker.id
-                
-                out.write(marker.id.to_bytes(self.bytesMark, self.byteOrder))
-                if value is None: out.write(int(0).to_bytes(self.bytesValueId, self.byteOrder))
-                else:
-                    assert isinstance(value, str), 'Invalid value %s' % value
-                    valueId = values.get(value)
-                    if valueId is None: valueId = values[value] = len(values) + 1
-                    out.write(valueId.to_bytes(self.bytesValueId, self.byteOrder))
+                assert isinstance(index.value, str), 'Invalid value %s' % index.value
+                valueId = values.get(index.value)
+                if valueId is None: valueId = values[index.value] = len(values) + 1
+                out.write(valueId.to_bytes(self.bytesValueId, self.byteOrder))
         
         out.write(len(values).to_bytes(self.bytesValueId, self.byteOrder))
         for value, valueId in values.items():
@@ -152,3 +153,4 @@ class ContentIndexEncodeHandler(HandlerBranchingProceed):
         
         index = str(binascii.b2a_base64(zlib.compress(out.getvalue()))[:-1], self.encoding)
         response.encoderHeader.encode(self.nameIndex, index)
+        

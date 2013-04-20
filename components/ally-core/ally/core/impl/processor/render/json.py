@@ -11,9 +11,9 @@ Provides the JSON encoder processor handler.
 
 from .base import RenderBaseHandler, Content
 from ally.container.ioc import injected
-from ally.core.spec.transform.index import NAME_BLOCK, NAME_ADJUST, \
-    GROUP_PREPARE, ACTION_CAPTURE, GROUP_ADJUST, ACTION_INJECT, PLACE_HOLDER, \
-    PLACE_HOLDER_CONTENT
+from ally.core.spec.transform.index import NAME_BLOCK, GROUP_PREPARE, \
+    ACTION_CAPTURE, GROUP_ADJUST, ACTION_INJECT, PLACE_HOLDER, PLACE_HOLDER_CONTENT, \
+    Index, GROUP_BLOCK_JOIN, GROUP_BLOCK_ADJUST
 from ally.core.spec.transform.render import IRender
 from ally.support.util import immut
 from codecs import getwriter
@@ -23,20 +23,31 @@ from json.encoder import encode_basestring
 
 # --------------------------------------------------------------------
 
-JSON_PREPARE_NAME = 'JSON prepare tag name'  # The JSON name prepare
+JSON_BLOCK_JOIN = 'JSON block join'  # The JSON name for block join
+JSON_BLOCK_ADJUST = 'JSON block adjust'  # The JSON name for block adjust
+JSON_PREPARE_PROPERTY = 'JSON prepare property'  # The JSON property prepare
+JSON_PREPARE_NAME = 'JSON prepare name'  # The JSON name prepare
+JSON_PREPARE_NAME_FIXED = 'JSON prepare name fixed'  # The JSON fixed name prepare
 JSON_PREPARE_ATTRIBUTES = 'JSON prepare attributes'  # The JSON attributes prepare
-JSON_ADJUST_NAME = 'JSON adjust tag name'  # The JSON name adjust
+JSON_ADJUST_PROPERTY = 'JSON adjust property'  # The JSON property adjust
+JSON_ADJUST_NAME = 'JSON adjust name'  # The JSON name adjust
 JSON_ADJUST_ATTRIBUTES = 'JSON adjust attributes'  # The JSON attributes adjust
 
 # --------------------------------------------------------------------
 
 # Provides the JSON markers definitions.
 JSON_MARKERS = {
-                JSON_PREPARE_NAME: immut(group=GROUP_PREPARE),
-                JSON_PREPARE_ATTRIBUTES: immut(group=GROUP_PREPARE, action=ACTION_CAPTURE,
+                JSON_BLOCK_JOIN: dict(group=GROUP_BLOCK_JOIN, action=ACTION_INJECT, values=[',']),
+                JSON_BLOCK_ADJUST: dict(group=GROUP_BLOCK_ADJUST, action=ACTION_INJECT),
+                JSON_PREPARE_PROPERTY: dict(group=GROUP_PREPARE, action=ACTION_CAPTURE),
+                JSON_PREPARE_NAME: dict(group=GROUP_PREPARE, action=ACTION_CAPTURE),
+                JSON_PREPARE_NAME_FIXED: dict(group=GROUP_PREPARE),
+                JSON_PREPARE_ATTRIBUTES: dict(group=GROUP_PREPARE, action=ACTION_CAPTURE,
                                                values=[PLACE_HOLDER_CONTENT, ',']),
-                JSON_ADJUST_NAME: immut(group=GROUP_ADJUST, action=ACTION_INJECT, source=JSON_PREPARE_NAME),
-                JSON_ADJUST_ATTRIBUTES: immut(group=GROUP_ADJUST, action=ACTION_INJECT, source=JSON_PREPARE_ATTRIBUTES),
+                JSON_ADJUST_PROPERTY: dict(group=GROUP_ADJUST, action=ACTION_INJECT, source=JSON_PREPARE_PROPERTY),
+                JSON_ADJUST_NAME: dict(group=GROUP_ADJUST, action=ACTION_INJECT,
+                                       values=[PLACE_HOLDER % JSON_PREPARE_NAME, PLACE_HOLDER % JSON_PREPARE_NAME_FIXED]),
+                JSON_ADJUST_ATTRIBUTES: dict(group=GROUP_ADJUST, action=ACTION_INJECT, source=JSON_PREPARE_ATTRIBUTES),
                }
 
 # --------------------------------------------------------------------
@@ -89,7 +100,7 @@ class RenderJSON(IRender):
         self._first = True
         
         self._adjust = True
-        self._block = True
+        self._block = False
         self._indexes = []
 
     def property(self, name, value, indexBlock=False):
@@ -99,12 +110,18 @@ class RenderJSON(IRender):
         assert isinstance(name, str), 'Invalid name %s' % name
         assert isinstance(value, (str, list, dict)), 'Invalid value %s' % value
         assert isinstance(indexBlock, bool), 'Invalid index block flag %s' % indexBlock
-        assert self._stack and self._stack[0], 'No object for property'
-        indexBlock = self._block and indexBlock
+        assert self._stack and self._stack[0][0], 'No object for property'
 
-        if indexBlock: self._indexStart(NAME_BLOCK, name)
-        if self._first: self._first = False
-        else: self._out.write(',')
+        if not self._first:
+            if self._block or indexBlock: ablock = self._start(JSON_BLOCK_ADJUST)
+            self._out.write(',')
+            if self._block or indexBlock:
+                self._end(ablock)
+                self._block = indexBlock
+        else: self._block = indexBlock
+        self._first = False
+        
+        if indexBlock: iblock = self._start(NAME_BLOCK, name)
         self._out.write('"%s"' % name)
         self._out.write(':')
         if isinstance(value, list): value = '[%s]' % ','.join(encode_basestring(item) for item in value)
@@ -114,7 +131,7 @@ class RenderJSON(IRender):
         else:
             value = encode_basestring(value)
         self._out.write(value)
-        if indexBlock: self._indexEnd()
+        if indexBlock: self._end(iblock)
 
     def beginObject(self, name, **specifications):
         '''
@@ -135,12 +152,13 @@ class RenderJSON(IRender):
         @see: IRender.collectionEnd
         '''
         assert self._stack, 'No collection to end'
-        isObj, indexAdjust, indexBlock = self._stack.popleft()
+        isObj, iblock = self._stack.popleft()
         if not isObj: self._out.write(']')
-        # if indexAdjust: self._indexStart(NAME_ADJUST)
         self._out.write('}')
-        # if indexAdjust: self._indexEnd()
-        if indexBlock: self._indexEnd()
+        if iblock:
+            self._end(iblock)
+            self._block = True
+        else: self._block = False
         
         if not self._stack:
             content = self._content
@@ -178,33 +196,39 @@ class RenderJSON(IRender):
         
         assert isinstance(indexAttributesCapture, dict), 'Invalid index attributes capture %s' % indexAttributesCapture
         
-        indexAdjust, indexBlock = self._adjust, self._block and indexBlock and not self._adjust
+        indexAdjust, indexBlock = self._adjust, indexBlock and not self._adjust
         indexPrepare = indexBlock and indexPrepare
         self._adjust = False
-        
-#        if indexAdjust: self._indexStart(NAME_ADJUST)
-#        else:
-#            if not self._first: self._out.write(',')
-#    
-#            if self._stack and self._stack[0][0]:
-#                self._out.write('"%s"' % name)
-#                self._out.write(':')
 
-        if indexBlock: self._indexStart(NAME_BLOCK, name)
-        if indexPrepare: self._indexAt(JSON_PREPARE_NAME, name)
+        if indexAdjust: self._at(JSON_BLOCK_JOIN)
         
-        if not self._first: self._out.write(',')
-
+        if not self._first:
+            if self._block or indexBlock: ablock = self._start(JSON_BLOCK_ADJUST)
+            self._out.write(',')
+            if self._block or indexBlock:
+                self._end(ablock)
+                self._block = indexBlock
+        else: self._block = indexBlock
+        
+        if indexBlock: iblock = self._start(NAME_BLOCK, name)
         if self._stack and self._stack[0][0]:
+            if indexPrepare:
+                pprepare = self._start(JSON_PREPARE_PROPERTY)
+                nprepare = self._start(JSON_PREPARE_NAME, offset=1)  # offset +1 for the comma
             self._out.write('"%s"' % name)
+            if indexPrepare: self._end(nprepare, offset= -1)  # offset -1 for the comma
             self._out.write(':')
+            if indexPrepare: self._end(pprepare)
+        else:
+            if indexPrepare: self._at(JSON_PREPARE_NAME_FIXED, name)
+            if indexAdjust: self._at(JSON_ADJUST_PROPERTY)
         self._out.write('{')
-        if indexAdjust: self._indexAt(JSON_ADJUST_ATTRIBUTES)
+        if indexAdjust: self._at(JSON_ADJUST_ATTRIBUTES)
         
         self._first = True
         
         if attributes:
-            if indexPrepare: self._indexStart(JSON_PREPARE_ATTRIBUTES)
+            if indexPrepare: iprepare = self._start(JSON_PREPARE_ATTRIBUTES)
             for nameAttr, valueAttr in attributes.items():
                 assert isinstance(nameAttr, str), 'Invalid attribute name %s' % nameAttr
                 assert isinstance(valueAttr, str), 'Invalid attribute value %s' % valueAttr
@@ -214,40 +238,41 @@ class RenderJSON(IRender):
                 self._out.write('"%s"' % nameAttr)
                 self._out.write(':')
                 if nameAttr in indexAttributesCapture:
-                    self._indexStart(indexAttributesCapture[nameAttr], offset=1)  # offset +1 for the comma
+                    iattr = self._start(indexAttributesCapture[nameAttr], offset=1)  # offset +1 for the comma
                     self._out.write(encode_basestring(valueAttr))
-                    self._indexEnd(offset= -1)  # offset -1 for the comma
+                    self._end(iattr, offset= -1)  # offset -1 for the comma
                 else: self._out.write(encode_basestring(valueAttr))
-            if indexPrepare: self._indexEnd()
+            if indexPrepare: self._end(iprepare)
         
         if not isObject:
             if not self._first: self._out.write(',')
-            if indexAdjust: self._indexStart(JSON_ADJUST_NAME, offset=1)  # offset +1 for the comma
+            if indexAdjust: iadjust = self._start(JSON_ADJUST_NAME, offset=1)  # offset +1 for the comma
             self._out.write('"%s"' % name)
-            if indexAdjust: self._indexEnd(offset= -1)  # offset -1 for the comma
+            if indexAdjust: self._end(iadjust, offset= -1)  # offset -1 for the comma
             self._out.write(':[')
             self._first = True
         
-        self._stack.appendleft((isObject, indexAdjust, indexBlock))
+        self._stack.appendleft((isObject, iblock if indexBlock else None))
     
     # ----------------------------------------------------------------
     
-    def _indexAt(self, marker, value=None, offset=0):
+    def _at(self, marker, value=None, offset=0):
         '''
         Creates an index that starts and ends at the current offset.
         '''
-        at = self._outb.tell() + offset
-        self._indexes.append((at, (marker, value)))
-        self._indexes.append((at, None))
+        self._indexes.append(Index(marker, self._outb.tell() + offset, value))
         
-    def _indexStart(self, marker, value=None, offset=0):
+    def _start(self, marker, value=None, offset=0):
         '''
         Starts and index at the current offset.
         '''
-        self._indexes.append((self._outb.tell() + offset, (marker, value)))
+        index = Index(marker, self._outb.tell() + offset, value)
+        self._indexes.append(index)
+        return index
         
-    def _indexEnd(self, offset=0):
+    def _end(self, index, offset=0):
         '''
         Ends the ongoing index at the current offset.
         '''
-        self._indexes.append((self._outb.tell() + offset, None))
+        assert isinstance(index, Index), 'Invalid index %s' % index
+        index.end = self._outb.tell() + offset
