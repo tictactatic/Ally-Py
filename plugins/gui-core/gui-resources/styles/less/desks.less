@@ -903,6 +903,20 @@
   .desk-config-tab-content {
     background: #fff;
     border-top: 1px solid #ddd;
+      .plain-table {
+        .table-buttons {
+          width: 0;
+          overflow: hidden;
+          visibility: visible;
+          .transition( all 0.3s ease);
+          margin-left:0px; 
+        }
+        li:hover .table-buttons {
+          width: 24px !important;
+          margin-left:5px !important;
+
+        }
+      }
   }
 
   .desk-config-tab {
