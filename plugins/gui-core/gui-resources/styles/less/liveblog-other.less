@@ -4,6 +4,10 @@
  Manage feeds 
  ==========================================
  */
+
+ .liveblog-page {
+ 	overflow: hidden;
+ }
 .manage-feeds-top {
 	height: 30px;
 	margin-bottom: 30px;
@@ -11,6 +15,37 @@
 	.sf-searchbox {
 		float: left;
 		width: 60%;
+	}
+}
+
+.feeds-tabs {
+	margin: -20px -20px 20px -20px;
+	padding: 10px 20px 0 20px;
+	background: rgba(245,245,245,0.9);
+	li {
+
+	}
+}
+
+.feeds-list {
+	list-style-type: none;
+	margin: 0;
+	padding: 0;
+
+	li {
+		width: 100%;
+		.box-sizing(border-box);
+		height: 27px;
+		padding: 6px;
+		.border-radius(3px);
+		background: #f2f2f2;
+		margin-bottom: 6px;
+		> input {
+			float: left;
+		}
+		> span {
+			float: left;
+		}
 	}
 }
 
@@ -127,9 +162,44 @@
 	 	}
 
  	}
-
- 	
-
- 	
  
  }
+
+
+ .autopublish {
+ 	margin: -3px 0 7px;
+ 	span {
+ 		color: #aaa;
+ 	}
+ 	.sf-toggle-custom {
+ 		float: none;
+		margin-left: 10px;
+		vertical-align: middle;
+ 	}
+ }
+
+
+.btn-yellow {
+
+	background-color: #E6DBB1;
+	*background-color: #E6DBB1;
+
+	background-image: -moz-linear-gradient(top, #FDF1C3, #E6DBB1);
+	background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#FDF1C3), to(#E6DBB1));
+	background-image: -webkit-linear-gradient(top, #FDF1C3, #E6DBB1);
+	background-image: -o-linear-gradient(top, #FDF1C3, #E6DBB1);
+	background-image: linear-gradient(to bottom, #FDF1C3, #E6DBB1);
+	background-repeat: repeat-x;
+	border-color: #E6DBB1;
+	border-color: rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.25);
+	filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#FDF1C3', endColorstr='#E6DBB1', GradientType=0);
+	filter: progid:DXImageTransform.Microsoft.gradient(enabled=false);
+}
+.btn-yellow:hover,
+.btn-yellow:active,
+.btn-yellow.active,
+.btn-yellow.disabled,
+.btn-yellow[disabled] {
+	background-color: #E6DBB1;
+	*background-color: #003bb3;
+}

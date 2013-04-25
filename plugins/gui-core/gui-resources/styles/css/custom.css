@@ -2219,3 +2219,48 @@ label.bgcolor {
 	height: 150px;
 	display:none;
 }
+
+
+/* login popup style override */
+.sf-jquery-dialog {
+	width: 450px !important;
+}
+
+.login-popup {
+	padding: 0 30px !important;
+}
+.login-popup .fullwidth-input {
+	margin-bottom: 10px;
+	height: 33px;
+	font-size: 14px;
+	color: #333;
+}
+.login-popup .form-horizontal {
+	margin: 0;
+}
+.login-popup .form-horizontal fieldset {
+	margin-top: 20px;
+}
+.login-popup .fullwidth-input.login-pass:focus {
+	
+}
+
+.login-popup .alert {
+	margin: 0 -30px 5px -30px;
+	border-width: 1px 0;
+	border-radius: 0;
+	-moz-border-radius:0px;
+	-webkit-border-radius:0px;
+	-ms-border-radius:0px;
+	-o-border-radius:0px;
+}
+
+.ui-state-hover .ui-icon {
+	background: #fff !important;
+}
+
+.ui-dialog .ui-dialog-titlebar-close:before {
+	content: 'x';
+	font-size: 16px;
+}
+/* end of login popup style override */
