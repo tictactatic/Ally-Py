@@ -21,7 +21,7 @@
 
 
 .active-bg {
-	background-color:#e4f8de;
+	background-color:#e4f8de !important;
 }
 
 /* SEARCHBAR */
@@ -475,6 +475,68 @@
 }
 
 
+.sf-toggle-custom {
+  display:inline-block;
+  width:55px;
+  height:16px;
+  background: #444;
+  position:relative;
+  border:1px solid #3a3a3a;
+  float:right;
+  cursor:pointer;
+  .border-radius(3px); 
+  overflow: hidden;
+  &.on-off-toggle {
+  	&:before {
+    	content: "ON";
+    	position: absolute;
+    	font-size: 11px;
+    	color: #ebebeb;
+    	top: 0;
+    	left: 5px;
+    }
+    &:after {
+      	content: "OFF";
+    	position: absolute;
+    	font-size: 11px;
+    	color: #ebebeb;
+    	top: 0;
+    	left: 32px;
+      }
+  }
+  .sf-toggle-custom-inner {
+    position:absolute;
+    left:2px;
+    width:21px;
+    top:2px;
+    height:12px;
+    background:#ebebeb;
+    .border-radius(2px);
+    .transition( all 0.3s ease);
+  }
+  &.sf-checked {
+  	&.on-off-toggle {
+  		background: #309b01;
+  		border-color:#298401; 
+  	}
+    .sf-toggle-custom-inner {
+      left:32px !important;
+    }
+  }
+  input[type="checkbox"] {
+    display:none;
+  }
+   &.sf-disable {
+    background: #e0e0e0;
+    border:1px solid #d8d8d8;
+    &:hover {
+    	cursor: default;
+    }
+    .sf-toggle-custom-inner {
+      background:#f0f0f0;
+    }
+  }
+}
 
 
 .plain-table {
@@ -521,6 +583,34 @@
 	height: 24px;
 	width: 80%;
 }
+
+
+.or-label {
+	position: relative;
+	text-align: center;
+	font-style: italic;
+	&:before {
+		content: "_________";
+		position: absolute;
+		top: -6px;
+		color: #d0d0d0;
+		left: 50%;
+		margin-left: -75px;
+	}
+	&:after {
+		content: "_________";
+		position: absolute;
+		top: -6px;
+		color: #d0d0d0;
+		left: 50%;
+		margin-left: 15px;
+	}
+}
+
+
+
+
+
 
 /* scratchpad */
 

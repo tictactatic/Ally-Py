@@ -101,7 +101,7 @@ $.widget("ui.dialog", {
 			title = options.title || '&#160;',
 			titleId = $.ui.dialog.getTitleId(self.element),
 
-			uiDialog = (self.uiDialog = $('<div></div>'))
+			uiDialog = (self.uiDialog = $('<div class="sf-jquery-dialog"></div>'))
 				.appendTo(document.body)
 				.hide()
 				.addClass(uiDialogClasses + options.dialogClass)
