@@ -486,6 +486,10 @@
 			background-image:url(../../images/flickr-16px.png);
 		}
 	}
+
+	.saveonly {
+		display: none;
+	}
 }
 
 
@@ -840,7 +844,21 @@ overrides
 			}
 		}
 
-		
+		.saveonly {
+			position: absolute;
+			right: 0;
+			bottom: 0;
+			display: none;
+			.btn {
+				padding: 3px 10px;
+				.border-radius(3px 0 0 0);
+			}
+		}
+		&:hover {
+			.saveonly {
+				display: block;
+			}
+		}
 	}
 } 
 
@@ -1173,6 +1191,9 @@ overrides
 					padding: 0 0 0 5px;
 				}
 			}
+		}
+		.saveonly {
+			display: none !important;
 		}
 }
 .post-draggable {
