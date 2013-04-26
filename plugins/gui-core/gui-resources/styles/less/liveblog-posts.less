@@ -293,7 +293,7 @@
 		}
 
 	}
-	&.internal {
+	&.internal, &.smspost {
 		.result-content figure,
 		.attributes {
 			display: none;
@@ -628,7 +628,7 @@ overrides
 				padding-left: 20px;
 			}
 		}
-		&.internal {
+		&.internal, &.smspost {
 			padding: 8px 8px 8px 17px !important;
 			.result-content {
 				padding-left: 60px;
@@ -874,7 +874,7 @@ overrides
 }
 
 
-.collabs {
+.collabs, .sms-list {
 	li {
 		background: #FFFFFF;
 	    border: 1px solid #fff;
@@ -934,7 +934,7 @@ overrides
 				vertical-align: top;
 			}
 		}
-        &.internal {
+        &.internal, &.smspost {
         	padding: 8px 8px 8px 17px !important;
         	min-width: 300px;
         	.result-content-full {
@@ -1597,7 +1597,8 @@ overrides
 .chain-header,
 .collaborators-header, 
 .search-header, 
-.ads-header {
+.ads-header,
+.sms-header {
 	padding:10px;
 	position:absolute;
 	top:0;
@@ -1612,12 +1613,12 @@ overrides
 
 }
 
-.chain-header {
+.chain-header, .sms-header {
 	background-color: #f8f8f8 !important;
 	border-color: #e8e8e8 !important;
 	.border-radius(0px 0px 3px 3px);
 }
-.chain-search {
+.chain-search, .sms-search {
 	margin: -10px;
 	margin-top: 10px;
 	padding: 10px;
@@ -1629,7 +1630,7 @@ overrides
 	}
 	.border-radius(0 0 5px 5px);
 }
-.chainblogs {
+.chainblogs, .sms-list {
 	top: 190px !important;
 	bottom: 0;
 	padding: 0 12px 30px 0;
@@ -1646,7 +1647,8 @@ overrides
 }
 
 .collaborators-header,
-.chain-header {
+.chain-header, 
+.sms-header {
 	background-color: #f4f6f7;
 	border-color: #c4e3e9;
 	p {
@@ -1669,9 +1671,6 @@ overrides
 	padding:10px 10px 10px 10px;
 	form {
 		margin-bottom:0;
-	}
-	input[type="text"],  input[type="search"] {
-		width:97%;
 	}
 	.search-controls {
         list-style-type:none;
