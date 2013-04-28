@@ -11,94 +11,166 @@ Provides the XML encoder processor handler.
 
 from .base import Content, RenderBaseHandler
 from ally.container.ioc import injected
-from ally.core.spec.transform.index import GROUP_PREPARE, ACTION_CAPTURE, \
-    GROUP_ADJUST, ACTION_INJECT, NAME_BLOCK, NAME_ADJUST, PLACE_HOLDER, Index
+from ally.core.spec.transform.index import NAME_BLOCK, ACTION_DISCARD, \
+    ACTION_STREAM, ACTION_INJECT, ACTION_NAME, Index
 from ally.core.spec.transform.render import IRender
+from ally.indexing.spec.model import Block, Action
+from ally.indexing.spec.perform import skip, feed, feedValue, feedName, \
+    feedIndexed, feedContent, push, pop
 from ally.support.util import immut
 from codecs import getwriter
 from collections import deque
+from functools import partial
 from io import BytesIO
 from xml.sax.saxutils import XMLGenerator, quoteattr
 
 # --------------------------------------------------------------------
 
-XML_PREPARE_NAME = 'XML prepare tag name'  # The XML tag name prepare
-XML_PREPARE_ATTRIBUTES = 'XML prepare attributes'  # The XML attributes prepare
-XML_ADJUST_NAME = 'XML adjust tag name'  # The XML tag name adjust
-XML_ADJUST_ATTRIBUTES = 'XML adjust attributes'  # The XML attributes adjust
+# The patterns to use in creating XML specific names.
+PATTERN_XML_BLOCK = 'XML block %s'  # The XML block pattern name.
+PSIND_ATTR_CAPTURE = 'XML start capture %s'  # The pattern used for start indexes used in capturing attributes.
+PEIND_ATTR_CAPTURE = 'XML end capture %s'  # The pattern used for indexes used in capturing attributes.
 
-XML_CONTENT_INJECT_PATTERN = 'XML inject content %s'  # The pattern used in creating the injected content.
+# The names.
+NAME_XML_START_ADJUST = 'XML start adjust'
+NAME_XML_END_ADJUST = 'XML end adjust'
+
+# Variables
+VAR_XML_NAME = 'XML tag name'  # The name used for the tag name.
+VAR_XML_ATTRS = 'XML tag attributes'  # The name used for the tag attributes.
+
+# The XML actions.
+ACTION_XML_ADJUST = 'adjust'  # The adjust action.
+
+# The standard XML indexes.
+IND_DECL = 'XML declarations'
+SIND_TAG, EIND_TAG = 'XML start tag', 'XML end tag'
+SIND_CLOSE_TAG, EIND_CLOSE_TAG = 'XML start close tag', 'XML end close tag'
+SIND_NAME, EIND_NAME = 'XML start tag name', 'XML end tag name'
+SIND_ATTRS, EIND_ATTRS = 'XML start tag attributes', 'XML end tag attributes'
+SIND_CLOSE_NAME, EIND_CLOSE_NAME = 'XML close start tag name', 'XML close end tag name'
+
 # The escape characters for content value.
-XML_CONTENT_ESCAPE = {'&': '&amp;', '>': '&gt;', '<': '&lt;'}
-
-XML_ATTRIBUTE_INJECT_PATTERN = 'XML inject attribute %s'  # The pattern used in creating the injected attributes.
+ESCAPE_XML_CONTENT = {'&': '&amp;', '>': '&gt;', '<': '&lt;'}
 # The escape characters for attribute value.
-XML_ATTRIBUTE_ESCAPE = {'"': "&quot;", '\n': '&#10;', '\r': '&#13;', '\t':'&#9;'}
-XML_ATTRIBUTE_ESCAPE.update(XML_CONTENT_ESCAPE)
+ESCAPE_XML_ATTRIBUTE = {'"': "&quot;", '\n': '&#10;', '\r': '&#13;', '\t':'&#9;'}
+ESCAPE_XML_ATTRIBUTE.update(ESCAPE_XML_CONTENT)
 
-# --------------------------------------------------------------------
+# The XML block.
+BLOCK_XML = Block(
+                  Action(ACTION_NAME,
+                         skip(SIND_NAME), feed(EIND_NAME),
+                         rewind=True, final=False),
+                  Action(ACTION_STREAM,
+                         skip(SIND_TAG), feed(EIND_CLOSE_TAG)),
+                  Action(ACTION_DISCARD,
+                         skip(EIND_CLOSE_TAG)),
+                  )
+                                  
+# Provides the XML standard block definitions.
+BLOCKS_XML = {
+              NAME_XML_START_ADJUST:  
+              Block(
+                    Action(ACTION_XML_ADJUST,
+                           skip(IND_DECL),
+                           feed(SIND_NAME), skip(EIND_NAME), feedName(VAR_XML_NAME),
+                           feed(EIND_ATTRS), feedName(VAR_XML_ATTRS),
+                           feed(EIND_TAG)),
+                    Action(ACTION_STREAM,
+                           feed(EIND_TAG)),
+                    ),
+              
+              PATTERN_XML_BLOCK % NAME_BLOCK: BLOCK_XML,
+              
+              NAME_XML_END_ADJUST:
+              Block(
+                    Action(ACTION_XML_ADJUST,
+                           skip(SIND_CLOSE_TAG),
+                           feed(SIND_CLOSE_NAME), skip(EIND_CLOSE_NAME), feedName(VAR_XML_NAME),
+                           feed(EIND_CLOSE_TAG)),
+                    Action(ACTION_STREAM,
+                           skip(SIND_CLOSE_TAG),
+                           feed(EIND_CLOSE_TAG)),
+                    ),
+              }
 
-# Provides the XML markers definitions.
-XML_MARKERS = {
-               XML_PREPARE_NAME: dict(group=GROUP_PREPARE, action=ACTION_CAPTURE),
-               XML_PREPARE_ATTRIBUTES: dict(group=GROUP_PREPARE, action=ACTION_CAPTURE),
-               XML_ADJUST_NAME: dict(group=GROUP_ADJUST, action=ACTION_INJECT, source=XML_PREPARE_NAME),
-               XML_ADJUST_ATTRIBUTES: dict(group=GROUP_ADJUST, action=ACTION_INJECT, source=XML_PREPARE_ATTRIBUTES),
-               }
+def createXMLAttributesActions(injectAttributes=None, captureAttributes=None):
+    '''
+    Create the actions associated with the provided attributes.
+    
+    @param injectAttributes: dictionary{string: string}
+        The attributes to be injected dictionary, as a key the action to be associated with the attribute injection and
+        as a value the attribute name to be injected.
+    @param captureAttributes: dictionary{string: string}
+        The attributes to be captured dictionary, as a key the action to be associated with the attribute capture and
+        as a value the name to be used latter on as a reference for the attribute capture.
+    @return: list[Action]
+        The created list of actions for the attributes.
+    '''
+    actions = []
+    if injectAttributes:
+        assert isinstance(injectAttributes, dict), 'Invalid inject attributes %s' % injectAttributes
+        for action, nameAttr in injectAttributes.items():
+            actions.append(Action(action,
+                                  skip(SIND_TAG), feed(EIND_ATTRS),
+                                  feedValue(' %s="' % nameAttr), feedContent(escapes=ESCAPE_XML_ATTRIBUTE), feedValue('"'),
+                                  final=False))
+    
+    if captureAttributes:
+        assert isinstance(captureAttributes, dict), 'Invalid capture attributes %s' % captureAttributes
+        for action, name in captureAttributes.items():
+            actions.append(Action(action,
+                                  skip(PSIND_ATTR_CAPTURE % name),
+                                  feed(PEIND_ATTR_CAPTURE % name),
+                                  rewind=True, final=False))
+    return actions
 
-def createXMLContentInjectMarker(group, value):
+def createXMLBlockForIndexed(name, *actions, injectAttributes=None, captureAttributes=None):
     '''
-    Provides the the XML marker definitions for injecting content.
+    Create a new XML block that can be used for injecting indexed content.
     
-    @param group: string
-        The group of the content inject marker.
-    @param value: string
-        The value of the content inject marker.
+    @param name: string
+        The name that can be latter on used as a reference for the block.
+    @param actions: arguments[Action]
+        Additional actions to be registered with the created block.
+    @see: createXMLAttributesActions
     '''
-    assert isinstance(group, str), 'Invalid group %s' % group
-    assert isinstance(value, str), 'Invalid group %s' % value
+    actions = list(actions)
+    actions.extend(BLOCK_XML.actions)
+    actions.extend(createXMLAttributesActions(injectAttributes, captureAttributes))
+    actions.append(Action(ACTION_INJECT,
+                          skip(SIND_NAME), push(VAR_XML_NAME, EIND_NAME),
+                          skip(SIND_ATTRS), push(VAR_XML_ATTRS, EIND_ATTRS),
+                          skip(EIND_CLOSE_TAG),
+                          feedIndexed(actions=(ACTION_XML_ADJUST,)),
+                          pop(VAR_XML_NAME), pop(VAR_XML_ATTRS),
+                          ))
+    return {PATTERN_XML_BLOCK % name: Block(*actions)}
     
-    definitions = {}
-    definition = definitions[XML_CONTENT_INJECT_PATTERN % group] = {}
-    definition['group'] = group
-    definition['action'] = ACTION_INJECT
-    # We need to recreate the XML tags that will contain the content.
-    definition['values'] = ['<', PLACE_HOLDER % XML_PREPARE_NAME, PLACE_HOLDER % XML_PREPARE_ATTRIBUTES, '>', value,
-                            '</', PLACE_HOLDER % XML_PREPARE_NAME, '>']
-    definition['escape'] = XML_CONTENT_ESCAPE
-        
-    return definitions
-
-def createXMLAttrsInjectMarkers(group, attributes):
+def createXMLBlockForContent(name, *actions, injectAttributes=None, captureAttributes=None):
     '''
-    Provides the the XML markers definitions for injecting attributes, the attributes names are declared as marker targets.
+    Create a new XML block that can be used for injecting text content.
     
-    @param group: string
-        The group of the attributes inject markers.
-    @param attributes: dictionary{string: string}
-        The attributes to be injected, a dictionary containing on the first position the attribute name
-        and as a value the attribute value to be injected.
-    @return: dictionary{string: ...}
-        The inject attributes definitions.
+    @param name: string
+        The name that can be latter on used as a reference for the block.
+    @param actions: arguments[Action]
+        Additional actions to be registered with the created block.
+    @see: createXMLAttributesActions
     '''
-    assert isinstance(attributes, dict), 'Invalid attributes %s' % attributes
-    assert attributes, 'At least an attribute name is required'
-    assert isinstance(group, str), 'Invalid group %s' % group
+    actions = list(actions)
+    actions.extend(BLOCK_XML.actions)
+    actions.extend(createXMLAttributesActions(injectAttributes, captureAttributes))
+    actions.append(Action(ACTION_INJECT,
+                          skip(SIND_NAME), push(VAR_XML_NAME, EIND_NAME),
+                          skip(SIND_ATTRS), push(VAR_XML_ATTRS, EIND_ATTRS),
+                          skip(EIND_CLOSE_TAG),
+                          feedValue('<'), feedName(VAR_XML_NAME), feedName(VAR_XML_ATTRS), feedValue('>'),
+                          feedContent(escapes=ESCAPE_XML_CONTENT),
+                          feedValue('</'), feedName(VAR_XML_NAME), feedValue('>'),
+                          pop(VAR_XML_NAME), pop(VAR_XML_ATTRS),
+                          ))
     
-    definitions = {}
-    for name, value in attributes.items():
-        assert isinstance(name, str), 'Invalid attribute name %s' % name
-        assert isinstance(value, str), 'Invalid attribute value %s' % value
-        
-        definition = definitions[XML_ATTRIBUTE_INJECT_PATTERN % name] = {}
-        definition['group'] = group
-        definition['action'] = ACTION_INJECT
-        definition['target'] = name
-        definition['values'] = [' %s="' % name, value, '"']
-        
-        definition['escape'] = XML_ATTRIBUTE_ESCAPE
-        
-    return definitions
+    return {PATTERN_XML_BLOCK % name: Block(*actions)}
 
 # --------------------------------------------------------------------
 
@@ -146,24 +218,27 @@ class RenderXML(XMLGenerator, IRender):
                               encoding=content.charSet, short_empty_elements=True)
         
         self._content = content
-        
         self._stack = deque()
+        
         self._adjust = True
+        self._block = False
+        self._pendingStart = None
         self._indexes = []
 
     # ----------------------------------------------------------------
     
-    def property(self, name, value, indexBlock=False):
+    def property(self, name, value, indexBlock=None):
         '''
         @see: IRender.property
+        
+        @param indexBlock: string
+            Index the object with the provided index.
         '''
+        assert isinstance(name, str), 'Invalid name %s' % name
         assert isinstance(value, (str, list, dict)), 'Invalid value %s' % value
-        assert isinstance(indexBlock, bool), 'Invalid index block flag %s' % indexBlock
+        if indexBlock is None and not self._block: indexBlock = NAME_BLOCK
         
-        self._finish_pending_start_element()
-        
-        if indexBlock: iblock = self._start(NAME_BLOCK, name)
-        self.startElement(name, immut())
+        self.begin(name, indexBlock=indexBlock)
         if isinstance(value, list):
             for item in value:
                 assert isinstance(item, str), 'Invalid list item %s' % item
@@ -184,77 +259,13 @@ class RenderXML(XMLGenerator, IRender):
                 self.endElement('entry')
         else:
             self.characters(value)
-        self.endElement(name)
-        if indexBlock: self._end(iblock)
+        self.end()
 
-    def beginObject(self, name, attributes=None, indexBlock=False, indexPrepare=False, indexContentInject=(),
-                    indexAttributesInject=(), indexAttributesCapture=immut()):
+    def beginObject(self, name, **specifications):
         '''
         @see: IRender.beginObject
-        
-        @param attributes: dictionary{string: string}
-            The attributes to associate with the object.
-        @param indexBlock: boolean
-            Flag indicating that a block index should be created for the object.
-        @param indexPrepare: boolean
-            Flag indicating that the object should be prepared to be injected with another REST content.
-        @param indexContentInject: list[string]|tuple(string)
-            The list or tuple containing the group names (previously registered with @see: createXMLContentInjectMarkers)
-            to be injected instead of object block.
-        @param indexAttributesInject: list[string]|tuple(string)
-            The list or tuple containing the attribute names (previously registered with @see: createXMLAttrsInjectMarkers)
-            to be injected.
-        @param indexAttributesCapture: dictionary{string: string}
-            The dictionary containing as a key the attribute name and as a value the marker to associate with the attribute
-            capture.
         '''
-        assert isinstance(indexBlock, bool), 'Invalid index block flag %s' % indexBlock
-        assert isinstance(indexPrepare, bool), 'Invalid index prepare flag %s' % indexPrepare
-        assert isinstance(indexContentInject, (tuple, list)), 'Invalid index content inject %s' % indexContentInject
-        assert isinstance(indexAttributesInject, (tuple, list)), 'Invalid index attributes inject %s' % indexAttributesInject
-        assert isinstance(indexAttributesCapture, dict), 'Invalid index attributes capture %s' % indexAttributesCapture
-        
-        indexAdjust, indexBlock = self._adjust, indexBlock and not self._adjust
-        indexPrepare = indexBlock and indexPrepare
-        self._adjust = False
-        
-        if indexAdjust: iadjust = self._start(NAME_ADJUST)
-        if not self._stack: self.startDocument()  # Start the document
-        self._finish_pending_start_element()
-        if indexAdjust: self._end(iadjust)
-        
-        if indexBlock: iblock = self._start(NAME_BLOCK, name)
-        if indexContentInject: icontent = [self._start(XML_CONTENT_INJECT_PATTERN % group) for group in indexContentInject]
-        
-        self._write('<')
-        if indexAdjust: iadjust = self._start(XML_ADJUST_NAME)
-        if indexPrepare: iprepare = self._start(XML_PREPARE_NAME)
-        self._write(name)
-        if indexPrepare: self._end(iprepare)
-        if indexAdjust: self._end(iadjust)
-        
-        if indexAdjust: self._at(XML_ADJUST_ATTRIBUTES)
-        
-        if attributes:
-            if indexPrepare: iprepare = self._start(XML_PREPARE_ATTRIBUTES)
-            assert isinstance(attributes, dict), 'Invalid attributes %s' % attributes
-            for nameAttr, valueAttr in attributes.items():
-                if nameAttr in indexAttributesCapture:
-                    self._write(' %s=' % nameAttr)
-                    iattr = self._start(indexAttributesCapture[nameAttr], offset=1)  # offset +1 for the comma
-                    self._write(quoteattr(valueAttr))
-                    self._end(iattr, offset= -1)  # offset -1 for the comma
-                else: self._write(' %s=%s' % (nameAttr, quoteattr(valueAttr)))
-            if indexPrepare: self._end(iprepare)
-            
-        for attr in indexAttributesInject: self._at(XML_ATTRIBUTE_INJECT_PATTERN % attr)
-                
-        if self._short_empty_elements:
-            self._pending_start_element = True
-        else:
-            self._write('>')
-            
-        self._stack.append((name, indexAdjust, iblock if indexBlock else None, icontent if indexContentInject else None))
+        self.begin(name, **specifications)
         return self
 
     def beginCollection(self, name, **specifications):
@@ -263,26 +274,32 @@ class RenderXML(XMLGenerator, IRender):
         
         @see: beginObject
         '''
-        return self.beginObject(name, **specifications)
+        self.begin(name, **specifications)
+        return self
 
     def end(self):
         '''
         @see: IRender.end
         '''
         assert self._stack, 'No object to end'
-        name, indexAdjust, iblock, icontent = self._stack.pop()
+        name, index, isAdjust = self._stack.pop()
         
+        if isAdjust: index = self._index(NAME_XML_END_ADJUST)
         if self._pending_start_element:
             self._write('/>')
+            if self._pendingStart: self._pendingStart(EIND_TAG)
+            if index: index(SIND_CLOSE_TAG, SIND_CLOSE_NAME, EIND_CLOSE_NAME, EIND_CLOSE_TAG)
             self._pending_start_element = False
+            self._pendingStart = None
         else:
+            if index: index(SIND_CLOSE_TAG)
             self._write('</')
-            if indexAdjust: iadjust = self._start(XML_ADJUST_NAME)
+            if index: index(SIND_CLOSE_NAME)
             self._write(name)
-            if indexAdjust: self._end(iadjust)
+            if index: index(EIND_CLOSE_NAME)
             self._write('>')
-        if icontent: map(self._end, icontent)
-        if iblock: self._end(iblock)
+            if index: index(EIND_CLOSE_TAG)
+        if index: self._block = False
         
         if not self._stack:
             self.endDocument()  # Close the document if there are no other processes queued
@@ -295,23 +312,90 @@ class RenderXML(XMLGenerator, IRender):
         
     # ----------------------------------------------------------------
     
-    def _at(self, marker, value=None, offset=0):
+    def begin(self, name, attributes=None, indexBlock=None, indexAttributesCapture=immut()):
         '''
-        Creates an index that starts and ends at the current offset.
-        '''
-        self._indexes.append(Index(marker, self._outb.tell() + offset, value))
+        Begins a XML tag.
         
-    def _start(self, marker, value=None, offset=0):
+        @param attributes: dictionary{string: string}
+            The attributes to associate with the object.
+        @param indexBlock: string
+            Index the object with the provided index.
+        @param indexAttributesCapture: dictionary{string: string}
+            The dictionary containing as a key the attribute name and as a value the key name as registered
+            to associate with the attribute capture.
         '''
-        Starts and index at the current offset.
+        isAdjust = False
+        if self._adjust:
+            assert indexBlock is None, 'No index block expected, but got %s' % indexBlock
+            assert not indexAttributesCapture, 'No attributes capture expected, but got %s' % indexAttributesCapture
+            self.startDocument()  # Start the document
+            index = self._index(NAME_XML_START_ADJUST)
+            index(IND_DECL)
+            self._adjust = False
+            isAdjust = True
+        elif self._block:
+            assert indexBlock is None, 'No index block expected, but got %s' % indexBlock
+            assert not indexAttributesCapture, 'No attributes capture expected, but got %s' % indexAttributesCapture
+            index = None
+        elif indexBlock:
+            assert isinstance(indexBlock, str), 'Invalid index block %s' % indexBlock
+            assert isinstance(indexAttributesCapture, dict), 'Invalid index attributes capture %s' % indexAttributesCapture
+            index = self._index(PATTERN_XML_BLOCK % indexBlock)
+            self._block = True
+        else: index = None
+        
+        if self._pending_start_element:
+            self._write('>')
+            if self._pendingStart: self._pendingStart(EIND_TAG)
+            self._pending_start_element = False
+            self._pendingStart = None
+        
+        if index: index(SIND_TAG)
+        self._write('<')
+        if index: index(SIND_NAME)
+        self._write(name)
+        if index: index(EIND_NAME)
+        
+        if index: index(SIND_ATTRS)
+        if attributes:
+            assert isinstance(attributes, dict), 'Invalid attributes %s' % attributes
+            for nameAttr, valueAttr in attributes.items():
+                assert isinstance(nameAttr, str), 'Invalid attribute name %s' % nameAttr
+                assert isinstance(valueAttr, str), 'Invalid attribute value %s' % valueAttr
+                
+                iname = indexAttributesCapture.get(nameAttr)
+                if iname:
+                    self._write(' %s=' % nameAttr)
+                    index(PSIND_ATTR_CAPTURE % iname, offset=1)  # offset +1 for the comma
+                    self._write(quoteattr(valueAttr))
+                    index(PEIND_ATTR_CAPTURE % iname, offset= -1)  # offset -1 for the comma
+                else: self._write(' %s=%s' % (nameAttr, quoteattr(valueAttr)))
+        if index: index(EIND_ATTRS)
+                
+        if self._short_empty_elements:
+            self._pending_start_element = True
+            self._pendingStart = index
+        else:
+            self._write('>')
+            if index: index(EIND_TAG)
+            
+        self._stack.append((name, index, isAdjust))
+        return self
+    
+    def _index(self, block):
         '''
-        index = Index(marker, self._outb.tell() + offset, value)
+        Create a new index.
+        '''
+        index = Index(block)
         self._indexes.append(index)
-        return index
-        
-    def _end(self, index, offset=0):
+        return partial(self._put, index)
+    
+    def _put(self, index, *names, offset=0):
         '''
-        Ends the ongoing index at the current offset.
+        Puts on the index the provided index names at the current offset. 
         '''
         assert isinstance(index, Index), 'Invalid index %s' % index
-        index.end = self._outb.tell() + offset
+        offset = self._outb.tell() + offset
+        for name in names:
+            assert isinstance(name, str), 'Invalid name %s' % name
+            index.values[name] = offset

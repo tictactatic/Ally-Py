@@ -117,5 +117,5 @@ class EncoderProperty(IEncoder):
                      for key, item in obj.items()}
         else:
             value = support.converter.asString(obj, self.valueType)
-        render.property(support.normalizer.normalize(self.name), value, indexBlock=True)
+        render.property(support.normalizer.normalize(self.name), value)
         

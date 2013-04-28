@@ -9,34 +9,42 @@ Created on Apr 17, 2013
 Provides HTTP specifications for indexes. 
 '''
 
-from ally.core.impl.processor.render.xml import createXMLAttrsInjectMarkers, \
-    createXMLContentInjectMarker
-from ally.core.spec.transform.index import ACTION_CAPTURE, PLACE_HOLDER_CONTENT
+from ally.core.impl.processor.render.json import createJSONBlockForIndexed, \
+    createJSONBlockForContent
+from ally.core.impl.processor.render.xml import createXMLBlockForIndexed, \
+    createXMLBlockForContent
+from ally.indexing.spec.model import Action
+from ally.indexing.spec.perform import feedValue
 
 # --------------------------------------------------------------------
 
-NAME_URL = 'URL'  # The marker name for HTTP URL.
+NAME_BLOCK_REST = 'rest'  # The block name for REST resources injection from reference URLs.
+NAME_BLOCK_CLOB = 'clob'  # The block name for character clobs injection from reference URLs.
+
+ACTION_REFERENCE = 'reference'  # The action name to get the block reference.
+ACTION_CHECK_CLOB = 'check_clob'  # The action name to check if the block is for a clob content.
+ACTION_ERROR_STATUS = 'error_status'  # The action name for error status.
+ACTION_ERROR_MESSAGE = 'error_message'  # The action name for error message.
 
 # --------------------------------------------------------------------
 
-# The group name for URL reference, the markers with this group have to be found in just one index per block.
-GROUP_URL = 'URL'
-GROUP_ERROR = 'error'  # The group name for errors occurred while fetching URLs.
+# Provides the HTTP block definitions.
+BLOCKS_HTTP = {}
 
-CONTENT_CLOB = 'clob'  # The name for character blobs injection from reference URLs.
-ATTR_ERROR_STATUS = 'ERROR'  # The attribute name for error status.
-ATTR_ERROR_MESSAGE = 'ERROR_TEXT'  # The attribute name for error message.
+# We provide the XML block definitions.
+BLOCKS_HTTP.update(createXMLBlockForIndexed(NAME_BLOCK_REST,
+                injectAttributes={ACTION_ERROR_STATUS: 'ERROR', ACTION_ERROR_MESSAGE: 'ERROR_TEXT'},
+                captureAttributes={ACTION_REFERENCE: ACTION_REFERENCE}))
+BLOCKS_HTTP.update(createXMLBlockForContent(NAME_BLOCK_CLOB,
+                Action(ACTION_CHECK_CLOB, feedValue('true'), final=False),
+                injectAttributes={ACTION_ERROR_STATUS: 'ERROR', ACTION_ERROR_MESSAGE: 'ERROR_TEXT'},
+                captureAttributes={ACTION_REFERENCE: ACTION_REFERENCE}))
 
-# --------------------------------------------------------------------
-
-# Provides the URL markers definitions.
-HTTP_MARKERS = {
-                NAME_URL: dict(group=GROUP_URL, action=ACTION_CAPTURE),
-                }
-# We populate the error markers, the error attributes will have an empty value signaling the proxy server to
-# fill in the values.
-HTTP_MARKERS.update(createXMLAttrsInjectMarkers(GROUP_ERROR, {ATTR_ERROR_STATUS:PLACE_HOLDER_CONTENT,
-                                                              ATTR_ERROR_MESSAGE:PLACE_HOLDER_CONTENT}))
-# We populate the clob markers for injecting character content, the content will have an empty value signaling
-# the proxy server to fill in the values.
-HTTP_MARKERS.update(createXMLContentInjectMarker(CONTENT_CLOB, PLACE_HOLDER_CONTENT))
+# We provide the JSON block definitions.
+BLOCKS_HTTP.update(createJSONBlockForIndexed(NAME_BLOCK_REST,
+                injectAttributes={ACTION_ERROR_STATUS: 'ERROR', ACTION_ERROR_MESSAGE: 'ERROR_TEXT'},
+                captureAttributes={ACTION_REFERENCE: ACTION_REFERENCE}))
+BLOCKS_HTTP.update(createJSONBlockForContent(NAME_BLOCK_CLOB,
+                Action(ACTION_CHECK_CLOB, feedValue('true'), final=False),
+                injectAttributes={ACTION_ERROR_STATUS: 'ERROR', ACTION_ERROR_MESSAGE: 'ERROR_TEXT'},
+                captureAttributes={ACTION_REFERENCE: ACTION_REFERENCE}))

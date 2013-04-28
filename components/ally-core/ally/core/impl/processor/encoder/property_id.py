@@ -107,4 +107,4 @@ class EncoderPropertyId(IEncoder):
         assert isinstance(support.converterId, Converter), 'Invalid id converter %s' % support.converterId
         
         value = support.converterId.asString(obj, self.valueType)
-        render.property(support.normalizer.normalize(self.name), value, indexBlock=True)
+        render.property(support.normalizer.normalize(self.name), value)

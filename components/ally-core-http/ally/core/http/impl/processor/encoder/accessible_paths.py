@@ -10,8 +10,6 @@ Provides the accessible paths for a model.
 '''
 
 from ally.container.ioc import injected
-from ally.core.http.spec.transform.index import NAME_URL, ATTR_ERROR_MESSAGE, \
-    ATTR_ERROR_STATUS
 from ally.core.spec.resources import Normalizer, Path
 from ally.core.spec.transform.encoder import IEncoder
 from ally.core.spec.transform.render import IRender
@@ -19,6 +17,8 @@ from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessorProceed
 from ally.http.spec.server import IEncoderPath
+from ally.core.http.spec.transform.index import NAME_BLOCK_REST, \
+    ACTION_REFERENCE
 
 # --------------------------------------------------------------------
     
@@ -101,9 +101,7 @@ class EncoderAccessiblePath(IEncoder):
         assert isinstance(support.encoderPath, IEncoderPath), 'Invalid path encoder %s' % support.encoderPath
         
         nameRef = support.normalizer.normalize(self.nameRef)
-        indexes = dict(indexBlock=True, indexPrepare=True,
-                       indexAttributesInject=(ATTR_ERROR_STATUS, ATTR_ERROR_MESSAGE),
-                       indexAttributesCapture={nameRef: NAME_URL})
+        indexes = dict(indexBlock=NAME_BLOCK_REST, indexAttributesCapture={nameRef: ACTION_REFERENCE})
         for name, path in support.pathsAccesible.items():
             assert isinstance(path, Path)
             if not path.isValid(): continue

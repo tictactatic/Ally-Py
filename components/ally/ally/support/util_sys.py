@@ -113,6 +113,24 @@ def isPackage(module):
     assert ismodule(module), 'Invalid module %s' % module
     return hasattr(module, '__path__')
 
+def callerName(level=1):
+    '''
+    Provides the caller function name.
+    
+    @param level: integer
+        The level from where to start finding the caller.
+    @return: string
+        The caller name, for level 0 this will actually be name of the function that is the caller .
+    '''
+    stacks = stack()
+    currentModule = stacks[level][1]
+    for k in range(level + 1, len(stacks)):
+        if stacks[k][1] != currentModule:
+            frame = stacks[k][0]
+            break
+    else: raise Exception('There is no other module than the current one')
+    return frame.f_code.co_name
+
 def callerGlobals(level=1):
     '''
     Provides the caller globals.

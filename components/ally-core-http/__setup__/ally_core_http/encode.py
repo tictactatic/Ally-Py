@@ -14,7 +14,7 @@ from ..ally_core.encode import assemblyModelExtraEncode, \
     propertyOfModelEncode, assemblyItemEncode, updateAssemblyItemEncode, \
     assemblyPropertyEncode, updateAssemblyPropertyEncode, modelPropertyEncode, \
     modelEncode
-from ..ally_core.parsing_rendering import markersDefinitions
+from ..ally_core.parsing_rendering import blocksDefinitions
 from ally.container import ioc
 from ally.core.http.impl.processor.encoder.accessible_paths import \
     AccessiblePathEncode
@@ -27,7 +27,7 @@ from ally.core.http.impl.processor.encoder.property_of_model_path import \
 from ally.core.http.impl.processor.encoder.property_reference import \
     PropertyReferenceEncode
 from ally.core.http.impl.processor.encoder.resources import ResourcesEncode
-from ally.core.http.spec.transform.index import HTTP_MARKERS
+from ally.core.http.spec.transform.index import BLOCKS_HTTP
 from ally.design.processor.handler import Handler
 
 # --------------------------------------------------------------------
@@ -78,6 +78,6 @@ def updateAssemblyPropertyEncodeWithPath():
     assemblyPropertyEncode().add(propertyReferenceEncode(), propertyOfModelPathAttributeEncode(),
                                  before=propertyOfModelEncode())
 
-@ioc.before(markersDefinitions)
-def updateMarkersDefinitionsForURL():
-    markersDefinitions().update(HTTP_MARKERS)
+@ioc.before(blocksDefinitions)
+def updateBlocksDefinitionsForURL():
+    blocksDefinitions().update(BLOCKS_HTTP)

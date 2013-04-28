@@ -10,6 +10,9 @@ Provides the assemblage service setup patch.
 '''
 
 from ally.container import ioc
+from ally.support.api.util_service import nameForModel
+from indexing.api.domain_indexing import DOMAIN
+from indexing.api.indexing import Block
 import logging
 
 # --------------------------------------------------------------------
@@ -27,12 +30,12 @@ else:
     ally_core_http = ally_core_http  # Just to avoid the import warning
     # ----------------------------------------------------------------
     
-    from __setup__.ally_assemblage.processor import assemblage_marker_uri
+    from __setup__.ally_assemblage.processor import assemblage_indexes_uri
     from __setup__.ally_core_http.processor import root_uri_resources
     
-    @ioc.replace(assemblage_marker_uri)
-    def assemblage_marker_uri_internal():
+    @ioc.replace(assemblage_indexes_uri)
+    def assemblage_indexes_uri_internal():
         '''
-        The assemblage marker URI.
+        The assemblage indexes URI.
         '''
-        return root_uri_resources() % 'Assemblage/Marker'
+        return root_uri_resources() % (DOMAIN + nameForModel(Block))

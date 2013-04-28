@@ -10,6 +10,8 @@ Provides the gateway service setup patch.
 '''
 
 from ally.container import ioc
+from ally.support.api.util_service import nameForModel
+from gateway.api.gateway import Gateway
 import logging
 
 # --------------------------------------------------------------------
@@ -35,5 +37,5 @@ else:
         '''
         The anonymous gateway URI.
         '''
-        return root_uri_resources() % 'Gateway'
+        return root_uri_resources() % nameForModel(Gateway)
 

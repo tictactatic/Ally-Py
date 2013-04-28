@@ -14,7 +14,7 @@ from setuptools import setup, find_packages
 # --------------------------------------------------------------------
 
 setup(
-    name="assemblage",
+    name="indexing",
     version="1.0",
     packages=find_packages(),
     install_requires=['ally_core >= 1.0'],
@@ -25,8 +25,8 @@ setup(
     author="Gabriel Nistor",
     author_email="gabriel.nistor@sourcefabric.org",
     description="Ally framework - assemblage",
-    long_description='The plugin that provides the assemblage support',
+    long_description='The plugin that provides the indexing support',
     license="GPL v3",
-    keywords="Ally REST framework plugin assemblage",
+    keywords="Ally REST framework plugin indexing",
     url="http://www.sourcefabric.org/en/superdesk/",  # project home page
 )

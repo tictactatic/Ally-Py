@@ -13,7 +13,7 @@ from ..ally_core.parsing_rendering import assemblyParsing
 from ..ally_core.processor import argumentsBuild, argumentsPrepare, encoding, \
     invoking, default_charset, rendering, createDecoder, content, renderEncoder, \
     normalizerRequest, converterRequest, normalizerResponse, converterResponse, \
-    providerMarkers, provideMarkersId
+    blockIndexing
 from ..ally_core.resources import resourcesRoot
 from ..ally_http.processor import encoderPath, contentLengthDecode, \
     contentLengthEncode, methodOverride, allowEncode, headerDecodeRequest, \
@@ -95,7 +95,7 @@ def contentLanguageEncode() -> Handler: return ContentLanguageEncodeHandler()
 @ioc.entity
 def contentIndexEncode() -> Handler:
     b = ContentIndexEncodeHandler()
-    b.assembly = assemblyMarkers()
+    b.assembly = assemblyBlocks()
     return b
 
 # --------------------------------------------------------------------
@@ -171,11 +171,11 @@ def assemblyRedirect() -> Assembly:
     return Assembly('Redirect')
 
 @ioc.entity
-def assemblyMarkers() -> Assembly:
+def assemblyBlocks() -> Assembly:
     '''
-    The assembly containing the markers providers.
+    The assembly containing the indexing blocks providers.
     '''
-    return Assembly('Markers')
+    return Assembly('Blocks')
 
 # --------------------------------------------------------------------
 
@@ -200,7 +200,7 @@ def updateAssemblyMultiPartPopulate():
 def updateAssemblyRedirect():
     assemblyRedirect().add(argumentsBuild(), invoking())
     
-@ioc.before(assemblyMarkers)
-def updateAssemblyMarkers():
-    assemblyMarkers().add(providerMarkers(), provideMarkersId())
+@ioc.before(assemblyBlocks)
+def updateAssemblyBlocks():
+    assemblyBlocks().add(blockIndexing())
 

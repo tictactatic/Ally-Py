@@ -11,61 +11,35 @@ Provides general specifications for indexes.
 
 # --------------------------------------------------------------------
 
-NAME_BLOCK = 'block'  # The marker name for block.
-NAME_ADJUST = 'adjust'  # The marker name for adjust.
+NAME_BLOCK = 'general'  # The general block name.
 
 # --------------------------------------------------------------------
 
-GROUP_BLOCK = 'block'  # The group name for block.
-# The group name for markers that are used for joining blocks, this type of marker has to be on only one
-# index per response and have a value to be used in joining the blocks.  .
-GROUP_BLOCK_JOIN = 'block join'
-GROUP_BLOCK_ADJUST = 'block adjust'  # The group name for adjusting the content between blocks.
-GROUP_PREPARE = 'prepare'  # The group name for prepare.
-GROUP_ADJUST = 'adjust'  # The group name for adjust.
-
-# --------------------------------------------------------------------
-
-ACTION_INJECT = 'inject'  # The action name for inject.
-ACTION_CAPTURE = 'capture'  # The action name for capture.
-
-# --------------------------------------------------------------------
-
-PLACE_HOLDER = '${%s}'  # Used for creating place holders.
-PLACE_HOLDER_CONTENT = ''  # The values entry that marks the proxy side content.
-
-# --------------------------------------------------------------------
-
-# Provides the general markers definitions.
-GENERAL_MARKERS = {
-                   NAME_BLOCK: dict(group=GROUP_BLOCK),
-                   NAME_ADJUST: dict(group=GROUP_ADJUST, action=ACTION_INJECT),
-                   }
+ACTION_STREAM = 'stream'  # The action name for streaming a block.
+ACTION_DISCARD = 'discard'  # The action name for discarding a block.
+ACTION_INJECT = 'inject'  # The action name for injecting in a block.
+ACTION_NAME = 'get_name'  # The action name for providing the block name.
 
 # --------------------------------------------------------------------
 
 class Index:
     '''
-    Index data container.
+    Specification for an index.
     '''
-    __slots__ = ('name', 'start', 'end', 'value')
+    __slots__ = ('block', 'values')
     
-    def __init__(self, name, start, value):
+    def __init__(self, block, values=None):
         '''
         Construct the index.
         
-        @param name: string
-            The marker name of the index.
-        @param start: integer
-            The start of the index.
-        @param value: string|None
-            The value of the index.
+        @param block: string
+            The index block name.
+        @param values: dictionary{string: integer|string}
+            The values of the index.
         '''
-        assert isinstance(name, str), 'Invalid name %s' % name
-        assert isinstance(start, int), 'Invalid start offset %s' % start
-        assert value is None or isinstance(value, str), 'Invalid value %s' % value
+        assert isinstance(block, str), 'Invalid index block name %s' % block
+        if values is None: values = {}
+        assert isinstance(values, dict), 'Invalid values %s' % values
         
-        self.name = name
-        self.start = start
-        self.end = start
-        self.value = value
+        self.block = block
+        self.values = values

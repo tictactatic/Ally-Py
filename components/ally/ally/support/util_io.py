@@ -10,7 +10,7 @@ Provides utility functions for handling I/O operations.
 '''
 
 from ally.zip.util_zip import normOSPath, getZipFilePath, ZIPSEP
-from collections import Iterable, deque
+from collections import Iterable
 from datetime import datetime
 from genericpath import isdir, exists
 from io import StringIO, BytesIO
@@ -490,123 +490,6 @@ class StreamOnIterable(IInputStreamClosable):
         @see: IInputStreamClosable.close
         '''
         self._closed = True
-
-class AdjustableStream(IInputStreamCT):
-    '''
-    Provides a stream that allows for adjusting, at this point this means:
-        - rewinding bytes back.
-    '''
-    __slots__ = ('_stream', '_offset', '_rewind', '_available')
-    
-    def __init__(self, stream):
-        '''
-        Construct the rewinding stream.
-        
-        @param stream: IInputStream
-            The input stream to wrap.
-        '''
-        assert isinstance(stream, IInputStream), 'Invalid stream %s' % stream
-        
-        self._stream = tellPosition(stream)
-        self._rewind = deque()
-        self._available = 0
-    
-    def read(self, nbytes=None):
-        '''
-        @see: IInputStreamCT.read
-        '''
-        if nbytes:
-            assert isinstance(nbytes, int), 'Invalid number of bytes required %s' % nbytes
-            if nbytes < 0: nbytes = None
-            elif nbytes == 0: return b''
-            
-        if nbytes is None:
-            if self._available > 0:
-                self._rewind.append(self._stream.read())
-                byts = b''.join(self._rewind)
-                self._available = 0
-                self._rewind.clear()
-                return byts
-            return self._stream.read()
-        
-        if self._available > 0:
-            all = None
-            while self._rewind:
-                byts = self._rewind.popleft()
-                diff = nbytes - len(byts)
-                if diff == 0:
-                    if all is None:
-                        self._available -= nbytes
-                        return byts
-                    self._available -= len(byts)
-                    all.append(byts)
-                    return b''.join(all)
-                elif diff > 0:
-                    if all is None: all = []
-                    self._available -= len(byts)
-                    all.append(byts)
-                elif diff < 0:
-                    byts = memoryview(byts)
-                    if all is None:
-                        self._available -= nbytes
-                        self._rewind.appendleft(byts[nbytes:])
-                        return byts[:nbytes]
-                    self._available -= nbytes
-                    self._rewind.appendleft(byts[nbytes:])
-                    all.append(byts[:nbytes])
-                    return b''.join(all)
-                nbytes = diff
-            if all is not None:
-                all.append(self._stream.read(nbytes))
-                return b''.join(all)
-        return self._stream.read(nbytes)
-            
-    def tell(self):
-        '''
-        @see: IInputStreamCT.tell
-        '''
-        offset = self._stream.tell() - self._available
-        return 0 if offset < 0 else offset
-        
-    def close(self):
-        '''
-        @see: IInputStreamCT.close
-        '''
-        self._available = 0
-        self._rewind.clear()
-        if isinstance(self._stream, IClosable): self._stream.close()
-        
-    # ----------------------------------------------------------------
-    
-    def rewind(self, rbytes):
-        '''
-        Rewind the provided bytes and make the stream provide them again.
-        
-        @param rbytes: bytes
-            The bytes to push back.
-        '''
-        assert isinstance(rbytes, bytes), 'Invalid bytes %s' % rbytes
-        self._rewind.append(rbytes)
-        self._available += len(rbytes)
-        
-    def discard(self, until):
-        '''
-        Discard from the stream bytes until the tell method equals with the until value.
-        
-        @param until: integer
-            The position until to discard bytes.
-        '''
-        assert isinstance(until, int), 'Invalid until offset %s' % until
-        
-        if until <= self.tell(): return
-        nbytes = until - self.tell()
-        
-        # Discarding 1 kilo at a time.
-        while nbytes > 0:
-            if nbytes <= 1024: block = self.read(nbytes)
-            else: block = self.read(1024)
-            if block == b'': raise IOError('The stream is missing %s bytes' % nbytes)
-            nbytes -= len(block)
 
 class ReplaceInStream(IInputStreamClosable):
     '''

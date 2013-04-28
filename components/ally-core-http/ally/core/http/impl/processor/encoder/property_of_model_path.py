@@ -11,6 +11,8 @@ Provides the paths for properties of model.
 
 from ally.api.operator.type import TypeModel, TypeModelProperty
 from ally.container.ioc import injected
+from ally.core.http.spec.transform.index import NAME_BLOCK_REST, \
+    ACTION_REFERENCE
 from ally.core.spec.resources import Path, Normalizer
 from ally.core.spec.transform.encoder import ISpecifier, IEncoder
 from ally.design.cache import CacheWeak
@@ -18,8 +20,6 @@ from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessorProceed
 from ally.http.spec.server import IEncoderPath
-from ally.core.http.spec.transform.index import NAME_URL, ATTR_ERROR_STATUS, \
-    ATTR_ERROR_MESSAGE
 
 # --------------------------------------------------------------------
     
@@ -128,15 +128,8 @@ class AttributesPath(ISpecifier):
         nameRef = support.normalizer.normalize(self.nameRef)
         attributes[nameRef] = support.encoderPath.encode(path)
         
-        specifications['indexPrepare'] = True
+        specifications['indexBlock'] = NAME_BLOCK_REST
         indexAttributesCapture = specifications.get('indexAttributesCapture')
         if indexAttributesCapture is None: indexAttributesCapture = specifications['indexAttributesCapture'] = {}
         assert isinstance(indexAttributesCapture, dict), 'Invalid index attributes capture %s' % indexAttributesCapture
-        indexAttributesCapture[nameRef] = NAME_URL
-        
-        indexAttributesInject = specifications.get('indexAttributesInject')
-        if indexAttributesInject is None: indexAttributesInject = specifications['indexAttributesInject'] = []
-        elif isinstance(indexAttributesInject, tuple): indexAttributesInject = list(indexAttributesInject)
-        assert isinstance(indexAttributesInject, list), 'Invalid index attributes inject %s' % indexAttributesInject
-        indexAttributesInject.append(ATTR_ERROR_STATUS)
-        indexAttributesInject.append(ATTR_ERROR_MESSAGE)
+        indexAttributesCapture[nameRef] = ACTION_REFERENCE

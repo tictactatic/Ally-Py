@@ -9,11 +9,12 @@ Created on Apr 5, 2013
 Provides the indexes for the response content.
 '''
 
-from ally.assemblage.http.spec.assemblage import Index
 from ally.container.ioc import injected
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessorProceed
+from ally.indexing.spec.model import Block
+from ally.indexing.spec.modifier import Index
 from ally.support.util_io import IInputStream
 from io import BytesIO
 import binascii
@@ -33,7 +34,7 @@ class Assemblage(Context):
     The assemblage context.
     '''
     # ---------------------------------------------------------------- Required
-    markers = requires(dict)
+    blocks = requires(dict)
 
 class Content(Context):
     '''
@@ -56,29 +57,30 @@ class IndexProviderHandler(HandlerProcessorProceed):
     nameIndex = 'Content-Index'
     # The name for the content index header
     byteOrder = 'little'
-    # The byte order to use in decode values.
-    bytesIndexCount = 3
+    # The byte order to use in encoding values.
+    bytesIndexCount = 1
     # The number of bytes to represent the indexes count.
+    bytesBlock = 1
+    # The number of bytes to represent the index block id.
     bytesOffset = 3
     # The number of bytes to represent the index offset.
-    bytesMark = 1
-    # The number of bytes to represent the index mark.
-    bytesValueId = 2
-    # The number of bytes to represent the index values id's.
+    bytesValueId = 1
+    # The number of bytes to represent the index value id's.
     bytesValueSize = 1
     # The number of bytes to represent the value size.
-    encode = 'ascii'
-    # The string encode. 
+    encoding = 'ascii'
+    # The string encoding. 
     
     def __init__(self):
         assert isinstance(self.nameIndex, str), 'Invalid content index name %s' % self.nameIndex
+        assert isinstance(self.nameIndex, str), 'Invalid header name index %s' % self.nameIndex
         assert isinstance(self.byteOrder, str), 'Invalid byte order %s' % self.byteOrder
         assert isinstance(self.bytesIndexCount, int), 'Invalid bytes index count %s' % self.bytesIndexCount
+        assert isinstance(self.bytesBlock, int), 'Invalid bytes mark %s' % self.bytesMark
         assert isinstance(self.bytesOffset, int), 'Invalid bytes offset %s' % self.bytesOffset
-        assert isinstance(self.bytesMark, int), 'Invalid bytes mark %s' % self.bytesMark
         assert isinstance(self.bytesValueId, int), 'Invalid bytes value id %s' % self.bytesValueId
         assert isinstance(self.bytesValueSize, int), 'Invalid bytes value size %s' % self.bytesValueSize
-        assert isinstance(self.encode, str), 'Invalid encode %s' % self.encode
+        assert isinstance(self.encoding, str), 'Invalid encoding %s' % self.encoding
         super().__init__()
 
     def process(self, response:Response, assemblage:Assemblage, content:Content, **keyargs):
@@ -92,51 +94,54 @@ class IndexProviderHandler(HandlerProcessorProceed):
         assert isinstance(content, Content), 'Invalid content %s' % content
         
         if not response.headers: return  # No headers available.
-        if not assemblage.markers: return  # No markers available
+        if not assemblage.blocks: return  # No blocks available
         assert isinstance(response.headers, dict), 'Invalid headers %s' % response.headers
-        assert isinstance(assemblage.markers, dict), 'Invalid markers %s' % assemblage.markers
+        assert isinstance(assemblage.blocks, dict), 'Invalid blocks %s' % assemblage.blocks
         
         value = response.headers.pop(self.nameIndex, None)  # Also making sure not to pass the index header.
         if not value: return  # No content index available for processing.
         assert isinstance(value, str), 'Invalid value %s' % value
-        bvalue = value.encode(self.encode)
+        bvalue = value.encode(self.encoding)
         bvalue = binascii.a2b_base64(bvalue)
         bvalue = zlib.decompress(bvalue)
         read = BytesIO(bvalue)
         
-        count, current, indexes, valuesIds = self.intFrom(read, self.bytesIndexCount), 0, [], []
+        count, indexes = self._int(read, self.bytesIndexCount), []
         while count > 0:
             count -= 1
             
-            mark = self.intFrom(read, self.bytesMark)
-            current += self.intFrom(read, self.bytesOffset)
-            length = self.intFrom(read, self.bytesOffset)
-            valueId = self.intFrom(read, self.bytesValueId)
+            blockId = self._int(read, self.bytesBlock)
+            block = assemblage.blocks.get(blockId)
+            assert isinstance(block, Block), 'Invalid block %s' % block
             
-            marker = assemblage.markers.get(mark)
-            if marker:
-                index = Index(marker, current, current + length)
-                indexes.append(index)
-                valuesIds.append(valueId)
+            index = Index(block)
+            indexes.append(index)
             
-        count, values = self.intFrom(read, self.bytesValueId), {}
+            for key in block.keys:
+                index.values[key] = self._int(read, self.bytesValueId)
+                
+            for name in block.indexes:
+                index.values[name] = self._int(read, self.bytesOffset)
+                
+        count, values = self._int(read, self.bytesValueId), {}
         while count > 0:
             count -= 1
-            valueId = self.intFrom(read, self.bytesValueId)
-            countValue = self.intFrom(read, self.bytesValueSize)
-            value = read.read(countValue)
-            if len(value) != countValue: raise IOError()
-            values[valueId] = str(value, self.encode)
+            valueId = self._int(read, self.bytesValueId)
+            length = self._int(read, self.bytesValueSize)
+            value = read.read(length)
+            if len(value) != length: raise IOError('Missing bytes')
+            values[valueId] = str(value, self.encoding)
             
-        for index, valueId in zip(indexes, valuesIds):
-            if valueId: index.value = values[valueId]
+        for index in indexes:
+            for key in index.block.keys:
+                index.values[key] = values[index.values[key]]
         
         if content.indexes is None: content.indexes = indexes
         else: content.indexes.extend(indexes)
 
     # ----------------------------------------------------------------
     
-    def intFrom(self, inp, nbytes):
+    def _int(self, inp, nbytes):
         '''
         Creates the integer value from the provided input stream.
         '''

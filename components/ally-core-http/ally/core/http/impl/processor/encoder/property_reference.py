@@ -12,8 +12,8 @@ Provides the reference types encoding.
 from ally.api.operator.type import TypeProperty
 from ally.api.type import TypeReference
 from ally.container.ioc import injected
-from ally.core.http.spec.transform.index import NAME_URL, ATTR_ERROR_STATUS, \
-    ATTR_ERROR_MESSAGE, CONTENT_CLOB
+from ally.core.http.spec.transform.index import NAME_BLOCK_CLOB, \
+    ACTION_REFERENCE
 from ally.core.spec.resources import Normalizer
 from ally.core.spec.transform.encoder import IEncoder
 from ally.core.spec.transform.render import IRender
@@ -113,7 +113,5 @@ class EncoderReference(IEncoder):
         
         nameRef = support.normalizer.normalize(self.nameRef)
         render.beginObject(support.normalizer.normalize(self.name),
-                           attributes={nameRef: support.encoderPath.encode(obj)}, indexBlock=True, indexPrepare=True,
-                           indexContentInject=(CONTENT_CLOB,),
-                           indexAttributesInject=(ATTR_ERROR_STATUS, ATTR_ERROR_MESSAGE),
-                           indexAttributesCapture={nameRef: NAME_URL}).end()
+                           attributes={nameRef: support.encoderPath.encode(obj)}, indexBlock=NAME_BLOCK_CLOB,
+                           indexAttributesCapture={nameRef: ACTION_REFERENCE}).end()

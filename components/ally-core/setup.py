@@ -17,7 +17,7 @@ setup(
     name='ally_core',
     version='1.0',
     packages=find_packages(),
-    install_requires=['ally_api >= 1.0'],
+    install_requires=['ally_api >= 1.0', 'ally_indexing >= 1.0'],
     platforms=['all'],
     test_suite='test',
     py_modules=[],

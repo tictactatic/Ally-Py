@@ -11,44 +11,231 @@ Provides the JSON encoder processor handler.
 
 from .base import RenderBaseHandler, Content
 from ally.container.ioc import injected
-from ally.core.spec.transform.index import NAME_BLOCK, GROUP_PREPARE, \
-    ACTION_CAPTURE, GROUP_ADJUST, ACTION_INJECT, PLACE_HOLDER, PLACE_HOLDER_CONTENT, \
-    Index, GROUP_BLOCK_JOIN, GROUP_BLOCK_ADJUST
+from ally.core.spec.transform.index import ACTION_STREAM, ACTION_DISCARD, \
+    NAME_BLOCK, ACTION_INJECT, Index, ACTION_NAME
 from ally.core.spec.transform.render import IRender
+from ally.indexing.spec.model import Block, Action
+from ally.indexing.spec.perform import skip, feed, feedValue, feedName, \
+    feedIndexed, feedContent, push, setFlag, remFlag, setFlagIfBefore, feedKey, pop, \
+    pushKey, setFlagIfNotBefore
 from ally.support.util import immut
 from codecs import getwriter
 from collections import deque
+from functools import partial
 from io import BytesIO
 from json.encoder import encode_basestring
-
+    
 # --------------------------------------------------------------------
 
-JSON_BLOCK_JOIN = 'JSON block join'  # The JSON name for block join
-JSON_BLOCK_ADJUST = 'JSON block adjust'  # The JSON name for block adjust
-JSON_PREPARE_PROPERTY = 'JSON prepare property'  # The JSON property prepare
-JSON_PREPARE_NAME = 'JSON prepare name'  # The JSON name prepare
-JSON_PREPARE_NAME_FIXED = 'JSON prepare name fixed'  # The JSON fixed name prepare
-JSON_PREPARE_ATTRIBUTES = 'JSON prepare attributes'  # The JSON attributes prepare
-JSON_ADJUST_PROPERTY = 'JSON adjust property'  # The JSON property adjust
-JSON_ADJUST_NAME = 'JSON adjust name'  # The JSON name adjust
-JSON_ADJUST_ATTRIBUTES = 'JSON adjust attributes'  # The JSON attributes adjust
+# The patterns to use in creating JSON specific names.
+PATTERN_JSON_BLOCK_NAMED = 'JSON block %s with name'  # The JSON block pattern for blocks with name.
+PATTERN_JSON_BLOCK_UNAMED = 'JSON block %s no name'  # The JSON block pattern for blocks with no name.
+PSIND_ATTR_CAPTURE = 'JSON start capture %s'  # The pattern used for start indexes used in capturing attributes.
+PEIND_ATTR_CAPTURE = 'JSON end capture %s'  # The pattern used for indexes used in capturing attributes.
 
-# --------------------------------------------------------------------
+# The names.
+NAME_JSON_START_ADJUST = 'JSON start adjust'
+NAME_JSON_END_ADJUST = 'JSON end adjust'
 
-# Provides the JSON markers definitions.
-JSON_MARKERS = {
-                JSON_BLOCK_JOIN: dict(group=GROUP_BLOCK_JOIN, action=ACTION_INJECT, values=[',']),
-                JSON_BLOCK_ADJUST: dict(group=GROUP_BLOCK_ADJUST, action=ACTION_INJECT),
-                JSON_PREPARE_PROPERTY: dict(group=GROUP_PREPARE, action=ACTION_CAPTURE),
-                JSON_PREPARE_NAME: dict(group=GROUP_PREPARE, action=ACTION_CAPTURE),
-                JSON_PREPARE_NAME_FIXED: dict(group=GROUP_PREPARE),
-                JSON_PREPARE_ATTRIBUTES: dict(group=GROUP_PREPARE, action=ACTION_CAPTURE,
-                                               values=[PLACE_HOLDER_CONTENT, ',']),
-                JSON_ADJUST_PROPERTY: dict(group=GROUP_ADJUST, action=ACTION_INJECT, source=JSON_PREPARE_PROPERTY),
-                JSON_ADJUST_NAME: dict(group=GROUP_ADJUST, action=ACTION_INJECT,
-                                       values=[PLACE_HOLDER % JSON_PREPARE_NAME, PLACE_HOLDER % JSON_PREPARE_NAME_FIXED]),
-                JSON_ADJUST_ATTRIBUTES: dict(group=GROUP_ADJUST, action=ACTION_INJECT, source=JSON_PREPARE_ATTRIBUTES),
-               }
+# Variables
+VAR_JSON_NAME = 'JSON tag name'  # The name used for the tag name.
+VAR_JSON_ATTRS = 'JSON tag attributes'  # The name used for the tag attributes.
+
+# The JSON actions.
+ACTION_JSON_ADJUST = 'adjust'  # The adjust action.
+ACTION_JSON_COMMA = 'adjust_comma'  # The adjust comma action.
+
+# The standard JSON indexes.
+IND_DECL = 'JSON declarations'
+SIND_ENTRY, EIND_ENTRY = 'JSON start entry', 'JSON end entry'
+SIND_COMMA, EIND_COMMA = 'JSON start comma', 'JSON end comma'
+SIND_VALUE, EIND_VALUE = 'JSON start value', 'JSON end value'
+SIND_NAME, EIND_NAME = 'JSON start name', 'JSON end name'
+SIND_ATTRS, EIND_ATTRS = 'JSON start attributes', 'JSON end attributes'
+KEY_NAME = 'JSON key block name'
+
+# The JSON flags.
+FLAG_COMMA = 'comma required'
+FLAG_COMMA_ATTR = 'comma attribute required'
+
+# The escape characters for values.
+ESCAPE_JSON = {'\\': '\\\\', '"': '\\"', '\n': '\\n', '\r': '\\r', '\t': '\\t'}
+
+# The common actions for JSON block.
+ACTIONS_BLOCK_JSON = (
+                      Action(ACTION_JSON_COMMA,
+                             skip(SIND_ENTRY), feed(SIND_COMMA), feed(EIND_COMMA, FLAG_COMMA), skip(EIND_COMMA),
+                             setFlag(FLAG_COMMA),
+                             final=False),
+                      Action(ACTION_STREAM,
+                             feed(EIND_ENTRY), remFlag(FLAG_COMMA_ATTR),
+                             before=(ACTION_JSON_COMMA,)),
+                      Action(ACTION_DISCARD,
+                             skip(EIND_ENTRY)),
+                      )
+
+# The JSON block.
+BLOCK_JSON_NAMED = Block(
+                         Action(ACTION_NAME,
+                                skip(SIND_NAME), feed(EIND_NAME),
+                                rewind=True, final=False),
+                         *ACTIONS_BLOCK_JSON
+                         )
+BLOCK_JSON_UNNAMED = Block(
+                         Action(ACTION_NAME,
+                                feedKey(KEY_NAME),
+                                final=False),
+                         *ACTIONS_BLOCK_JSON,
+                         keys=(KEY_NAME,)
+                         )
+
+# Provides the JSON standard block definitions.
+BLOCKS_JSON = {
+               NAME_JSON_START_ADJUST:
+               Block(
+                     Action(ACTION_JSON_ADJUST,
+                            feed(SIND_ATTRS),
+                            setFlagIfBefore(EIND_ATTRS, FLAG_COMMA_ATTR),
+                            setFlagIfNotBefore(EIND_ATTRS, 'comma attribute required after'), feed(EIND_ATTRS),
+                            feedValue(',', FLAG_COMMA_ATTR), feedName(VAR_JSON_ATTRS),
+                            feedValue(',', 'comma attribute required after'), remFlag('comma attribute required after'),
+                            feed(SIND_NAME), setFlagIfBefore(EIND_NAME, 'name required'),
+                            skip(EIND_NAME), feedName(VAR_JSON_NAME, 'name required'), remFlag('name required'),
+                            feed(IND_DECL)),
+                     Action(ACTION_STREAM,
+                            feed(IND_DECL)),
+                     ),
+              
+              PATTERN_JSON_BLOCK_NAMED % NAME_BLOCK: BLOCK_JSON_NAMED,
+              
+              PATTERN_JSON_BLOCK_UNAMED % NAME_BLOCK: BLOCK_JSON_UNNAMED,
+              
+              NAME_JSON_END_ADJUST:
+              Block(
+                    Action(ACTION_JSON_ADJUST,
+                           feed(EIND_ENTRY)),
+                    Action(ACTION_STREAM,
+                           feed(EIND_ENTRY)),
+                    ),
+              }
+
+def createJSONAttributesActions(injectAttributes=None, captureAttributes=None):
+    '''
+    Create the actions associated with the provided attributes.
+    
+    @param injectAttributes: dictionary{string: string}
+        The attributes to be injected dictionary, as a key the action to be associated with the attribute injection and
+        as a value the attribute name to be injected.
+    @param captureAttributes: dictionary{string: string}
+        The attributes to be captured dictionary, as a key the action to be associated with the attribute capture and
+        as a value the name to be used latter on as a reference for the attribute capture.
+    @return: list[Action]
+        The created list of actions for the attributes.
+    '''
+    actions = []
+    if injectAttributes:
+        assert isinstance(injectAttributes, dict), 'Invalid inject attributes %s' % injectAttributes
+        for action, nameAttr in injectAttributes.items():
+            actions.append(Action(action,
+                                  feed(SIND_ATTRS),
+                                  setFlagIfBefore(EIND_ATTRS, FLAG_COMMA_ATTR), feed(EIND_ATTRS),
+                                  feedValue(',', FLAG_COMMA_ATTR),
+                                  feedValue('"%s":"' % nameAttr), feedContent(escapes=ESCAPE_JSON), feedValue('"'),
+                                  setFlag(FLAG_COMMA_ATTR),
+                                  final=False, before=(ACTION_JSON_COMMA,)))
+    
+    if captureAttributes:
+        assert isinstance(captureAttributes, dict), 'Invalid capture attributes %s' % captureAttributes
+        for action, name in captureAttributes.items():
+            actions.append(Action(action,
+                                  skip(PSIND_ATTR_CAPTURE % name),
+                                  feed(PEIND_ATTR_CAPTURE % name),
+                                  rewind=True, final=False))
+    return actions
+
+def createJSONBlockForIndexed(name, *actions, injectAttributes=None, captureAttributes=None):
+    '''
+    Create a new JSON block that can be used for injecting indexed content.
+    
+    @param name: string
+        The name that can be latter on used as a reference for the block.
+    @param actions: arguments[Action]
+        Additional actions to be registered with the created block.
+    @see: createJSONAttributesActions
+    '''
+    actions = list(actions)
+    actions.extend(createJSONAttributesActions(injectAttributes, captureAttributes))
+    
+    actionsNamed = list(actions)
+    actionsNamed.extend(BLOCK_JSON_NAMED.actions)
+    actionsNamed.append(Action(ACTION_INJECT,
+                               feed(SIND_NAME), push(VAR_JSON_NAME, EIND_NAME), feedValue(VAR_JSON_NAME),
+                               feed(SIND_VALUE),
+                               skip(SIND_ATTRS), push(VAR_JSON_ATTRS, EIND_ATTRS),
+                               skip(EIND_VALUE),
+                               feedIndexed(actions=(ACTION_JSON_ADJUST,)),
+                               feed(EIND_ENTRY),
+                               pop(VAR_JSON_NAME), pop(VAR_JSON_ATTRS),
+                               before=(ACTION_JSON_COMMA,))
+                        )
+    
+    actionsUnamed = list(actions)
+    actionsUnamed.extend(BLOCK_JSON_UNNAMED.actions)
+    actionsUnamed.append(Action(ACTION_INJECT,
+                                pushKey(VAR_JSON_NAME, KEY_NAME),
+                                feed(SIND_VALUE),
+                                skip(SIND_ATTRS), push(VAR_JSON_ATTRS, EIND_ATTRS),
+                                skip(EIND_VALUE),
+                                feedIndexed(actions=(ACTION_JSON_ADJUST,)),
+                                feed(EIND_ENTRY),
+                                pop(VAR_JSON_NAME), pop(VAR_JSON_ATTRS),
+                                before=(ACTION_JSON_COMMA,))
+                         )
+    
+    return {PATTERN_JSON_BLOCK_NAMED % name: Block(*actionsNamed),
+            PATTERN_JSON_BLOCK_UNAMED % name: Block(*actionsUnamed, keys=(KEY_NAME,))}
+    
+def createJSONBlockForContent(name, *actions, injectAttributes=None, captureAttributes=None):
+    '''
+    Create a new JSON block that can be used for injecting text content.
+    
+    @param name: string
+        The name that can be latter on used as a reference for the block.
+    @param actions: arguments[Action]
+        Additional actions to be registered with the created block.
+    @see: createJSONAttributesActions
+    '''
+    actions = list(actions)
+    actions.extend(createJSONAttributesActions(injectAttributes, captureAttributes))
+    
+    actionsNamed = list(actions)
+    actionsNamed.extend(BLOCK_JSON_NAMED.actions)
+    actionsNamed.append(Action(ACTION_INJECT,
+                               feed(SIND_NAME), push(VAR_JSON_NAME, EIND_NAME), feedName(VAR_JSON_NAME),
+                               feed(SIND_ATTRS),
+                               setFlagIfBefore(EIND_ATTRS, FLAG_COMMA_ATTR), feed(EIND_ATTRS),
+                               feedValue(',', FLAG_COMMA_ATTR),
+                               feedValue('"'), feedName(VAR_JSON_NAME), feedValue('":"'),
+                               feedContent(escapes=ESCAPE_JSON), feedValue('"'), feed(EIND_ENTRY),
+                               pop(VAR_JSON_NAME), pop(VAR_JSON_ATTRS),
+                               before=(ACTION_JSON_COMMA,))
+                        )
+    
+    actionsUnamed = list(actions)
+    actionsUnamed.extend(BLOCK_JSON_UNNAMED.actions)
+    actionsUnamed.append(Action(ACTION_INJECT,
+                                pushKey(VAR_JSON_NAME, KEY_NAME),
+                                feed(SIND_ATTRS),
+                                setFlagIfBefore(EIND_ATTRS, FLAG_COMMA_ATTR), feed(EIND_ATTRS),
+                                feedValue(',', FLAG_COMMA_ATTR),
+                                feedValue('"'), feedName(VAR_JSON_NAME), feedValue('":"'),
+                                feedContent(escapes=ESCAPE_JSON), feedValue('"'), feed(EIND_ENTRY),
+                                pop(VAR_JSON_NAME), pop(VAR_JSON_ATTRS),
+                                before=(ACTION_JSON_COMMA,))
+                         )
+    
+    return {PATTERN_JSON_BLOCK_NAMED % name: Block(*actionsNamed),
+            PATTERN_JSON_BLOCK_UNAMED % name: Block(*actionsUnamed, keys=(KEY_NAME,))}
 
 # --------------------------------------------------------------------
 
@@ -73,6 +260,10 @@ class RenderJSONHandler(RenderBaseHandler):
         return RenderJSON(self.encodingError, content)
 
 # --------------------------------------------------------------------
+
+OF_PROPERTY = 1
+OF_OBJECT = 2
+OF_COLLECTION = 3
 
 class RenderJSON(IRender):
     '''
@@ -103,27 +294,19 @@ class RenderJSON(IRender):
         self._block = False
         self._indexes = []
 
-    def property(self, name, value, indexBlock=False):
+    def property(self, name, value, indexBlock=None):
         '''
         @see: IRender.property
+        
+        @param indexBlock: string
+            Index the object with the provided index.
         '''
         assert isinstance(name, str), 'Invalid name %s' % name
         assert isinstance(value, (str, list, dict)), 'Invalid value %s' % value
-        assert isinstance(indexBlock, bool), 'Invalid index block flag %s' % indexBlock
-        assert self._stack and self._stack[0][0], 'No object for property'
-
-        if not self._first:
-            if self._block or indexBlock: ablock = self._start(JSON_BLOCK_ADJUST)
-            self._out.write(',')
-            if self._block or indexBlock:
-                self._end(ablock)
-                self._block = indexBlock
-        else: self._block = indexBlock
-        self._first = False
+        assert self._stack and self._stack[0][0] == OF_OBJECT, 'No object for property'
+        if indexBlock is None and not self._block: indexBlock = NAME_BLOCK
         
-        if indexBlock: iblock = self._start(NAME_BLOCK, name)
-        self._out.write('"%s"' % name)
-        self._out.write(':')
+        self.begin(name, OF_PROPERTY, indexBlock=indexBlock)
         if isinstance(value, list): value = '[%s]' % ','.join(encode_basestring(item) for item in value)
         elif isinstance(value, dict):
             value = ','.join('%s:%s' % (encode_basestring(key), encode_basestring(item)) for key, item in value.items())
@@ -131,20 +314,20 @@ class RenderJSON(IRender):
         else:
             value = encode_basestring(value)
         self._out.write(value)
-        if indexBlock: self._end(iblock)
+        self.end()
 
     def beginObject(self, name, **specifications):
         '''
         @see: IRender.beginObject
         '''
-        self.openObject(name, True, **specifications)
+        self.begin(name, OF_OBJECT, **specifications)
         return self
 
     def beginCollection(self, name, **specifications):
         '''
         @see: IRender.beginCollection
         '''
-        self.openObject(name, False, **specifications)
+        self.begin(name, OF_COLLECTION, **specifications)
         return self
 
     def end(self):
@@ -152,13 +335,14 @@ class RenderJSON(IRender):
         @see: IRender.collectionEnd
         '''
         assert self._stack, 'No collection to end'
-        isObj, iblock = self._stack.popleft()
-        if not isObj: self._out.write(']')
-        self._out.write('}')
-        if iblock:
-            self._end(iblock)
-            self._block = True
-        else: self._block = False
+        of, index, isAdjust = self._stack.popleft()
+        
+        if isAdjust: index = self._index(NAME_JSON_END_ADJUST)
+        if of == OF_COLLECTION: self._out.write(']}')
+        elif of == OF_OBJECT: self._out.write('}')
+        if index:
+            index(EIND_VALUE, EIND_ENTRY)
+            self._block = False
         
         if not self._stack:
             content = self._content
@@ -170,109 +354,108 @@ class RenderJSON(IRender):
         
     # ----------------------------------------------------------------
 
-    def openObject(self, name, isObject, attributes=None, indexBlock=False, indexPrepare=False,
-                   indexAttributesCapture=immut(), **specifications):
+    def begin(self, name, of, attributes=None, indexBlock=None, indexAttributesCapture=immut()):
         '''
         Used to open a JSON object.
         
         @param attributes: dictionary{string: string}
             The attributes to associate with the object.
-        @param indexBlock: boolean
-            Flag indicating that a block index should be created for the object.
-        @param indexPrepare: boolean
-            Flag indicating that the object should be prepared to be injected with another REST content.
-        @param indexContentInject: list[string]|tuple(string)
-            The list or tuple containing the group names (previously registered with @see: createJSONContentInjectMarkers)
-            to be injected instead of object block.
-        @param indexAttributesInject: list[string]|tuple(string)
-            The list or tuple containing the attribute names (previously registered with @see: createJSONAttrsInjectMarkers)
-            to be injected.
+        @param indexBlock: string
+            Index the object with the provided index.
         @param indexAttributesCapture: dictionary{string: string}
-            The dictionary containing as a key the attribute name and as a value the marker to associate with the attribute
-            capture.
+            The dictionary containing as a key the attribute name and as a value the key name as registered
+            to associate with the attribute capture.
         '''
-        assert isinstance(indexBlock, bool), 'Invalid index block flag %s' % indexBlock
-        assert isinstance(indexPrepare, bool), 'Invalid index prepare flag %s' % indexPrepare
-        
-        assert isinstance(indexAttributesCapture, dict), 'Invalid index attributes capture %s' % indexAttributesCapture
-        
-        indexAdjust, indexBlock = self._adjust, indexBlock and not self._adjust
-        indexPrepare = indexBlock and indexPrepare
-        self._adjust = False
+        hasNameProp = self._stack and self._stack[0][0] == OF_OBJECT
+        isAdjust, hasName = False, of == OF_COLLECTION or hasNameProp
+        if self._adjust:
+            assert indexBlock is None, 'No index block expected, but got %s' % indexBlock
+            assert not indexAttributesCapture, 'No attributes capture expected, but got %s' % indexAttributesCapture
+            assert of in (OF_OBJECT, OF_COLLECTION), 'Invalid adjusting for of %s action' % of
+            index = self._index(NAME_JSON_START_ADJUST)
+            self._adjust = False
+            isAdjust = True
+        elif self._block:
+            assert indexBlock is None, 'No index block expected, but got %s' % indexBlock
+            assert not indexAttributesCapture, 'No attributes capture expected, but got %s' % indexAttributesCapture
+            index = None
+        elif indexBlock:
+            assert isinstance(indexBlock, str), 'Invalid index block %s' % indexBlock
+            assert isinstance(indexAttributesCapture, dict), 'Invalid index attributes capture %s' % indexAttributesCapture
+            if hasName: index = self._index(PATTERN_JSON_BLOCK_NAMED % indexBlock)
+            else: index = self._index(PATTERN_JSON_BLOCK_UNAMED % indexBlock, {KEY_NAME: name})
+            self._block = True
+        else: index = None
 
-        if indexAdjust: self._at(JSON_BLOCK_JOIN)
-        
+        if index: index(SIND_ENTRY, SIND_COMMA)
         if not self._first:
-            if self._block or indexBlock: ablock = self._start(JSON_BLOCK_ADJUST)
             self._out.write(',')
-            if self._block or indexBlock:
-                self._end(ablock)
-                self._block = indexBlock
-        else: self._block = indexBlock
-        
-        if indexBlock: iblock = self._start(NAME_BLOCK, name)
-        if self._stack and self._stack[0][0]:
-            if indexPrepare:
-                pprepare = self._start(JSON_PREPARE_PROPERTY)
-                nprepare = self._start(JSON_PREPARE_NAME, offset=1)  # offset +1 for the comma
+        if of == OF_PROPERTY: self._first = False
+        else: self._first = True
+        if index: index(EIND_COMMA)
+            
+        if hasNameProp:
+            if index: index(SIND_NAME, offset=1)  # offset +1 for the comma
             self._out.write('"%s"' % name)
-            if indexPrepare: self._end(nprepare, offset= -1)  # offset -1 for the comma
+            if index: index(EIND_NAME, offset= -1)  # offset -1 for the comma
             self._out.write(':')
-            if indexPrepare: self._end(pprepare)
-        else:
-            if indexPrepare: self._at(JSON_PREPARE_NAME_FIXED, name)
-            if indexAdjust: self._at(JSON_ADJUST_PROPERTY)
+        elif index: index(SIND_NAME, EIND_NAME)
+        
+        self._stack.appendleft((of, index, isAdjust))
+        if of == OF_PROPERTY: return
+        
+        if index: index(SIND_VALUE)
         self._out.write('{')
-        if indexAdjust: self._at(JSON_ADJUST_ATTRIBUTES)
         
-        self._first = True
-        
+        if index: index(SIND_ATTRS)
         if attributes:
-            if indexPrepare: iprepare = self._start(JSON_PREPARE_ATTRIBUTES)
+            assert isinstance(attributes, dict), 'Invalid attributes %s' % attributes
             for nameAttr, valueAttr in attributes.items():
                 assert isinstance(nameAttr, str), 'Invalid attribute name %s' % nameAttr
                 assert isinstance(valueAttr, str), 'Invalid attribute value %s' % valueAttr
-
+                
                 if self._first: self._first = False
                 else: self._out.write(',')
                 self._out.write('"%s"' % nameAttr)
                 self._out.write(':')
-                if nameAttr in indexAttributesCapture:
-                    iattr = self._start(indexAttributesCapture[nameAttr], offset=1)  # offset +1 for the comma
+
+                iname = indexAttributesCapture.get(nameAttr)
+                if iname:
+                    index(PSIND_ATTR_CAPTURE % iname, offset=1)  # offset +1 for the comma
                     self._out.write(encode_basestring(valueAttr))
-                    self._end(iattr, offset= -1)  # offset -1 for the comma
+                    index(PEIND_ATTR_CAPTURE % iname, offset= -1)  # offset -1 for the comma
                 else: self._out.write(encode_basestring(valueAttr))
-            if indexPrepare: self._end(iprepare)
+        if index: index(EIND_ATTRS)
         
-        if not isObject:
-            if not self._first: self._out.write(',')
-            if indexAdjust: iadjust = self._start(JSON_ADJUST_NAME, offset=1)  # offset +1 for the comma
+        if of == OF_COLLECTION:
+            if not self._first:
+                self._out.write(',')
+                self._first = True
+                
+            if index: index(SIND_NAME, offset=1)  # offset +1 for the comma
             self._out.write('"%s"' % name)
-            if indexAdjust: self._end(iadjust, offset= -1)  # offset -1 for the comma
+            if index: index(EIND_NAME, offset= -1)  # offset -1 for the comma
             self._out.write(':[')
-            self._first = True
         
-        self._stack.appendleft((isObject, iblock if indexBlock else None))
+        if isAdjust: index(IND_DECL)
     
     # ----------------------------------------------------------------
     
-    def _at(self, marker, value=None, offset=0):
+    def _index(self, block, values=None):
         '''
-        Creates an index that starts and ends at the current offset.
+        Create a new index.
         '''
-        self._indexes.append(Index(marker, self._outb.tell() + offset, value))
-        
-    def _start(self, marker, value=None, offset=0):
-        '''
-        Starts and index at the current offset.
-        '''
-        index = Index(marker, self._outb.tell() + offset, value)
+        index = Index(block, values)
         self._indexes.append(index)
-        return index
-        
-    def _end(self, index, offset=0):
+        return partial(self._put, index)
+    
+    def _put(self, index, *names, offset=0):
         '''
-        Ends the ongoing index at the current offset.
+        Puts on the index the provided index names at the current offset. 
         '''
         assert isinstance(index, Index), 'Invalid index %s' % index
-        index.end = self._outb.tell() + offset
+        offset = self._outb.tell() + offset
+        for name in names:
+            assert isinstance(name, str), 'Invalid name %s' % name
+            index.values[name] = offset
+

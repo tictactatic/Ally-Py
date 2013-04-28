@@ -15,14 +15,15 @@ from ..ally_http.processor import chunkedTransferEncoding, \
     internalError, headerEncodeResponse
 from ..ally_http.server import notFoundRouter
 from ally.assemblage.http.impl.processor.assembler import AssemblerHandler
+from ally.assemblage.http.impl.processor.block import BlockHandler
 from ally.assemblage.http.impl.processor.content import ContentHandler
 from ally.assemblage.http.impl.processor.index import IndexProviderHandler
-from ally.assemblage.http.impl.processor.marker import MarkerHandler
 from ally.assemblage.http.impl.processor.node import RequestNodeHandler
 from ally.container import ioc
 from ally.container.error import ConfigError, SetupError
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.handler import Handler, HandlerRenamer
+from ally.indexing.impl import perform_do
 
 # --------------------------------------------------------------------
 
@@ -44,9 +45,9 @@ def external_port():
     return 80
 
 @ioc.config
-def assemblage_marker_uri() -> str:
-    ''' The assemblage URI to fetch the assemblage markers objects from'''
-    raise ConfigError('There is no assemblage marker URI provided')
+def assemblage_indexes_uri() -> str:
+    ''' The indexes URI to fetch the index objects from'''
+    raise ConfigError('There is no indexes URI provided')
 
 @ioc.config
 def default_response_charset() -> str:
@@ -72,9 +73,9 @@ def server_provide_assemblage():
 def requestNode(): return RequestNodeHandler()
 
 @ioc.entity
-def marker() -> Handler:
-    b = MarkerHandler()
-    b.uri = assemblage_marker_uri()
+def block() -> Handler:
+    b = BlockHandler()
+    b.uri = assemblage_indexes_uri()
     b.assembly = assemblyForward()
     return b
 
@@ -94,7 +95,10 @@ def encodingProvider() -> Handler:
     return HandlerRenamer(contentTypeResponseDecode(), 'response', ('responseCnt', 'content'))
 
 @ioc.entity
-def assembler() -> Handler: return AssemblerHandler()
+def assembler() -> Handler:
+    b = AssemblerHandler()
+    b.doProcessors = perform_do.processors
+    return b
 
 # --------------------------------------------------------------------
 
@@ -126,7 +130,7 @@ def updateAssemblyAssemblage():
     if not server_protocol() >= 'HTTP/1.1':
         raise SetupError('Invalid protocol %s for chunk transfer is available only '
                          'for HTTP/1.1 protocol or greater' % server_protocol())
-    assemblyAssemblage().add(internalError(), headerDecodeRequest(), requestNode(), marker(), content(), assembler(),
+    assemblyAssemblage().add(internalError(), headerDecodeRequest(), requestNode(), block(), content(), assembler(),
                              headerEncodeResponse(), chunkedTransferEncoding())
     
 @ioc.before(assemblyContent)

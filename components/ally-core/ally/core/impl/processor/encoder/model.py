@@ -26,6 +26,7 @@ from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain, Processing
 from ally.design.processor.handler import HandlerBranchingProceed
 from ally.exception import DevelError
+from ally.core.spec.transform.index import NAME_BLOCK
 
 # --------------------------------------------------------------------
 
@@ -209,9 +210,11 @@ class EncoderModel(EncoderWithSpecifiers):
             hideProperties = support.hideProperties
         else: hideProperties = False
         
-        render.beginObject(support.normalizer.normalize(self.name),
-                           **self.populate(obj, support, indexBlock=hideProperties))
-        if not hideProperties:
+        if hideProperties:
+            render.beginObject(support.normalizer.normalize(self.name),
+                           **self.populate(obj, support, indexBlock=NAME_BLOCK))
+        else:
+            render.beginObject(support.normalizer.normalize(self.name), **self.populate(obj, support))
             for name, encoder in self.properties:
                 assert isinstance(encoder, IEncoder), 'Invalid property encoder %s' % encoder
                 objValue = getattr(obj, name)

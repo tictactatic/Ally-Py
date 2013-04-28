@@ -52,6 +52,22 @@ def namesForContainer(container):
     assert isinstance(containerType, TypeContainer), 'Invalid container %s' % container
     return iter(containerType.container.properties)
 
+def nameForModel(model):
+    '''
+    Provides the properties names for the provided model object or class.
+    
+    @param model: model object|class
+        The model to provide the properties names for.
+    @return: Iterator(string)
+        The iterator containing the properties names
+    '''
+    assert model is not None, 'A model object is required'
+    if not isclass(model): qmodel = model.__class__
+    else: qmodel = model
+    modelType = typeFor(qmodel)
+    assert isinstance(modelType, TypeModel), 'Invalid model %s' % model
+    return modelType.container.name
+
 def namesForModel(model):
     '''
     Provides the properties names for the provided model object or class.
@@ -64,9 +80,9 @@ def namesForModel(model):
     assert model is not None, 'A model object is required'
     if not isclass(model): qmodel = model.__class__
     else: qmodel = model
-    modelrType = typeFor(qmodel)
-    assert isinstance(modelrType, TypeModel), 'Invalid model %s' % model
-    return iter(modelrType.container.properties)
+    modelType = typeFor(qmodel)
+    assert isinstance(modelType, TypeModel), 'Invalid model %s' % model
+    return iter(modelType.container.properties)
 
 # --------------------------------------------------------------------
 

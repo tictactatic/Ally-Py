@@ -14,6 +14,7 @@ from ally.api.operator.type import TypeModel, TypeModelProperty
 from ally.container.ioc import injected
 from ally.core.spec.resources import Normalizer
 from ally.core.spec.transform.encoder import IEncoder, EncoderWithSpecifiers
+from ally.core.spec.transform.index import NAME_BLOCK
 from ally.core.spec.transform.render import IRender
 from ally.design.cache import CacheWeak
 from ally.design.processor.assembly import Assembly
@@ -148,6 +149,6 @@ class EncoderModelProperty(EncoderWithSpecifiers):
         if Support.hideProperties in support: hideProperties = support.hideProperties
         else: hideProperties = False
             
-        render.beginObject(support.normalizer.normalize(self.name), **self.populate(obj, support, indexBlock=True))
+        render.beginObject(support.normalizer.normalize(self.name), **self.populate(obj, support, indexBlock=NAME_BLOCK))
         if not hideProperties: self.encoder.render(obj, render, support)
         render.end()
