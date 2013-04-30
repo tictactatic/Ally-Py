@@ -812,22 +812,33 @@
 .board-table {
     &.plain-table > li {
       padding-left: 20px;
-      font-weight: bold;
       color: #444;
       .board-name {
-        width: 200px;
         display: inline-block;
         line-height: 22px;
+        font-weight: bold;
       }
-      .board-limit {
-        font-weight: normal;
+      .board-status {
+        float: none;
+        margin-left: 10px;
+        .dropdown-toggle {
+          color: #999;
+        }
+      }
+      .board-limit, .board-limit-editable {
         line-height: 22px;
+        float: right;
+        margin-right: 10px;
+        width: 70px;
         &:before {
           content: "Limit: ";
           color: #999;
           margin-top: 2px;
         }
-        input {
+      }
+      .board-limit-editable {
+        width: 90px;
+         input {
           width: 50px !important;
           margin-top: -3px;
         }
