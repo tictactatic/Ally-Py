@@ -366,6 +366,26 @@
 	/* display: none !important; */
 }
 
+.selectionlist {
+	list-style-type: none;
+	padding: 2px;
+	width: 100%;
+	.box-sizing(border-box);
+	margin: 0;
+	overflow: auto;
+	li {
+		line-height: 16px;
+		height: 16px;
+		padding: 3px;
+		padding-left: 10px;
+		margin-bottom: 3px;
+		.border-radius(3px);
+		background: #e8e8e8;
+	}
+	.sf-toggle-custom {
+		margin-top: -1px;
+	}
+}
 .checklist-selection {
 	list-style-type: none;
 	padding: 2px;
@@ -382,7 +402,7 @@
 		.border-radius(3px);
 
 		&:hover {
-			background: #e0e0e0;
+			background: #e8e8e8;
 		}
 	}
 	&.bordered-selection {
@@ -391,6 +411,73 @@
 	}
 }
 
+.checklist-doubleside {
+	width: 100%;
+	.box-sizing(border-box);
+	border: 1px solid #c0c0c0;
+	.border-radius(3px);
+	position: relative;
+	.checklist-pane {
+		width: 50%;
+		.box-sizing(border-box);
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		left:50%;
+		&:first-child {
+			left:0;
+			border-right: 1px solid #c0c0c0;
+			background: #f5f5f5;
+
+		}
+		header {
+			height: 37px;
+			background: #fafafa;
+			border-bottom: 1px solid #eee;
+			line-height: 37px;
+			padding-left: 10px;
+			.btn {
+				float: right;
+				margin-right: 10px;
+				margin-top: 7px;
+			} 
+		}
+		.checklist-selection {
+			width: auto !important;
+			position: absolute;
+			top: 40px;
+			bottom:2px;
+			overflow: auto;
+			right: 2px;
+			left: 2px;
+			display: none;
+			&.tasktypes{
+				display:block;
+			}
+			li {
+				height: 17px;
+				line-height: 17px;
+				font-weight: normal;
+				position: relative;	
+				&.selected {
+					background: #b0deec;
+					&:after {
+						content: " ";
+						width: 14px;
+						height: 14px;
+						position: absolute;
+						right: 10px;
+						top:4px;
+						background: url("../../images/glyphicons-halflings-white.png") no-repeat -456px -72px;
+					}
+				}
+				&:hover {
+					cursor: default;
+				}
+			}
+		}
+	} 
+}
 
 .page-info {
 	line-height: 28px;
@@ -516,8 +603,8 @@
   }
   &.sf-checked {
   	&.on-off-toggle {
-  		background: #309b01;
-  		border-color:#298401; 
+  		background: #369dbb;
+  		border-color:#3091ad; 
   	}
     .sf-toggle-custom-inner {
       left:32px !important;
@@ -543,46 +630,47 @@
 	margin: 0;
 	padding: 0;
 	list-style-type: none;
+	&.plain-border-top {
+		border-top:1px solid #e5e5e5;
+	}
+	> li {
+		padding: 7px 5px;
+		border-bottom:1px solid #e5e5e5;
+		height: 22px;
+		cursor: pointer;
+		position: relative;
+		&:hover {
+			background: #e8f0ff;
+		}
+		
+		figure {
+			float: left;
+			margin-right: 10px;
+		}
+		.sf-inline-input {
+			height: 24px;
+			width: 80%;
+		}
+	}
+
+	.dropdown-simple {
+		display: inline-block;
+		float: right;
+		a .caret {
+			margin-top: 8px;
+		}
+	}
+
 }
 
 .small-plain {
 	max-height: 150px;
 	overflow-y: scroll; 
+	 > li {
+		padding: 3px 5px !important;
+	}
 }
 
-.small-plain > li {
-	padding: 3px 5px !important;
-}
-
-.plain-table > li {
-	padding: 7px 5px;
-	border-bottom:1px solid #e5e5e5;
-	height: 22px;
-	cursor: pointer;
-	position: relative;
-}
-
-.plain-table > li:hover {
-	background: #e8f0ff;
-}
-
-.plain-table figure {
-	float: left;
-	margin-right: 10px;
-}
-
-.plain-table .dropdown-simple a .caret {
-	margin-top: 8px;
-}
-.plain-table .dropdown-simple {
-	display: inline-block;
-	float: right;
-}
-
-.plain-table > li .sf-inline-input {
-	height: 24px;
-	width: 80%;
-}
 
 
 .or-label {
@@ -606,9 +694,6 @@
 		margin-left: 15px;
 	}
 }
-
-
-
 
 
 
