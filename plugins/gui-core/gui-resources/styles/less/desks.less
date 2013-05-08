@@ -548,6 +548,7 @@
   padding: 10px;
   .border-radius(5px);
   margin-bottom: 15px;
+  text-align: right;
 
   textarea {
     width: 100%;
@@ -563,7 +564,21 @@
     .box-shadow(inset 0px 3px 6px -3px #a8a8a8);
     font-size: 14px; 
     color: #444;
+    text-align: left;
+  }
+
+  .btn {
+    margin-left: 5px;
+    margin-top: 10px;
+    display: none;
   } 
+
+  &.focused {
+    .btn {
+      display: inline-block;
+    }
+  }
+
 }
 
 .comment-list {

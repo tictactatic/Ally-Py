@@ -1418,7 +1418,7 @@ input[type="file"] {
 	font-weight: bold;
 	line-height: 14px;
 	padding: 0;
-	margin-bottom: 10px;
+	margin-bottom: 15px;
 }
 .select-all-colaborator input[type="checkbox"]{
 	margin: 0 15px 0 10px !important;
@@ -2255,7 +2255,7 @@ label.bgcolor {
 	-o-border-radius:0px;
 }
 
-.ui-state-hover .ui-icon {
+.ui-dialog-titlebar .ui-state-hover .ui-icon {
 	background: #fff !important;
 }
 
