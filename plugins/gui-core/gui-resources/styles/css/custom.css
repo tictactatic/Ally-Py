@@ -1566,6 +1566,19 @@ a.collaborator-name-large  {
 	background: none !important;
 }
 
+.avatar-small {
+	width: 23px;
+	height: 23px;
+	background: url(../../images/avatar_small.png) no-repeat 0 0;
+	overflow: hidden;
+}
+
+.avatar-small img {
+	min-width: 23px;
+	max-width: 23px;
+	height: auto !important;
+	min-height: 100%;
+}
 
 .searchbox {
 	padding-left: 30px;
