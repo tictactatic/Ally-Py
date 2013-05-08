@@ -1580,6 +1580,21 @@ a.collaborator-name-large  {
 	min-height: 100%;
 }
 
+.avatar-medium {
+	width: 32px;
+	height: 32px;
+	background: url(../../images/avatar_default_collaborator.png) no-repeat 0 0;
+	background-size: 32px 32px;
+	overflow: hidden;
+}
+
+.avatar-medium img {
+	min-width: 32px;
+	max-width: 32px;
+	height: auto !important;
+	min-height: 100%;
+}
+
 .searchbox {
 	padding-left: 30px;
 	background: url("../../images/search-icon.png") no-repeat 5px center;
