@@ -1418,7 +1418,7 @@ input[type="file"] {
 	font-weight: bold;
 	line-height: 14px;
 	padding: 0;
-	margin-bottom: 10px;
+	margin-bottom: 15px;
 }
 .select-all-colaborator input[type="checkbox"]{
 	margin: 0 15px 0 10px !important;
@@ -1566,6 +1566,34 @@ a.collaborator-name-large  {
 	background: none !important;
 }
 
+.avatar-small {
+	width: 23px;
+	height: 23px;
+	background: url(../../images/avatar_small.png) no-repeat 0 0;
+	overflow: hidden;
+}
+
+.avatar-small img {
+	min-width: 23px;
+	max-width: 23px;
+	height: auto !important;
+	min-height: 100%;
+}
+
+.avatar-medium {
+	width: 32px;
+	height: 32px;
+	background: url(../../images/avatar_default_collaborator.png) no-repeat 0 0;
+	background-size: 32px 32px;
+	overflow: hidden;
+}
+
+.avatar-medium img {
+	min-width: 32px;
+	max-width: 32px;
+	height: auto !important;
+	min-height: 100%;
+}
 
 .searchbox {
 	padding-left: 30px;
@@ -2255,7 +2283,7 @@ label.bgcolor {
 	-o-border-radius:0px;
 }
 
-.ui-state-hover .ui-icon {
+.ui-dialog-titlebar .ui-state-hover .ui-icon {
 	background: #fff !important;
 }
 
