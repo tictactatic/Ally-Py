@@ -11,11 +11,11 @@ Installing ZeroMQ
 
 First we fetch the zeromg POSIX tarball, you can access "http://www.zeromq.org/intro:get-the-software" and download the 
 POSIX tarball or:
-	wget http://download.zeromq.org/zeromq-3.2.1-rc2.tar.gz
+	wget http://download.zeromq.org/zeromq-3.2.3.tar.gz
 
 The we insall the zeromq:
-	tar -xzvf zeromq-3.2.1-rc2.tar.gz
-	cd zeromq-3.2.1/
+	tar -xzvf zeromq-3.2.3.tar.gz
+	cd zeromq-3.2.3/
 	./configure 
 	make
 	sudo make install
