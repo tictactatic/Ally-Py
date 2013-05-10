@@ -759,6 +759,63 @@ button:focus {
 
 /* tabs */
 
+.tabmodule {
+  margin-bottom: 20px;
+
+  .tabmodule-header {
+    position: relative;
+    margin-bottom: 10px;
+    &:before {
+      content: " ";
+      position: absolute;
+      border-bottom: 1px solid #dcdcdc;
+      height: 1px;
+      top:9px;
+      left:20px;
+      right: 0px;
+    }
+    i {
+      margin-top: 2px;
+      display: none;
+      &:hover {
+        cursor: pointer;
+      }
+      &.toggle-module-open {
+        display: inline-block;
+      }
+    }
+    .tabmodule-title {
+      background: @tabpane-background;
+      padding: 0 5px;
+      font-size: 11px;
+      text-transform: uppercase;
+      color: #666;
+      position: relative;
+    }
+
+  }
+
+  .tabmodule-content {
+    display: none;
+    .checklist-selection li {
+      font-weight: normal;
+    }
+  }
+
+  &.tabmodule-open {
+    .toggle-module-open {
+      display: none !important;
+    }
+    .toggle-module-close {
+      display: inline-block;
+    }
+    .tabmodule-content {
+      display: block !important;
+    }
+  }
+
+}
+
 /* MEDIA TAB */
 .media-tab {
   overflow: auto;
@@ -895,6 +952,19 @@ button:focus {
 
   }
 
+}
+
+/* SWITCHES TAB */
+.switches-tab {
+  overflow: auto;
+  position: absolute;
+  left: 15px;
+  right: 2px;
+  margin-right: 2px;
+  padding-right: 10px;
+  top: 15px;
+  bottom: 45px;
+  padding-top: 4px;
 }
 
 
