@@ -36,7 +36,7 @@ class ActionManagerService(IActionManagerService):
         self._actions[action.Path] = action
         return action.Path
         
-    def getAll(self, path):
+    def getAll(self, path, origPath=None):
         '''
         @see: IActionManagerService.getAll
         '''
