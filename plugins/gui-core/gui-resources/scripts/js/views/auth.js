@@ -160,8 +160,9 @@ function($, superdesk, gizmo, Action, jsSHA, AuthToken, AuthLogin)
                 alertmsg = $(el).find('.alert'),
                 self = this;
             this.alertmsg = alertmsg;
+            self._loggedIn = false;
             // make new authentication process
-            AuthTokenApp.get(username.val(), password.val()); 
+            AuthTokenApp.get(username.val(), password.val());
             event.preventDefault();
         },
         /*!
