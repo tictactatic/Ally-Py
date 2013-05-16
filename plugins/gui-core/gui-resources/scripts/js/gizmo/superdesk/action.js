@@ -61,7 +61,7 @@ function( gizmo, $, Actions )
             if( !self.cache[path] )
             {
                 var searchPath = path.substr(0, path.lastIndexOf('.'));
-                self.actions.sync({data: {path: searchPath+'.*', origPath: path}})
+                self.actions.sync({data: {path: searchPath+'.*'}})
                     .done(function()
                     { 
                         self.actions.each(function(){ self.cache[this.get('Path')] = this; });
