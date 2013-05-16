@@ -19,10 +19,10 @@ from ally.core.spec.transform.render import IRender
 from ally.design.cache import CacheWeak
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines, optional
-from ally.design.processor.branch import Included
+from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context
-from ally.design.processor.execution import Chain, Processing
-from ally.design.processor.handler import HandlerBranchingProceed
+from ally.design.processor.execution import Processing
+from ally.design.processor.handler import HandlerBranching
 from ally.exception import DevelError
 from collections import Iterable
 
@@ -65,7 +65,7 @@ class CreateItem(Context):
 # --------------------------------------------------------------------
 
 @injected
-class CollectionEncode(HandlerBranchingProceed):
+class CollectionEncode(HandlerBranching):
     '''
     Implementation for a handler that provides the collection encoding.
     '''
@@ -78,13 +78,13 @@ class CollectionEncode(HandlerBranchingProceed):
     def __init__(self):
         assert isinstance(self.itemEncodeAssembly, Assembly), 'Invalid item encode assembly %s' % self.itemEncodeAssembly
         assert isinstance(self.nameMarkedList, str), 'Invalid name list %s' % self.nameMarkedList
-        super().__init__(Included(self.itemEncodeAssembly).using(create=CreateItem), support=Support)
+        super().__init__(Branch(self.itemEncodeAssembly).included().using(create=CreateItem), support=Support)
         
         self._cache = CacheWeak()
         
-    def process(self, itemProcessing, create:Create, **keyargs):
+    def process(self, chain, itemProcessing, create:Create, **keyargs):
         '''
-        @see: HandlerBranchingProceed.process
+        @see: HandlerBranching.process
         
         Create the collection encoder.
         '''
@@ -110,12 +110,10 @@ class CollectionEncode(HandlerBranchingProceed):
         
         cache = self._cache.key(itemProcessing, name, itemType, *specifiers)
         if not cache.has:
-            chain = Chain(itemProcessing)
-            chain.process(create=itemProcessing.ctx.create(objType=itemType)).doAll()
-            createItem = chain.arg.create
-            assert isinstance(createItem, CreateItem), 'Invalid create item %s' % createItem
-            if createItem.encoder is None: raise DevelError('Cannot encode %s' % itemType)
-            cache.value = EncoderCollection(name, createItem.encoder, specifiers)
+            arg = itemProcessing.execute(create=itemProcessing.ctx.create(objType=itemType))
+            assert isinstance(arg.create, CreateItem), 'Invalid create item %s' % arg.create
+            if arg.create.encoder is None: raise DevelError('Cannot encode %s' % itemType)
+            cache.value = EncoderCollection(name, arg.create.encoder, specifiers)
         
         create.encoder = cache.value
 

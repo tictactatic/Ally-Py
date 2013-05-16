@@ -51,14 +51,12 @@ else:
 
     from ..ally_core_http.server import resourcesRouter, server_provide_resources, updateAssemblyServerForResources, \
     errorsRouter, server_provide_errors, server_pattern_resources
-    from ..ally_core_http.processor import assemblyResources, uri, converterPath
-    from ..ally_core.resources import resourcesRoot
-    from ally.core.http.impl.processor.uri import URIHandler
+    from ..ally_core_http.processor import assemblyResources, encoderPathResource, converterPath
+    from ally.core.http.impl.processor.path_encoder_resource import ResourcePathEncoderHandler
     
     @ioc.entity
-    def uriGateway() -> Handler:
-        b = URIHandler()
-        b.resourcesRoot = resourcesRoot()
+    def encoderPathResourceGateway() -> Handler:
+        b = ResourcePathEncoderHandler()
         b.resourcesRootURI = root_uri_my_resources()
         b.converterPath = converterPath()
         return b
@@ -67,7 +65,7 @@ else:
     def assemblyResourcesGateway():
         b = Assembly('Gateway REST resources')
         b.add(assemblyResources())
-        b.replace(uri(), uriGateway())
+        b.replace(encoderPathResource(), encoderPathResourceGateway())
         return b
     
     @ioc.entity

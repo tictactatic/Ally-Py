@@ -11,23 +11,25 @@ Provides the node structure to be assembled.
 
 from ally.assemblage.http.spec.assemblage import RequestNode
 from ally.container.ioc import injected
-from ally.design.processor.attribute import requires, defines, optional
+from ally.design.processor.attribute import defines, optional
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessorProceed
-from ally.http.spec.server import IDecoderHeader
+from ally.design.processor.handler import HandlerProcessor
+from ally.http.spec.headers import HeaderCmx, HeadersRequire
 from ally.support.util import lastCheck
 
 # --------------------------------------------------------------------
 
-class Request(Context):
+ASSEMBLAGE = HeaderCmx('X-Filter', False)
+# The header name for the assemblage request.
+
+# --------------------------------------------------------------------
+
+class Request(HeadersRequire):
     '''
     The request context.
     '''
     # ---------------------------------------------------------------- Optional
     parameters = optional(list)
-    # ---------------------------------------------------------------- Required
-    decoderHeader = requires(IDecoderHeader)
-    headers = requires(dict)
     
 class Assemblage(Context):
     '''
@@ -42,34 +44,25 @@ class Assemblage(Context):
 # --------------------------------------------------------------------
 
 @injected
-class RequestNodeHandler(HandlerProcessorProceed):
+class RequestNodeHandler(HandlerProcessor):
     '''
     Implementation for a handler that provides the node structure to be assembled.
     '''
-    
-    nameAssemblage = 'X-Filter'
-    # The header name for the assemblage request.
-    
-    def __init__(self):
-        assert isinstance(self.nameAssemblage, str), 'Invalid assemblage name %s' % self.maximum_response_length
-        super().__init__()
 
-    def process(self, request:Request, assemblage:Assemblage, **keyargs):
+    def process(self, chain, request:Request, assemblage:Assemblage, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Provide the node structure assemblage.
         '''
         assert isinstance(request, Request), 'Invalid request %s' % request
-        assert isinstance(request.decoderHeader, IDecoderHeader), 'Invalid decoder header %s' % request.decoderHeader
         
-        values = request.decoderHeader.decode(self.nameAssemblage)
+        values = ASSEMBLAGE.decodeOnce(request)
         if not values: return  # No assemblage requested.
-        if request.headers: request.headers.pop(self.nameAssemblage, None)  # No need to pass the assemblage header.
         # First we adjust the request node tree.
         
         assemblage.requestNode = RequestNode()
-        for name, _attributes in values:
+        for name in values:
             current = assemblage.requestNode
             for name in name.split('.'):
                 subnode = current.requests.get(name)
@@ -88,3 +81,5 @@ class RequestNodeHandler(HandlerProcessorProceed):
                     if subnode is None:
                         current.parameters.append(('.'.join(names[k:]), value))
                     else: current = subnode
+                    
+        request.parameters = assemblage.requestNode.parameters

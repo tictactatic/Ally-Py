@@ -42,21 +42,15 @@ class TransactionWrappingHandler(HandlerProcessor):
         assert isinstance(response, Response), 'Invalid response %s' % response
 
         setKeepAlive(True)
+        chain.onFinalize(self.processEnd)
         
-        def onFinalize():
-            '''
-            Handle the finalization
-            '''
-            if Response.isSuccess in response:
-                if response.isSuccess is True: endSessions(commit)
-                else: endSessions(rollback)
-            else: endSessions(commit) # Commit if there is no success flag
-
-        def onError():
-            '''
-            Handle the error.
-            '''
-            endSessions(rollback)
-        
-        chain.callBack(onFinalize)
-        chain.callBackError(onError)
+    def processEnd(self, final, response, **keyargs):
+        '''
+        Process the end of the transaction.
+        '''
+        assert isinstance(response, Response), 'Invalid response %s' % response
+        if Response.isSuccess in response:
+            if response.isSuccess is True: endSessions(commit)
+            else: endSessions(rollback)
+        else: endSessions(commit)  # Commit if there is no success flag
+            

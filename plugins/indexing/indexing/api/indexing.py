@@ -24,21 +24,23 @@ class Block:
     Name = str
     Keys = List(str)
 
-@modelIndexing(id='Name')
+@modelIndexing(id='Id')
 class Action:
     '''
     Provides the action of a block, as defined in @see: ally.indexing.spec.model.Action
     '''
+    Id = int
     Name = str
     Before = List(str)
     Final = bool
     Rewind = bool
 
-@modelIndexing
+@modelIndexing(id='Id')
 class Perform:
     '''
     Provides the perform of an action, as defined in @see: ally.indexing.spec.model.Perform
     '''
+    Id = int
     Verb = str
     Flags = List(str)
     Index = str
@@ -57,20 +59,38 @@ class IIndexingService:
     '''
     
     @call
-    def getBlocks(self) -> Iter(Block):
+    def getBlock(self, blockId:Block.Id) -> Block:
+        '''
+        Provides the block for id.
+        '''
+    
+    @call
+    def getAction(self, actionId:Action.Id) -> Action:
+        '''
+        Provides the action for id.
+        '''
+    
+    @call
+    def getPerform(self, performId:Perform.Id) -> Perform:
+        '''
+        Provides the perform for id.
+        '''
+        
+    @call
+    def getBlocks(self) -> Iter(Block.Id):
         '''
         Provides all indexing blocks.
         '''
         
     @call
-    def getActions(self, blockId:Block.Id) -> Iter(Action):
+    def getActions(self, blockId:Block.Id) -> Iter(Action.Id):
         '''
         Provides all indexing actions for block.
         '''
         
     @call
-    def getPerforms(self, blockId:Block.Id, actionName:Action.Name) -> Iter(Perform):
+    def getPerforms(self, actionId:Action.Id) -> Iter(Perform.Id):
         '''
-        Provides all performs for action name.
+        Provides all performs for action id.
         '''
         

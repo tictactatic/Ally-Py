@@ -13,14 +13,17 @@ from ally.api.operator.type import TypeModelProperty
 from ally.api.type import TypeReference
 from ally.container.ioc import injected
 from ally.core.http.spec.codes import REDIRECT
+from ally.core.http.spec.headers import LOCATION
 from ally.core.spec.resources import Invoker
 from ally.design.processor.assembly import Assembly
-from ally.design.processor.attribute import requires, defines
+from ally.design.processor.attribute import requires
+from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Processing, Chain
 from ally.design.processor.handler import HandlerBranching
-from ally.design.processor.branch import Included
-from ally.http.spec.server import IEncoderHeader, IEncoderPath
+from ally.http.spec.codes import CodedHTTP
+from ally.http.spec.headers import HeadersDefines
+from ally.http.spec.server import IEncoderPath
 import logging
 
 # --------------------------------------------------------------------
@@ -36,18 +39,13 @@ class Request(Context):
     # ---------------------------------------------------------------- Required
     invoker = requires(Invoker)
 
-class Response(Context):
+class Response(CodedHTTP, HeadersDefines):
     '''
     The response context.
     '''
     # ---------------------------------------------------------------- Required
-    encoderHeader = requires(IEncoderHeader)
     encoderPath = requires(IEncoderPath)
     obj = requires(object)
-    # ---------------------------------------------------------------- Defined
-    code = defines(str)
-    status = defines(int)
-    isSuccess = defines(bool)
 
 # --------------------------------------------------------------------
 
@@ -56,16 +54,13 @@ class RedirectHandler(HandlerBranching):
     '''
     Implementation for a processor that provides the redirect by using the content location based on found references.
     '''
-
-    nameLocation = 'Location'
-    # The header name for the location redirect.
+    
     redirectAssembly = Assembly
     # The redirect processors, among this processors it has to be one to fetch the location object.
 
     def __init__(self):
         assert isinstance(self.redirectAssembly, Assembly), 'Invalid redirect assembly %s' % self.redirectAssembly
-        assert isinstance(self.nameLocation, str), 'Invalid string %s' % self.nameLocation
-        super().__init__(Included(self.redirectAssembly))
+        super().__init__(Branch(self.redirectAssembly).included())
 
     def process(self, chain, redirect, request:Request, response:Response, **keyargs):
         '''
@@ -80,15 +75,18 @@ class RedirectHandler(HandlerBranching):
 
         if response.isSuccess is not False:  # Skip in case the response is in error
             assert isinstance(request.invoker, Invoker), 'Invalid request invoker %s' % request.invoker
-            assert isinstance(response.encoderHeader, IEncoderHeader), 'Invalid header encoder %s' % response.encoderHeader
             assert isinstance(response.encoderPath, IEncoderPath), 'Invalid encoder path %s' % response.encoderPath
 
             typ = request.invoker.output
             if isinstance(typ, TypeModelProperty): typ = typ.type
-            if isinstance(typ, TypeReference):
-                Chain(redirect).process(request=request, response=response, **keyargs).doAll()
-                if response.isSuccess is not False:
-                    response.encoderHeader.encode(self.nameLocation, response.encoderPath.encode(response.obj))
-                    response.code, response.status, response.isSuccess = REDIRECT
-                    return
-        chain.proceed()
+            if isinstance(typ, TypeReference): chain.route(redirect).onFinalize(self.processFinalize)
+                
+    def processFinalize(self, final, response, **keyargs):
+        '''
+        Populate the redirect.
+        '''
+        assert isinstance(response, Response), 'Invalid response %s' % response
+        
+        if response.isSuccess is not False:
+            LOCATION.put(response, response.encoderPath.encode(response.obj))
+            REDIRECT.set(response)

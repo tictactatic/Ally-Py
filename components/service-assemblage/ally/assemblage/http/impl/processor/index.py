@@ -12,29 +12,29 @@ Provides the indexes for the response content.
 from ally.container.ioc import injected
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessorProceed
+from ally.design.processor.handler import HandlerProcessor
+from ally.http.spec.headers import HeadersRequire, CONTENT_INDEX
 from ally.indexing.spec.model import Block
 from ally.indexing.spec.modifier import Index
 from ally.support.util_io import IInputStream
+from collections import Callable
 from io import BytesIO
 import binascii
 import zlib
+import logging
 
 # --------------------------------------------------------------------
 
-class Response(Context):
-    '''
-    The response context.
-    '''
-    # ---------------------------------------------------------------- Required
-    headers = requires(dict)
+log = logging.getLogger(__name__)
+
+# --------------------------------------------------------------------
 
 class Assemblage(Context):
     '''
     The assemblage context.
     '''
     # ---------------------------------------------------------------- Required
-    blocks = requires(dict)
+    provider = requires(Callable)
 
 class Content(Context):
     '''
@@ -49,16 +49,14 @@ class Content(Context):
 # --------------------------------------------------------------------
 
 @injected
-class IndexProviderHandler(HandlerProcessorProceed):
+class IndexProviderHandler(HandlerProcessor):
     '''
     Provides the index for the content.
     '''
     
-    nameIndex = 'Content-Index'
-    # The name for the content index header
     byteOrder = 'little'
     # The byte order to use in encoding values.
-    bytesIndexCount = 1
+    bytesIndexCount = 3
     # The number of bytes to represent the indexes count.
     bytesBlock = 1
     # The number of bytes to represent the index block id.
@@ -72,8 +70,6 @@ class IndexProviderHandler(HandlerProcessorProceed):
     # The string encoding. 
     
     def __init__(self):
-        assert isinstance(self.nameIndex, str), 'Invalid content index name %s' % self.nameIndex
-        assert isinstance(self.nameIndex, str), 'Invalid header name index %s' % self.nameIndex
         assert isinstance(self.byteOrder, str), 'Invalid byte order %s' % self.byteOrder
         assert isinstance(self.bytesIndexCount, int), 'Invalid bytes index count %s' % self.bytesIndexCount
         assert isinstance(self.bytesBlock, int), 'Invalid bytes mark %s' % self.bytesMark
@@ -83,22 +79,20 @@ class IndexProviderHandler(HandlerProcessorProceed):
         assert isinstance(self.encoding, str), 'Invalid encoding %s' % self.encoding
         super().__init__()
 
-    def process(self, response:Response, assemblage:Assemblage, content:Content, **keyargs):
+    def process(self, chain, response:HeadersRequire, assemblage:Assemblage, content:Content, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Provide the index for content.
         '''
-        assert isinstance(response, Response), 'Invalid response %s' % response
         assert isinstance(assemblage, Assemblage), 'Invalid assemblage %s' % assemblage
         assert isinstance(content, Content), 'Invalid content %s' % content
         
         if not response.headers: return  # No headers available.
-        if not assemblage.blocks: return  # No blocks available
-        assert isinstance(response.headers, dict), 'Invalid headers %s' % response.headers
-        assert isinstance(assemblage.blocks, dict), 'Invalid blocks %s' % assemblage.blocks
+        if not assemblage.provider: return  # No blocks provider available
+        assert callable(assemblage.provider), 'Invalid blocks provider %s' % assemblage.provider
         
-        value = response.headers.pop(self.nameIndex, None)  # Also making sure not to pass the index header.
+        value = CONTENT_INDEX.fetchOnce(response)
         if not value: return  # No content index available for processing.
         assert isinstance(value, str), 'Invalid value %s' % value
         bvalue = value.encode(self.encoding)
@@ -111,7 +105,10 @@ class IndexProviderHandler(HandlerProcessorProceed):
             count -= 1
             
             blockId = self._int(read, self.bytesBlock)
-            block = assemblage.blocks.get(blockId)
+            block = assemblage.provider(blockId)
+            if block is None:
+                log.error('Cannot get a block for id %s' % blockId)
+                return
             assert isinstance(block, Block), 'Invalid block %s' % block
             
             index = Index(block)

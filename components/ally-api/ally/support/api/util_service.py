@@ -9,14 +9,15 @@ Created on Feb 28, 2012
 Provides utility methods for service implementations.
 '''
 
-from ally.type_legacy import Iterable, Iterator
-import re
-from ally.api.type import typeFor
-from ally.api.operator.type import TypeQuery, TypeContainer, TypeModel
-from inspect import isclass
 from ally.api.criteria import AsBoolean, AsLike, AsEqual, AsOrdered
-from itertools import chain
+from ally.api.operator.container import Model
+from ally.api.operator.type import TypeQuery, TypeContainer, TypeModel
+from ally.api.type import typeFor
+from ally.type_legacy import Iterable, Iterator
 from collections import Sized
+from inspect import isclass
+from itertools import chain
+import re
 
 # --------------------------------------------------------------------
 
@@ -62,10 +63,11 @@ def nameForModel(model):
         The iterator containing the properties names
     '''
     assert model is not None, 'A model object is required'
-    if not isclass(model): qmodel = model.__class__
-    else: qmodel = model
-    modelType = typeFor(qmodel)
+    if not isclass(model): cmodel = model.__class__
+    else: cmodel = model
+    modelType = typeFor(cmodel)
     assert isinstance(modelType, TypeModel), 'Invalid model %s' % model
+    assert isinstance(modelType.container, Model), 'Invalid model %s' % model
     return modelType.container.name
 
 def namesForModel(model):
@@ -177,7 +179,7 @@ def processQuery(objects, query, clazz):
                 regex = None
                 if AsLike.like in crt:
                     if crt.like is not None: regex = likeAsRegex(crt.like, False)
-                elif  AsLike.ilike in crt:
+                elif AsLike.ilike in crt:
                     if crt.ilike is not None: regex = likeAsRegex(crt.ilike, True)
 
                 if regex is not None:

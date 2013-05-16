@@ -14,22 +14,11 @@ from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import defines
 from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context
-from ally.design.processor.execution import Processing, Chain
-from ally.design.processor.handler import HandlerBranchingProceed
-from ally.http.spec.codes import isSuccess
-from ally.http.spec.server import RequestHTTP, ResponseHTTP, ResponseContentHTTP, \
-    HTTP_GET, HTTP
+from ally.design.processor.execution import Processing
+from ally.design.processor.handler import HandlerBranching
 from ally.indexing.spec.model import Block, Perform, Action
-from ally.support.util_io import IInputStream
-from io import BytesIO
-from urllib.parse import urlparse, parse_qsl
-import codecs
-import json
-import logging
-
-# --------------------------------------------------------------------
-
-log = logging.getLogger(__name__)
+from ally.support.http.util_dispatch import RequestDispatch, obtainJSON
+from collections import Callable
 
 # --------------------------------------------------------------------
 
@@ -38,125 +27,106 @@ class Assemblage(Context):
     The assemblage context.
     '''
     # ---------------------------------------------------------------- Defined
-    blocks = defines(dict, doc='''
-    @rtype: dictionary{integer: Block}
-    The blocks indexed by id.
+    provider = defines(Callable, doc='''
+    @rtype: callable(id) -> Block
+    The call that provides the block based on the provided id.
     ''')
 
 # --------------------------------------------------------------------
 
-class RequestMarker(RequestHTTP):
-    '''
-    The request marker context.
-    '''
-    # ---------------------------------------------------------------- Defined
-    accTypes = defines(list)
-    accCharSets = defines(list)
-
-# --------------------------------------------------------------------
-
 @injected
-class BlockHandler(HandlerBranchingProceed):
+class BlockHandler(HandlerBranching):
     '''
     Implementation for a handler that provides the markers by using REST data received from either internal or
     external server. The Marker structure is defined as in the @see: assemblage plugin. If there are no markers this
     handler will stop the chain.
     '''
     
-    scheme = HTTP
-    # The scheme to be used in fetching the Gateway objects.
-    mimeTypeJson = 'json'
-    # The json mime type to be sent for the gateway requests.
-    encodingJson = 'utf-8'
-    # The json encoding to be sent for the gateway requests.
     uri = str
     # The URI used in fetching the gateways.
     assembly = Assembly
     # The assembly to be used in processing the request for the gateways.
     
     def __init__(self):
-        assert isinstance(self.scheme, str), 'Invalid scheme %s' % self.scheme
-        assert isinstance(self.mimeTypeJson, str), 'Invalid json mime type %s' % self.mimeTypeJson
-        assert isinstance(self.encodingJson, str), 'Invalid json encoding %s' % self.encodingJson
         assert isinstance(self.uri, str), 'Invalid URI %s' % self.uri
         assert isinstance(self.assembly, Assembly), 'Invalid assembly %s' % self.assembly
-        super().__init__(Branch(self.assembly).using('requestCnt', 'response', 'responseCnt', request=RequestMarker))
+        super().__init__(Branch(self.assembly).using('requestCnt', 'response', 'responseCnt', request=RequestDispatch))
         
-        self._blocks = None
+        self._blocks = {}
+        self._actionsByURI = {}
+        self._performsByURI = {}
 
-    def process(self, processing, assemblage:Assemblage, **keyargs):
+    def process(self, chain, processing, assemblage:Assemblage, **keyargs):
         '''
-        @see: HandlerBranchingProceed.process
+        @see: HandlerBranching.process
         
         Obtains the markers.
         '''
         assert isinstance(processing, Processing), 'Invalid processing %s' % processing
         assert isinstance(assemblage, Assemblage), 'Invalid assemblage %s' % assemblage
         
-        if self._blocks is None:
-            oblocks = self.fetch(processing, self.uri)
-            
-            self._blocks = {}
-            for oblock in oblocks['BlockList']:
-                oactions, actions = self.fetch(processing, oblock['ActionList']['href']), []
-                for oaction in oactions['ActionList']:
-                    operforms, performs = self.fetch(processing, oaction['PerformList']['href']), []
-                    for operform in operforms['PerformList']:
-                        performs.append(Perform(operform['Verb'],
-                                                *operform.get('Flags', ()),
-                                                index=operform.get('Index'),
-                                                key=operform.get('Key'),
-                                                name=operform.get('Name'),
-                                                value=operform.get('Value'),
-                                                actions=operform.get('Actions'),
-                                                escapes=operform.get('Escapes')))
-                    actions.append(Action(oaction['Name'],
-                                          *performs,
-                                          before=oaction.get('Before'),
-                                          final=oaction['Final'] == 'True',
-                                          rewind=oaction['Rewind'] == 'True'))
-                
-                self._blocks[int(oblock['Id'])] = Block(*actions, keys=oblock.get('Keys'))
-        
-        if assemblage.blocks is None: assemblage.blocks = {}
-        assemblage.blocks.update(self._blocks)
-        
+        original = assemblage.provider
+        def provider(id):
+            block = self._obtainBlock(processing, id)
+            if block is None and original is not None: return original(id)
+            return block
+        assemblage.provider = provider
+    
     # ----------------------------------------------------------------
     
-    def fetch(self, processing, uri):
+    def _obtainBlock(self, processing, id):
         '''
-        Fetches the object at the provided URI by using the provided processing.
+        Obtains the block.
         '''
-        assert isinstance(processing, Processing), 'Invalid processing %s' % processing
+        block = self._blocks.get(id)
+        if block is not None: return block
         
-        request = processing.ctx.request()
-        assert isinstance(request, RequestMarker), 'Invalid request %s' % request
-        url = urlparse(uri)
-        request.scheme, request.method = self.scheme, HTTP_GET
-        request.headers = {}
-        request.uri = url.path.lstrip('/')
-        request.parameters = parse_qsl(url.query, True, False)
-        request.accTypes = [self.mimeTypeJson]
-        request.accCharSets = [self.encodingJson]
-        
-        chainMarker = Chain(processing)
-        chainMarker.process(**processing.fillIn(request=request)).doAll()
-
-        response, responseCnt = chainMarker.arg.response, chainMarker.arg.responseCnt
-        assert isinstance(response, ResponseHTTP), 'Invalid response %s' % response
-        assert isinstance(responseCnt, ResponseContentHTTP), 'Invalid response content %s' % responseCnt
-        
-        if ResponseHTTP.text in response and response.text: text = response.text
-        elif ResponseHTTP.code in response and response.code: text = response.code
-        else: text = None
-        if ResponseContentHTTP.source not in responseCnt or responseCnt.source is None or not isSuccess(response.status):
-            log.error('Cannot fetch markers from \'%s\' because %s %s', self.uri, response.status, text)
-            return
-        
-        if isinstance(responseCnt.source, IInputStream):
-            source = responseCnt.source
+        oblock = obtainJSON(processing, self.uri % id)
+        if oblock is None: block = None
         else:
-            source = BytesIO()
-            for bytes in responseCnt.source: source.write(bytes)
-            source.seek(0)
-        return json.load(codecs.getreader(self.encodingJson)(source))
+            uri = oblock['ActionList']['href']
+            oactions = obtainJSON(processing, uri)
+            
+            actions = []
+            if oactions is not None:
+                for oaction in oactions['ActionList']:
+                    actions.append(self._obtainAction(processing, oaction['href']))
+            block = Block(*actions, keys=oblock.get('Keys'))
+            
+        self._blocks[id] = block
+        return block
+    
+    def _obtainAction(self, processing, uri):
+        '''
+        Obtains the action.
+        '''
+        action = self._actionsByURI.get(uri)
+        if action is not None: return action
+        
+        oaction = obtainJSON(processing, uri)
+        operforms = obtainJSON(processing, oaction['PerformList']['href'])
+
+        performs = []
+        if operforms is not None:
+            for operform in operforms['PerformList']:
+                performs.append(self._obtainPerform(processing, operform['href']))
+            
+        action = Action(oaction['Name'], *performs, before=oaction.get('Before'), final=oaction['Final'] == 'True',
+                        rewind=oaction['Rewind'] == 'True')
+        self._actionsByURI[uri] = action
+        return action
+    
+    def _obtainPerform(self, processing, uri):
+        '''
+        Obtains the perform.
+        '''
+        perform = self._performsByURI.get(uri)
+        if perform is not None: return perform
+        
+        operform = obtainJSON(processing, uri)
+        
+        perform = Perform(operform['Verb'], *operform.get('Flags', ()), index=operform.get('Index'), key=operform.get('Key'),
+                          name=operform.get('Name'), value=operform.get('Value'), actions=operform.get('Actions'),
+                          escapes=operform.get('Escapes'))
+        self._performsByURI[uri] = perform
+        return perform

@@ -15,7 +15,7 @@ from ally.core.impl.node import NodeProperty
 from ally.core.spec.resources import ConverterPath, Path
 from ally.design.processor.attribute import defines, optional
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessorProceed
+from ally.design.processor.handler import HandlerProcessor
 from ally.http.spec.server import IEncoderPath
 from itertools import chain
 from urllib.parse import quote
@@ -48,7 +48,7 @@ class Response(Context):
 # --------------------------------------------------------------------
 
 @injected
-class ResourcePathEncoderHandler(HandlerProcessorProceed):
+class ResourcePathEncoderHandler(HandlerProcessor):
     '''
     Implementation for a processor that provides the resource path encoding.
     '''
@@ -76,9 +76,9 @@ class ResourcePathEncoderHandler(HandlerProcessorProceed):
         else:
             self.patternPrefix = self.patternSuffix = None
 
-    def process(self, request:Request, response:Response, **keyargs):
+    def process(self, chain, request:Request, response:Response, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Process the resource path encoder.
         '''

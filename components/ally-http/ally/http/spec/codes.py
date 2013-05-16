@@ -9,17 +9,38 @@ Created on Jun 30, 2011
 Contains the codes to be used for the server responses.
 '''
 
-from ally.support.util import tupleify
+from ally.design.processor.attribute import defines, definesIf
+from ally.design.processor.context import Context
 
 # --------------------------------------------------------------------
 
-@tupleify('code', 'status', 'isSuccess')
+class CodedHTTP(Context):
+    '''
+    Context for coded. 
+    '''
+    # ---------------------------------------------------------------- Defines
+    code = defines(str, doc='''
+    @rtype: string
+    The unique code associated with the context.
+    ''')
+    status = defines(int, doc='''
+    @rtype: integer
+    The HTTP status code.
+    ''')
+    isSuccess = definesIf(bool, doc='''
+    @rtype: boolean
+    True if the context is in success mode, False otherwise.
+    ''')
+    
+# --------------------------------------------------------------------
+        
 class CodeHTTP:
     '''
     Contains the HTTP response code.
     '''
+    __slots__ = ('code', 'status', 'isSuccess')
 
-    def __init__(self, code, status, isSuccess):
+    def __init__(self, code, status):
         '''
         Constructs the code.
         
@@ -27,15 +48,24 @@ class CodeHTTP:
             The code text corresponding to this code.
         @param status: integer
             The HTTP status code.
-        @param isSuccess: boolean
-            Flag indicating if the code is a fail or success code.
         '''
         assert isinstance(code, str), 'Invalid code %s' % code
         assert isinstance(status, int), 'Invalid status %s' % status
-        assert isinstance(isSuccess, bool), 'Invalid success flag %s' % isSuccess
         self.code = code
         self.status = status
-        self.isSuccess = isSuccess
+        self.isSuccess = isSuccess(status)
+        
+    def set(self, context):
+        '''
+        Set the code on the provided context.
+        
+        @param context: Context
+            The context to set the code to.
+        '''
+        assert isinstance(context, CodedHTTP), 'Invalid context %s' % context
+        context.code = self.code
+        context.status = self.status
+        if CodedHTTP.isSuccess in context: context.isSuccess = self.isSuccess
 
 def isSuccess(status):
     '''
@@ -47,31 +77,31 @@ def isSuccess(status):
         True if the status is a success status, False otherwise.
     '''
     assert isinstance(status, int), 'Invalid status %s' % status
-    return status / 100 == 2
+    return int(status / 100) == 2
     
 # --------------------------------------------------------------------
 # Response codes.
 
-PATH_NOT_FOUND = CodeHTTP('Not found', 404, False)  # HTTP code 404 Not Found
-PATH_FOUND = CodeHTTP('OK', 200, True)  # HTTP code 200 OK
+PATH_NOT_FOUND = CodeHTTP('Not found', 404)  # HTTP code 404 Not Found
+PATH_FOUND = CodeHTTP('OK', 200)  # HTTP code 200 OK
 
-METHOD_NOT_AVAILABLE = CodeHTTP('Method not allowed', 405, False)  # HTTP code 405 Method Not Allowed
+METHOD_NOT_AVAILABLE = CodeHTTP('Method not allowed', 405)  # HTTP code 405 Method Not Allowed
 
-BAD_REQUEST = CodeHTTP('Bad Request', 400, False)  # HTTP code 400 Bad Request
+BAD_REQUEST = CodeHTTP('Bad Request', 400)  # HTTP code 400 Bad Request
 
-HEADER_ERROR = CodeHTTP('Invalid header', 400, False)  # HTTP code 400 Bad Request
+HEADER_ERROR = CodeHTTP('Invalid header', 400)  # HTTP code 400 Bad Request
 
-INTERNAL_ERROR = CodeHTTP('Internal error', 500, False)  # HTTP code 500 Internal Server Error
+INTERNAL_ERROR = CodeHTTP('Internal error', 500)  # HTTP code 500 Internal Server Error
 
 # --------------------------------------------------------------------
 # Response gateway HTTP codes.
 
-SERVICE_UNAVAILABLE = CodeHTTP('Service Unavailable', 503, False)  # HTTP code 503 Service Unavailable
+SERVICE_UNAVAILABLE = CodeHTTP('Service Unavailable', 503)  # HTTP code 503 Service Unavailable
 
-BAD_GATEWAY = CodeHTTP('Bad Gateway', 502, False)  # HTTP code 502 Bad Gateway
+BAD_GATEWAY = CodeHTTP('Bad Gateway', 502)  # HTTP code 502 Bad Gateway
 
-UNAUTHORIZED_ACCESS = CodeHTTP('Unauthorized access', 401, False)  # HTTP code 401 Unauthorized access
+UNAUTHORIZED_ACCESS = CodeHTTP('Unauthorized access', 401)  # HTTP code 401 Unauthorized access
 
-INVALID_AUTHORIZATION = CodeHTTP('Invalid authorization', 401, False)  # HTTP code 401 Unauthorized access
+INVALID_AUTHORIZATION = CodeHTTP('Invalid authorization', 401)  # HTTP code 401 Unauthorized access
 
-FORBIDDEN_ACCESS = CodeHTTP('Forbidden access', 403, False)  # HTTP code 403 Forbidden access
+FORBIDDEN_ACCESS = CodeHTTP('Forbidden access', 403)  # HTTP code 403 Forbidden access

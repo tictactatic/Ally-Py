@@ -22,6 +22,7 @@ from tempfile import TemporaryDirectory
 from zipfile import ZipFile, ZipInfo
 import abc
 import os
+import io
 
 # --------------------------------------------------------------------
 
@@ -178,7 +179,11 @@ def tellPosition(stream):
         The stream that provides the tell method.
     '''
     assert isinstance(stream, IInputStream), 'Invalid stream %s' % stream
-    if isinstance(stream, ITeller): return stream
+    if isinstance(stream, ITeller):
+        assert isinstance(stream, ITeller)
+        try: stream.tell()
+        except io.UnsupportedOperation: pass  # Event if tell is available the action itself is not possible.
+        else: return stream
     return TellPosition(stream)
     
 def pipe(srcFileObj, dstFileObj, bufferSize=1024):
@@ -210,7 +215,6 @@ def readGenerator(fileObj, bufferSize=1024):
         The buffer size used for returning data chunks.
     '''
     assert isinstance(fileObj, IInputStream), 'Invalid file object %s' % fileObj
-    assert isinstance(fileObj, IClosable), 'Invalid file object %s' % fileObj
     assert isinstance(bufferSize, int), 'Invalid buffer size %s' % bufferSize
 
     try:
@@ -218,7 +222,8 @@ def readGenerator(fileObj, bufferSize=1024):
             buffer = fileObj.read(bufferSize)
             if not buffer: break
             yield buffer
-    finally: fileObj.close()
+    finally:
+        if isinstance(fileObj, IClosable): fileObj.close()
 
 def writeGenerator(generator, fileObj):
     '''
@@ -236,7 +241,6 @@ def writeGenerator(generator, fileObj):
     assert isinstance(fileObj, IClosable), 'Invalid file object %s' % fileObj
 
     for bytes in generator: fileObj.write(bytes)
-    fileObj.close()
     return fileObj
 
 def convertToBytes(iterable, charSet, encodingError):

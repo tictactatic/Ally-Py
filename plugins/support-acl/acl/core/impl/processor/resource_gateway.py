@@ -21,7 +21,7 @@ from ally.container.support import setup
 from ally.core.spec.resources import Node, Path, Invoker
 from ally.design.processor.attribute import defines, requires, optional
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessorProceed, Handler
+from ally.design.processor.handler import HandlerProcessor, Handler
 from ally.http.spec.server import HTTP_GET, HTTP_DELETE, HTTP_POST, HTTP_PUT, \
     IEncoderPath
 from ally.support.core.util_resources import findNodesFor, propertyTypesOf, \
@@ -83,7 +83,7 @@ class Reply(Context):
 
 @injected
 @setup(Handler, name='gatewaysFromPermissions')
-class GatewaysFromPermissions(HandlerProcessorProceed):
+class GatewaysFromPermissions(HandlerProcessor):
     '''
     Provides the handler that creates gateways based on resource permissions.
     '''
@@ -98,9 +98,9 @@ class GatewaysFromPermissions(HandlerProcessorProceed):
         self._cacheFilters = {}
         self.resourcesRoot.addStructureListener(self)
 
-    def process(self, Permission:PermissionResource, solicitation:Solicitation, reply:Reply, **keyargs):
+    def process(self, chain, Permission:PermissionResource, solicitation:Solicitation, reply:Reply, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Construct the gateways for permissions.
         '''

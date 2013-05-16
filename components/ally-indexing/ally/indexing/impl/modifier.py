@@ -121,6 +121,8 @@ class ModifierByIndex(IModifier):
             
             for action, prepared in self._registered:
                 for pack in self._process(action, prepared, values, flags): yield pack
+                
+        self._content.source.close() # We need to ensure that we close the response source.
     
     def _prepare(self, action, value=None):
         '''

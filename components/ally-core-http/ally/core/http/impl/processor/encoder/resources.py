@@ -18,7 +18,7 @@ from ally.core.spec.transform.encoder import IEncoder
 from ally.core.spec.transform.render import IRender
 from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessorProceed
+from ally.design.processor.handler import HandlerProcessor
 from ally.http.spec.server import IEncoderPath
 from ally.support.core.util_resources import pathLongName
 from collections import Iterable
@@ -49,7 +49,7 @@ class Support(Context):
 # --------------------------------------------------------------------
 
 @injected
-class ResourcesEncode(HandlerProcessorProceed):
+class ResourcesEncode(HandlerProcessor):
     '''
     Implementation for a handler that provides the resources encoding.
     '''
@@ -66,9 +66,9 @@ class ResourcesEncode(HandlerProcessorProceed):
         
         self._encoder = EncoderResources(self.nameResources, self.nameRef)
         
-    def process(self, create:Create, **keyargs):
+    def process(self, chain, create:Create, **keyargs):
         '''
-        @see: HandlerBranchingProceed.process
+        @see: HandlerProcessor.process
         
         Create the collection encoder.
         '''

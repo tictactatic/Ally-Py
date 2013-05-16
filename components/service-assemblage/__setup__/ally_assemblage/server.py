@@ -10,8 +10,8 @@ Provides the server configuration.
 '''
 
 from ..ally_http.server import assemblyServer, updateAssemblyServer
-from .processor import assemblyAssemblage, ASSEMBLAGE_EXTERNAL, \
-    server_provide_assemblage
+from .processor import ASSEMBLAGE_INTERNAL, ASSEMBLAGE_EXTERNAL, \
+    server_provide_assemblage, assemblyAssemblage
 from ally.container import ioc
 from ally.design.processor.handler import Handler
 from ally.http.impl.processor.router_by_path import RoutingByPathHandler
@@ -38,5 +38,4 @@ def assemblageRouter() -> Handler:
 
 @ioc.before(updateAssemblyServer)
 def updateAssemblyServerForGatewayExternal():
-    if server_provide_assemblage() == ASSEMBLAGE_EXTERNAL:
-        assemblyServer().add(assemblageRouter())
+    if server_provide_assemblage() in (ASSEMBLAGE_INTERNAL, ASSEMBLAGE_EXTERNAL): assemblyServer().add(assemblageRouter())

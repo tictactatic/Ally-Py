@@ -14,10 +14,10 @@ from ally.container.ioc import injected
 from ally.container.support import setup
 from ally.design.processor.attribute import defines
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessorProceed, Handler
+from ally.design.processor.handler import HandlerProcessor, Handler
 from collections import Iterable
 from gateway.api.gateway import Gateway
-from itertools import chain
+import itertools
 
 # --------------------------------------------------------------------
 
@@ -35,7 +35,7 @@ class Reply(Context):
 
 @injected
 @setup(Handler, name='registerDefaultGateways')
-class RegisterDefaultGateways(HandlerProcessorProceed):
+class RegisterDefaultGateways(HandlerProcessor):
     '''
     Provides the handler that populates default gateways.
     '''
@@ -88,15 +88,15 @@ class RegisterDefaultGateways(HandlerProcessorProceed):
         self._gateways = []
         for config in self.default_gateways: self._gateways.append(gatewayFrom(config))
     
-    def process(self, reply:Reply, **keyargs):
+    def process(self, chain, reply:Reply, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Adds the default gateways.
         '''
         assert isinstance(reply, Reply), 'Invalid reply %s' % reply
 
-        if reply.gateways is not None: reply.gateways = chain(self._gateways, reply.gateways)
+        if reply.gateways is not None: reply.gateways = itertools.chain(self._gateways, reply.gateways)
         else: reply.gateways = self._gateways
 
 # --------------------------------------------------------------------

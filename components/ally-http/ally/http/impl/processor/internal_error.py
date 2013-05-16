@@ -12,13 +12,12 @@ Provide the internal error representation. This is usually when the server fails
 from ally.container.ioc import injected
 from ally.design.processor.attribute import defines
 from ally.design.processor.context import Context
-from ally.design.processor.execution import Chain
+from ally.design.processor.execution import Chain, Error
 from ally.design.processor.handler import Handler
 from ally.design.processor.processor import Processor
-from ally.http.spec.codes import INTERNAL_ERROR
+from ally.http.spec.codes import INTERNAL_ERROR, CodedHTTP
 from ally.support.util_io import convertToBytes, IInputStream
 from collections import Iterable
-from functools import partial
 from io import StringIO, BytesIO
 import logging
 import traceback
@@ -29,14 +28,11 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
-class Response(Context):
+class Response(CodedHTTP):
     '''
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    code = defines(str)
-    status = defines(int)
-    isSuccess = defines(bool)
     headers = defines(dict)
 
 class ResponseContent(Context):
@@ -69,59 +65,49 @@ class InternalErrorHandler(Handler):
         Provides the additional arguments by type to be populated.
         '''
         assert isinstance(chain, Chain), 'Invalid processors chain %s' % chain
-        chain.callBackError(partial(self.handleError, chain))
+        chain.onError(self.processError)
         if __debug__:
             # If in debug mode and the response content has a source generator then we will try to read that
             # in order to catch any exception before the actual streaming.
-            def onFinalize():
-                '''
-                Handle the finalization
-                '''
-                try: response, responseCnt = chain.arg.response, chain.arg.responseCnt
-                except AttributeError: return  # If there is no response or response content we take no action
-                assert isinstance(response, Response), 'Invalid response %s' % response
-                assert isinstance(responseCnt, ResponseContent), 'Invalid response content %s' % responseCnt
-                if isinstance(responseCnt.source, Iterable):
-                    content = BytesIO()
-                    try:
-                        for bytes in responseCnt.source: content.write(bytes)
-                    except:
-                        log.exception('Exception occurred while processing the chain')
-                        error = StringIO()
-                        traceback.print_exc(file=error)
-                        response.code, response.status, response.isSuccess = INTERNAL_ERROR
-                        response.headers = self.errorHeaders
-                        responseCnt.source = convertToBytes(self.errorResponse(error), 'utf8', 'backslashreplace')
-                    else:
-                        content.seek(0)
-                        responseCnt.source = content
+            chain.onFinalize(self.processFinalization)
             
-            chain.callBack(onFinalize)
-            
-    def handleError(self, chain):
+    def processFinalization(self, final, response, responseCnt, **keyargs):
         '''
-        Handle the error.
+        Process the finalization.
         '''
-        assert isinstance(chain, Chain), 'Invalid processors chain %s' % chain
-        try: response = chain.arg.response
-        except AttributeError: response = Response()
-        
-        try: responseCnt = chain.arg.responseCnt
-        except AttributeError: responseCnt = ResponseContent()
-        
         assert isinstance(response, Response), 'Invalid response %s' % response
         assert isinstance(responseCnt, ResponseContent), 'Invalid response content %s' % responseCnt
-        
-        log.exception('Exception occurred while processing the chain')
+        if isinstance(responseCnt.source, Iterable):
+            content = BytesIO()
+            try:
+                for bytes in responseCnt.source: content.write(bytes)
+            except:
+                log.exception('Exception occurred while processing the content')
+                error = StringIO()
+                traceback.print_exc(file=error)
+                INTERNAL_ERROR.set(response)
+                response.headers = dict(self.errorHeaders)
+                responseCnt.source = convertToBytes(self.errorResponse(error), 'utf-8', 'backslashreplace')
+            else:
+                content.seek(0)
+                responseCnt.source = content
+            
+    def processError(self, error, response, responseCnt, **keyargs):
+        '''
+        Process the error.
+        '''
+        assert isinstance(error, Error), 'Invalid error execution %s' % error
+        assert isinstance(response, Response), 'Invalid response %s' % response
+        assert isinstance(responseCnt, ResponseContent), 'Invalid response content %s' % responseCnt
         
         # If there is an explanation for the error occurred, we do not need to make another one
         if responseCnt.source is not None: return
         
-        error = StringIO()
-        traceback.print_exc(file=error)
-        response.code, response.status, response.isSuccess = INTERNAL_ERROR
-        response.headers = self.errorHeaders
-        responseCnt.source = convertToBytes(self.errorResponse(error), 'utf-8', 'backslashreplace')
+        ferror = StringIO()
+        traceback.print_exception(*error.excInfo, file=ferror)
+        INTERNAL_ERROR.set(response)
+        response.headers = dict(self.errorHeaders)
+        responseCnt.source = convertToBytes(self.errorResponse(ferror), 'utf-8', 'backslashreplace')
 
     def errorResponse(self, error):
         '''

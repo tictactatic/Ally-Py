@@ -11,10 +11,9 @@ Provides the processors used in presenting REST errors.
 
 from ..ally_core.processor import rendering
 from ..ally_http.processor import contentLengthEncode, allowEncode, \
-    methodOverride, headerDecodeRequest, headerEncodeResponse, \
-    contentTypeResponseEncode
+    methodOverride, contentTypeResponseEncode
 from .processor import allow_method_override, internalDevelError, uri, \
-    explainError, acceptDecode
+    explainError, acceptDecode, read_from_params, headerParameter
 from ally.container import ioc
 from ally.core.http.impl.processor.error_populator import ErrorPopulator
 from ally.design.processor.assembly import Assembly
@@ -48,7 +47,7 @@ def assemblyErrorDelivery() -> Assembly:
     
 @ioc.before(assemblyErrorDelivery)
 def updateAssemblyErrorDelivery():
-    assemblyErrorDelivery().add(internalDevelError(), headerDecodeRequest(), uri(), acceptDecode(),
-                                rendering(), errorPopulator(), explainError(), headerEncodeResponse(),
+    assemblyErrorDelivery().add(internalDevelError(), uri(), acceptDecode(), rendering(), errorPopulator(), explainError(),
                                 contentTypeResponseEncode(), contentLengthEncode(), allowEncode())
     if allow_method_override(): assemblyErrorDelivery().add(methodOverride(), before=acceptDecode())
+    if read_from_params(): assemblyErrorDelivery().add(headerParameter(), after=internalDevelError())

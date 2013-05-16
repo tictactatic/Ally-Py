@@ -18,13 +18,15 @@ from ally.core.http.spec.codes import FORMATING_ERROR
 from ally.core.spec.resources import Converter
 from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessorProceed
-from ally.http.spec.server import IDecoderHeader, IEncoderHeader
+from ally.design.processor.handler import HandlerProcessor
+from ally.http.spec.headers import HeaderRaw, HeadersRequire, HeadersDefines
 from ally.internationalization import _
 from babel import numbers as bn, dates as bd
 from babel.core import Locale
 from datetime import datetime
 import logging
+from ally.support.util import immut
+from ally.http.spec.codes import CodedHTTP
 
 # --------------------------------------------------------------------
 
@@ -36,6 +38,11 @@ FORMATTED_TYPE = (Number, Percentage, Date, Time, DateTime)
 # The formatted types for the babel converter.
 LIST_LOCALE = List(TypeLocale)
 # The locale list used to set as an additional argument.
+
+FORMAT = immut({clsTyp: HeaderRaw('X-Format-%s' % clsTyp.__name__) for clsTyp in FORMATTED_TYPE})
+# The custom format headers indexed by type.
+CONTENT_FORMAT = immut({clsTyp: HeaderRaw('X-Content-Format-%s' % clsTyp.__name__) for clsTyp in FORMATTED_TYPE})
+# The custom content format headers indexed by type.
 
 # --------------------------------------------------------------------
 
@@ -55,8 +62,6 @@ class BabelConfigurations:
 
     languageDefault = str
     # The default language on the response used when none is specified
-    formatNameX = str
-    # The format name for the headers.
     formats = {
                Date:('full', 'long', 'medium', 'short'),
                Time:('full', 'long', 'medium', 'short'),
@@ -73,7 +78,6 @@ class BabelConfigurations:
 
     def __init__(self):
         assert isinstance(self.languageDefault, str), 'Invalid default language %s' % self.languageDefault
-        assert isinstance(self.formatNameX, str), 'Invalid name format %s' % self.formatNameX
         assert isinstance(self.formats, dict), 'Invalid formats %s' % self.formats
         assert isinstance(self.defaults, dict), 'Invalid defaults %s' % self.defaults
 
@@ -102,25 +106,15 @@ class BabelConfigurations:
         
 # --------------------------------------------------------------------
 
-class Request(Context):
-    '''
-    The request context.
-    '''
-    # ---------------------------------------------------------------- Required
-    decoderHeader = requires(IDecoderHeader)
-
-class Response(Context):
+class Response(CodedHTTP):
     '''
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    code = defines(str)
-    status = defines(int)
-    isSuccess = defines(bool)
     text = defines(str)
     errorMessage = defines(str)
     
-class RequestConverter(Request):
+class RequestConverter(HeadersRequire):
     '''
     The request converter context.
     '''
@@ -132,7 +126,7 @@ class RequestConverter(Request):
     The converter to use for decoding request content.
     ''')
     
-class RequestExtra(Request):
+class RequestExtra(HeadersRequire):
     '''
     The request for response converter context.
     '''
@@ -154,44 +148,39 @@ class ResponseConverter(Response):
     The converter to use for decoding request content.
     ''')
 
-class ResponseEncode(Context):
+class ResponseEncode(HeadersDefines):
     '''
     The response context.
     '''
     # ---------------------------------------------------------------- Required
-    encoderHeader = requires(IEncoderHeader)
     converter = requires(Converter)
 
 # --------------------------------------------------------------------
 
 @injected
-class BabelConverterRequestHandler(HandlerProcessorProceed, BabelConfigurations):
+class BabelConverterRequestHandler(HandlerProcessor, BabelConfigurations):
     '''
     Implementation based on Babel for a processor that provides the converters based on language and object formating 
     for the request.
     '''
 
-    formatNameX = 'X-Content-Format-%s'
-    # The format name for the headers that specify the format for the request content.
-
     def __init__(self):
         BabelConfigurations.__init__(self)
-        HandlerProcessorProceed.__init__(self)
+        HandlerProcessor.__init__(self)
 
-    def process(self, request:RequestConverter, response:Response, **keyargs):
+    def process(self, chain, request:RequestConverter, response:Response, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Provide the character conversion for request.
         '''
         assert isinstance(request, RequestConverter), 'Invalid request %s' % request
         assert isinstance(response, Response), 'Invalid response %s' % response
-        assert isinstance(request.decoderHeader, IDecoderHeader), \
-        'Invalid header decoder %s' % request.decoderHeader
 
         formats = {}
-        for clsTyp in FORMATTED_TYPE:
-            value = request.decoderHeader.retrieve(self.formatNameX % clsTyp.__name__)
+        for clsTyp, header in CONTENT_FORMAT.items():
+            assert isinstance(header, HeaderRaw), 'Invalid header %s' % header
+            value = header.fetch(request)
             if value: formats[clsTyp] = value
 
         locale = None
@@ -207,7 +196,7 @@ class BabelConverterRequestHandler(HandlerProcessorProceed, BabelConfigurations)
         except FormatError as e:
             assert isinstance(e, FormatError)
             if response.isSuccess is False: return  # Skip in case the response is in error
-            response.code, response.status, response.isSuccess = FORMATING_ERROR
+            FORMATING_ERROR.set(response)
             response.text = 'Bad request content formatting'
             response.errorMessage = 'Bad request content formatting, %s' % e.message
             return
@@ -215,33 +204,29 @@ class BabelConverterRequestHandler(HandlerProcessorProceed, BabelConfigurations)
         request.converter = ConverterBabel(locale, formats)
 
 @injected
-class BabelConverterResponseHandler(HandlerProcessorProceed, BabelConfigurations):
+class BabelConverterResponseHandler(HandlerProcessor, BabelConfigurations):
     '''
     Implementation based on Babel for a processor that provides the converters based on language and object formating 
     for the response.
     '''
-    
-    formatNameX = 'X-Format-%s'
-    # The format name for the headers that specify the required format for the response content.
 
     def __init__(self):
         BabelConfigurations.__init__(self)
-        HandlerProcessorProceed.__init__(self)
+        HandlerProcessor.__init__(self)
 
-    def process(self, request:RequestExtra, response:ResponseConverter, **keyargs):
+    def process(self, chain, request:RequestExtra, response:ResponseConverter, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Provide the character conversion for response.
         '''
         assert isinstance(request, RequestExtra), 'Invalid request %s' % request
         assert isinstance(response, ResponseConverter), 'Invalid response %s' % response
-        assert isinstance(request.decoderHeader, IDecoderHeader), \
-        'Invalid header decoder %s' % request.decoderHeader
 
         formats = {}
-        for clsTyp in FORMATTED_TYPE:
-            value = request.decoderHeader.retrieve(self.formatNameX % clsTyp.__name__)
+        for clsTyp, header in FORMAT.items():
+            assert isinstance(header, HeaderRaw), 'Invalid header %s' % header
+            value = header.fetch(request)
             if value: formats[clsTyp] = value
 
         locale = None
@@ -280,7 +265,7 @@ class BabelConverterResponseHandler(HandlerProcessorProceed, BabelConfigurations
         except FormatError as e:
             assert isinstance(e, FormatError)
             if response.isSuccess is False: return  # Skip in case the response is in error
-            response.code, response.status, response.isSuccess = FORMATING_ERROR
+            FORMATING_ERROR.set(response)
             response.text = 'Bad content formatting for response'
             response.errorMessage = 'Bad content formatting for response, %s' % e.message
             return
@@ -290,32 +275,27 @@ class BabelConverterResponseHandler(HandlerProcessorProceed, BabelConfigurations
 # --------------------------------------------------------------------
 
 @injected
-class BabelConversionEncodeHandler(HandlerProcessorProceed):
+class BabelConversionEncodeHandler(HandlerProcessor):
     '''
     Implementation based on Babel for a processor that encodes the Babel converter format.
     '''
-
-    formatNameX = 'X-FormatContent-%s'
-    # The format name for the headers that specify the format for the request.
-
-    def __init__(self):
-        assert isinstance(self.formatNameX, str), 'Invalid name content format %s' % self.formatNameX
-        super().__init__()
-
-    def process(self, response:ResponseEncode, **keyargs):
+    
+    def process(self, chain, response:ResponseEncode, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Provide the response formatting header encode.
         '''
         assert isinstance(response, ResponseEncode), 'Invalid response %s' % response
-        assert isinstance(response.encoderHeader, IEncoderHeader), \
-        'Invalid response header encoder %s' % response.encoderHeader
 
         if isinstance(response.converter, ConverterBabel):
             assert isinstance(response.converter, ConverterBabel)
+            if response.headers is None: response.headers = {}
             for clsTyp, format in response.converter.formats.items():
-                response.encoderHeader.encode(self.formatNameX % clsTyp.__name__, format)
+                header = CONTENT_FORMAT.get(clsTyp)
+                if header:
+                    assert isinstance(header, HeaderRaw), 'Invalid header %s' % header
+                    header.put(response, format)
 
 # --------------------------------------------------------------------
 

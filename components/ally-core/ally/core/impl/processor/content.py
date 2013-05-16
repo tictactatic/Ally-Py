@@ -12,11 +12,11 @@ Provides a processor that provides the request content as an invoking argument.
 from ally.api.model import Content
 from ally.api.type import Input
 from ally.container.ioc import injected
-from ally.core.spec.codes import CONTENT_EXPECTED
+from ally.core.spec.codes import CONTENT_EXPECTED, Coded
 from ally.core.spec.resources import Invoker
-from ally.design.processor.attribute import requires, defines, optional
+from ally.design.processor.attribute import requires, optional
 from ally.design.processor.context import Context, asData
-from ally.design.processor.handler import HandlerProcessorProceed
+from ally.design.processor.handler import HandlerProcessor
 from ally.support.util_io import IInputStream
 from collections import Callable
 import logging
@@ -54,30 +54,22 @@ class RequestContent(RequestContentData):
     # ---------------------------------------------------------------- Optional
     fetchNextContent = optional(Callable)
 
-class Response(Context):
-    '''
-    The response context.
-    '''
-    # ---------------------------------------------------------------- Defines
-    code = defines(str)
-    isSuccess = defines(bool)
-
 # --------------------------------------------------------------------
 
 @injected
-class ContentHandler(HandlerProcessorProceed):
+class ContentHandler(HandlerProcessor):
     '''
     Handler that provides the content as an argument if required.
     '''
 
-    def process(self, request:Request, response:Response, requestCnt:RequestContent=None, **keyargs):
+    def process(self, chain, request:Request, response:Coded, requestCnt:RequestContent=None, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Process the content.
         '''
         assert isinstance(request, Request), 'Invalid request %s' % request
-        assert isinstance(response, Response), 'Invalid response %s' % response
+        assert isinstance(response, Coded), 'Invalid response %s' % response
 
         if response.isSuccess is False: return  # Skip in case the response is in error
         assert isinstance(request.invoker, Invoker), 'Invalid request invoker %s' % request.invoker
@@ -86,9 +78,7 @@ class ContentHandler(HandlerProcessorProceed):
             assert isinstance(inp, Input)
 
             if inp.type.isOf(Content):
-                if requestCnt is None:
-                    response.code, response.isSuccess = CONTENT_EXPECTED
-                    return
+                if requestCnt is None: return CONTENT_EXPECTED.set(response)
                 assert isinstance(requestCnt, RequestContent), 'Invalid request content %s' % requestCnt
                 assert isinstance(requestCnt.source, IInputStream), 'Invalid request content source %s' % requestCnt.source
 

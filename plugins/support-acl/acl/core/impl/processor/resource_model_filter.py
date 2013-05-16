@@ -20,7 +20,7 @@ from ally.container.support import setup
 from ally.core.spec.resources import Node, Invoker, INodeInvokerListener, Path
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessorProceed, Handler
+from ally.design.processor.handler import HandlerProcessor, Handler
 from ally.support.core.util_resources import propertyTypesOf
 from collections import Iterable
 from weakref import WeakKeyDictionary
@@ -192,7 +192,7 @@ class ProcessorModelFilters:
 
 @injected
 @setup(Handler, name='authenticatedForPermissions')
-class AuthenticatedForPermissions(HandlerProcessorProceed):
+class AuthenticatedForPermissions(HandlerProcessor):
     '''
     Processor that provides the authenticated model filters on the resources permissions.
     '''
@@ -208,9 +208,9 @@ class AuthenticatedForPermissions(HandlerProcessorProceed):
         'Invalid model filters processor %s' % self.processorModelFilters
         super().__init__()
     
-    def process(self, Permission:PermissionWithAuthenticated, solicitation:Solicitation, **keyargs):
+    def process(self, chain, Permission:PermissionWithAuthenticated, solicitation:Solicitation, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Process permission model fitler.
         '''
@@ -222,7 +222,7 @@ class AuthenticatedForPermissions(HandlerProcessorProceed):
         
 @injected
 @setup(Handler, name='modelFiltersForPermissions')
-class ModelFiltersForPermissions(HandlerProcessorProceed):
+class ModelFiltersForPermissions(HandlerProcessor):
     '''
     Processor that provides the model filters on the resources permissions.
     '''
@@ -238,10 +238,10 @@ class ModelFiltersForPermissions(HandlerProcessorProceed):
         'Invalid model filters processor %s' % self.processorModelFilters
         super().__init__()
     
-    def process(self, Permission:PermissionWithModelFilters, ModelFilter:ModelFilterResource,
+    def process(self, chain, Permission:PermissionWithModelFilters, ModelFilter:ModelFilterResource,
                 solicitation:Solicitation, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Process permission model fitler.
         '''

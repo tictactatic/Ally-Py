@@ -19,10 +19,10 @@ from ally.core.spec.transform.render import IRender
 from ally.design.cache import CacheWeak
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines, optional
-from ally.design.processor.branch import Included
+from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context
-from ally.design.processor.execution import Chain, Processing
-from ally.design.processor.handler import HandlerBranchingProceed
+from ally.design.processor.execution import Processing
+from ally.design.processor.handler import HandlerBranching
 from ally.exception import DevelError
 
 # --------------------------------------------------------------------
@@ -70,7 +70,7 @@ class CreateProperty(Context):
 # --------------------------------------------------------------------
 
 @injected
-class ModelPropertyEncode(HandlerBranchingProceed):
+class ModelPropertyEncode(HandlerBranching):
     '''
     Implementation for a handler that provides the model property encoding.
     '''
@@ -81,13 +81,13 @@ class ModelPropertyEncode(HandlerBranchingProceed):
     def __init__(self):
         assert isinstance(self.propertyEncodeAssembly, Assembly), \
         'Invalid property encode assembly %s' % self.propertyEncodeAssembly
-        super().__init__(Included(self.propertyEncodeAssembly).using(create=CreateProperty), support=Support)
+        super().__init__(Branch(self.propertyEncodeAssembly).included().using(create=CreateProperty), support=Support)
         
         self._cache = CacheWeak()
         
-    def process(self, propertyProcessing, create:Create, **keyargs):
+    def process(self, chain, propertyProcessing, create:Create, **keyargs):
         '''
-        @see: HandlerBranchingProceed.process
+        @see: HandlerBranching.process
         
         Create the model property encoder.
         '''
@@ -111,12 +111,11 @@ class ModelPropertyEncode(HandlerBranchingProceed):
         
         cache = self._cache.key(propertyProcessing, name, propType, *specifiers)
         if not cache.has:
-            chain = Chain(propertyProcessing)
-            chain.process(create=propertyProcessing.ctx.create(objType=propType, name=propType.property), **keyargs).doAll()
-            propCreate = chain.arg.create
-            assert isinstance(propCreate, CreateProperty), 'Invalid create property %s' % propCreate
-            if propCreate.encoder is None: raise DevelError('Cannot encode %s' % propType)
-            cache.value = EncoderModelProperty(name, propCreate.encoder, specifiers)
+            arg = propertyProcessing.execute(create=propertyProcessing.ctx.create(objType=propType, name=propType.property),
+                                             **keyargs)
+            assert isinstance(arg.create, CreateProperty), 'Invalid create property %s' % arg.create
+            if arg.create.encoder is None: raise DevelError('Cannot encode %s' % propType)
+            cache.value = EncoderModelProperty(name, arg.create.encoder, specifiers)
         
         create.encoder = cache.value
 

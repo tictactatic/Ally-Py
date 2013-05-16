@@ -369,23 +369,24 @@ class RenderJSON(IRender):
         hasNameProp = self._stack and self._stack[0][0] == OF_OBJECT
         isAdjust, hasName = False, of == OF_COLLECTION or hasNameProp
         if self._adjust:
-            assert indexBlock is None, 'No index block expected, but got %s' % indexBlock
-            assert not indexAttributesCapture, 'No attributes capture expected, but got %s' % indexAttributesCapture
-            assert of in (OF_OBJECT, OF_COLLECTION), 'Invalid adjusting for of %s action' % of
-            index = self._index(NAME_JSON_START_ADJUST)
+            if indexBlock is None:
+                assert not indexAttributesCapture, 'No attributes capture expected, but got %s' % indexAttributesCapture
+                assert of in (OF_OBJECT, OF_COLLECTION), 'Invalid adjusting for of %s action' % of
+                index = self._index(NAME_JSON_START_ADJUST)
+                isAdjust = True
             self._adjust = False
-            isAdjust = True
-        elif self._block:
-            assert indexBlock is None, 'No index block expected, but got %s' % indexBlock
-            assert not indexAttributesCapture, 'No attributes capture expected, but got %s' % indexAttributesCapture
-            index = None
-        elif indexBlock:
-            assert isinstance(indexBlock, str), 'Invalid index block %s' % indexBlock
-            assert isinstance(indexAttributesCapture, dict), 'Invalid index attributes capture %s' % indexAttributesCapture
-            if hasName: index = self._index(PATTERN_JSON_BLOCK_NAMED % indexBlock)
-            else: index = self._index(PATTERN_JSON_BLOCK_UNAMED % indexBlock, {KEY_NAME: name})
-            self._block = True
-        else: index = None
+        if not isAdjust:
+            if self._block:
+                assert indexBlock is None, 'No index block expected, but got %s' % indexBlock
+                assert not indexAttributesCapture, 'No attributes capture expected, but got %s' % indexAttributesCapture
+                index = None
+            elif indexBlock:
+                assert isinstance(indexBlock, str), 'Invalid index block %s' % indexBlock
+                assert isinstance(indexAttributesCapture, dict), 'Invalid index attributes capture %s' % indexAttributesCapture
+                if hasName: index = self._index(PATTERN_JSON_BLOCK_NAMED % indexBlock)
+                else: index = self._index(PATTERN_JSON_BLOCK_UNAMED % indexBlock, {KEY_NAME: name})
+                self._block = True
+            else: index = None
 
         if index: index(SIND_ENTRY, SIND_COMMA)
         if not self._first:

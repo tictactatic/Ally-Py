@@ -18,7 +18,7 @@ from ally.core.spec.transform.encoder import ISpecifier, IEncoder
 from ally.design.cache import CacheWeak
 from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessorProceed
+from ally.design.processor.handler import HandlerProcessor
 from ally.http.spec.server import IEncoderPath
 
 # --------------------------------------------------------------------
@@ -50,7 +50,7 @@ class Support(Context):
 # --------------------------------------------------------------------
 
 @injected
-class PropertyOfModelPathAttributeEncode(HandlerProcessorProceed):
+class PropertyOfModelPathAttributeEncode(HandlerProcessor):
     '''
     Implementation for a handler that provides the path encoding in attributes.
     '''
@@ -64,9 +64,9 @@ class PropertyOfModelPathAttributeEncode(HandlerProcessorProceed):
         
         self._cache = CacheWeak()
         
-    def process(self, create:Create, **keyargs):
+    def process(self, chain, create:Create, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Create the path attributes.
         '''

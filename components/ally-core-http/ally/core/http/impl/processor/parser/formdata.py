@@ -13,13 +13,14 @@ from ally.container.ioc import injected
 from ally.core.http.spec.codes import MUTLIPART_ERROR
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessorProceed
+from ally.design.processor.handler import HandlerProcessor
 from ally.support.util_io import IInputStream
 from collections import Callable, deque
 from io import BytesIO
 from urllib.parse import urlencode
 import logging
 import re
+from ally.http.spec.codes import CodedHTTP
 
 # --------------------------------------------------------------------
 
@@ -42,20 +43,17 @@ class RequestContent(Context):
     # ---------------------------------------------------------------- Defined
     name = defines(str)
 
-class Response(Context):
+class Response(CodedHTTP):
     '''
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    code = defines(str)
-    status = defines(int)
-    isSuccess = defines(bool)
     errorMessage = defines(str)
 
 # --------------------------------------------------------------------
 
 @injected
-class ParseFormDataHandler(HandlerProcessorProceed):
+class ParseFormDataHandler(HandlerProcessor):
     '''
     Provides the multi part form data content handler processor.
     '''
@@ -88,9 +86,9 @@ class ParseFormDataHandler(HandlerProcessorProceed):
 
         self._reMultipart = re.compile(self.regexMultipart)
 
-    def process(self, requestCnt:RequestContent, response:Response, **keyargs):
+    def process(self, chain, requestCnt:RequestContent, response:Response, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Process the multi part data.
         '''
@@ -108,7 +106,7 @@ class ParseFormDataHandler(HandlerProcessorProceed):
         content, parameters = requestCnt, deque()
         while True:
             if content.disposition != self.contentDisposition:
-                response.code, response.status, response.isSuccess = MUTLIPART_ERROR
+                MUTLIPART_ERROR.set(response)
                 response.errorMessage = 'Invalid multipart form data content disposition \'%s\'' % content.disposition
                 return
 
@@ -119,7 +117,7 @@ class ParseFormDataHandler(HandlerProcessorProceed):
 
             name = content.dispositionAttr.pop(self.attrContentDispositionName, None)
             if not name:
-                response.code, response.status, response.isSuccess = MUTLIPART_ERROR
+                MUTLIPART_ERROR.set(response)
                 response.errorMessage = 'Missing the content disposition header attribute name'
                 return
 

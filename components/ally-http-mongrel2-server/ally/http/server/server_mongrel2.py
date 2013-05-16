@@ -12,7 +12,7 @@ Provides the mongrel2 web server support.
 from ..support import tnetstrings
 from ally.container.ioc import injected
 from ally.design.processor.assembly import Assembly
-from ally.design.processor.execution import Chain, Processing
+from ally.design.processor.execution import Processing
 from ally.http.spec.server import RequestHTTP, ResponseHTTP, RequestContentHTTP, \
     ResponseContentHTTP, HTTP
 from ally.support.util_io import IInputStream, IClosable
@@ -73,18 +73,16 @@ class RequestHandler:
         assert isinstance(requestCnt, RequestContentHTTP), 'Invalid request content %s' % requestCnt
         
         request.scheme, request.method = self.scheme, request.headers.pop('METHOD').upper()
-        request.headers = dict(request.headers)
         request.uri = request.path.lstrip('/')
-        request.parameters = parse_qsl(request.headers.pop('QUERY', ''), True, False)
+        if RequestHTTP.headers in request: request.headers = dict(request.headers)
+        if RequestHTTP.parameters in request: request.parameters = parse_qsl(request.headers.pop('QUERY', ''), True, False)
         
-        if isinstance(request.body, IInputStream): requestCnt.source = request.body
-        else: requestCnt.source = BytesIO(request.body)
+        if RequestContentHTTP.source in requestCnt:
+            if isinstance(request.body, IInputStream): requestCnt.source = request.body
+            else: requestCnt.source = BytesIO(request.body)
         
-        chain = Chain(proc)
-        chain.process(request=request, requestCnt=requestCnt,
-                      response=proc.ctx.response(), responseCnt=proc.ctx.responseCnt()).doAll()
-
-        response, responseCnt = chain.arg.response, chain.arg.responseCnt
+        arg = proc.executeWithAll(request=request, requestCnt=requestCnt)
+        response, responseCnt = arg.response, arg.responseCnt
         assert isinstance(response, ResponseHTTP), 'Invalid response %s' % response
         assert isinstance(responseCnt, ResponseContentHTTP), 'Invalid response content %s' % responseCnt
         
@@ -255,7 +253,7 @@ class Request:
             self.isDisconnect = False
         
         if not self.isDisconnect:
-            self._header = b''.join((self.sender, b' ', str(len(self.connId)).encode(), b':', self.connId, b', '))
+            self._header = b''.join((self.sender, b' ', str(len(self.connId)).encode('utf8'), b':', self.connId, b', '))
         
     def send(self, msg):
         '''

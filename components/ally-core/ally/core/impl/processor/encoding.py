@@ -16,8 +16,8 @@ from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context, pushIn
-from ally.design.processor.execution import Processing, Chain
-from ally.design.processor.handler import HandlerBranchingProceed
+from ally.design.processor.execution import Processing
+from ally.design.processor.handler import HandlerBranching
 from ally.exception import DevelError
 import logging
 
@@ -65,7 +65,7 @@ class Create(Context):
 # --------------------------------------------------------------------
 
 @injected
-class EncodingHandler(HandlerBranchingProceed):
+class EncodingHandler(HandlerBranching):
     '''
     Implementation for a handler that provides the creation of encoders for response objects.
     '''
@@ -78,9 +78,9 @@ class EncodingHandler(HandlerBranchingProceed):
         super().__init__(Branch(self.encodeAssembly).
                          using(('support', 'response'), ('support', 'request'), create=Create).included())
 
-    def process(self, encodeProcessing, request:Request, response:Response, **keyargs):
+    def process(self, chain, encodeProcessing, request:Request, response:Response, **keyargs):
         '''
-        @see: HandlerBranchingProceed.process
+        @see: HandlerBranching.process
         
         Process the encoder rendering.
         '''
@@ -92,12 +92,9 @@ class EncodingHandler(HandlerBranchingProceed):
         if response.encoder: return  # There is already an encoder no need to create another one
         assert isinstance(request.invoker, Invoker), 'Invalid request invoker %s' % request.invoker
         
-        chain = Chain(encodeProcessing)
-        chain.process(create=encodeProcessing.ctx.create(objType=request.invoker.output),
-                      support=pushIn(encodeProcessing.ctx.support(), response, request), **keyargs).doAll()
-        create, support = chain.arg.create, chain.arg.support
-        assert isinstance(create, Create), 'Invalid create %s' % create
-        if create.encoder is None: raise DevelError('Cannot encode response type \'%s\'' % request.invoker.output)
-        
-        response.encoder = create.encoder
-        response.support = support
+        arg = encodeProcessing.execute(create=encodeProcessing.ctx.create(objType=request.invoker.output),
+                                       support=pushIn(encodeProcessing.ctx.support(), response, request), **keyargs)
+        assert isinstance(arg.create, Create), 'Invalid create %s' % arg.create
+        if arg.create.encoder is not None:
+            response.encoder = arg.create.encoder
+            response.support = arg.support

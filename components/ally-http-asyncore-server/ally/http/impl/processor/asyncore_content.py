@@ -14,8 +14,7 @@ from ally.design.processor.attribute import defines, requires
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain
 from ally.design.processor.handler import HandlerProcessor
-from ally.http.spec.server import HTTP_POST, HTTP_PUT
-from ally.support.util_io import IInputStream
+from ally.support.util_io import IInputStream, IOutputStream
 from ally.zip.util_zip import normOSPath
 from collections import Callable
 from genericpath import isdir
@@ -40,6 +39,7 @@ class RequestContent(Context):
     length = requires(int)
     # ---------------------------------------------------------------- Defined
     contentReader = defines(Callable)
+    contentRequired = defines(bool)
     source = defines(IInputStream)
 
 class Response(Context):
@@ -57,9 +57,6 @@ class AsyncoreContentHandler(HandlerProcessor):
     Provides asyncore content handling, basically this handler buffers up the async data received in order to be
     used by the other handlers.
     '''
-    contentMethods = {HTTP_POST, HTTP_PUT}
-    # The methods that have content.
-
     dumpRequestsSize = 1024 * 1024
     # The minimum size of the request length to be dumped on the file system.
     dumpRequestsPath = str
@@ -87,127 +84,92 @@ class AsyncoreContentHandler(HandlerProcessor):
         assert isinstance(requestCnt, RequestContent), 'Invalid request content %s' % requestCnt
         assert isinstance(response, Response), 'Invalid response %s' % response
         
-        chain.proceed()
         if response.isSuccess is False: return  # Skip in case the response is in error
         
-        if request.method in self.contentMethods:
-            if requestCnt.length is not None:
-                if requestCnt.length == 0: return
-                
-                if requestCnt.length > self.dumpRequestsSize:
-                    requestCnt.contentReader = ReaderInFile(self._path(), chain, requestCnt)
-                else:
-                    requestCnt.contentReader = ReaderInMemory(chain, requestCnt)
-            else:
-                requestCnt.contentReader = ReaderInFile(self._path(), chain, requestCnt)
-
-    # ----------------------------------------------------------------
-    
-    def _path(self):
-        '''
-        Provide the path for the request file.
-        '''
-        tm_year, tm_mon, tm_mday, tm_hour, tm_min, tm_sec, *_rest = time.localtime()
-        path = 'request_%s_%s-%s-%s_%s-%s-%s' % (self._count, tm_year, tm_mon, tm_mday, tm_hour, tm_min, tm_sec)
-        self._count += 1
-        return path
+        if not requestCnt.length:
+            requestCnt.contentRequired = False  # No length or content.
+        elif requestCnt.length > self.dumpRequestsSize:
+            tm_year, tm_mon, tm_mday, tm_hour, tm_min, tm_sec, *_rest = time.localtime()
+            path = 'request_%s_%s-%s-%s_%s-%s-%s' % (self._count, tm_year, tm_mon, tm_mday, tm_hour, tm_min, tm_sec)
+            self._count += 1
+            requestCnt.contentReader = readerInFile(chain, requestCnt, path)
+            requestCnt.contentRequired = True
+        else:
+            requestCnt.contentReader = readerInMemory(requestCnt)
+            requestCnt.contentRequired = True
 
 # --------------------------------------------------------------------
 
-class ReaderInMemory:
+def reader(stream, callBack, length):
+    '''
+    Provides the reader in stream with finalizing call back.
+    '''
+    assert isinstance(stream, IOutputStream), 'Invalid stream %s' % stream
+    assert callable(callBack), 'Invalid call back %s' % callBack
+    assert length is None or isinstance(length, int), 'Invalid length %s' % length
+    
+    size = 0
+    def read(data):
+        nonlocal size, stream
+        assert stream is not None, 'Reader is finalized'
+        assert isinstance(stream, IOutputStream)
+        
+        if data != b'':
+            size += len(data)
+            if length is not None:
+                if size > length:
+                    dif = size - length
+                    size = length
+                    data = memoryview(data)
+                    ret = data[dif:]
+                    stream.write(data[:dif])
+                else:
+                    stream.write(data)
+                    if size == length: ret = None
+                    else: ret = True
+            else:
+                stream.write(data)
+                ret = True
+            
+        if data == b'' or ret is not True:
+            callBack()
+            stream = None
+        return ret
+    
+    return read
+
+def readerInMemory(requestCnt):
     '''
     Provides the reader in memory.
     '''
-    __slots__ = ('_chain', '_requestCnt', '_stream', '_size')
-    
-    def __init__(self, chain, requestCnt):
-        '''
-        Construct the reader.
-        
-        @param chain: Chain
-            The chain that is used for further processing.
-        @param requestCnt: RequestContent
-            The request content to use the reader with.
-        '''
-        assert isinstance(chain, Chain), 'Invalid chain %s' % chain
-        assert isinstance(requestCnt, RequestContent), 'Invalid request content %s' % requestCnt
-        self._chain = chain
-        self._requestCnt = requestCnt
+    assert isinstance(requestCnt, RequestContent), 'Invalid request content %s' % requestCnt
+    stream = BytesIO()
+    def callBack():
+        assert isinstance(requestCnt, RequestContent)
+        stream.seek(0)
+        requestCnt.source = stream
+        requestCnt.contentReader = None
+    return reader(stream, callBack, requestCnt.length)
 
-        self._stream = BytesIO()
-        self._size = 0
-        
-    def __call__(self, data):
-        '''
-        Push data into the reader.
-        '''
-        assert self._stream is not None, 'Reader is finalized'
-        if data != b'':
-            self._size += len(data)
-            length = self._requestCnt.length
-            if length is not None:
-                if self._size > length:
-                    dif = self._size - length
-                    self._size = length
-                    data = memoryview(data)[:dif]
-                self._stream.write(data)
-                if self._size == length: data = b''
-            else: self._stream.write(data)
-            
-        if data == b'':
-            self._stream.seek(0)
-            self._requestCnt.source = self._stream
-            self._requestCnt.contentReader = None
-            self._stream = None
-            return self._chain
-
-class ReaderInFile:
+def readerInFile(chain, requestCnt, path):
     '''
     Provides the reader in file.
     '''
-    __slots__ = ('_chain', '_path', '_requestCnt', '_file', '_size')
-    
-    def __init__(self, path, chain, requestCnt):
+    assert isinstance(chain, Chain), 'Invalid chain %s' % chain
+    assert isinstance(requestCnt, RequestContent), 'Invalid request content %s' % requestCnt
+    stream = open(path, mode='wb')
+    def processRemove(final, **keyargs):
         '''
-        Construct the reader.
-        
-        @param chain: Chain
-            The chain that is used for further processing.
-        @param requestCnt: RequestContent
-            The request content to use the reader with.
+        Remove the buffer file on finalization.
         '''
-        assert isinstance(path, str), 'Invalid path %s' % path
-        assert isinstance(chain, Chain), 'Invalid chain %s' % chain
-        assert isinstance(requestCnt, RequestContent), 'Invalid request content %s' % requestCnt
-        self._path = path
-        self._chain = chain
-        self._requestCnt = requestCnt
+        stream.close()
+        os.remove(path)
+    chain.onFinalize(processRemove)
 
-        self._file = open(path, mode='wb')
-        self._size = 0
-        
-    def __call__(self, data):
-        '''
-        Push data into the reader.
-        '''
-        assert self._file is not None, 'Reader is finalized'
-        if data != b'':
-            self._size += len(data)
-            length = self._requestCnt.length
-            if length is not None:
-                if self._size > length:
-                    dif = self._size - length
-                    self._size = length
-                    data = memoryview(data)[:dif]
-                self._file.write(data)
-                if self._size == length: data = b''
-            else: self._file.write(data)
-            
-        if data == b'':
-            self._file.close()
-            self._requestCnt.source = open(self._path, mode='rb')
-            self._requestCnt.contentReader = None
-            self._file = None
-            
-            self._chain.callBack(lambda: os.remove(self._path))
-            return self._chain
+    def callBack():
+        assert isinstance(requestCnt, RequestContent)
+        nonlocal stream
+        stream.close()
+        stream = requestCnt.source = open(path, mode='rb')
+        requestCnt.contentReader = None
+    return reader(stream, callBack, requestCnt.length)

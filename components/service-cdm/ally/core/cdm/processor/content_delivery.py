@@ -12,9 +12,9 @@ Provides the content delivery handler.
 from ally.container.ioc import injected
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessorProceed
+from ally.design.processor.handler import HandlerProcessor
 from ally.http.spec.codes import METHOD_NOT_AVAILABLE, PATH_NOT_FOUND, \
-    PATH_FOUND
+    PATH_FOUND, CodedHTTP
 from ally.http.spec.server import HTTP_GET
 from ally.support.util_io import IInputStream
 from ally.zip.util_zip import normOSPath, normZipPath
@@ -41,17 +41,14 @@ class Request(Context):
     uri = requires(str)
     method = requires(str)
 
-class Response(Context):
+class Response(CodedHTTP):
     '''
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    code = defines(str)
-    status = defines(int)
-    isSuccess = defines(bool)
-    allows = defines(list, doc='''
-    @rtype: list[string]
-    Contains the allow list for the methods.
+    allows = defines(set, doc='''
+    @rtype: set(string)
+    Contains the allow set for the methods.
     ''')
 
 class ResponseContent(Context):
@@ -79,7 +76,7 @@ class ResponseContent(Context):
 # --------------------------------------------------------------------
 
 @injected
-class ContentDeliveryHandler(HandlerProcessorProceed):
+class ContentDeliveryHandler(HandlerProcessor):
     '''
     Implementation for a processor that delivers the content based on the URL.
     '''
@@ -106,9 +103,9 @@ class ContentDeliveryHandler(HandlerProcessorProceed):
 
         self._linkTypes = {self._fsHeader:self._processLink, self._zipHeader:self._processZiplink}
 
-    def process(self, request:Request, response:Response, responseCnt:ResponseContent, **keyargs):
+    def process(self, chain, request:Request, response:Response, responseCnt:ResponseContent, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Provide the file content as a response.
         '''
@@ -117,14 +114,13 @@ class ContentDeliveryHandler(HandlerProcessorProceed):
         assert isinstance(responseCnt, ResponseContent), 'Invalid response content %s' % responseCnt
 
         if request.method != HTTP_GET:
-            if response.allows is not None: response.allows.append(HTTP_GET)
-            else: response.allows = [HTTP_GET]
-            response.code, response.status, response.isSuccess = METHOD_NOT_AVAILABLE
+            if response.allows is not None: response.allows.add(HTTP_GET)
+            else: response.allows = set((HTTP_GET,))
+            METHOD_NOT_AVAILABLE.set(response)
         else:
             # Make sure the given path points inside the repository
             entryPath = normOSPath(join(self.repositoryPath, normZipPath(unquote(request.uri))))
-            if not entryPath.startswith(self.repositoryPath):
-                response.code, response.status, response.isSuccess = PATH_NOT_FOUND
+            if not entryPath.startswith(self.repositoryPath): PATH_NOT_FOUND.set(response)
             else:
                 # Initialize the read file handler with None value
                 # This will be set upon successful file open
@@ -151,10 +147,9 @@ class ContentDeliveryHandler(HandlerProcessorProceed):
                             break
                         linkPath = subLinkPath
         
-                if rf is None:
-                    response.code, response.status, response.isSuccess = PATH_NOT_FOUND
+                if rf is None: PATH_NOT_FOUND.set(response)
                 else:
-                    response.code, response.status, response.isSuccess = PATH_FOUND
+                    PATH_FOUND.set(response)
                     responseCnt.source = rf
                     responseCnt.length = size
                     responseCnt.type, responseCnt.charSet = guess_type(entryPath)

@@ -23,7 +23,7 @@ from ally.core.spec.resources import Node, Path, INodeChildListener, \
     INodeInvokerListener, Invoker
 from ally.design.processor.attribute import requires, definesIf, optional
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessorProceed, Handler
+from ally.design.processor.handler import HandlerProcessor, Handler
 from ally.http.spec.server import IEncoderPath
 from ally.support.core.util_resources import propertyTypesOf, iterateNodes, \
     METHOD_NODE_ATTRIBUTE, invokerCallOf, pathForNode
@@ -65,7 +65,7 @@ class Solicitation(Context):
 
 @injected
 @setup(Handler, name='alternateNavigationPermissions')
-class AlternateNavigationPermissions(HandlerProcessorProceed, INodeChildListener, INodeInvokerListener):
+class AlternateNavigationPermissions(HandlerProcessor, INodeChildListener, INodeInvokerListener):
     '''
     Provides the handler that creates alternate gateways based on resource permissions.
     '''
@@ -83,9 +83,9 @@ class AlternateNavigationPermissions(HandlerProcessorProceed, INodeChildListener
         self._alternates = None
         self.resourcesRoot.addStructureListener(self)
     
-    def process(self, Permission:PermissionResource, solicitation:Solicitation, **keyargs):
+    def process(self, chain, Permission:PermissionResource, solicitation:Solicitation, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Construct the alternate gateways for permissions.
         '''

@@ -9,10 +9,9 @@ Created on Jan 5, 2012
 Provides the processors setups for gateway.
 '''
 
-from ..ally_http.processor import headerEncodeRequest, acceptRequestEncode, \
-    headerDecodeRequest, internalError
+from ..ally_http.processor import acceptRequestEncode, internalError, \
+    contentLengthDecode
 from ally.container import ioc
-from ally.container.error import ConfigError
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.handler import Handler
 from ally.gateway.http.impl.processor.filter import GatewayFilterHandler
@@ -21,9 +20,11 @@ from ally.gateway.http.impl.processor.place_error import GatewayErrorHandler
 from ally.gateway.http.impl.processor.respository import \
     GatewayRepositoryHandler
 from ally.gateway.http.impl.processor.respository_authorized import \
-    GatewayAuthorizedRepositoryHandler
+    GatewayAuthorizedRepositoryHandler, AUTHORIZATION
 from ally.gateway.http.impl.processor.selector import GatewaySelectorHandler
 from ally.http.impl.processor.forward import ForwardHTTPHandler
+from ally.http.impl.processor.header_parameter import HeaderParameterHandler, \
+    HeaderParameterOptionsHandler
 
 # --------------------------------------------------------------------
 
@@ -37,17 +38,17 @@ GATEWAY_EXTERNAL = 'external'
 @ioc.config
 def external_host() -> str:
     ''' The external host name, something like 'localhost' '''
-    raise ConfigError('No external host provided')
+    return 'localhost'
 
 @ioc.config
 def external_port():
     ''' The external server port'''
-    return 80
+    return 8081
 
 @ioc.config
 def gateway_uri() -> str:
     ''' The gateway URI to fetch the Gateway objects from'''
-    raise ConfigError('There is no gateway URI provided')
+    return 'resources/Gateway'
 
 @ioc.config
 def gateway_authorized_uri() -> str:
@@ -55,7 +56,7 @@ def gateway_authorized_uri() -> str:
     The gateway URI to fetch the authorized Gateway objects from, this URI needs to have a marker '%s' where the actual
     authentication code will be placed
     '''
-    raise ConfigError('There is no authorized gateway URI provided')
+    return 'resources/Security/Login/%s/Gateway'
 
 @ioc.config
 def server_provide_gateway():
@@ -85,8 +86,37 @@ def cleanup_authorized_interval() -> float:
     '''
     return 60
 
+@ioc.config
+def read_from_params():
+    '''If true will allow the gateway proxy server to read the authorization headers also from parameters.'''
+    return True
+
+# --------------------------------------------------------------------
+
+@ioc.entity
+def headersCustom() -> set:
+    '''
+    Provides the custom header names defined by processors.
+    '''
+    return set()
+
+@ioc.entity
+def parametersAsHeaders() -> list: return sorted(headersCustom())
+
 # --------------------------------------------------------------------
 # Creating the processors used in handling the request
+
+@ioc.entity
+def headerParameter():
+    b = HeaderParameterHandler()
+    b.parameters = parametersAsHeaders()
+    return b
+
+@ioc.entity
+def headerParameterOptions() -> Handler:
+    b = HeaderParameterOptionsHandler()
+    b.assembly = assemblyForward()
+    return b
 
 @ioc.entity
 def gatewayRepository() -> Handler:
@@ -153,18 +183,23 @@ def assemblyGateway() -> Assembly:
     return Assembly('Gateway')
 
 # --------------------------------------------------------------------
+
+@ioc.before(headersCustom)
+def updateHeadersCustom():
+    headersCustom().add(AUTHORIZATION.name)
     
 @ioc.before(assemblyGateway)
 def updateAssemblyGateway():
-    assemblyGateway().add(internalError(), headerDecodeRequest(), gatewayRepository(), gatewayAuthorizedRepository(),
+    assemblyGateway().add(internalError(), headerParameterOptions(), gatewayRepository(), gatewayAuthorizedRepository(),
                           gatewaySelector(), gatewayFilter(), gatewayError(), gatewayForward())
+    if read_from_params(): assemblyGateway().add(headerParameter(), before=headerParameterOptions())
     
 @ioc.before(assemblyRESTRequest)
 def updateAssemblyRESTRequestForExternal():
     if server_provide_gateway() == GATEWAY_EXTERNAL:
-        assemblyRESTRequest().add(headerEncodeRequest(), acceptRequestEncode(), externalForward())
+        assemblyRESTRequest().add(acceptRequestEncode(), contentLengthDecode(), externalForward())
             
 @ioc.before(assemblyForward)
 def updateAssemblyForwardForExternal():
     if server_provide_gateway() == GATEWAY_EXTERNAL:
-        assemblyForward().add(externalForward())
+        assemblyForward().add(contentLengthDecode(), externalForward())

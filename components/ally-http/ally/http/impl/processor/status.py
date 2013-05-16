@@ -12,7 +12,7 @@ Provides the status and status text population based on codes.
 from ally.container.ioc import injected
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessorProceed
+from ally.design.processor.handler import HandlerProcessor
 
 # --------------------------------------------------------------------
 
@@ -29,7 +29,7 @@ class Response(Context):
 # --------------------------------------------------------------------
 
 @injected
-class StatusHandler(HandlerProcessorProceed):
+class StatusHandler(HandlerProcessor):
     '''
     Provides the code to status handler.
     '''
@@ -54,9 +54,9 @@ class StatusHandler(HandlerProcessorProceed):
                 assert isinstance(text, str), 'Invalid text %s' % text
         super().__init__()
 
-    def process(self, response:Response, **keyargs):
+    def process(self, chain, response:Response, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Process the status.
         '''

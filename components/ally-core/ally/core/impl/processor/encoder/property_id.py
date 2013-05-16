@@ -18,7 +18,7 @@ from ally.core.spec.transform.render import IRender
 from ally.design.cache import CacheWeak
 from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessorProceed
+from ally.design.processor.handler import HandlerProcessor
 
 # --------------------------------------------------------------------
 
@@ -47,7 +47,7 @@ class Support(Context):
 # --------------------------------------------------------------------
 
 @injected
-class PropertyIdEncode(HandlerProcessorProceed):
+class PropertyIdEncode(HandlerProcessor):
     '''
     Implementation for a handler that provides the id properties values encoding.
     '''
@@ -57,9 +57,9 @@ class PropertyIdEncode(HandlerProcessorProceed):
         
         self._cache = CacheWeak()
         
-    def process(self, create:Create, **keyargs):
+    def process(self, chain, create:Create, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Create the id property encoder.
         '''

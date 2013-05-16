@@ -12,14 +12,15 @@ Provides the multipart content parsing based on RFC1341.
 
 from ally.container.ioc import injected
 from ally.core.http.spec.codes import MUTLIPART_NO_BOUNDARY
+from ally.core.http.spec.headers import CONTENT_TYPE_ATTR_BOUNDARY
 from ally.core.impl.processor.parsing import ParsingHandler, Request, \
     RequestContent, Response
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines
-from ally.design.processor.branch import Included
-from ally.design.processor.context import Context
+from ally.design.processor.branch import Branch
 from ally.design.processor.execution import Chain, Processing
 from ally.exception import DevelError
+from ally.http.spec.headers import HeadersDefines
 from ally.support.util_io import IInputStream, IClosable
 from collections import Callable
 from io import BytesIO
@@ -43,16 +44,6 @@ FLAG_MARK = FLAG_MARK_START | FLAG_MARK_END
 FLAG_END = FLAG_CONTENT_END | FLAG_MARK
 
 # --------------------------------------------------------------------
-
-class RequestPopulate(Context):
-    '''
-    The request context used in populating the request content.
-    '''
-    # ---------------------------------------------------------------- Defines
-    headers = defines(dict, doc='''
-    @rtype: dictionary{string, string}
-    The raw headers.
-    ''')
 
 class RequestContentMultiPart(RequestContent):
     '''
@@ -122,18 +113,15 @@ class ParsingMultiPartHandler(ParsingHandler, DataMultiPart):
 
     regexMultipart = '^multipart($|\/.)'
     # The regex for the content type value that dictates that the content is multi part.
-    attrBoundary = 'boundary'
-    # The attribute name that contains the boundary for the multi part.
-
+    
     populateAssembly = Assembly
     # The processors used for the populating the next request content.
 
     def __init__(self):
         assert isinstance(self.regexMultipart, str), 'Invalid multi part regex %s' % self.regexMultipart
-        assert isinstance(self.attrBoundary, str), 'Invalid attribute boundary name %s' % self.attrBoundary
         assert isinstance(self.populateAssembly, Assembly), 'Invalid populate assembly %s' % self.populateAssembly
         DataMultiPart.__init__(self)
-        ParsingHandler.__init__(self, Included(self.populateAssembly).using(request=RequestPopulate))
+        ParsingHandler.__init__(self, Branch(self.populateAssembly).included().using(request=HeadersDefines))
         self._reMultipart = re.compile(self.regexMultipart)
 
     def process(self, chain, populate, parsing, request:Request, requestCnt:RequestContentMultiPart,
@@ -150,37 +138,32 @@ class ParsingMultiPartHandler(ParsingHandler, DataMultiPart):
         assert isinstance(requestCnt, RequestContentMultiPart), 'Invalid request content %s' % requestCnt
         assert isinstance(response, ResponseMultiPart), 'Invalid response %s' % response
 
-        chain.proceed()
-
         if response.isSuccess is False: return  # Skip in case the response is in error
 
         isMultipart = requestCnt.type and self._reMultipart.match(requestCnt.type)
         if isMultipart:
+            assert isinstance(requestCnt.typeAttr, dict), 'Invalid type attributes %s' % requestCnt.typeAttr
             assert log.debug('Content type %s is multi part', requestCnt.type) or True
-            boundary = requestCnt.typeAttr.pop(self.attrBoundary, None)
-            if not boundary:
-                response.code, response.status, response.isSuccess = MUTLIPART_NO_BOUNDARY
-                return
+            boundary = requestCnt.typeAttr.get(CONTENT_TYPE_ATTR_BOUNDARY)
+            if not boundary: return MUTLIPART_NO_BOUNDARY.set(response)
 
             assert isinstance(requestCnt.source, IInputStream), 'Invalid request content source %s' % requestCnt.source
             stream = StreamMultiPart(self, requestCnt.source, boundary)
             requestCnt = NextContent(requestCnt, response, populate, self, stream)()
-            if requestCnt is None:
-                response.code, response.status, response.isSuccess = MUTLIPART_NO_BOUNDARY
-                return
+            if requestCnt is None: return MUTLIPART_NO_BOUNDARY.set(response)
 
         if not request.decoder:
-            if isMultipart: chain.update(requestCnt=requestCnt)
+            if isMultipart: chain.process(requestCnt=requestCnt)
             return  # Skip if there is no decoder.
 
-        if self.processParsing(parsing, request=request, requestCnt=requestCnt, response=response, **keyargs):
+        if self.processParsing(chain, parsing, request=request, requestCnt=requestCnt, response=response, **keyargs):
             # We process the chain without the request content anymore
             if requestCnt.fetchNextContent is not None:
                 nextContent = requestCnt.fetchNextContent()
                 if nextContent is not None:
                     assert isinstance(nextContent, RequestContentMultiPart), 'Invalid request content %s' % nextContent
-                    chain.update(requestCnt=nextContent)
-        else: chain.update(requestCnt=requestCnt)
+                    chain.process(requestCnt=nextContent)
+        else: chain.process(requestCnt=requestCnt)
 
 # --------------------------------------------------------------------
 
@@ -401,7 +384,7 @@ class NextContent:
 
             req = processing.ctx.request()
             self._nextCnt = reqCnt = self._requestCnt.__class__()
-            assert isinstance(req, RequestPopulate), 'Invalid request %s' % req
+            assert isinstance(req, HeadersDefines), 'Invalid request %s' % req
             assert isinstance(reqCnt, RequestContentMultiPart), 'Invalid request content %s' % reqCnt
 
             req.headers = stream._pullHeaders()
@@ -411,5 +394,4 @@ class NextContent:
             reqCnt.fetchNextContent = NextContent(reqCnt, self._response, self._processing, self._data, stream)
             reqCnt.previousContent = self._requestCnt
             
-            chain = Chain(self._processing).process(request=req, requestCnt=reqCnt, response=self._response)
-            return chain.doAll().arg.requestCnt
+            return self._processing.execute(request=req, requestCnt=reqCnt, response=self._response).requestCnt

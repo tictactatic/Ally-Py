@@ -13,7 +13,7 @@ from ally.container.ioc import injected
 from ally.core.spec.transform.render import Object, Value, renderObject
 from ally.design.processor.attribute import requires, optional
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessorProceed
+from ally.design.processor.handler import HandlerProcessor
 from collections import Callable
 import logging
 
@@ -46,16 +46,16 @@ class Response(Context):
 # --------------------------------------------------------------------
 
 @injected
-class ExplainErrorHandler(HandlerProcessorProceed):
+class ExplainErrorHandler(HandlerProcessor):
     '''
     Implementation for a processor that provides on the response a form of the error that can be extracted from 
     the response code and error message, this processor uses the code status (success) in order to trigger the error
     response.
     '''
 
-    def process(self, response:Response, responseCnt:Context, **keyargs):
+    def process(self, chain, response:Response, responseCnt:Context, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Process the error into a response content.
         '''

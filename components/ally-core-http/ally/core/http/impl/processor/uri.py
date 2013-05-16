@@ -11,16 +11,16 @@ Provides the URI request path handler.
 
 from ally.api.type import Scheme, Type
 from ally.container.ioc import injected
+from ally.core.impl.node import NodeProperty
 from ally.core.spec.resources import ConverterPath, Path, Converter, Normalizer, \
     Node
 from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessorProceed
-from ally.http.spec.codes import PATH_FOUND, PATH_NOT_FOUND
+from ally.design.processor.handler import HandlerProcessor
+from ally.http.spec.codes import PATH_FOUND, PATH_NOT_FOUND, CodedHTTP
 from ally.support.core.util_resources import findPath
 from urllib.parse import unquote
 import logging
-from ally.core.impl.node import NodeProperty
 
 # --------------------------------------------------------------------
 
@@ -58,14 +58,11 @@ class Request(Context):
     The converter to use for the parameters values.
     ''')
 
-class Response(Context):
+class Response(CodedHTTP):
     '''
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    code = defines(str)
-    status = defines(int)
-    isSuccess = defines(bool)
     text = defines(str)
     converterId = defines(Converter, doc='''
     @rtype: Converter
@@ -85,7 +82,7 @@ class ResponseContent(Context):
 # --------------------------------------------------------------------
 
 @injected
-class URIHandler(HandlerProcessorProceed):
+class URIHandler(HandlerProcessor):
     '''
     Implementation for a processor that provides the searches based on the request URL the resource path, also
     populates the parameters and extension format on the request.
@@ -101,9 +98,9 @@ class URIHandler(HandlerProcessorProceed):
         assert isinstance(self.converterPath, ConverterPath), 'Invalid ConverterPath object %s' % self.converterPath
         super().__init__()
 
-    def process(self, request:Request, response:Response, responseCnt:ResponseContent, **keyargs):
+    def process(self, chain, request:Request, response:Response, responseCnt:ResponseContent, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Process the URI to a resource path.
         '''
@@ -131,7 +128,7 @@ class URIHandler(HandlerProcessorProceed):
         node = request.path.node
         if not node:
             # we stop the chain processing
-            response.code, response.status, response.isSuccess = PATH_NOT_FOUND
+            PATH_NOT_FOUND.set(response)
             assert log.debug('No resource found for URI %s', request.uri) or True
             return
         
@@ -141,7 +138,7 @@ class URIHandler(HandlerProcessorProceed):
                 assert isinstance(node, NodeProperty)
                 assert isinstance(node.type, Type)
                 if node.type.isOf(str):
-                    response.code, response.status, response.isSuccess = PATH_NOT_FOUND
+                    PATH_NOT_FOUND.set(response)
                     response.text = 'Missing trailing slash'
                     assert log.debug('Unclear extension for URI %s', request.uri) or True
                     return
@@ -155,5 +152,5 @@ class URIHandler(HandlerProcessorProceed):
         if Request.argumentsOfType in request and request.argumentsOfType is not None:
             request.argumentsOfType[Scheme] = request.scheme
 
-        response.code, response.status, response.isSuccess = PATH_FOUND
+        PATH_FOUND.set(response)
         response.converterId = self.converterPath

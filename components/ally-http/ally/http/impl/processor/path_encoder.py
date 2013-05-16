@@ -12,8 +12,9 @@ Provides the path encoder.
 from ally.container.ioc import injected
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessorProceed
-from ally.http.spec.server import IDecoderHeader, IEncoderPath
+from ally.design.processor.handler import HandlerProcessor
+from ally.http.spec.headers import HeadersRequire, HOST
+from ally.http.spec.server import IEncoderPath
 from ally.support.util import Singletone
 from collections import Iterable
 from urllib.parse import urlsplit, urlunsplit, urlencode
@@ -25,13 +26,12 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
-class Request(Context):
+class Request(HeadersRequire):
     '''
     The request context.
     '''
     # ---------------------------------------------------------------- Required
     scheme = requires(str)
-    decoderHeader = requires(IDecoderHeader)
 
 class Response(Context):
     '''
@@ -49,21 +49,14 @@ class Response(Context):
 # --------------------------------------------------------------------
 
 @injected
-class EncoderPathHandler(HandlerProcessorProceed):
+class EncoderPathHandler(HandlerProcessor):
     '''
     Provides the path encoder for the response.
     '''
-
-    headerHost = 'Host'
-    # The header in which the host is provided.
-
-    def __init__(self):
-        assert isinstance(self.headerHost, str), 'Invalid string %s' % self.headerHost
-        super().__init__()
-
-    def process(self, request:Request, response:Response, **keyargs):
+    
+    def process(self, chain, request:Request, response:Response, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Overrides the request method based on a provided header.
         '''
@@ -71,9 +64,7 @@ class EncoderPathHandler(HandlerProcessorProceed):
         assert isinstance(response, Response), 'Invalid response %s' % response
         if response.isSuccess is False: return  # Skip in case the response is in error
 
-        assert isinstance(request.decoderHeader, IDecoderHeader), 'Invalid header decoder %s' % request.decoderHeader
-
-        host = request.decoderHeader.retrieve(self.headerHost)
+        host = HOST.fetch(request)
         if host is None:
             response.encoderPath = EncoderPathNothing()
             assert log.debug('No host header available for URI %s', request.uri) or True

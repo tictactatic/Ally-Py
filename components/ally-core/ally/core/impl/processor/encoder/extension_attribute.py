@@ -19,8 +19,8 @@ from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context
-from ally.design.processor.execution import Chain, Processing
-from ally.design.processor.handler import HandlerBranchingProceed
+from ally.design.processor.execution import Processing
+from ally.design.processor.handler import HandlerBranching
 from ally.exception import DevelError
 
 # --------------------------------------------------------------------
@@ -56,7 +56,7 @@ class CreateProperty(Context):
 # --------------------------------------------------------------------
 
 @injected
-class ExtensionAttributeEncode(HandlerBranchingProceed):
+class ExtensionAttributeEncode(HandlerBranching):
     '''
     Implementation for a handler that provides the extension encoding in attributes.
     '''
@@ -71,9 +71,9 @@ class ExtensionAttributeEncode(HandlerBranchingProceed):
         
         self._cache = CacheWeak()
         
-    def process(self, propertyProcessing, create:Create, **keyargs):
+    def process(self, chain, propertyProcessing, create:Create, **keyargs):
         '''
-        @see: HandlerBranchingProceed.process
+        @see: HandlerBranching.process
         
         Create the extension attributes.
         '''
@@ -104,12 +104,10 @@ class ExtensionAttributeEncode(HandlerBranchingProceed):
         if not cache.has:
             properties = cache.value = []
             for propType in extensionType.propertyTypes():
-                chain = Chain(processing)
-                chain.process(create=processing.ctx.create(objType=propType, name=propType.property)).doAll()
-                create = chain.arg.create
-                assert isinstance(create, CreateProperty), 'Invalid create property %s' % create
-                if create.encoder is None: raise DevelError('Cannot encode %s' % propType)
-                properties.append((propType.property, create.encoder))
+                arg = processing.execute(create=processing.ctx.create(objType=propType, name=propType.property))
+                assert isinstance(arg.create, CreateProperty), 'Invalid create property %s' % arg.create
+                if arg.create.encoder is None: raise DevelError('Cannot encode %s' % propType)
+                properties.append((propType.property, arg.create.encoder))
         
         return cache.value
 

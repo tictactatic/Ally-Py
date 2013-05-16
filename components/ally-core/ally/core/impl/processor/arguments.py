@@ -13,7 +13,7 @@ from ally.api.type import Input, typeFor
 from ally.core.spec.resources import Invoker, Path
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessorProceed
+from ally.design.processor.handler import HandlerProcessor
 
 # --------------------------------------------------------------------
 
@@ -34,15 +34,15 @@ class RequestProvide(Context):
 
 # --------------------------------------------------------------------
 
-class ArgumentsPrepareHandler(HandlerProcessorProceed):
+class ArgumentsPrepareHandler(HandlerProcessor):
     '''
     Implementation for a processor that provides the integration of the additional arguments into the invoke arguments.
     This processor will provide the argument by type.
     '''
 
-    def process(self, request:RequestProvide, **keyargs):
+    def process(self, chain, request:RequestProvide, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Provides the additional arguments by type to be populated.
         '''
@@ -65,14 +65,14 @@ class Request(Context):
 
 # --------------------------------------------------------------------
 
-class ArgumentsBuildHandler(HandlerProcessorProceed):
+class ArgumentsBuildHandler(HandlerProcessor):
     '''
     Implementation for a processor that provides the integration of the additional arguments into the invoke arguments.
     '''
 
-    def process(self, request:Request, **keyargs):
+    def process(self, chain, request:Request, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Transpose the additional arguments into the main arguments.
         '''

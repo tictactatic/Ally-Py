@@ -13,7 +13,7 @@ from ally.container.ioc import injected
 from ally.core.spec.transform.encoder import IEncoder
 from ally.design.processor.attribute import requires, optional
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessorProceed
+from ally.design.processor.handler import HandlerProcessor
 from collections import Callable
 import logging
 
@@ -39,14 +39,14 @@ class Response(Context):
 # --------------------------------------------------------------------
 
 @injected
-class RenderEncoderHandler(HandlerProcessorProceed):
+class RenderEncoderHandler(HandlerProcessor):
     '''
     Implementation for a handler that renders the response content encoder.
     '''
     
-    def process(self, response:Response, responseCnt:Context, **keyargs):
+    def process(self, chain, response:Response, responseCnt:Context, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Process the encoder rendering.
         '''

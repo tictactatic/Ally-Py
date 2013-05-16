@@ -14,6 +14,7 @@ from ..ally_core.processor import converterRequest, converterResponse, \
 from ..ally_core_http.processor import assemblyResources, \
     updateAssemblyResources
 from ..ally_http.processor import contentTypeResponseEncode
+from .processor import headersCustom
 from ally.container import ioc
 from ally.design.processor.handler import Handler
 import logging
@@ -32,7 +33,7 @@ else:
 
     
     from ally.core.http.impl.processor.text_conversion import \
-    BabelConverterRequestHandler, BabelConverterResponseHandler, BabelConversionEncodeHandler
+    BabelConverterRequestHandler, BabelConverterResponseHandler, BabelConversionEncodeHandler, FORMAT, CONTENT_FORMAT
     
     # --------------------------------------------------------------------
     
@@ -61,6 +62,11 @@ else:
     def babelConversionEncode() -> Handler: return BabelConversionEncodeHandler()
     
     # --------------------------------------------------------------------
+    
+    @ioc.before(headersCustom)
+    def updateHeadersCustomForBabel():
+        headersCustom().update(header.name for header in FORMAT.values())
+        headersCustom().update(header.name for header in CONTENT_FORMAT.values())
     
     @ioc.after(updateAssemblyResources)
     def updateAssemblyResourcesForBabel():

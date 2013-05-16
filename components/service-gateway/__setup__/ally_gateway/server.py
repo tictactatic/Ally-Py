@@ -48,5 +48,4 @@ def gatewayRouter() -> Handler:
 
 @ioc.before(updateAssemblyServer)
 def updateAssemblyServerForGatewayExternal():
-    if server_provide_gateway() == GATEWAY_EXTERNAL:
-        assemblyServer().add(gatewayRouter())
+    if server_provide_gateway() == GATEWAY_EXTERNAL: assemblyServer().add(gatewayRouter())

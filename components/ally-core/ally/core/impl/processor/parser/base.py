@@ -10,14 +10,15 @@ Provides the text base parser processor handler.
 '''
 
 from ally.container.ioc import injected
-from ally.core.spec.codes import CONTENT_BAD, CONTENT_ILLEGAL, CONTENT_MISSING
+from ally.core.spec.codes import CONTENT_BAD, CONTENT_ILLEGAL, CONTENT_MISSING, \
+    Coded
 from ally.core.spec.transform.render import Value, List, Object
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain
 from ally.design.processor.handler import HandlerProcessor
 from ally.exception import InputError, Ref
-from ally.support.util_io import IInputStream
+from ally.support.util_io import IInputStream, IClosable
 from collections import Callable, deque
 import abc
 import logging
@@ -45,13 +46,11 @@ class RequestContent(Context):
     charSet = requires(str)
     source = requires(IInputStream)
 
-class Response(Context):
+class Response(Coded):
     '''
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    code = defines(str)
-    isSuccess = defines(bool)
     errorMessage = defines(str)
     errorDetails = defines(Object)
 
@@ -84,8 +83,7 @@ class ParseBaseHandler(HandlerProcessor):
 
         # Check if the response is for this encoder
         if requestCnt.type in self.contentTypes:
-            if requestCnt.source is None:
-                response.code, response.isSuccess = CONTENT_MISSING
+            if requestCnt.source is None: CONTENT_MISSING.set(response)
             else:
                 assert callable(request.decoder), 'Invalid request decoder %s' % request.decoder
                 assert isinstance(request.decoderData, dict), 'Invalid request decoder data %s' % request.decoderData
@@ -95,16 +93,16 @@ class ParseBaseHandler(HandlerProcessor):
                 try:
                     error = self.parse(request.decoder, request.decoderData, requestCnt.source, requestCnt.charSet)
                     if error:
-                        response.code, response.isSuccess = CONTENT_BAD
+                        CONTENT_BAD.set(response)
                         response.errorMessage = error
                 except InputError as e:
-                    response.code, response.isSuccess = CONTENT_ILLEGAL
+                    CONTENT_ILLEGAL.set(response)
                     response.errorDetails = self.processInputError(e)
-            return  # We need to stop the chain if we have been able to provide the parsing
+                finally:
+                    if isinstance(requestCnt.source, IClosable): requestCnt.source.close()
+            chain.cancel()  # We need to stop the chain if we have been able to provide the parsing
         else:
             assert log.debug('The content type \'%s\' is not for this %s parser', requestCnt.type, self) or True
-
-        chain.proceed()
 
     def processInputError(self, e):
         '''

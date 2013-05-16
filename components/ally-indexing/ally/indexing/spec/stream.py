@@ -29,7 +29,6 @@ class ModifierStream(IInputStreamCT):
             The input stream to wrap.
         '''
         assert isinstance(stream, IInputStream), 'Invalid stream %s' % stream
-        
         self._stream = tellPosition(stream)
         self._record = None
         self._rewind = None

@@ -21,10 +21,10 @@ from ally.design.cache import CacheWeak
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines, optional, \
     definesIf
-from ally.design.processor.branch import Included
+from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context
-from ally.design.processor.execution import Chain, Processing
-from ally.design.processor.handler import HandlerBranchingProceed
+from ally.design.processor.execution import Processing
+from ally.design.processor.handler import HandlerBranching
 from ally.exception import DevelError
 from ally.core.spec.transform.index import NAME_BLOCK
 
@@ -85,7 +85,7 @@ class CreateModelExtra(Context):
 # --------------------------------------------------------------------
 
 @injected
-class ModelEncode(HandlerBranchingProceed):
+class ModelEncode(HandlerBranching):
     '''
     Implementation for a handler that provides the model encoding.
     '''
@@ -103,15 +103,15 @@ class ModelEncode(HandlerBranchingProceed):
         assert isinstance(self.modelExtraEncodeAssembly, Assembly), \
         'Invalid model extra encode assembly %s' % self.modelExtraEncodeAssembly
         assert isinstance(self.typeOrders, list), 'Invalid type orders %s' % self.typeOrders
-        super().__init__(Included(self.propertyEncodeAssembly).using(create=CreateProperty),
-                         Included(self.modelExtraEncodeAssembly).using(create=CreateModelExtra), support=Support)
+        super().__init__(Branch(self.propertyEncodeAssembly).included().using(create=CreateProperty),
+                         Branch(self.modelExtraEncodeAssembly).included().using(create=CreateModelExtra), support=Support)
         
         self.typeOrders = [typeFor(typ) for typ in self.typeOrders]
         self._cache = CacheWeak()
         
-    def process(self, propertyProcessing, modelExtraProcessing, create:Create, **keyargs):
+    def process(self, chain, propertyProcessing, modelExtraProcessing, create:Create, **keyargs):
         '''
-        @see: HandlerBranchingProceed.process
+        @see: HandlerBranching.process
         
         Create the model encoder.
         '''
@@ -136,18 +136,15 @@ class ModelEncode(HandlerBranchingProceed):
             properties = []
             for propType in self.sortedTypes(create.objType):
                 assert isinstance(propType, TypeProperty), 'Invalid property type %s' % propType
-                chain = Chain(propertyProcessing)
-                chain.process(create=propertyProcessing.ctx.create(objType=propType, name=propType.property), **keyargs).doAll()
-                propCreate = chain.arg.create
-                assert isinstance(propCreate, CreateProperty), 'Invalid create property %s' % propCreate
-                if propCreate.encoder is None: raise DevelError('Cannot encode %s' % propType)
-                properties.append((propType.property, propCreate.encoder))
+                arg = propertyProcessing.execute(create=propertyProcessing.ctx.create(objType=propType, name=propType.property),
+                                                 **keyargs)
+                assert isinstance(arg.create, CreateProperty), 'Invalid create property %s' % arg.create
+                if arg.create.encoder is None: raise DevelError('Cannot encode %s' % propType)
+                properties.append((propType.property, arg.create.encoder))
             
-            chain = Chain(modelExtraProcessing)
-            chain.process(create=modelExtraProcessing.ctx.create(objType=create.objType), **keyargs).doAll()
-            extraCreate = chain.arg.create
-            assert isinstance(extraCreate, CreateModelExtra), 'Invalid create model extra %s' % extraCreate
-            if CreateModelExtra.encoder in extraCreate: extra = extraCreate.encoder
+            arg = modelExtraProcessing.execute(create=modelExtraProcessing.ctx.create(objType=create.objType), **keyargs)
+            assert isinstance(arg.create, CreateModelExtra), 'Invalid create model extra %s' % arg.create
+            if CreateModelExtra.encoder in arg.create: extra = arg.create.encoder
             else: extra = None
                 
             cache.value = EncoderModel(name, properties, extra, specifiers)

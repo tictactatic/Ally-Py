@@ -11,34 +11,16 @@ Provides the accept headers handling.
 
 from ally.container.ioc import injected
 from ally.design.processor.attribute import requires, defines
-from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessorProceed
-from ally.http.spec.server import IDecoderHeader, IEncoderHeader
-
-# --------------------------------------------------------------------
-
-class AcceptConfigurations:
-    '''
-    Configurations for accept HTTP request headers.
-    '''
-
-    nameAccept = 'Accept'
-    # The name for the accept header
-    nameAcceptCharset = 'Accept-Charset'
-    # The name for the accept character sets header
-
-    def __init__(self):
-        assert isinstance(self.nameAccept, str), 'Invalid accept name %s' % self.nameAccept
-        assert isinstance(self.nameAcceptCharset, str), 'Invalid accept charset name %s' % self.nameAcceptCharset
+from ally.design.processor.handler import HandlerProcessor
+from ally.http.spec.headers import ACCEPT, HeadersRequire, ACCEPT_CHARSET, \
+    HeadersDefines
     
 # --------------------------------------------------------------------
 
-class RequestDecode(Context):
+class RequestDecode(HeadersRequire):
     '''
     The request decode context.
     '''
-    # ---------------------------------------------------------------- Required
-    decoderHeader = requires(IDecoderHeader)
     # ---------------------------------------------------------------- Defined
     accTypes = defines(list, doc='''
     @rtype: list[string]
@@ -52,68 +34,47 @@ class RequestDecode(Context):
 # --------------------------------------------------------------------
 
 @injected
-class AcceptRequestDecodeHandler(HandlerProcessorProceed, AcceptConfigurations):
+class AcceptRequestDecodeHandler(HandlerProcessor):
     '''
     Implementation for a processor that provides the decoding of accept HTTP request headers.
     '''
 
-    def __init__(self):
-        HandlerProcessorProceed.__init__(self)
-        AcceptConfigurations.__init__(self)
-
-    def process(self, request:RequestDecode, **keyargs):
+    def process(self, chain, request:RequestDecode, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Decode the accepted headers.
         '''
         assert isinstance(request, RequestDecode), 'Invalid request %s' % request
-        assert isinstance(request.decoderHeader, IDecoderHeader), 'Invalid decoder header %s' % request.decoderHeader
 
-        value = request.decoderHeader.decode(self.nameAccept)
-        if value: request.accTypes = list(val for val, _attr in value)
-
-        value = request.decoderHeader.decode(self.nameAcceptCharset)
-        if value: request.accCharSets = list(val for val, _attr in value)
+        request.accTypes = ACCEPT.decode(request)
+        request.accCharSets = ACCEPT_CHARSET.decode(request)
 
 # --------------------------------------------------------------------
 
-class RequestEncode(Context):
+class RequestEncode(HeadersDefines):
     '''
     The request context.
     '''
     # ---------------------------------------------------------------- Required
-    encoderHeader = requires(IEncoderHeader)
-    accTypes = requires(list, doc='''
-    @rtype: list[string]
-    The content types accepted for response.
-    ''')
-    accCharSets = requires(list, doc='''
-    @rtype: list[string]
-    The character sets accepted for response.
-    ''')
+    accTypes = requires(list)
+    accCharSets = requires(list)
 
 # --------------------------------------------------------------------
 
 @injected
-class AcceptRequestEncodeHandler(HandlerProcessorProceed, AcceptConfigurations):
+class AcceptRequestEncodeHandler(HandlerProcessor):
     '''
     Implementation for a processor that provides the encoding of accept HTTP request headers.
     '''
-
-    def __init__(self):
-        HandlerProcessorProceed.__init__(self)
-        AcceptConfigurations.__init__(self)
-
-    def process(self, request:RequestEncode, **keyargs):
+    
+    def process(self, chain, request:RequestEncode, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Encode the accepted headers.
         '''
         assert isinstance(request, RequestEncode), 'Invalid request %s' % request
-        assert isinstance(request.encoderHeader, IEncoderHeader), 'Invalid encoder header %s' % request.encoderHeader
 
-        if RequestEncode.accTypes: request.encoderHeader.encode(self.nameAccept, *request.accTypes)
-        
-        if RequestEncode.accCharSets: request.encoderHeader.encode(self.nameAcceptCharset, *request.accCharSets)
+        if request.accTypes: ACCEPT.encode(request, *request.accTypes)
+        if request.accCharSets: ACCEPT_CHARSET.encode(request, *request.accCharSets)

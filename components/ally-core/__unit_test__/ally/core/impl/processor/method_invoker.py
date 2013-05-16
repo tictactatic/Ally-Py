@@ -23,7 +23,7 @@ from ally.core.spec.resources import Invoker, Path
 from ally.design.processor.attribute import defines
 from ally.design.processor.context import Context, create
 from ally.design.processor.execution import Chain
-from ally.design.processor.spec import Resolvers
+from ally.design.processor.resolvers import resolversFor
 from ally.http.spec.server import HTTP_GET
 import unittest
 
@@ -50,11 +50,11 @@ class Response(Context):
     code = defines(str)
     status = defines(int)
     isSuccess = defines(bool)
-    allows = defines(list, doc='''
-    @rtype: list[string]
+    allows = defines(set, doc='''
+    @rtype: set[string]
     Contains the allow list for the methods.
     ''')
-ctx = create(Resolvers(contexts=dict(Request=Request, Response=Response)))
+ctx = create(resolversFor(contexts=dict(Request=Request, Response=Response)))
 Request, Response = ctx['Request'], ctx['Response']
 
 # --------------------------------------------------------------------
@@ -69,11 +69,9 @@ class TestMethodInvoker(unittest.TestCase):
         node = NodeRoot()
         request.method, request.path = HTTP_GET, Path([], node)
 
-        def callProcess(chain, **keyargs): handler.process(**keyargs)
-        chain = Chain([callProcess])
-        chain.process(request=request, response=response).doAll()
+        Chain(handler.process, False, request=request, response=response).execute()
 
-        self.assertEqual(response.allows, [])
+        self.assertEqual(response.allows, set())
         self.assertTrue(response.isSuccess is False)
 
 # --------------------------------------------------------------------

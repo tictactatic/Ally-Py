@@ -11,7 +11,7 @@ Provides the WSGI web server support.
 
 from ally.container.ioc import injected
 from ally.design.processor.assembly import Assembly
-from ally.design.processor.execution import Processing, Chain
+from ally.design.processor.execution import Processing
 from ally.http.spec.server import RequestHTTP, ResponseHTTP, RequestContentHTTP, \
     ResponseContentHTTP
 from ally.support.util_io import IInputStream, readGenerator
@@ -67,19 +67,20 @@ class RequestHandler:
         assert isinstance(requestCnt, RequestContentHTTP), 'Invalid request content %s' % requestCnt
 
         request.scheme, request.method = context.get('wsgi.url_scheme', '').upper(), context.get('REQUEST_METHOD', '').upper()
-        request.headers = {hname[self.headerPrefixLen:].replace('_', '-'):hvalue
-                           for hname, hvalue in context.items() if hname.startswith(self.headerPrefix)}
-        request.headers.update({hname.replace('_', '-'):hvalue
-                                for hname, hvalue in context.items() if hname in self.headers})
         request.uri = context.get('PATH_INFO', '').lstrip('/')
-        request.parameters = parse_qsl(context.get('QUERY_STRING', ''), True, False)
+        if RequestHTTP.headers in request:
+            request.headers = {}
+            for hname, hvalue in context.items():
+                if hname.startswith(self.headerPrefix):
+                    request.headers[hname[self.headerPrefixLen:].replace('_', '-')] = hvalue
+                elif hname in self.headers:
+                    request.headers[hname.replace('_', '-')] = hvalue
+        if RequestHTTP.parameters in request: request.parameters = parse_qsl(context.get('QUERY_STRING', ''), True, False)
 
-        requestCnt.source = context.get('wsgi.input')
+        if RequestContentHTTP.source in requestCnt: requestCnt.source = context.get('wsgi.input')
 
-        chain = Chain(proc)
-        chain.process(**proc.fillIn(request=request, requestCnt=requestCnt)).doAll()
-
-        response, responseCnt = chain.arg.response, chain.arg.responseCnt
+        arg = proc.executeWithAll(request=request, requestCnt=requestCnt)
+        response, responseCnt = arg.response, arg.responseCnt
         assert isinstance(response, ResponseHTTP), 'Invalid response %s' % response
         assert isinstance(responseCnt, ResponseContentHTTP), 'Invalid response content %s' % responseCnt
 

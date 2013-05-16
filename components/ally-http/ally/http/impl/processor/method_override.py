@@ -12,46 +12,27 @@ Provides the method override header handling.
 from ally.container.ioc import injected
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessorProceed
-from ally.http.spec.codes import HEADER_ERROR
-from ally.http.spec.server import IDecoderHeader, HTTP_GET, HTTP_POST, \
-    HTTP_DELETE, HTTP_PUT
+from ally.design.processor.handler import HandlerProcessor
+from ally.http.spec.codes import HEADER_ERROR, CodedHTTP
+from ally.http.spec.headers import HeadersRequire, HeaderRaw
+from ally.http.spec.server import HTTP_GET, HTTP_POST, HTTP_DELETE, HTTP_PUT
 import logging
 
 # --------------------------------------------------------------------
 
 log = logging.getLogger(__name__)
 
-# --------------------------------------------------------------------
-
-class Request(Context):
-    '''
-    The request context.
-    '''
-    # ---------------------------------------------------------------- Required
-    decoderHeader = requires(IDecoderHeader)
-    method = requires(str)
-
-class Response(Context):
-    '''
-    The response context.
-    '''
-    # ---------------------------------------------------------------- Defined
-    code = defines(str)
-    status = defines(int)
-    isSuccess = defines(bool)
-    text = defines(str)
+METHOD_OVERRIDE = HeaderRaw('X-HTTP-Method-Override')
+# The method override header.
 
 # --------------------------------------------------------------------
 
 @injected
-class MethodOverrideHandler(HandlerProcessorProceed):
+class MethodOverrideConfigurations:
     '''
-    Provides the method override processor.
+    Provides the method override configurations.
     '''
-
-    nameXMethodOverride = 'X-HTTP-Method-Override'
-    # The header name for the method override.
+    
     methodsOverride = {
                        HTTP_GET: [HTTP_DELETE],
                        HTTP_POST: [HTTP_PUT],
@@ -59,13 +40,44 @@ class MethodOverrideHandler(HandlerProcessorProceed):
     # A dictionary containing as a key the original method and as a value the methods that are allowed for override.
 
     def __init__(self):
-        assert isinstance(self.nameXMethodOverride, str), 'Invalid method override name %s' % self.nameXMethodOverride
         assert isinstance(self.methodsOverride, dict), 'Invalid methods override %s' % self.methodsOverride
-        super().__init__()
+        if __debug__:
+            for method, methods in self.methodsOverride.items():
+                assert isinstance(method, str), 'Invalid method name %s' % method
+                assert isinstance(methods, list), 'Invalid methods %s' % methods
+                for method in methods: assert isinstance(method, str), 'Invalid method name %s' % method
+        
+# --------------------------------------------------------------------
 
-    def process(self, request:Request, response:Response, **keyargs):
+class Request(HeadersRequire):
+    '''
+    The request context.
+    '''
+    # ---------------------------------------------------------------- Required
+    method = requires(str)
+
+class Response(CodedHTTP):
+    '''
+    The response context.
+    '''
+    # ---------------------------------------------------------------- Defined
+    text = defines(str)
+
+# --------------------------------------------------------------------
+
+@injected
+class MethodOverrideHandler(HandlerProcessor, MethodOverrideConfigurations):
+    '''
+    Provides the method override processor.
+    '''
+
+    def __init__(self):
+        MethodOverrideConfigurations.__init__(self)
+        HandlerProcessor.__init__(self)
+
+    def process(self, chain, request:Request, response:Response, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Overrides the request method based on a provided header.
         '''
@@ -73,22 +85,53 @@ class MethodOverrideHandler(HandlerProcessorProceed):
         assert isinstance(response, Response), 'Invalid response %s' % response
         if response.isSuccess is False: return  # Skip in case the response is in error
 
-        assert isinstance(request.decoderHeader, IDecoderHeader), 'Invalid header decoder %s' % request.decoderHeader
-
-        value = request.decoderHeader.retrieve(self.nameXMethodOverride)
+        value = METHOD_OVERRIDE.fetch(request)
         if value:
-            
             allowed = self.methodsOverride.get(request.method)
             if not allowed:
-                response.code, response.status, response.isSuccess = HEADER_ERROR
+                HEADER_ERROR.set(response)
                 response.text = 'Cannot override method \'%s\'' % request.method
                 return
 
             value = value.upper()
             if value not in allowed:
-                response.code, response.status, response.isSuccess = HEADER_ERROR
+                HEADER_ERROR.set(response)
                 response.text = 'Cannot override method \'%s\' to method \'%s\'' % (request.method, value)
                 return
 
             assert log.debug('Successfully overridden method %s with %s', request.method, value) or True
             request.method = value
+
+# --------------------------------------------------------------------
+
+class ResponseAllow(Context):
+    '''
+    The response allow context.
+    '''
+    # ---------------------------------------------------------------- Required
+    allows = requires(set)
+    
+# --------------------------------------------------------------------
+
+@injected
+class MethodOverrideAllowHandler(HandlerProcessor, MethodOverrideConfigurations):
+    '''
+    Provides the method override allow update processor.
+    '''
+    
+    def __init__(self):
+        MethodOverrideConfigurations.__init__(self)
+        HandlerProcessor.__init__(self)
+
+    def process(self, chain, response:ResponseAllow, **keyargs):
+        '''
+        @see: HandlerProcessor.process
+        
+        Provides the allow for method override.
+        '''
+        assert isinstance(response, ResponseAllow), 'Invalid response %s' % response
+        if not response.allows: return  # No allowed methods to process.
+        assert isinstance(response.allows, set), 'Invalid allow %s' % response.allow
+        
+        for method, methods in self.methodsOverride.items():
+            if not response.allows.isdisjoint(methods): response.allows.add(method)

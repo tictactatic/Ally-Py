@@ -9,7 +9,9 @@ Created on Apr 12, 2013
 Provides the server patch configuration when used internally with cdm service.
 '''
 
-from .processor import assemblyForward
+from ..ally_http.server import assemblyServer
+from .processor import assemblyForward, updateAssemblyForward, notFoundRouter, \
+    server_provide_assemblage, ASSEMBLAGE_INTERNAL, ASSEMBLAGE_EXTERNAL
 from ally.container import ioc
 import logging
 
@@ -27,10 +29,13 @@ else:
     # ----------------------------------------------------------------
     
     from ..ally_cdm.server import server_provide_content, contentRouter, updateAssemblyServerForContent
-    from .patch_ally_core_http import updateAssemblyForwardForResources
     
-    @ioc.after(updateAssemblyForwardForResources)
+    @ioc.after(updateAssemblyForward)
     def updateAssemblyForwardForContent():
-        if server_provide_content(): assemblyForward().add(contentRouter())
-
-    ioc.cancel(updateAssemblyServerForContent)  # We need to cancel the server assembly adding.
+        if server_provide_content() and server_provide_assemblage() in (ASSEMBLAGE_EXTERNAL, ASSEMBLAGE_INTERNAL):
+            assemblyForward().add(contentRouter(), before=notFoundRouter())
+            
+    @ioc.after(updateAssemblyServerForContent)
+    def updateAssemblyServerForContentAssemblage():
+        if server_provide_content() and server_provide_assemblage() in (ASSEMBLAGE_EXTERNAL, ASSEMBLAGE_INTERNAL):
+            assemblyServer().remove(contentRouter())

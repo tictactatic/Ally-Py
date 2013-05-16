@@ -13,7 +13,7 @@ from ally.container.ioc import injected
 from ally.core.spec.resources import Converter, Normalizer
 from ally.design.processor.attribute import defines
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessorProceed
+from ally.design.processor.handler import HandlerProcessor
 import logging
 
 # --------------------------------------------------------------------
@@ -49,7 +49,7 @@ class Converted(Context):
 # --------------------------------------------------------------------
 
 @injected
-class NormalizerRequestHandler(HandlerProcessorProceed):
+class NormalizerRequestHandler(HandlerProcessor):
     '''
     Provides the normalizer for the model decoding, this will be populated on the request.
     '''
@@ -60,9 +60,9 @@ class NormalizerRequestHandler(HandlerProcessorProceed):
         assert isinstance(self.normalizer, Normalizer), 'Invalid normalizer %s' % self.normalizer
         super().__init__()
 
-    def process(self, request:Normalized, **keyargs):
+    def process(self, chain, request:Normalized, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Provide the normalizer for request.
         '''
@@ -71,7 +71,7 @@ class NormalizerRequestHandler(HandlerProcessorProceed):
         request.normalizer = self.normalizer
 
 @injected
-class NormalizerResponseHandler(HandlerProcessorProceed):
+class NormalizerResponseHandler(HandlerProcessor):
     '''
     Provides the normalizer for response encoding, this will be populated on the response.
     '''
@@ -82,9 +82,9 @@ class NormalizerResponseHandler(HandlerProcessorProceed):
         assert isinstance(self.normalizer, Normalizer), 'Invalid normalizer %s' % self.normalizer
         super().__init__()
 
-    def process(self, response:Normalized, **keyargs):
+    def process(self, chain, response:Normalized, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Provide the normalizer for response.
         '''
@@ -95,7 +95,7 @@ class NormalizerResponseHandler(HandlerProcessorProceed):
 # --------------------------------------------------------------------
 
 @injected
-class ConverterRequestHandler(HandlerProcessorProceed):
+class ConverterRequestHandler(HandlerProcessor):
     '''
     Provides the converter for the model decoding, this will be populated on the request content.
     '''
@@ -106,9 +106,9 @@ class ConverterRequestHandler(HandlerProcessorProceed):
         assert isinstance(self.converter, Converter), 'Invalid converter %s' % self.converter
         super().__init__()
 
-    def process(self, request:Converted, **keyargs):
+    def process(self, chain, request:Converted, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Provide the character conversion for request and response content.
         '''
@@ -117,7 +117,7 @@ class ConverterRequestHandler(HandlerProcessorProceed):
         request.converter = self.converter
 
 @injected
-class ConverterResponseHandler(HandlerProcessorProceed):
+class ConverterResponseHandler(HandlerProcessor):
     '''
     Provides the converter for response encoding, this will be populated on the response content.
     '''
@@ -128,9 +128,9 @@ class ConverterResponseHandler(HandlerProcessorProceed):
         assert isinstance(self.converter, Converter), 'Invalid converter %s' % self.converter
         super().__init__()
 
-    def process(self, response:Converted, **keyargs):
+    def process(self, chain, response:Converted, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Provide the character conversion for request and response content.
         '''

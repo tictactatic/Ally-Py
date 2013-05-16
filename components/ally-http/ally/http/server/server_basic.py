@@ -12,7 +12,7 @@ thread serving requests one at a time).
 
 from ally.container.ioc import injected
 from ally.design.processor.assembly import Assembly
-from ally.design.processor.execution import Processing, Chain
+from ally.design.processor.execution import Processing
 from ally.http.spec.server import RequestHTTP, ResponseHTTP, RequestContentHTTP, \
     ResponseContentHTTP, HTTP_GET, HTTP_POST, HTTP_PUT, HTTP_DELETE, HTTP_OPTIONS, \
     HTTP
@@ -26,6 +26,15 @@ import logging
 log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
+
+class Wrap:
+    
+    def __init__(self, wrap):
+        self.wrap = wrap
+    
+    def write(self, data):
+        print(data)
+        #self.wrap.write(data)
 
 class RequestHandler(BaseHTTPRequestHandler):
     '''
@@ -76,16 +85,14 @@ class RequestHandler(BaseHTTPRequestHandler):
         
         url = urlparse(self.path)
         request.scheme, request.method = HTTP, method.upper()
-        request.headers = dict(self.headers)
         request.uri = url.path.lstrip('/')
-        request.parameters = parse_qsl(url.query, True, False)
+        if RequestHTTP.headers in request: request.headers = dict(self.headers)
+        if RequestHTTP.parameters in request: request.parameters = parse_qsl(url.query, True, False)
         
-        requestCnt.source = keepOpen(self.rfile)
+        if RequestContentHTTP.source in requestCnt: requestCnt.source = keepOpen(self.rfile)
 
-        chain = Chain(proc)
-        chain.process(**proc.fillIn(request=request, requestCnt=requestCnt)).doAll()
-
-        response, responseCnt = chain.arg.response, chain.arg.responseCnt
+        arg = proc.executeWithAll(request=request, requestCnt=requestCnt)
+        response, responseCnt = arg.response, arg.responseCnt
         assert isinstance(response, ResponseHTTP), 'Invalid response %s' % response
         assert isinstance(responseCnt, ResponseContentHTTP), 'Invalid response content %s' % responseCnt
 
@@ -96,6 +103,7 @@ class RequestHandler(BaseHTTPRequestHandler):
         if ResponseHTTP.text in response and response.text: text = response.text
         elif ResponseHTTP.code in response and response.code: text = response.code
         else: text = None
+        
         self.send_response(response.status, text)
         self.end_headers()
 

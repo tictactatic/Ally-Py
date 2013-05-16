@@ -9,7 +9,9 @@ Created on Jun 1, 2012
 Provides HTTP server specification.
 '''
 
-from ally.design.processor.attribute import requires, optional, defines
+from .headers import HeadersRequire
+from ally.design.processor.attribute import requires, optional, defines, \
+    definesIf
 from ally.design.processor.context import Context
 from ally.support.util_io import IInputStream
 from collections import Iterable
@@ -46,11 +48,11 @@ class RequestHTTP(Context):
     @rtype: string
     The relative request URI.
     ''')
-    headers = defines(dict, doc='''
+    headers = definesIf(dict, doc='''
     @rtype: dictionary{string, string}
     The raw headers.
     ''')
-    parameters = defines(list, doc='''
+    parameters = definesIf(list, doc='''
     @rtype: list[tuple(string, string)]
     The parameters of the request.
     ''')
@@ -60,20 +62,15 @@ class RequestContentHTTP(Context):
     Context for HTTP request content data. 
     '''
     # ---------------------------------------------------------------- Defined
-    source = defines(IInputStream, doc='''
+    source = definesIf(IInputStream, doc='''
     @rtype: IInputStream
     The source for the request content.
     ''')
 
-class ResponseHTTP(Context):
+class ResponseHTTP(HeadersRequire):
     '''
     Context for HTTP response data. 
     '''
-    # ---------------------------------------------------------------- Required
-    status = requires(int, doc='''
-    @rtype: integer
-    The response status code.
-    ''')
     # ---------------------------------------------------------------- Optional
     code = optional(str, doc='''
     @rtype: string
@@ -83,9 +80,10 @@ class ResponseHTTP(Context):
     @rtype: string
     The response text message (a short message).
     ''')
-    headers = optional(dict, doc='''
-    @rtype: dictionary{string, string}
-    The response headers.
+    # ---------------------------------------------------------------- Required
+    status = requires(int, doc='''
+    @rtype: integer
+    The response status code.
     ''')
 
 class ResponseContentHTTP(Context):
@@ -97,58 +95,6 @@ class ResponseContentHTTP(Context):
     @rtype: IInputStream|Iterable
     The source for the response content.
     ''')
-
-# --------------------------------------------------------------------
-
-class IDecoderHeader(metaclass=abc.ABCMeta):
-    '''
-    Provides the header retrieve, parsing and decoding.
-    '''
-
-    @abc.abstractmethod
-    def retrieve(self, name):
-        '''
-        Get the raw header value.
-        
-        @param name: string
-            The name of the header to retrieve.
-        @return: string|None
-            The raw header value or None if there is no such header.
-        '''
-
-    @abc.abstractmethod
-    def decode(self, name):
-        '''
-        Get the decoded the header value.
-        
-        @param name: string
-            The name of the header to decode.
-        @return: list[tuple(string, dictionary{string:string})]
-            A list of tuples having as the first entry the header value and the second entry a dictionary 
-            with the value attribute.
-        '''
-
-class IEncoderHeader(metaclass=abc.ABCMeta):
-    '''
-    Provides the header encoding.
-    '''
-
-    @abc.abstractmethod
-    def encode(self, name, *value):
-        '''
-        Encodes the header values.
-        ex:
-            convert('multipart/formdata', 'mixed') == 'multipart/formdata, mixed'
-            
-            convert(('multipart/formdata', ('charset', 'utf-8'), ('boundry', '12))) ==
-            'multipart/formdata; charset=utf-8; boundry=12'
-        
-        @param name: string
-            The name of the header to set.
-        @param value: arguments[tuple(string, tuple(string, string))|string]
-            Tuples containing as first value found in the header and as the second value a tuple with the
-            values attribute.
-        '''
         
 # --------------------------------------------------------------------
 
@@ -156,6 +102,7 @@ class IEncoderPath(metaclass=abc.ABCMeta):
     '''
     Provides the path encoding.
     '''
+    __slots__ = ()
 
     @abc.abstractmethod
     def encode(self, path, **keyargs):

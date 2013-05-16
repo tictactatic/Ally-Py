@@ -164,7 +164,7 @@ class TestHTTPDelivery(unittest.TestCase):
         poManager.messageService = TestMessageService()
         poManager.sourceService = TestSourceService()
         poRepDir = TemporaryDirectory()
-        poManager.locale_dir_path = poRepDir.name
+        poManager.locale_dir_path = join(poRepDir.name, 'catalogs')
 
         # ********************************************
         # test updateGlobalPOFile

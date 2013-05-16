@@ -61,7 +61,7 @@ class IComponentService:
         '''
 
     @call
-    def getComponents(self, offset:int=None, limit:int=None, q:QComponent=None) -> Iter(Component):
+    def getComponents(self, offset:int=None, limit:int=None, q:QComponent=None) -> Iter(Component.Id):
         '''
         Provides all the components.
         '''

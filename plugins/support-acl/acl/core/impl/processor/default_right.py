@@ -14,9 +14,9 @@ from ally.container.ioc import injected
 from ally.container.support import setup
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessorProceed, Handler
+from ally.design.processor.handler import HandlerProcessor, Handler
 from collections import Iterable
-from itertools import chain
+import itertools
 
 # --------------------------------------------------------------------
 
@@ -40,14 +40,14 @@ class Solicitation(Context):
 
 @injected
 @setup(Handler, name='registerDefaultRights')
-class RegisterDefaultRights(HandlerProcessorProceed):
+class RegisterDefaultRights(HandlerProcessor):
     '''
     Provides the handler that populates the default rights for ACL types.
     '''
     
-    def process(self, solicitation:Solicitation, **keyargs):
+    def process(self, chain, solicitation:Solicitation, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Adds the default rights.
         '''
@@ -59,5 +59,5 @@ class RegisterDefaultRights(HandlerProcessorProceed):
             assert isinstance(typeAcl, TypeAcl), 'Invalid ACL type %s' % typeAcl
             rights.extend(typeAcl.defaults)
         
-        if solicitation.rights is not None: solicitation.rights = chain(solicitation.rights, rights)
+        if solicitation.rights is not None: solicitation.rights = itertools.chain(solicitation.rights, rights)
         else: solicitation.rights = rights

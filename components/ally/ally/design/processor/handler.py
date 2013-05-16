@@ -44,7 +44,7 @@ class HandlerProcessor(Handler):
         @param contexts: key arguments
             Additional context that are not used in the contextual function but they are required in assembly.
         '''
-        super().__init__(push(Contextual(self.process, proceed=False), contexts))
+        super().__init__(push(Contextual(self.process), contexts))
 
     @abc.abstractclassmethod
     def process(self, chain, **keyargs):
@@ -53,27 +53,6 @@ class HandlerProcessor(Handler):
         
         @param chain: Chain
             The processing chain.
-        '''
-
-class HandlerProcessorProceed(Handler):
-    '''
-    A handler that contains a processor derived on the contextual 'process' function and automatically proceeds the chain.
-    '''
-
-    def __init__(self, **contexts):
-        '''
-        Construct the handler with the processor automatically created from the 'process' function.
-        
-        @param contexts: key arguments
-            Additional context that are not used in the contextual function but they are required in assembly.
-        '''
-        super().__init__(push(Contextual(self.process, proceed=True), contexts))
-
-    @abc.abstractclassmethod
-    def process(self, **keyargs):
-        '''
-        The contextual process function used by the handler, this process will not require a chain and will always
-        proceed with the execution.
         '''
         
 # --------------------------------------------------------------------
@@ -95,7 +74,7 @@ class HandlerBranching(Handler):
         @param contexts: key arguments
             Additional context that are not used in the contextual function but they are required in assembly.
         '''
-        super().__init__(push(Brancher(self.process, *branches, proceed=False), contexts))
+        super().__init__(push(Brancher(self.process, *branches), contexts))
 
     @abc.abstractclassmethod
     def process(self, chain, *processings, **keyargs):
@@ -107,37 +86,7 @@ class HandlerBranching(Handler):
         @param processings: arguments[Processing]
             The processings to use for branching, in the order the initial branches setups have been provided.
         '''
-        
-class HandlerBranchingProceed(Handler):
-    '''
-    A handler that contains a processor derived on the contextual 'process' function that also provides branching
-    and automatically proceeds the chain.
-    '''
-    
-    def __init__(self, *branches, **contexts):
-        '''
-        Construct the handler with the processor automatically created from the 'process' function and the including or 
-        branching based on the provided processors containers.
-        
-        @param branches: arguments[IBranch]
-            The branches used in branching, attention the order provided for setups will be reflected in the provided 
-            processing order.
-        @param contexts: key arguments
-            Additional context that are not used in the contextual function but they are required in assembly.
-        '''
-        super().__init__(push(Brancher(self.process, *branches, proceed=True), contexts))
 
-
-    @abc.abstractclassmethod
-    def process(self, *processings, **keyargs):
-        '''
-        The contextual process function used by the handler, this process will not require a chain and will always
-        proceed with the execution.
-        
-        @param processings: arguments[Processing]
-            The processings to use for branching, in the order the initial branches setups have been provided.
-        '''
-        
 # --------------------------------------------------------------------
 
 class HandlerRenamer(Handler):
@@ -176,7 +125,7 @@ def push(processor, contexts):
     
     @param processor: Contextual
         The processor to push the context in.
-    @param contexts: dictionary{string: COntextMetaClass}
+    @param contexts: dictionary{string: ContextMetaClass}
         The context classes to push.
     @return: Contextual
         The same processor.

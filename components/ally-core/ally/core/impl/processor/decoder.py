@@ -19,7 +19,7 @@ from ally.core.spec.transform.support import setterOnObj, obtainOnDict, \
     obtainOnObj
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessorProceed
+from ally.design.processor.handler import HandlerProcessor
 from ally.exception import InputError, Ref
 from ally.internationalization import _
 from collections import Callable, deque
@@ -63,7 +63,7 @@ class Response(Context):
 # --------------------------------------------------------------------
 
 @injected
-class CreateDecoderHandler(HandlerProcessorProceed):
+class CreateDecoderHandler(HandlerProcessor):
     '''
     Implementation for a handler that creates the decoders for the request content.
     '''
@@ -73,9 +73,9 @@ class CreateDecoderHandler(HandlerProcessorProceed):
 
         self._cache = WeakKeyDictionary()
 
-    def process(self, request:Request, response:Response, **keyargs):
+    def process(self, chain, request:Request, response:Response, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Create the request decoder.
         '''

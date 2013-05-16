@@ -11,6 +11,7 @@ Provides the accept headers handling.
 
 from ally.api.type import List, Locale
 from ally.container.ioc import injected
+from ally.core.http.spec.headers import ACCEPT_LANGUAGE
 from ally.design.processor.attribute import optional, defines
 from ally.http.impl.processor.headers.accept import RequestDecode, \
     AcceptRequestDecodeHandler
@@ -41,23 +42,17 @@ class AcceptDecodeHandler(AcceptRequestDecodeHandler):
     '''
     Implementation for a processor that provides the decoding of accept HTTP request headers.
     '''
-    
-    nameAcceptLanguage = 'Accept-Language'
-    # The name for the accept languages header
 
-    def __init__(self):
-        assert isinstance(self.nameAcceptLanguage, str), 'Invalid accept languages name %s' % self.nameAcceptLanguage
-        super().__init__()
-
-    def process(self, request:Request, **keyargs):
+    def process(self, chain, request:Request, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Decode the accepted headers.
         '''
-        super().process(request)
-        value = request.decoderHeader.decode(self.nameAcceptLanguage)
-        if value:
-            request.accLanguages = list(val for val, _attr in value)
+        assert isinstance(request, Request), 'Invalid request %s' % request
+        super().process(chain, request)
+        
+        request.accLanguages = ACCEPT_LANGUAGE.decode(request)
+        if request.accLanguages:
             if Request.argumentsOfType in request and request.argumentsOfType is not None:
                 request.argumentsOfType[LIST_LOCALE] = request.accLanguages

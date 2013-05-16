@@ -38,4 +38,4 @@ else:
         '''
         The assemblage indexes URI.
         '''
-        return root_uri_resources() % (DOMAIN + nameForModel(Block))
+        return root_uri_resources() % (DOMAIN + nameForModel(Block) + '/%s')

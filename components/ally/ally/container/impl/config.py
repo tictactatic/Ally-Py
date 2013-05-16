@@ -9,6 +9,7 @@ Created on Jan 11, 2012
 Provides configurations serializing support.
 '''
 
+from io import StringIO
 import re
 
 # --------------------------------------------------------------------
@@ -35,6 +36,7 @@ def save(configurations, fwrite, maxwidth=60):
     assert isinstance(maxwidth, int), 'Invalid maximum width %s' % maxwidth
 
     import yaml
+    write = StringIO()
     groups = {config.group for config in configurations.values()}
     for group in sorted(groups):
         fwrite.write('\n# %s %r\n' % ('-' * maxwidth, group))
@@ -44,9 +46,17 @@ def save(configurations, fwrite, maxwidth=60):
             config = configurations[name]
             assert isinstance(config, Config), 'Invalid configuration %s' % config
             if config.description:
-                fwrite.write('\n# %s\n' % '\n# '.join(line for line in REGEX_SPLIT.split(config.description)
-                                                      if line.strip()))
-            yaml.dump({name: config.value}, fwrite, default_flow_style=False)
+                fwrite.write('\n### %s\n' % '\n### '.join(line for line in REGEX_SPLIT.split(config.description)
+                                                        if line.strip()))
+            
+            if config.isCommented:
+                yaml.dump({name: config.value}, write, default_flow_style=False)
+                write.seek(0)
+                for line in write.readlines(): fwrite.write('#%s' % line)
+                write.seek(0)
+                write.truncate()
+            else:
+                yaml.dump({name: config.value}, fwrite, default_flow_style=False)
 
 def load(fread):
     '''
@@ -71,8 +81,9 @@ class Config:
     '''
     Class for providing a configuration data.
     '''
+    __slots__ = ('name', 'value', 'group', 'description', 'isCommented')
 
-    def __init__(self, name, value, group=None, description=None):
+    def __init__(self, name, value, group=None, description=None, isCommented=False):
         '''
         Construct the configuration.
         
@@ -84,6 +95,8 @@ class Config:
             The configuration group.
         @param description: string
             The configuration description.
+        @param isCommented: boolean
+            Flag indicating that the value should be commented.
         '''
         assert isinstance(name, str), 'Invalid name %s' % name
         assert not group or isinstance(group, str), 'Invalid group %s' % group
@@ -92,4 +105,4 @@ class Config:
         self.value = value
         self.group = group
         self.description = description
-
+        self.isCommented = isCommented

@@ -12,8 +12,8 @@ Provides support for setting fixed headers on responses.
 from ally.container.ioc import injected
 from ally.design.processor.attribute import requires
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessorProceed
-from ally.http.spec.server import IEncoderHeader
+from ally.design.processor.handler import HandlerProcessor
+from ally.http.spec.headers import HeadersDefines, encode
 import logging
 
 # --------------------------------------------------------------------
@@ -22,17 +22,17 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
-class Response(Context):
+class Request(Context):
     '''
-    The response context.
+    The request context.
     '''
     # ---------------------------------------------------------------- Required
-    encoderHeader = requires(IEncoderHeader)
+    method = requires(str)
 
 # --------------------------------------------------------------------
 
 @injected
-class HeaderSetEncodeHandler(HandlerProcessorProceed):
+class HeadersSetHandler(HandlerProcessor):
     '''
     Provides the setting of static header values.
     '''
@@ -43,19 +43,16 @@ class HeaderSetEncodeHandler(HandlerProcessorProceed):
     def __init__(self):
         assert isinstance(self.headers, dict), 'Invalid header dictionary %s' % self.header
         if __debug__:
-            for name, value in self.headers.items():
+            for name, values in self.headers.items():
                 assert isinstance(name, str), 'Invalid header name %s' % name
-                assert isinstance(value, list), 'Invalid header value %s' % value
+                assert isinstance(values, list), 'Invalid header values %s' % values
+                for value in values: assert isinstance(value, str), 'Invalid values item %s' % value
         super().__init__()
 
-    def process(self, response:Response, **keyargs):
+    def process(self, chain, response:HeadersDefines, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Set the fixed header values on the response.
         '''
-        assert isinstance(response, Response), 'Invalid response %s' % response
-        assert isinstance(response.encoderHeader, IEncoderHeader), \
-        'Invalid header encoder %s' % response.encoderHeader
-
-        for name, value in self.headers.items(): response.encoderHeader.encode(name, *value)
+        for name, values in self.headers.items(): encode(response, name, *values)

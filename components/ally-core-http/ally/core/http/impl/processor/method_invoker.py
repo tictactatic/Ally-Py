@@ -12,35 +12,38 @@ Provides the requested method validation handler.
 from ally.core.spec.resources import Path, Node, Invoker
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessorProceed
-from ally.http.spec.codes import METHOD_NOT_AVAILABLE
+from ally.design.processor.handler import HandlerProcessor
+from ally.http.spec.codes import METHOD_NOT_AVAILABLE, CodedHTTP
 from ally.http.spec.server import HTTP_GET, HTTP_POST, HTTP_PUT, HTTP_DELETE
 
 # --------------------------------------------------------------------
 
 class Request(Context):
+    '''
+    The request context.
+    '''
     method = requires(str)
     path = requires(Path)
     invoker = defines(Invoker)
 
-class Response(Context):
-    code = defines(str)
-    status = defines(int)
-    isSuccess = defines(bool)
-    allows = defines(list)
+class Response(CodedHTTP):
+    '''
+    The response context.
+    '''
+    allows = defines(set)
 
 # --------------------------------------------------------------------
 
-class MethodInvokerHandler(HandlerProcessorProceed):
+class MethodInvokerHandler(HandlerProcessor):
     '''
     Implementation for a processor that validates if the request method (GET, POST, PUT, DELETE) is compatible
     with the resource node of the request, basically checks if the node has the invoke for the requested method.
     If the node has no invoke than this processor will provide an error response for the resource path node.
     '''
 
-    def process(self, request:Request, response:Response, **keyargs):
+    def process(self, chain, request:Request, response:Response, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Provide the invoker based on the request method to be used in getting the data for the response.
         '''
@@ -57,11 +60,10 @@ class MethodInvokerHandler(HandlerProcessorProceed):
         elif request.method == HTTP_PUT: request.invoker = node.update  # Updating
         elif request.method == HTTP_DELETE: request.invoker = node.delete  # Deleting
 
-        if request.invoker is None:
-            response.code, response.status, response.isSuccess = METHOD_NOT_AVAILABLE
-            if response.allows is None: response.allows = []
-            
-            if node.get is not None: response.allows.append(HTTP_GET)
-            if node.insert is not None: response.allows.append(HTTP_POST)
-            if node.update is not None: response.allows.append(HTTP_PUT)
-            if node.delete is not None: response.allows.append(HTTP_DELETE)
+        if response.allows is None: response.allows = set()
+        if node.get is not None: response.allows.add(HTTP_GET)
+        if node.insert is not None: response.allows.add(HTTP_POST)
+        if node.update is not None: response.allows.add(HTTP_PUT)
+        if node.delete is not None: response.allows.add(HTTP_DELETE)
+
+        if request.invoker is None: METHOD_NOT_AVAILABLE.set(response)

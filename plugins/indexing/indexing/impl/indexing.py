@@ -16,8 +16,11 @@ from ally.container.support import setup
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires
 from ally.design.processor.context import Context
-from ally.design.processor.execution import Processing, Chain
+from ally.design.processor.execution import Processing
+from ally.exception import InputError
 from ally.indexing.spec import model
+from ally.internationalization import _
+from collections import OrderedDict
 
 # --------------------------------------------------------------------
 
@@ -52,16 +55,50 @@ class AssemblageMarkerService(IIndexingService):
         assert isinstance(self.assemblyBlocks, Assembly), 'Invalid blocks assembly %s' % self.assemblyBlocks
         
         self._processingBlocks = self.assemblyBlocks.create(blocks=Blocks, Mapping=Mapping)
-        self._blocks = None
-        self._actions = None
-        self._performs = None
+        self._blocksById = None
+        self._actions = OrderedDict()
+        self._actionsById = {}
+        self._actionsByBlock = {}
+        self._performs = OrderedDict()
+        self._performsById = {}
+        self._performsByAction = {}
+    
+    def getBlock(self, blockId):
+        '''
+        @see: IIndexingService.getAction
+        '''
+        assert isinstance(blockId, int), 'Invalid block id %s' % blockId
+        self._process()
+        block = self._blocksById.get(blockId)
+        if block is None: raise InputError(_('Invalid block id'))
+        return block
+    
+    def getAction(self, actionId):
+        '''
+        @see: IIndexingService.getAction
+        '''
+        assert isinstance(actionId, int), 'Invalid action id %s' % actionId
+        self._process()
+        action = self._actionsById.get(actionId)
+        if action is None: raise InputError(_('Invalid action id'))
+        return action
+    
+    def getPerform(self, performId):
+        '''
+        @see: IIndexingService.getPerform
+        '''
+        assert isinstance(performId, int), 'Invalid perform id %s' % performId
+        self._process()
+        perform = self._performsById.get(performId)
+        if perform is None: raise InputError(_('Invalid perform id'))
+        return perform
         
     def getBlocks(self):
         '''
         @see: IIndexingService.getBlocks
         '''
         self._process()
-        return self._blocks
+        return self._blocksById.keys()
     
     def getActions(self, blockId):
         '''
@@ -69,16 +106,15 @@ class AssemblageMarkerService(IIndexingService):
         '''
         assert isinstance(blockId, int), 'Invalid block id %s' % blockId
         self._process()
-        return self._actions.get(blockId, ())
+        return self._actionsByBlock.get(blockId, ())
         
-    def getPerforms(self, blockId, actionName):
+    def getPerforms(self, actionId):
         '''
         @see: IIndexingService.getPerforms
         '''
-        assert isinstance(blockId, int), 'Invalid block id %s' % blockId
-        assert isinstance(actionName, str), 'Invalid action name %s' % actionName
+        assert isinstance(actionId, int), 'Invalid action id %s' % actionId
         self._process()
-        return self._performs.get((blockId, actionName), ())
+        return self._performsByAction.get(actionId, ())
         
     # ----------------------------------------------------------------
     
@@ -86,21 +122,17 @@ class AssemblageMarkerService(IIndexingService):
         '''
         Process the entities.
         '''
-        if self._blocks is not None: return
+        if self._blocksById is not None: return
         
-        self._blocks = []
-        self._actions = {}
-        self._performs = {}
-        
+        blocksList = []
         proc = self._processingBlocks
         assert isinstance(proc, Processing), 'Invalid processing %s' % proc
         
-        chain = Chain(proc)
-        chain.process(**proc.fillIn()).doAll()
-        assert isinstance(chain.arg.blocks, Blocks), 'Invalid blocks %s' % chain.arg.blocks
-        assert isinstance(chain.arg.blocks.blocks, dict), 'Invalid blocks %s' % chain.arg.blocks.blocks
+        blocks = proc.executeWithAll().blocks
+        assert isinstance(blocks, Blocks), 'Invalid blocks %s' % blocks
+        assert isinstance(blocks.blocks, dict), 'Invalid blocks %s' % blocks.blocks
         
-        for name, mapping in chain.arg.blocks.blocks.items():
+        for name, mapping in blocks.blocks.items():
             assert isinstance(mapping, Mapping), 'Invalid mapping %s' % mapping
             assert isinstance(mapping.block, model.Block), 'Invalid block %s' % mapping.block
             
@@ -108,34 +140,66 @@ class AssemblageMarkerService(IIndexingService):
             block.Id = mapping.blockId
             block.Name = name
             if mapping.block.keys: block.Keys = mapping.block.keys
-            self._blocks.append(block)
+            blocksList.append(block)
             
             actions = []
-            for maction in mapping.block.actions:
+            for maction in sorted(mapping.block.actions, key=lambda maction: maction.name):
                 assert isinstance(maction, model.Action), 'Invalid action %s' % maction
                 
-                performs = []
-                for mperform in maction.performs:
-                    assert isinstance(mperform, model.Perform), 'Invalid perform %s' % mperform
-                    perform = Perform()
-                    perform.Verb = mperform.verb
-                    if mperform.flags: perform.Flags = mperform.flags
-                    perform.Index = mperform.index
-                    perform.Key = mperform.key
-                    perform.Name = mperform.name
-                    perform.Value = mperform.value
-                    if mperform.actions: perform.Actions = mperform.actions
-                    if mperform.escapes: perform.Escapes = mperform.escapes
-                    performs.append(perform)
-                self._performs[(mapping.blockId, maction.name)] = performs
+                mhash = self._hash(maction)
+                action = self._actions.get(mhash)
+                if action is not None:
+                    actions.append(action.Id)
+                    continue
                 
                 action = Action()
+                action.Id = len(self._actions) + 1
                 action.Name = maction.name
                 action.Final = maction.final
                 action.Rewind = maction.rewind
                 if maction.before: action.Before = maction.before
-                actions.append(action)
-            actions.sort(key=lambda action: action.Name)
-            self._actions[mapping.blockId] = actions
-            
-        self._blocks.sort(key=lambda block: block.Id)
+                self._actions[mhash] = action
+                self._actionsById[action.Id] = action
+                actions.append(action.Id)
+                
+                performs = []
+                for mperform in maction.performs:
+                    assert isinstance(mperform, model.Perform), 'Invalid perform %s' % mperform
+                    
+                    phash = self._hash(mperform)
+                    perform = self._performs.get(phash)
+                    if perform is None:
+                        perform = Perform()
+                        perform.Id = len(self._performs) + 1
+                        perform.Verb = mperform.verb
+                        if mperform.flags: perform.Flags = mperform.flags
+                        perform.Index = mperform.index
+                        perform.Key = mperform.key
+                        perform.Name = mperform.name
+                        perform.Value = mperform.value
+                        if mperform.actions: perform.Actions = mperform.actions
+                        if mperform.escapes: perform.Escapes = mperform.escapes
+                        self._performs[phash] = perform
+                        self._performsById[perform.Id] = perform
+                        
+                    performs.append(perform.Id)
+                    
+                self._performsByAction[action.Id] = performs
+                
+            self._actionsByBlock[mapping.blockId] = actions
+        
+        blocksList.sort(key=lambda block: block.Id)
+        self._blocksById = OrderedDict((block.Id, block) for block in blocksList)
+        
+    # ----------------------------------------------------------------
+    
+    def _hash(self, obj):
+        '''
+        Creates the hash for the index model.
+        '''
+        if isinstance(obj, model.Action):
+            assert isinstance(obj, model.Action)
+            return hash((obj.name, obj.performs, obj.before, obj.final, obj.rewind))
+        if isinstance(obj, model.Perform):
+            assert isinstance(obj, model.Perform)
+            return hash((obj.verb, obj.flags, obj.index, obj.key, obj.name, obj.value, obj.actions, obj.escapes))

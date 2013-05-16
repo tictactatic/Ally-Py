@@ -18,7 +18,7 @@ from ally.core.spec.transform.render import IRender
 from ally.design.cache import CacheWeak
 from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessorProceed
+from ally.design.processor.handler import HandlerProcessor
 from collections import Iterable
 
 # --------------------------------------------------------------------
@@ -48,7 +48,7 @@ class Support(Context):
 # --------------------------------------------------------------------
 
 @injected
-class PropertyEncode(HandlerProcessorProceed):
+class PropertyEncode(HandlerProcessor):
     '''
     Implementation for a handler that provides the primitive properties values encoding.
     '''
@@ -58,9 +58,9 @@ class PropertyEncode(HandlerProcessorProceed):
         
         self._cache = CacheWeak()
         
-    def process(self, create:Create, **keyargs):
+    def process(self, chain, create:Create, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Create the property encoder.
         '''

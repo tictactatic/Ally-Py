@@ -12,7 +12,7 @@ Provides the handler for providing the index blocks mappings.
 from ally.container.ioc import injected
 from ally.design.processor.attribute import defines
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessorProceed
+from ally.design.processor.handler import HandlerProcessor
 from ally.indexing.spec.model import Block
 from ally.support.util import firstOf
 
@@ -45,7 +45,7 @@ class Blocks(Context):
 # --------------------------------------------------------------------
 
 @injected
-class BlockIndexingHandler(HandlerProcessorProceed):
+class BlockIndexingHandler(HandlerProcessor):
     '''
     Provides the block indexing.
     '''
@@ -61,9 +61,9 @@ class BlockIndexingHandler(HandlerProcessorProceed):
                 assert isinstance(block, Block), 'Invalid block %s' % block
         super().__init__()
         
-    def process(self, blocks:Blocks, Mapping:MappingIndex, **keyargs):
+    def process(self, chain, blocks:Blocks, Mapping:MappingIndex, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Provides the indexed blocks.
         '''

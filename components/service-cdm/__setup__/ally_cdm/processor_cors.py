@@ -6,36 +6,35 @@ Created on Nov 24, 2011
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
 
-Provides the javascript setup required by browser for ajax.
+Provides the Cross-Origin Resource Sharing setup required by browser.
 '''
 
 from .processor import updateAssemblyContent, assemblyContent, contentDelivery
 from ally.container import ioc
 from ally.design.processor.handler import Handler
-from ally.http.impl.processor.headers.set_fixed import HeaderSetEncodeHandler
+from ally.http.impl.processor.cors import CrossOriginResourceSharingHandler
 from ally.http.impl.processor.method_deliver_ok import DeliverOkForMethodHandler
-from ally.http.spec.server import HTTP_OPTIONS
+from ally.http.spec.server import HTTP_OPTIONS, HTTP_GET
 
 # --------------------------------------------------------------------
 
 @ioc.config
-def ajax_cross_domain() -> bool:
-    '''Indicates that the server should also be able to support cross domain ajax requests'''
-    return True
+def allow_origin() -> list:
+    '''The allow origin to dispatch for responses'''
+    return ['*']
 
 @ioc.config
-def headers_ajax() -> dict:
-    '''The ajax specific headers required by browser for cross domain calls'''
-    return {
-            'Access-Control-Allow-Origin':['*'],
-            } 
+def allow_methods() -> list:
+    '''The allow methods to dispatch for OPTIONS'''
+    return [HTTP_GET]
 
 # --------------------------------------------------------------------
 
 @ioc.entity
-def headerSetAjax() -> Handler:
-    b = HeaderSetEncodeHandler()
-    b.headers = headers_ajax()
+def crossOriginResourceSharing() -> Handler:
+    b = CrossOriginResourceSharingHandler()
+    b.allowOrigin = allow_origin()
+    b.allowMethods = allow_methods()
     return b
 
 @ioc.entity
@@ -47,6 +46,5 @@ def deliverOkForOptionsHandler() -> Handler:
 # --------------------------------------------------------------------
 
 @ioc.after(updateAssemblyContent)
-def updateAssemblyContentAjax():
-    if ajax_cross_domain():
-        assemblyContent().add(headerSetAjax(), deliverOkForOptionsHandler(), before=contentDelivery())
+def updateAssemblyContentOptions():
+    assemblyContent().add(crossOriginResourceSharing(), deliverOkForOptionsHandler(), before=contentDelivery())

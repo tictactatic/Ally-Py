@@ -11,7 +11,6 @@ Provides the configurations for delivering files from the local file system.
 
 from ..ally_http.processor import contentLengthEncode, allowEncode, \
     internalError, contentTypeResponseEncode
-from __setup__.ally_http.processor import headerEncodeResponse
 from ally.container import ioc
 from ally.core.cdm.processor.content_delivery import ContentDeliveryHandler
 from ally.design.processor.assembly import Assembly
@@ -47,6 +46,5 @@ def assemblyContent() -> Assembly:
 
 @ioc.before(assemblyContent)
 def updateAssemblyContent():
-    assemblyContent().add(internalError(), headerEncodeResponse(), contentDelivery(), allowEncode(), 
-                          contentTypeResponseEncode(), contentLengthEncode())
+    assemblyContent().add(internalError(), contentDelivery(), allowEncode(), contentTypeResponseEncode(), contentLengthEncode())
     

@@ -16,9 +16,9 @@ from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires
 from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context
-from ally.design.processor.execution import Processing, Chain
-from ally.design.processor.handler import HandlerBranchingProceed
-from ally.http.spec.server import IEncoderHeader
+from ally.design.processor.execution import Processing
+from ally.design.processor.handler import HandlerBranching
+from ally.http.spec.headers import HeadersDefines, CONTENT_INDEX
 from ally.indexing.spec.model import Block
 from io import BytesIO
 import binascii
@@ -26,13 +26,12 @@ import zlib
 
 # --------------------------------------------------------------------
 
-class Response(Context):
+class Response(HeadersDefines):
     '''
     The response context.
     '''
     # ---------------------------------------------------------------- Required
     isSuccess = requires(bool)
-    encoderHeader = requires(IEncoderHeader)
 
 class ResponseContent(Context):
     '''
@@ -59,7 +58,7 @@ class Blocks(Context):
 # --------------------------------------------------------------------
 
 @injected
-class ContentIndexEncodeHandler(HandlerBranchingProceed):
+class ContentIndexEncodeHandler(HandlerBranching):
     '''
     Implementation for a processor that provides the encoding of the index as a header.
     '''
@@ -67,11 +66,9 @@ class ContentIndexEncodeHandler(HandlerBranchingProceed):
     assembly = Assembly
     # The assembly used for processing markers.
     
-    nameIndex = 'Content-Index'
-    # The name for the content index header
     byteOrder = 'little'
     # The byte order to use in encoding values.
-    bytesIndexCount = 1
+    bytesIndexCount = 3
     # The number of bytes to represent the indexes count.
     bytesBlock = 1
     # The number of bytes to represent the index block id.
@@ -86,7 +83,6 @@ class ContentIndexEncodeHandler(HandlerBranchingProceed):
 
     def __init__(self):
         assert isinstance(self.assembly, Assembly), 'Invalid assembly %s' % self.assembly
-        assert isinstance(self.nameIndex, str), 'Invalid header name index %s' % self.nameIndex
         assert isinstance(self.byteOrder, str), 'Invalid byte order %s' % self.byteOrder
         assert isinstance(self.bytesIndexCount, int), 'Invalid bytes index count %s' % self.bytesIndexCount
         assert isinstance(self.bytesBlock, int), 'Invalid bytes mark %s' % self.bytesMark
@@ -98,9 +94,9 @@ class ContentIndexEncodeHandler(HandlerBranchingProceed):
         
         self._cache = CacheWeak()
 
-    def process(self, processing, response:Response, responseCnt:ResponseContent, **keyargs):
+    def process(self, chain, processing, response:Response, responseCnt:ResponseContent, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerBranching.process
         
         Encode the index header.
         '''
@@ -111,15 +107,13 @@ class ContentIndexEncodeHandler(HandlerBranchingProceed):
         if response.isSuccess is False: return  # No indexes required for errors.
         if not responseCnt.indexes: return  # There is no index
         assert isinstance(responseCnt.indexes, list), 'Invalid indexes %s' % responseCnt.indexes
-        assert isinstance(response.encoderHeader, IEncoderHeader), 'Invalid header encoder %s' % response.encoderHeader
         
         cache = self._cache.key(processing)
         if not cache.has:
-            chain = Chain(processing)
-            chain.process(**processing.fillIn()).doAll()
-            assert isinstance(chain.arg.blocks, Blocks), 'Invalid blocks %s' % chain.arg.blocks
-            assert isinstance(chain.arg.blocks.blocks, dict), 'Invalid blocks %s' % chain.arg.blocks.blocks
-            cache.value = chain.arg.blocks.blocks
+            blocks = processing.executeWithAll().blocks
+            assert isinstance(blocks, Blocks), 'Invalid blocks %s' % blocks
+            assert isinstance(blocks.blocks, dict), 'Invalid blocks %s' % blocks.blocks
+            cache.value = blocks.blocks
         blocks = cache.value
         assert isinstance(blocks, dict), 'Invalid blocks %s' % blocks
         
@@ -151,6 +145,4 @@ class ContentIndexEncodeHandler(HandlerBranchingProceed):
             out.write(len(name).to_bytes(self.bytesValueSize, self.byteOrder))
             out.write(name.encode(self.encoding))
         
-        index = str(binascii.b2a_base64(zlib.compress(out.getvalue()))[:-1], self.encoding)
-        response.encoderHeader.encode(self.nameIndex, index)
-        
+        CONTENT_INDEX.put(response, str(binascii.b2a_base64(zlib.compress(out.getvalue()))[:-1], self.encoding))

@@ -23,7 +23,8 @@ from ally.core.spec.transform.support import obtainOnDict, setterOnDict, \
     getterOnDict, getterOnObjIfIn, SAMPLE
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessorProceed
+from ally.design.processor.handler import HandlerProcessor
+from ally.http.spec.codes import CodedHTTP
 from collections import deque, Iterable, OrderedDict
 from weakref import WeakKeyDictionary
 import logging
@@ -48,21 +49,18 @@ class Request(Context):
     converterParameters = requires(Converter)
     normalizerParameters = requires(Normalizer)
 
-class Response(Context):
+class Response(CodedHTTP):
     '''
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    code = defines(str)
-    status = defines(int)
-    isSuccess = defines(bool)
     errorMessage = defines(str)
     errorDetails = defines(Object)
 
 # --------------------------------------------------------------------
 
 @injected
-class ParameterHandler(HandlerProcessorProceed, INodeInvokerListener):
+class ParameterHandler(HandlerProcessor, INodeInvokerListener):
     '''
     Implementation for a processor that provides the transformation of parameters into arguments.
     '''
@@ -92,16 +90,16 @@ class ParameterHandler(HandlerProcessorProceed, INodeInvokerListener):
         'Invalid regex for value normalize %s' % self.regexNormalizeValue
         assert isinstance(self.separatorValueEscape, str), \
         'Invalid separator escape for values %s' % self.separatorValueEscape
-        HandlerProcessorProceed.__init__(self)
+        super().__init__()
 
         self._reSplitValues = re.compile(self.regexSplitValues)
         self._reNormalizeValue = re.compile(self.regexNormalizeValue)
         self._cacheDecode = WeakKeyDictionary()
         self._cacheEncode = WeakKeyDictionary()
 
-    def process(self, request:Request, response:Response, **keyargs):
+    def process(self, chain, request:Request, response:Response, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Process the parameters into arguments.
         '''
@@ -134,7 +132,7 @@ class ParameterHandler(HandlerProcessorProceed, INodeInvokerListener):
                     request.path.node.addNodeListener(self)
                     self._cacheEncode[invoker] = encode
 
-                response.code, response.status, response.isSuccess = PARAMETER_ILLEGAL
+                PARAMETER_ILLEGAL.set(response)
                 context = dict(normalizer=request.normalizerParameters, converter=request.converterParameters)
                 sample = encode(value=SAMPLE, **context)
 

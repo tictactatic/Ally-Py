@@ -533,7 +533,6 @@ class Attribute(IAttribute):
         '''
         if obj is not None: raise TypeError('Operation not allowed')
         assert self.clazz, 'Attribute %s, is not placed in a class' % self
-        assert owner is None or owner == self.clazz, 'Invalid owner class %s expected %s' % (owner, self.clazz) 
         return self
 
     def __set__(self, obj, value):

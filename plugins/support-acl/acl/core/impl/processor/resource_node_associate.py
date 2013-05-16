@@ -22,7 +22,7 @@ from ally.core.spec.resources import Invoker, INodeChildListener, \
     INodeInvokerListener, Path, Node
 from ally.design.processor.attribute import defines, requires, optional
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessorProceed, Handler
+from ally.design.processor.handler import HandlerProcessor, Handler
 from ally.support.core.util_resources import iterateNodes, pathForNode, \
     METHOD_NODE_ATTRIBUTE, invokerCallOf
 from collections import Iterable
@@ -222,7 +222,7 @@ class SolicitationWithPermissions(Solicitation):
 
 @injected
 @setup(Handler, name='checkResourceAvailableRights')
-class CheckResourceAvailableRights(HandlerProcessorProceed):
+class CheckResourceAvailableRights(HandlerProcessor):
     '''
     Provides the handler that filters the rights and keeps only those that have permissions.
     '''
@@ -235,9 +235,9 @@ class CheckResourceAvailableRights(HandlerProcessorProceed):
         'Invalid structure association %s' % self.StructureAssociate
         super().__init__()
 
-    def process(self, solicitation:Solicitation, reply:ReplyAvailable, **keyargs):
+    def process(self, chain, solicitation:Solicitation, reply:ReplyAvailable, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Filters the rights with permissions.
         '''
@@ -287,7 +287,7 @@ class CheckResourceAvailableRights(HandlerProcessorProceed):
 
 @injected
 @setup(Handler, name='iterateResourcePermissions')
-class IterateResourcePermissions(HandlerProcessorProceed):
+class IterateResourcePermissions(HandlerProcessor):
     '''
     Provides the handler that iterates the permissions.
     '''
@@ -300,9 +300,9 @@ class IterateResourcePermissions(HandlerProcessorProceed):
         'Invalid structure association %s' % self.StructureAssociate
         super().__init__()
 
-    def process(self, Permission:PermissionResource, solicitation:SolicitationWithPermissions, **keyargs):
+    def process(self, chain, Permission:PermissionResource, solicitation:SolicitationWithPermissions, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Provides the permissions.
         '''

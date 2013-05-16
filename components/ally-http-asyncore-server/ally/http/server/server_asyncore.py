@@ -15,7 +15,7 @@ from ally.design.processor.attribute import optional
 from ally.design.processor.execution import Chain, Processing
 from ally.http.spec.server import RequestHTTP, ResponseHTTP, RequestContentHTTP, \
     ResponseContentHTTP, HTTP
-from ally.support.util_io import IInputStream, readGenerator
+from ally.support.util_io import IInputStream, IClosable
 from asyncore import dispatcher, loop
 from collections import Callable, deque
 from http.server import BaseHTTPRequestHandler
@@ -28,11 +28,6 @@ import socket
 
 log = logging.getLogger(__name__)
 
-# Constants used in indicating the write option. 
-WRITE_BYTES = 1
-WRITE_ITER = 2
-WRITE_CLOSE = 3
-
 # --------------------------------------------------------------------
 
 class RequestContentHTTPAsyncore(RequestContentHTTP):
@@ -42,8 +37,12 @@ class RequestContentHTTPAsyncore(RequestContentHTTP):
     # ---------------------------------------------------------------- Optional
     contentReader = optional(Callable, doc='''
     @rtype: Callable
-    The content reader callable used for pushing data from the asyncore read. Once the reader is finalized it will
-    return a chain that is used for further request processing.
+    The content reader callable used for pushing data from the asyncore read, returns True in order to get more data.
+    Once the reader is finalized it will return either None or remaining bytes.
+    ''')
+    contentRequired = optional(bool, doc='''
+    @rtype: boolean
+    Flag indicating if content is required.
     ''')
 
 # --------------------------------------------------------------------
@@ -57,8 +56,8 @@ class RequestHandler(dispatcher, BaseHTTPRequestHandler):
     
     bufferSize = 10 * 1024
     # The buffer size used for reading and writing.
-    maximumRequestSize = 100 * 1024
-    # The maximum request size, 100 kilobytes
+    maximumRequestSize = 1024 * 1024
+    # The maximum request size, 1M
     requestTerminator = b'\r\n\r\n'
     # Terminator that signals the http request is complete 
 
@@ -82,7 +81,16 @@ class RequestHandler(dispatcher, BaseHTTPRequestHandler):
         self.server = server
         
         self.server_version = server.serverVersion
-        self._reset()
+        
+        self._readCarry = None
+        self.rfile = BytesIO()
+        self._reader = None
+        self._chain = None
+        
+        self.wfile = BytesIO()
+        self._writeq = deque()
+        
+        self._readHeader()
         
     def handle_read(self):
         '''
@@ -93,8 +101,47 @@ class RequestHandler(dispatcher, BaseHTTPRequestHandler):
             log.exception('Exception occurred while reading the content from \'%s\'' % self.connection)
             self.close()
             return
-        self.handle_data(data)
+        if data is not None: self.handle_data(data)
     
+    def writable(self):
+        '''
+        @see: dispatcher.writable
+        '''
+        return bool(self._writeq)
+    
+    def handle_write(self):
+        '''
+        @see: dispatcher.handle_write
+        '''
+        assert self._writeq, 'Nothing to write'
+        
+        data, close = BytesIO(), False
+        while self._writeq and data.tell() < self.bufferSize:
+            content = self._writeq.popleft()
+            if content is None:
+                if self.close_connection: close = True
+                break
+            if isinstance(content, (bytes, memoryview)): data.write(content)
+            elif isinstance(content, IInputStream):
+                assert isinstance(content, IInputStream)
+                byts = content.read(self.bufferSize - data.tell())
+                if byts == b'':
+                    if isinstance(content, IClosable): content.close()
+                    continue
+                data.write(byts)
+                self._writeq.appendleft(content)
+            else:
+                while data.tell() < self.bufferSize:
+                    try: byts = next(content)
+                    except StopIteration: break
+                    data.write(byts)
+        
+        sent = self.send(data.getbuffer())
+        
+        if close: self.close()
+        elif sent < data.tell():
+            self._writeq.appendleft(data.getbuffer()[sent:])
+            
     def handle_error(self):
         log.exception('A problem occurred in the server')
     
@@ -103,8 +150,9 @@ class RequestHandler(dispatcher, BaseHTTPRequestHandler):
         @see: BaseHTTPRequestHandler.end_headers
         '''
         super().end_headers()
-        self._writeq.append((WRITE_BYTES, memoryview(self.wfile.getvalue())))
-        self.wfile = None
+        self.wfile.seek(0)
+        self._writeq.append(self.wfile)
+        self.wfile = BytesIO()
 
     def log_message(self, format, *args):
         '''
@@ -114,152 +162,117 @@ class RequestHandler(dispatcher, BaseHTTPRequestHandler):
         # This is a fix: whenever a message is logged there is an attempt to find some sort of host name which
         # creates a big delay whenever the request is made from a non localhost client.
         assert log.debug(format, *args) or True
-        
+
     # ----------------------------------------------------------------
     
-    def _reset(self):
+    def _readHeader(self):
         '''
-        Resets the request handler for a new processing.
+        Prepare for a new HTTP header read.
         '''
         self.requestline = 0
+        self.rfile.seek(0)
+        self.rfile.truncate()
+            
+        self.readable = self._isReadable
+        self.handle_data = self._headerHandleData
         
-        self._stage = 1
-        self.rfile = BytesIO()
-        self._readCarry = None
-        self._reader = None
-
-        self.wfile = BytesIO()
-        self._writeq = deque()
+    def _readContent(self):
+        '''
+        Prepare for a HTTP content header read.
+        '''
+        assert self._chain is not None, 'No chain available'
+        assert self._reader is not None, 'No reader available'
         
-        self._next(1)
+        self.readable = self._contentReadable
+        self.handle_data = self._contentHandleData
     
-    def _next(self, stage):
+    def _readContinue(self):
         '''
-        Proceed to next stage.
+        Continue if is the case to read data from client.
         '''
-        assert isinstance(stage, int), 'Invalid stage %s' % stage
-        self.readable = getattr(self, '_%s_readable' % stage, None)
-        self.handle_data = getattr(self, '_%s_handle_data' % stage, None)
-        self.writable = getattr(self, '_%s_writable' % stage, None)
-        self.handle_write = getattr(self, '_%s_handle_write' % stage, None)
-          
+        if self.close_connection:
+            self.readable = self._notReadable
+            self.handle_data = None
+        else: self._readHeader()
+    
     # ----------------------------------------------------------------
     
-    def _1_readable(self):
+    def _isReadable(self):
         '''
         @see: dispatcher.readable
         '''
         return True
+      
+    def _notReadable(self):
+        '''
+        @see: dispatcher.readable
+        '''
+        return False
+
+    # ----------------------------------------------------------------
     
-    def _1_handle_data(self, data):
+    def _headerHandleData(self, data):
         '''
         Handle the data as being part of the request.
         '''
-        if self._readCarry is not None: data = self._readCarry + data
+        if self._readCarry is not None:
+            data = self._readCarry + data
+            self._readCarry = None
         index = data.find(self.requestTerminator)
         requestTerminatorLen = len(self.requestTerminator)
         
         if index >= 0:
             index += requestTerminatorLen 
-            self.rfile.write(data[:index])
+            self.rfile.write(memoryview(data)[:index])
             self.rfile.seek(0)
             self.raw_requestline = self.rfile.readline()
             self.parse_request()
-            self.rfile = None
             
             self._process(self.command or '')
             
             if index < len(data) and self.handle_data: self.handle_data(data[index:])
         else:
             self._readCarry = data[-requestTerminatorLen:]
-            self.rfile.write(data[:-requestTerminatorLen])
+            self.rfile.write(memoryview(data)[:-requestTerminatorLen])
             
             if self.rfile.tell() > self.maximumRequestSize:
                 # We need to make sure that the content length is set for HTTP/1.1.
                 self.send_header('Content-Length', '0')
                 self.send_response(400, 'Request to long')
                 self.end_headers()
-                self._writeq.append((WRITE_CLOSE, None))
-                
-    def _1_writable(self):
-        '''
-        @see: dispatcher.writable
-        '''
-        return False
+                self._writeq.append(None)
         
     # ----------------------------------------------------------------
     
-    def _2_readable(self):
+    def _contentReadable(self):
         '''
         @see: dispatcher.readable
         '''
         return self._reader is not None
     
-    def _2_handle_data(self, data):
+    def _contentHandleData(self, data):
         '''
         Handle the data as being part of the request.
         '''
+        assert self._chain is not None, 'No chain available'
         assert self._reader is not None, 'No reader available'
-        chain = self._reader(data)
-        if chain is not None:
+        if self._readCarry is not None:
+            data = self._readCarry + data
+            self._readCarry = None
+            
+        ret = self._reader(data)
+        if ret is not True:
+            assert ret is None or isinstance(ret, bytes), 'Invalid return %s' % ret
+            self._readCarry = ret
+            chain = self._chain
             assert isinstance(chain, Chain), 'Invalid chain %s' % chain
+            
             self._reader = None
-            self._next(3)  # Now we proceed to write stage
-            chain.doAll()
+            self._chain = None
             
-    def _2_writable(self):
-        '''
-        @see: dispatcher.writable
-        '''
-        return False
-            
-    # ----------------------------------------------------------------
+            self._readContinue()
+            chain.execute()
 
-    def _3_readable(self):
-        '''
-        @see: dispatcher.readable
-        '''
-        return False
-            
-    def _3_writable(self):
-        '''
-        @see: dispatcher.writable
-        '''
-        return bool(self._writeq)
-    
-    def _3_handle_write(self):
-        '''
-        @see: dispatcher.handle_write
-        '''
-        assert self._writeq, 'Nothing to write'
-        
-        what, content = self._writeq[0]
-        assert what in (WRITE_ITER, WRITE_BYTES, WRITE_CLOSE), 'Invalid what %s' % what
-        if what == WRITE_ITER:
-            try: data = memoryview(next(content))
-            except StopIteration:
-                del self._writeq[0]
-                return
-        elif what == WRITE_BYTES: data = content
-        elif what == WRITE_CLOSE:
-            if self.close_connection: self.close()
-            else: self._reset()
-            return
-        
-        dataLen = len(data)
-        try:
-            if dataLen > self.bufferSize: sent = self.send(data[:self.bufferSize])
-            else: sent = self.send(data)
-        except socket.error:
-            log.exception('Exception occurred while writing to the connection \'%s\'' % self.connection)
-            self.close()
-            return
-        if sent < dataLen:
-            if what == WRITE_ITER: self._writeq.appendleft((WRITE_BYTES, data[sent:]))
-            elif what == WRITE_BYTES: self._writeq[0] = (WRITE_BYTES, data[sent:])
-        else:
-            if what == WRITE_BYTES: del self._writeq[0]
-        
     # ----------------------------------------------------------------
     
     def _process(self, method):
@@ -273,48 +286,50 @@ class RequestHandler(dispatcher, BaseHTTPRequestHandler):
         
         url = urlparse(self.path)
         request.scheme, request.method = HTTP, method.upper()
-        request.headers = dict(self.headers)
         request.uri = url.path.lstrip('/')
-        request.parameters = parse_qsl(url.query, True, False)
+        if RequestHTTP.headers in request: request.headers = dict(self.headers)
+        if RequestHTTP.parameters in request: request.parameters = parse_qsl(url.query, True, False)
         
-        requestCnt.source = self.rfile
+        chain = Chain(proc, True, request=request, requestCnt=requestCnt)
+        chain.onFinalize(self._processRespond)
         
-        chain = Chain(proc)
-        chain.process(**proc.fillIn(request=request, requestCnt=requestCnt))
+        if RequestContentHTTPAsyncore.contentRequired in requestCnt:
+            while True:
+                if not chain.do():
+                    self._readContinue()
+                    break
+                if requestCnt.contentRequired is True:
+                    assert callable(requestCnt.contentReader), 'Invalid content reader %s' % requestCnt.contentReader
+                    self._chain, self._reader = chain, requestCnt.contentReader
+                    self._readContent()  # Now we proceed to read content stage
+                    break
+                elif requestCnt.contentRequired is False:
+                    self._readContinue()
+                    chain.execute()
+                    break
+        else:
+            self._readContinue()
+            chain.execute()
+            
+    def _processRespond(self, final, response, responseCnt, **keyargs):
+        assert isinstance(response, ResponseHTTP), 'Invalid response %s' % response
+        assert isinstance(responseCnt, ResponseContentHTTP), 'Invalid response content %s' % responseCnt
+        assert isinstance(response.status, int), 'Invalid response status code %s' % response.status
         
-        def respond():
-            response, responseCnt = chain.arg.response, chain.arg.responseCnt
-            assert isinstance(response, ResponseHTTP), 'Invalid response %s' % response
-            assert isinstance(responseCnt, ResponseContentHTTP), 'Invalid response content %s' % responseCnt
-            
-            assert isinstance(response.status, int), 'Invalid response status code %s' % response.status
-            if ResponseHTTP.text in response and response.text: text = response.text
-            elif ResponseHTTP.code in response and response.code: text = response.code
-            else: text = None
-            
-            if ResponseHTTP.headers in response and response.headers is not None:
-                for name, value in response.headers.items(): self.send_header(name, value)
-                
-            self.send_response(response.status, text)
-            self.end_headers()
-            
-            if ResponseContentHTTP.source in responseCnt and responseCnt.source is not None:
-                if isinstance(responseCnt.source, IInputStream): source = readGenerator(responseCnt.source, self.bufferSize)
-                else: source = responseCnt.source
-                self._writeq.append((WRITE_ITER, iter(source)))
-                
-            self._writeq.append((WRITE_CLOSE, None))
-            
-        chain.callBack(respond)
+        if ResponseHTTP.text in response and response.text: text = response.text
+        elif ResponseHTTP.code in response and response.code: text = response.code
+        else: text = None
         
-        while True:
-            if not chain.do():
-                self._next(3)  # Now we proceed to write stage
-                break
-            if RequestContentHTTPAsyncore.contentReader in requestCnt and requestCnt.contentReader is not None:
-                self._next(2)  # Now we proceed to read stage
-                self._reader = requestCnt.contentReader
-                break
+        if ResponseHTTP.headers in response and response.headers is not None:
+            for name, value in response.headers.items(): self.send_header(name, value)
+            
+        self.send_response(response.status, text)
+        self.end_headers()
+        
+        if ResponseContentHTTP.source in responseCnt and responseCnt.source is not None:
+            self._writeq.append(responseCnt.source)
+            
+        self._writeq.append(None)
 
 # --------------------------------------------------------------------
 
@@ -381,13 +396,6 @@ class AsyncServer(dispatcher):
         Loops and servers the connections.
         '''
         loop(self.timeout, map=self.map)
-            
-    def serve_limited(self, count):
-        '''
-        For profiling purposes.
-        Loops the provided amount of times and servers the connections.
-        '''
-        loop(self.timeout, True, self.map, count)
 
 # --------------------------------------------------------------------
 
@@ -410,4 +418,3 @@ def run(server):
         log.exception('=' * 50 + ' The server has stooped')
         try: server.close()
         except: pass
-        

@@ -63,7 +63,7 @@ class ComponentService(IComponentService):
             components = processQuery(components, q, Component)
             length = len(components)
 
-        return IterPart(trimIter(components, length, offset, limit), length, offset, limit)
+        return IterPart(trimIter((component.Id for component in components), length, offset, limit), length, offset, limit)
 
     # ----------------------------------------------------------------
 

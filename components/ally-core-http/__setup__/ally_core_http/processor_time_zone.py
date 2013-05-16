@@ -12,6 +12,7 @@ Provides the configurations for the time zone conversion processor.
 from ..ally_core.processor import converterRequest, converterResponse
 from ..ally_core_http.processor import assemblyResources, \
     updateAssemblyResources
+from .processor import headersCustom
 from ally.container import ioc
 from ally.design.processor.handler import Handler
 import logging
@@ -29,7 +30,7 @@ else:
     # ----------------------------------------------------------------
 
     from ally.core.http.impl.processor.time_zone import TimeZoneConverterRequestHandler, \
-        TimeZoneConverterResponseHandler
+        TimeZoneConverterResponseHandler, TIME_ZONE, CONTENT_TIME_ZONE
     
     # --------------------------------------------------------------------
     
@@ -64,6 +65,11 @@ else:
         return b
     
     # --------------------------------------------------------------------
+    
+    @ioc.before(headersCustom)
+    def updateHeadersCustomForTimeZone():
+        headersCustom().add(TIME_ZONE.name)
+        headersCustom().add(CONTENT_TIME_ZONE.name)
     
     @ioc.after(updateAssemblyResources)
     def updateAssemblyResourcesForTimeZone():

@@ -104,14 +104,15 @@ class AssemblerHandler(HandlerProcessor, IAlter):
         assert isinstance(responseCnt, ResponseContent), 'Invalid response content %s' % responseCnt
         assert isinstance(assemblage, Assemblage), 'Invalid assemblage %s' % assemblage
         assert isinstance(assemblage.main, ContentResponse), 'Invalid main content %s' % assemblage.main
-        assert assemblage.main.errorStatus is None, 'Invalid main content %s, has an error status' % assemblage.main
         
-        if not assemblage.main.indexes: return  # No indexes to process
+        if assemblage.main.errorStatus is not None or not assemblage.main.indexes or not assemblage.requestNode:
+            # The main content is in error or not indexes to process or no request node to process.
+            chain.cancel()
+            return
         
         content = ContentAssembly(assemblage.requestHandler, assemblage.requestNode, False,
                                   maximum=self.maximumPackSize, **asData(assemblage.main, ContentModifiable))
         responseCnt.source = iterateModified(self, self.doProcessors, content, ACTION_STREAM)
-        chain.proceed()
         
     # --------------------------------------------------------------------
     

@@ -14,7 +14,7 @@ from ally.container.ioc import injected
 from ally.container.support import setup
 from ally.design.processor.attribute import defines
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessorProceed, Handler
+from ally.design.processor.handler import HandlerProcessor, Handler
 from ally.http.spec.server import HTTP_DELETE, HTTP_POST, HTTP_GET, HTTP_PUT
 from ally.support.api.util_service import copy
 from collections import Iterable
@@ -36,7 +36,7 @@ class Reply(Context):
 
 @injected
 @setup(Handler, name='registerMethodOverride')
-class RegisterMethodOverride(HandlerProcessorProceed):
+class RegisterMethodOverride(HandlerProcessor):
     '''
     Provides the method override gateways, basically support for @see: MethodOverrideHandler.
     '''
@@ -59,9 +59,9 @@ class RegisterMethodOverride(HandlerProcessorProceed):
         assert isinstance(self.methods_override, dict), 'Invalid methods override %s' % self.methods_override
         super().__init__()
     
-    def process(self, reply:Reply, **keyargs):
+    def process(self, chain, reply:Reply, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Adds the method override to gateways.
         '''

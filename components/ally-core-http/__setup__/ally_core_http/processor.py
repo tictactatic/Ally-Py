@@ -16,8 +16,8 @@ from ..ally_core.processor import argumentsBuild, argumentsPrepare, encoding, \
     blockIndexing
 from ..ally_core.resources import resourcesRoot
 from ..ally_http.processor import encoderPath, contentLengthDecode, \
-    contentLengthEncode, methodOverride, allowEncode, headerDecodeRequest, \
-    contentTypeRequestDecode, headerEncodeResponse, contentTypeResponseEncode
+    contentLengthEncode, methodOverride, allowEncode, contentTypeRequestDecode, \
+    contentTypeResponseEncode, methodOverrideAllow
 from ally.container import ioc
 from ally.core.http.impl.processor.content_index import \
     ContentIndexEncodeHandler
@@ -41,6 +41,8 @@ from ally.core.http.spec.codes import CODE_TO_STATUS, CODE_TO_TEXT
 from ally.core.spec.resources import ConverterPath
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.handler import Handler
+from ally.http.impl.processor.header_parameter import HeaderParameterHandler
+from ally.http.impl.processor.method_override import METHOD_OVERRIDE
 from ally.http.impl.processor.status import StatusHandler
 
 # --------------------------------------------------------------------
@@ -53,6 +55,19 @@ def allow_method_override():
     DELETE and the POST with PUT.
     '''
     return True
+
+@ioc.config
+def read_from_params():
+    '''If true will push the parameters names defined in 'header_parameters' as headers.'''
+    return True
+
+@ioc.config
+def header_parameters():
+    '''
+    The names of the parameters to be considered as actual headers, overriding any true header value for that name, to this
+    list the custom headers will be appended automatically.
+    '''
+    return []
 
 @ioc.config
 def root_uri_resources():
@@ -68,11 +83,31 @@ def root_uri_resources():
 @ioc.entity
 def converterPath() -> ConverterPath: return ConverterPath()
 
+@ioc.entity
+def headersCustom() -> set:
+    '''
+    Provides the custom header names defined by processors.
+    '''
+    return set()
+
+@ioc.entity
+def parametersAsHeaders() -> list:
+    parameters = set(header_parameters())
+    parameters.update(headersCustom())
+    parameters = sorted(parameters)
+    return parameters
+
 # --------------------------------------------------------------------
 # Header decoders
 
 @ioc.entity
 def internalDevelError() -> Handler: return InternalDevelErrorHandler()
+
+@ioc.entity
+def headerParameter() -> Handler:
+    b = HeaderParameterHandler()
+    b.parameters = parametersAsHeaders()
+    return b
 
 @ioc.entity
 def contentDispositionDecode() -> Handler: return ContentDispositionDecodeHandler()
@@ -179,10 +214,14 @@ def assemblyBlocks() -> Assembly:
 
 # --------------------------------------------------------------------
 
+@ioc.before(headersCustom)
+def updateHeadersCustom():
+    if allow_method_override(): headersCustom().add(METHOD_OVERRIDE.name)
+
 @ioc.before(assemblyResources)
 def updateAssemblyResources():
-    assemblyResources().add(internalDevelError(), headerDecodeRequest(), encoderPath(),
-                            argumentsPrepare(), uri(), encoderPathResource(), methodInvoker(), headerEncodeResponse(), redirect(),
+    assemblyResources().add(internalDevelError(), encoderPath(), argumentsPrepare(), uri(),
+                            encoderPathResource(), methodInvoker(), redirect(),
                             contentTypeRequestDecode(), contentLengthDecode(), contentLanguageDecode(), acceptDecode(),
                             rendering(), normalizerRequest(), converterRequest(), createDecoder(),
                             normalizerResponse(), converterResponse(), encoding(), parsingMultiPart(), content(),
@@ -190,11 +229,14 @@ def updateAssemblyResources():
                             contentIndexEncode(), contentTypeResponseEncode(), contentLanguageEncode(), contentLengthEncode(),
                             allowEncode())
     
-    if allow_method_override(): assemblyResources().add(methodOverride(), before=methodInvoker())
+    if allow_method_override():
+        assemblyResources().add(methodOverride(), before=methodInvoker())
+        assemblyResources().add(methodOverrideAllow(), after=methodInvoker())
+    if read_from_params(): assemblyResources().add(headerParameter(), after=internalDevelError())
 
 @ioc.before(assemblyMultiPartPopulate)
 def updateAssemblyMultiPartPopulate():
-    assemblyMultiPartPopulate().add(headerDecodeRequest(), contentTypeRequestDecode(), contentDispositionDecode())
+    assemblyMultiPartPopulate().add(contentTypeRequestDecode(), contentDispositionDecode())
 
 @ioc.before(assemblyRedirect)
 def updateAssemblyRedirect():

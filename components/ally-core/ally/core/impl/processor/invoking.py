@@ -13,12 +13,12 @@ from ally.api.config import GET, INSERT, UPDATE, DELETE
 from ally.api.operator.type import TypeModelProperty
 from ally.api.type import Input
 from ally.core.spec.codes import INPUT_ERROR, INSERT_ERROR, INSERT_SUCCESS, \
-    UPDATE_SUCCESS, UPDATE_ERROR, DELETE_SUCCESS, DELETE_ERROR
+    UPDATE_SUCCESS, UPDATE_ERROR, DELETE_SUCCESS, DELETE_ERROR, Coded
 from ally.core.spec.resources import Invoker
 from ally.core.spec.transform.render import Object, List, Value
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessorProceed
+from ally.design.processor.handler import HandlerProcessor
 from ally.exception import DevelError, InputError, Ref
 import logging
 
@@ -36,13 +36,11 @@ class Request(Context):
     invoker = requires(Invoker)
     arguments = requires(dict)
 
-class Response(Context):
+class Response(Coded):
     '''
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    code = defines(str)
-    isSuccess = defines(bool)
     errorDetails = defines(Object)
     obj = defines(object, doc='''
     @rtype: object
@@ -51,7 +49,7 @@ class Response(Context):
 
 # --------------------------------------------------------------------
 
-class InvokingHandler(HandlerProcessorProceed):
+class InvokingHandler(HandlerProcessor):
     '''
     Implementation for a processor that makes the actual call to the request method corresponding invoke. The invoking will
     use all the obtained arguments from the previous processors and perform specific actions based on the requested method.
@@ -72,9 +70,9 @@ class InvokingHandler(HandlerProcessorProceed):
                                DELETE: self.afterDelete
                                }
 
-    def process(self, request:Request, response:Response, **keyargs):
+    def process(self, chain, request:Request, response:Response, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Invoke the request invoker.
         '''
@@ -104,7 +102,7 @@ class InvokingHandler(HandlerProcessorProceed):
             callBack(request.invoker, value, response)
         except InputError as e:
             assert isinstance(e, InputError)
-            response.code, response.isSuccess = INPUT_ERROR
+            INPUT_ERROR.set(response)
             response.errorDetails = self.processInputError(e)
             assert log.debug('User input exception: %s', e, exc_info=True) or True
 
@@ -189,12 +187,12 @@ class InvokingHandler(HandlerProcessorProceed):
             if value is not None:
                 response.obj = value
             else:
-                response.code, response.isSuccess = INSERT_ERROR
+                INSERT_ERROR.set(response)
                 assert log.debug('Cannot insert resource') or True
                 return
         else:
             response.obj = value
-        response.code, response.isSuccess = INSERT_SUCCESS
+        INSERT_SUCCESS.set(response)
 
     def afterUpdate(self, invoker, value, response):
         '''
@@ -214,18 +212,18 @@ class InvokingHandler(HandlerProcessorProceed):
         assert invoker.output.isValid(value), 'Invalid return value \'%s\' for invoker %s' % (value, invoker)
 
         if invoker.output.isOf(None):
-            response.code, response.isSuccess = UPDATE_SUCCESS
+            UPDATE_SUCCESS.set(response)
             assert log.debug('Successful updated resource') or True
         elif invoker.output.isOf(bool):
             if value == True:
-                response.code, response.isSuccess = UPDATE_SUCCESS
+                UPDATE_SUCCESS.set(response)
                 assert log.debug('Successful updated resource') or True
             else:
-                response.code, response.isSuccess = UPDATE_ERROR
+                UPDATE_ERROR.set(response)
                 assert log.debug('Cannot update resource') or True
         else:
             # If an entity is returned than we will render that.
-            response.code, response.isSuccess = UPDATE_SUCCESS
+            UPDATE_SUCCESS.set(response)
             response.obj = value
 
     def afterDelete(self, invoker, value, response):
@@ -247,12 +245,12 @@ class InvokingHandler(HandlerProcessorProceed):
 
         if invoker.output.isOf(bool):
             if value == True:
-                response.code, response.isSuccess = DELETE_SUCCESS
+                DELETE_SUCCESS.set(response)
                 assert log.debug('Successfully deleted resource') or True
             else:
-                response.code, response.isSuccess = DELETE_ERROR
+                DELETE_ERROR.set(response)
                 assert log.debug('Cannot deleted resource') or True
         else:
             # If an entity is returned than we will render that.
-            response.code, response.isSuccess = DELETE_SUCCESS
+            DELETE_SUCCESS.set(response)
             response.obj = value

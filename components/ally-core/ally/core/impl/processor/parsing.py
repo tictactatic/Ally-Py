@@ -10,16 +10,16 @@ Provides the parsing chain processors.
 '''
 
 from ally.container.ioc import injected
-from ally.core.spec.codes import ENCODING_UNKNOWN
+from ally.core.spec.codes import ENCODING_UNKNOWN, Coded
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
-from ally.design.processor.execution import Chain, Processing
+from ally.design.processor.execution import Chain, Processing, CONSUMED
 from ally.design.processor.handler import HandlerBranching
-from ally.design.processor.branch import Included
+from ally.design.processor.branch import Branch
 from collections import Callable
 import codecs
-from itertools import chain
+import itertools
 
 # --------------------------------------------------------------------
 
@@ -38,13 +38,11 @@ class RequestContent(Context):
     type = requires(str)
     charSet = requires(str)
 
-class Response(Context):
+class Response(Coded):
     '''
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    code = defines(str)
-    isSuccess = defines(bool)
     text = defines(str)
 
 class ResponseContent(Context):
@@ -71,7 +69,7 @@ class ParsingHandler(HandlerBranching):
     def __init__(self, *branches):
         assert isinstance(self.parsingAssembly, Assembly), 'Invalid parsers assembly %s' % self.parsingAssembly
         assert isinstance(self.charSetDefault, str), 'Invalid default character set %s' % self.charSetDefault
-        super().__init__(*chain(branches, (Included(self.parsingAssembly),)))
+        super().__init__(*itertools.chain(branches, (Branch(self.parsingAssembly).included(),)))
 
     def process(self, chain, parsing, request:Request, requestCnt:RequestContent, response:Response, **keyargs):
         '''
@@ -84,8 +82,6 @@ class ParsingHandler(HandlerBranching):
         assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(response, Response), 'Invalid response %s' % response
 
-        chain.proceed()
-
         if response.isSuccess is False: return  # Skip in case the response is in error
         if request.decoder is None: return  # Skip if there is no decoder.
 
@@ -93,13 +89,14 @@ class ParsingHandler(HandlerBranching):
             # We process the chain without the request content anymore
             chain.arg.requestCnt = None
 
-    def processParsing(self, parsing, request, requestCnt, response, responseCnt, **keyargs):
+    def processParsing(self, chain, parsing, request, requestCnt, response, responseCnt, **keyargs):
         '''
         Process the parsing for the provided contexts.
         
         @return: boolean
             True if the parsing has been successfully done on the request content.
         '''
+        assert isinstance(chain, Chain), 'Invalid chain %s' % chain
         assert isinstance(parsing, Processing), 'Invalid processing %s' % parsing
         assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(requestCnt, RequestContent), 'Invalid request content %s' % requestCnt
@@ -112,10 +109,8 @@ class ParsingHandler(HandlerBranching):
             except LookupError: requestCnt.charSet = self.charSetDefault
         else: requestCnt.charSet = self.charSetDefault
         if not requestCnt.type: requestCnt.type = responseCnt.type
-
-        chain = Chain(parsing)
-        chain.process(request=request, requestCnt=requestCnt, response=response, responseCnt=responseCnt, **keyargs)
-        if not chain.doAll().isConsumed(): return True
+        
+        if not chain.branch(parsing).execute(CONSUMED): return True
         if response.isSuccess is not False:
-            response.code, response.isSuccess = ENCODING_UNKNOWN
+            ENCODING_UNKNOWN.set(response)
             response.text = 'Content type \'%s\' not supported for parsing' % requestCnt.type

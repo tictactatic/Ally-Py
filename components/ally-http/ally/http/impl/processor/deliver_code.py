@@ -10,48 +10,28 @@ Populates a provided code for the response.
 '''
 
 from ally.container.ioc import injected
-from ally.design.processor.attribute import defines
-from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessorProceed
-
-# --------------------------------------------------------------------
-
-class Response(Context):
-    '''
-    The response context.
-    '''
-    # ---------------------------------------------------------------- Defined
-    code = defines(str)
-    status = defines(int)
-    isSuccess = defines(bool)
+from ally.design.processor.handler import HandlerProcessor
+from ally.http.spec.codes import CodedHTTP, CodeHTTP
 
 # --------------------------------------------------------------------
 
 @injected
-class DeliverCodeHandler(HandlerProcessorProceed):
+class DeliverCodeHandler(HandlerProcessor):
     '''
     Handler that just populates a code on the response and then proceeds.
     '''
 
-    code = str
+    code = CodeHTTP
     # The code to deliver
-    status = int
-    # The status code to deliver
-    isSuccess = bool
-    # The code success flag
 
     def __init__(self):
-        assert isinstance(self.code, str), 'Invalid code %s' % self.code
-        assert isinstance(self.status, int), 'Invalid status %s' % self.status
-        assert isinstance(self.isSuccess, bool), 'Invalid success flag %s' % self.isSuccess
+        assert isinstance(self.code, CodeHTTP), 'Invalid code %s' % self.code
         super().__init__()
 
-    def process(self, response:Response, **keyargs):
+    def process(self, chain, response:CodedHTTP, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Delivers the code.
         '''
-        assert isinstance(response, Response), 'Invalid response %s' % response
-
-        response.code, response.status, response.isSuccess = self.code, self.status, self.isSuccess
+        self.code.set(response)

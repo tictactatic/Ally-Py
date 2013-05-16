@@ -94,8 +94,7 @@ class RenderBaseHandler(HandlerProcessor):
                 responseCnt.type = contentType
 
             response.renderFactory = self.renderFactory
-            return  # We need to stop the chain if we have been able to provide the encoding
-        chain.proceed()
+            chain.cancel()  # We need to stop the chain if we have been able to provide the encoding
 
     # ----------------------------------------------------------------
 

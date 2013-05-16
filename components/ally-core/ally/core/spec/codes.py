@@ -9,15 +9,32 @@ Created on Jun 30, 2011
 Contains the codes to be used for the server responses.
 '''
 
-from ally.support.util import tupleify
+from ally.design.processor.context import Context
+from ally.design.processor.attribute import defines
 
 # --------------------------------------------------------------------
 
-@tupleify('code', 'isSuccess')
+class Coded(Context):
+    '''
+    Context for coded. 
+    '''
+    # ---------------------------------------------------------------- Defines
+    code = defines(str, doc='''
+    @rtype: string
+    The unique code associated with the context.
+    ''')
+    isSuccess = defines(bool, doc='''
+    @rtype: boolean
+    True if the context is in success mode, False otherwise.
+    ''')
+    
+# --------------------------------------------------------------------
+
 class Code:
     '''
     Contains the response code.
     '''
+    __slots__ = ('code', 'isSuccess')
 
     def __init__(self, code, isSuccess):
         '''
@@ -32,6 +49,17 @@ class Code:
         assert isinstance(isSuccess, bool), 'Invalid success flag %s' % isSuccess
         self.code = code
         self.isSuccess = isSuccess
+        
+    def set(self, context):
+        '''
+        Set the code on the provided context.
+        
+        @param context: Context
+            The context to set the code to.
+        '''
+        assert isinstance(context, Coded), 'Invalid context %s' % context
+        context.code = self.code
+        context.isSuccess = self.isSuccess
         
 # --------------------------------------------------------------------
 # Response codes.

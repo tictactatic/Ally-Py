@@ -40,17 +40,17 @@ CODE_TO_TEXT = {
 # --------------------------------------------------------------------
 # Response HTTP codes.
 
-MUTLIPART_ERROR = CodeHTTP('Invalid multipart', 400, False)  # HTTP code 400 Bad Request
-MUTLIPART_NO_BOUNDARY = CodeHTTP('No boundary found in multipart content', 400, False)  # HTTP code 400 Bad Request
+MUTLIPART_ERROR = CodeHTTP('Invalid multipart', 400)  # HTTP code 400 Bad Request
+MUTLIPART_NO_BOUNDARY = CodeHTTP('No boundary found in multipart content', 400)  # HTTP code 400 Bad Request
 
-CONTENT_LENGHT_ERROR = CodeHTTP('Length required ', 411, False)  # HTTP code 411 length required 
-CONTENT_TYPE_ERROR = CodeHTTP('Content type not acceptable ', 406, False)  # HTTP code 406 Not acceptable
+CONTENT_LENGHT_ERROR = CodeHTTP('Length required ', 411)  # HTTP code 411 length required 
+CONTENT_TYPE_ERROR = CodeHTTP('Content type not acceptable ', 406)  # HTTP code 406 Not acceptable
 
-PARAMETER_ILLEGAL = CodeHTTP('Illegal parameter', 400, False)  # HTTP code 400 Bad Request
+PARAMETER_ILLEGAL = CodeHTTP('Illegal parameter', 400)  # HTTP code 400 Bad Request
 
-FORMATING_ERROR = CodeHTTP('Invalid formatting', 400, False)  # HTTP code 400 Bad Request
+FORMATING_ERROR = CodeHTTP('Invalid formatting', 400)  # HTTP code 400 Bad Request
 
-TIME_ZONE_ERROR = CodeHTTP('Invalid time zone', 400, False)  # HTTP code 400 Bad Request
+TIME_ZONE_ERROR = CodeHTTP('Invalid time zone', 400)  # HTTP code 400 Bad Request
 
-REDIRECT = CodeHTTP('Redirect', 302, True)  # HTTP code 302 originally temporary redirect, but now commonly used to specify redirection
+REDIRECT = CodeHTTP('Redirect', 302)  # HTTP code 302 originally temporary redirect, but now commonly used to specify redirection
 # for unspecified reason

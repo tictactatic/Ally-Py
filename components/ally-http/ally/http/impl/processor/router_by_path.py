@@ -67,6 +67,4 @@ class RoutingByPathHandler(HandlerBranching):
         match = self._regex.match(request.uri)
         if match:
             request.uri = ''.join(match.groups())
-            chain.branch(processing)
-        else:
-            chain.proceed()
+            chain.route(processing)

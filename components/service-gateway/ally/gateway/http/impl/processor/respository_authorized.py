@@ -11,39 +11,38 @@ Provides the gateway repository processor.
 
 from .respository import GatewayRepositoryHandler, Repository
 from ally.container.ioc import injected
-from ally.design.processor.attribute import requires, defines
-from ally.design.processor.context import Context
+from ally.design.processor.attribute import defines
 from ally.design.processor.execution import Processing
 from ally.gateway.http.spec.gateway import IRepository
 from ally.http.spec.codes import BAD_REQUEST, BAD_GATEWAY, INVALID_AUTHORIZATION, \
-    isSuccess
-from ally.http.spec.server import IDecoderHeader
+    CodedHTTP
+from ally.http.spec.headers import HeaderRaw, HeadersRequire
+from ally.support.http.util_dispatch import obtainJSON
 from datetime import datetime, timedelta
+from urllib.parse import quote
 import logging
 
 # --------------------------------------------------------------------
 
 log = logging.getLogger(__name__)
 
+AUTHORIZATION = HeaderRaw('Authorization')
+# The header for the session identifier. 
+
 # --------------------------------------------------------------------
 
-class Request(Context):
+class Request(HeadersRequire):
     '''
     The request context.
     '''
-    # ---------------------------------------------------------------- Required
-    decoderHeader = requires(IDecoderHeader)
     # ---------------------------------------------------------------- Defined
     repository = defines(IRepository)
 
-class Response(Context):
+class Response(CodedHTTP):
     '''
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    code = defines(str)
-    status = defines(int)
-    isSuccess = defines(bool)
     text = defines(str)
 
 # --------------------------------------------------------------------
@@ -54,18 +53,14 @@ class GatewayAuthorizedRepositoryHandler(GatewayRepositoryHandler):
     Extension for @see: GatewayRepositoryHandler that provides the service for authorized gateways.
     '''
     
-    nameAuthorization = 'Authorization'
-    # The header name for the session identifier.
-    
     def __init__(self):
-        assert isinstance(self.nameAuthorization, str), 'Invalid authorization name %s' % self.nameAuthorization
         super().__init__()
         
         self._timeOut = timedelta(seconds=self.cleanupInterval)
 
-    def process(self, processing, request:Request, response:Response, **keyargs):
+    def process(self, chain, processing, request:Request, response:Response, **keyargs):
         '''
-        @see: HandlerBranchingProceed.process
+        @see: HandlerBranching.process
         
         Obtains the repository.
         '''
@@ -73,22 +68,16 @@ class GatewayAuthorizedRepositoryHandler(GatewayRepositoryHandler):
         assert isinstance(request, Request), 'Invalid request %s' % request
         if response.isSuccess is False: return  # Skip in case the response is in error
         
-        assert isinstance(request.decoderHeader, IDecoderHeader), 'Invalid decoder header %s' % request.decoderHeader
-        authentication = request.decoderHeader.retrieve(self.nameAuthorization)
+        authentication = AUTHORIZATION.fetch(request)
         if not authentication: return
         
         repository = self._repositories.get(authentication)
         if repository is None:
-            robj, status, text = self.obtainGateways(processing, self.uri % authentication)
-            if robj is None or not isSuccess(status):
-                if status == BAD_REQUEST.status:
-                    response.code, response.status, response.isSuccess = INVALID_AUTHORIZATION
-                else:
-                    log.info('Cannot fetch the authorized gateways from URI \'%s\', with response %s %s', self.uri, status, text)
-                    response.code, response.status, response.isSuccess = BAD_GATEWAY
-                    response.text = text
-                return
-            repository = self._repositories[authentication] = Repository(robj)
+            jobj, status, _text = obtainJSON(processing, self.uri % quote(authentication), details=True)
+            if jobj is None:
+                if status == BAD_REQUEST.status: INVALID_AUTHORIZATION.set(response)
+                else: return BAD_GATEWAY.set(response)
+            repository = self._repositories[authentication] = Repository(jobj)
         self._lastAccess[authentication] = datetime.now()
         
         if request.repository: request.repository = RepositoryJoined(repository, request.repository)

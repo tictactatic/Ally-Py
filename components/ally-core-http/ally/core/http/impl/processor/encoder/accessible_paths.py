@@ -15,7 +15,7 @@ from ally.core.spec.transform.encoder import IEncoder
 from ally.core.spec.transform.render import IRender
 from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessorProceed
+from ally.design.processor.handler import HandlerProcessor
 from ally.http.spec.server import IEncoderPath
 from ally.core.http.spec.transform.index import NAME_BLOCK_REST, \
     ACTION_REFERENCE
@@ -45,7 +45,7 @@ class Support(Context):
 # --------------------------------------------------------------------
 
 @injected
-class AccessiblePathEncode(HandlerProcessorProceed):
+class AccessiblePathEncode(HandlerProcessor):
     '''
     Implementation for a handler that provides the accessible paths encoding.
     '''
@@ -59,9 +59,9 @@ class AccessiblePathEncode(HandlerProcessorProceed):
         
         self._encoder = EncoderAccessiblePath(self.nameRef)
         
-    def process(self, create:Create, **keyargs):
+    def process(self, chain, create:Create, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Create the accesible path encoder.
         '''

@@ -9,16 +9,16 @@ Created on Apr 5, 2013
 Provides the content handler, this refers also to inner an main response content handling.
 '''
 
-from ally.assemblage.http.spec.assemblage import RequestNode
 from ally.container.ioc import injected
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.branch import Routing, Branch
 from ally.design.processor.context import Context
-from ally.design.processor.execution import Chain, Processing
+from ally.design.processor.execution import Chain, Processing, Execution
 from ally.design.processor.handler import HandlerBranching
 from ally.design.processor.spec import ContextMetaClass
 from ally.http.spec.codes import isSuccess
+from ally.http.spec.headers import remove
 from ally.http.spec.server import RequestHTTP, ResponseHTTP, HTTP_GET, \
     ResponseContentHTTP
 from ally.support.util_io import StreamOnIterable, IInputStream
@@ -43,8 +43,6 @@ class Request(Context):
     # ---------------------------------------------------------------- Required
     scheme = requires(str)
     headers = requires(dict)
-    # ---------------------------------------------------------------- Defined
-    parameters = defines(list)
     
 class Assemblage(Context):
     '''
@@ -59,8 +57,6 @@ class Assemblage(Context):
     @rtype: callable(string, list[tuple(string, string)]) -> Content
     The request handler that takes as arguments the URL and parameters to process the request and returns the content.
     ''')
-    # ---------------------------------------------------------------- Required
-    requestNode = requires(RequestNode)
 
 class ContentResponse(Context):
     '''
@@ -107,12 +103,15 @@ class ContentHandler(HandlerBranching):
     # The default character set to be used if none provided for the content.
     encodingError = 'replace'
     # The encoding error resolving if none provided.
+    innerHeadersRemove = list
+    # The headers to be removed from the inner requests.
     
     def __init__(self):
         assert isinstance(self.assemblyForward, Assembly), 'Invalid request forward assembly %s' % self.assemblyForward
         assert isinstance(self.assemblyContent, Assembly), 'Invalid content assembly %s' % self.assemblyContent
-        assert isinstance(self.encodingError, str), 'Invalid encoding error %s' % self.encodingError
         assert isinstance(self.charSetDefault, str), 'Invalid default character set %s' % self.charSetDefault
+        assert isinstance(self.encodingError, str), 'Invalid encoding error %s' % self.encodingError
+        assert isinstance(self.innerHeadersRemove, list), 'Invalid inner headers remove %s' % self.innerHeadersRemove
         super().__init__(Routing(self.assemblyForward).using('request', 'requestCnt', 'response', 'responseCnt'),
                          Branch(self.assemblyContent).included('response', 'assemblage', ('content', 'Content')))
 
@@ -130,48 +129,36 @@ class ContentHandler(HandlerBranching):
         assert isinstance(assemblage, Assemblage), 'Invalid assemblage %s' % assemblage
         assert issubclass(Content, ContentResponse), 'Invalid content class %s' % Content
         
-        if assemblage.requestNode:
-            assert isinstance(assemblage.requestNode, RequestNode), 'Invalid request node %s' % assemblage.requestNode
-            request.parameters = assemblage.requestNode.parameters
-            
-            data = Data()
-            data.assemblage = assemblage
-            data.processingForward, data.processingContent = processingForward, processingContent
-            data.Request, data.RequestContent = request.__class__, requestCnt.__class__
-            data.Response, data.ResponseContent = response.__class__, responseCnt.__class__
-            data.Content = Content
-            data.scheme, data.headers = request.scheme, dict(request.headers)
+        data = Data()
+        data.assemblage = assemblage
+        data.processingForward, data.processingContent = processingForward, processingContent
+        data.Request, data.RequestContent = request.__class__, requestCnt.__class__
+        data.Response, data.ResponseContent = response.__class__, responseCnt.__class__
+        data.Content = Content
+        data.scheme, data.headers = request.scheme, dict(request.headers)
         
-        chainForward = Chain(processingForward)
-        chainForward.process(request=request, requestCnt=requestCnt, response=response, responseCnt=responseCnt).doAll()
-        response, responseCnt = chainForward.arg.response, chainForward.arg.responseCnt
+        remove(data.headers, self.innerHeadersRemove)
+        
+        chain.process(_data=data, content=Content())
+        chain.branch(processingContent).onFinalize(self.processFinalize)
+        chain.branch(processingForward)
+        
+    def processFinalize(self, final, response, responseCnt, assemblage, content, _data, **keyargs):
+        '''
+        Process the data.
+        '''
+        assert isinstance(final, Execution), 'Invalid final execution %s' % final
         assert isinstance(response, ResponseHTTP), 'Invalid response %s' % response
         assert isinstance(responseCnt, ResponseContentHTTP), 'Invalid response content %s' % responseCnt
-        chain.update(response=response, responseCnt=responseCnt)
-        
-        chainContent = Chain(processingContent)
-        chainContent.process(response=response, assemblage=assemblage, content=Content()).doAll()
-        content = chainContent.arg.content
+        assert isinstance(assemblage, Assemblage), 'Invalid assemblage %s' % assemblage
         assert isinstance(content, ContentResponse), 'Invalid content %s' % content
-        
-        if not isSuccess(response.status):
-            assert log.debug('Failed %s with %s', request, response) or True
-            return
-        if ResponseContentHTTP.source not in responseCnt or responseCnt.source is None:
-            assert log.debug('No response content source for %s', request) or True
-            return
-        if assemblage.requestNode is None:
-            assert log.debug('No request node available for %s', request) or True
-            return
-        if content.charSet is None:
-            assert log.debug('No response content character set encoding for %s', request) or True
-            return
+        assert isinstance(_data, Data), 'Invalid data %s' % _data
 
-        data.charSet = codecs.lookup(content.charSet).name
-        assemblage.main = self.populate(data, content, response, responseCnt)
-        assemblage.requestHandler = partial(self.handler, data)
-        
-        chain.proceed()
+        if content.charSet: _data.charSet = codecs.lookup(content.charSet).name
+        else: _data.charSet = codecs.lookup(self.charSetDefault).name
+        assemblage.main = self.populate(_data, content, response, responseCnt)
+        assemblage.requestHandler = partial(self.handler, _data)
+        del final.arg._data
         
     # --------------------------------------------------------------------
     
@@ -269,18 +256,14 @@ class ContentHandler(HandlerBranching):
         
         proc = data.processingForward
         assert isinstance(proc, Processing), 'Invalid processing %s' % proc
-        chainForward = Chain(proc)
-        keyargs = proc.fillIn(request=request, requestCnt=data.RequestContent(), response=data.Response(),
-                              responseCnt=data.ResponseContent())
-        chainForward.process(**keyargs).doAll()
+        argf = proc.executeWithAll(request=request, requestCnt=data.RequestContent(), response=data.Response(),
+                                   responseCnt=data.ResponseContent())
         
         proc = data.processingContent
         assert isinstance(proc, Processing), 'Invalid processing %s' % proc
-        chainContent = Chain(proc)
-        keyargs = proc.fillIn(response=chainForward.arg.response, assemblage=data.assemblage, content=data.Content())
-        chainContent.process(**keyargs).doAll()
+        argc = proc.executeWithAll(response=argf.response, assemblage=data.assemblage, content=data.Content())
                 
-        return self.populate(data, chainContent.arg.content, chainForward.arg.response, chainForward.arg.responseCnt)
+        return self.populate(data, argc.content, argf.response, argf.responseCnt)
 
 # --------------------------------------------------------------------
 

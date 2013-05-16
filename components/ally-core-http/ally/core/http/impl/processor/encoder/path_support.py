@@ -18,7 +18,7 @@ from ally.core.spec.transform.encoder import IEncoder
 from ally.design.cache import CacheWeak
 from ally.design.processor.attribute import requires, defines, definesIf
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessorProceed
+from ally.design.processor.handler import HandlerProcessor
 from ally.support.core.util_resources import findGetModel, findGetAllAccessible, \
     pathLongName, findEntryModel, findEntries
 from collections import OrderedDict
@@ -78,7 +78,7 @@ class SupportItem(Context):
 # --------------------------------------------------------------------
 
 @injected
-class PathSupport(HandlerProcessorProceed):
+class PathSupport(HandlerProcessor):
     '''
     Implementation for a handler that provides the path support.
     '''
@@ -90,9 +90,9 @@ class PathSupport(HandlerProcessorProceed):
         assert isinstance(self.nameMarkedList, str), 'Invalid name list %s' % self.nameMarkedList
         super().__init__()
         
-    def process(self, create:Create, support:Support, **keyargs):
+    def process(self, chain, create:Create, support:Support, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Populates the path support data.
         '''
@@ -195,7 +195,7 @@ class PathSupport(HandlerProcessorProceed):
                 support.pathsAccesible[pathName] = path
 
 @injected
-class PathUpdaterSupportEncode(HandlerProcessorProceed):
+class PathUpdaterSupportEncode(HandlerProcessor):
     '''
     Implementation for a handler that provides the models paths update when in a collection.
     '''
@@ -205,9 +205,9 @@ class PathUpdaterSupportEncode(HandlerProcessorProceed):
         
         self._cache = CacheWeak()
         
-    def process(self, create:CreateItem, **keyargs):
+    def process(self, chain, create:CreateItem, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Create the update model path encoder.
         '''

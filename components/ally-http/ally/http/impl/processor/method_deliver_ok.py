@@ -15,7 +15,7 @@ from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain
 from ally.design.processor.handler import HandlerProcessor
-from ally.http.spec.codes import PATH_FOUND
+from ally.http.spec.codes import PATH_FOUND, CodedHTTP
 
 # --------------------------------------------------------------------
 
@@ -26,15 +26,12 @@ class Request(Context):
     # ---------------------------------------------------------------- Required
     method = requires(str)
 
-class Response(Context):
+class Response(CodedHTTP):
     '''
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    code = defines(str)
-    status = defines(int)
-    isSuccess = defines(bool)
-    allows = defines(list)
+    allows = defines(set)
 
 # --------------------------------------------------------------------
 
@@ -62,10 +59,9 @@ class DeliverOkForMethodHandler(HandlerProcessor):
         assert isinstance(response, Response), 'Invalid response %s' % response
 
         if request.method == self.forMethod:
-            response.code, response.status, response.isSuccess = PATH_FOUND
+            PATH_FOUND.set(response)
+            chain.cancel()
             return
 
-        if response.allows is not None: response.allows.append(self.forMethod)
-        else: response.allows = [self.forMethod]
-        
-        chain.proceed()
+        if response.allows is None: response.allows = set()
+        response.allows.add(self.forMethod)

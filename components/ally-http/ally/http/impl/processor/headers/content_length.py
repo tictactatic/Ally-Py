@@ -13,18 +13,13 @@ from ally.container.ioc import injected
 from ally.core.http.spec.codes import CONTENT_LENGHT_ERROR
 from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessorProceed
-from ally.http.spec.server import IEncoderHeader, IDecoderHeader
+from ally.design.processor.handler import HandlerProcessor
+from ally.http.spec.headers import HeadersRequire, CONTENT_LENGTH, \
+    HeadersDefines
 from ally.support.util_io import IInputStream, IClosable
+from ally.http.spec.codes import CodedHTTP
 
 # --------------------------------------------------------------------
-
-class RequestDecode(Context):
-    '''
-    The request context.
-    '''
-    # ---------------------------------------------------------------- Required
-    decoderHeader = requires(IDecoderHeader)
 
 class RequestContentDecode(Context):
     '''
@@ -38,55 +33,46 @@ class RequestContentDecode(Context):
     The content source length in bytes. 
     ''')
 
-class ResponseDecode(Context):
+class ResponseDecode(CodedHTTP):
     '''
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    code = defines(str)
-    status = defines(int)
-    isSuccess = defines(bool)
     text = defines(str)
 
 # --------------------------------------------------------------------
 
 @injected
-class ContentLengthDecodeHandler(HandlerProcessorProceed):
+class ContentLengthDecodeHandler(HandlerProcessor):
     '''
     Implementation for a processor that provides the decoding of content length HTTP response header.
     '''
 
-    nameContentLength = 'Content-Length'
-    # The name for the content length header
-
-    def __init__(self):
-        assert isinstance(self.nameContentLength, str), 'Invalid content length name %s' % self.nameContentLength
-        super().__init__()
-
-    def process(self, request:RequestDecode, requestCnt:RequestContentDecode, response:ResponseDecode, **keyargs):
+    def process(self, chain, request:HeadersRequire, requestCnt:RequestContentDecode, response:ResponseDecode, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Decodes the request content length also wraps the content source if is the case.
         '''
-        assert isinstance(request, RequestDecode), 'Invalid request %s' % request
         assert isinstance(requestCnt, RequestContentDecode), 'Invalid request content %s' % requestCnt
         assert isinstance(response, ResponseDecode), 'Invalid response %s' % response
-        assert isinstance(request.decoderHeader, IDecoderHeader), \
-        'Invalid header decoder %s' % request.decoderHeader
 
-        value = request.decoderHeader.retrieve(self.nameContentLength)
+        value = CONTENT_LENGTH.fetch(request)
         if value:
             try: requestCnt.length = int(value)
             except ValueError:
+                requestCnt.length = None
                 if response.isSuccess is False: return  # Skip in case the response is in error
-                response.code, response.status, response.isSuccess = CONTENT_LENGHT_ERROR
+                CONTENT_LENGHT_ERROR.set(response)
                 response.text = 'Invalid value \'%s\' for header \'%s\''\
                 ', expected an integer value' % (value, self.nameContentLength)
-                return
+        
+        if RequestContentDecode.source in requestCnt and requestCnt.source is not None:
+            if requestCnt.length: requestCnt.source = StreamLimitedLength(requestCnt.source, requestCnt.length)
             else:
-                if RequestContentDecode.source in requestCnt and requestCnt.source is not None:
-                    requestCnt.source = StreamLimitedLength(requestCnt.source, requestCnt.length)
+                requestCnt.source.close()
+                requestCnt.source = None  # We do not allow the source without length specified.
+                    
 
 class StreamLimitedLength(IInputStream, IClosable):
     '''
@@ -138,13 +124,6 @@ class StreamLimitedLength(IInputStream, IClosable):
 
 # --------------------------------------------------------------------
 
-class ResponseEncode(Context):
-    '''
-    The response context.
-    '''
-    # ---------------------------------------------------------------- Required
-    encoderHeader = requires(IEncoderHeader)
-
 class ResponseContentEncode(Context):
     '''
     The response content context.
@@ -155,28 +134,17 @@ class ResponseContentEncode(Context):
 # --------------------------------------------------------------------
 
 @injected
-class ContentLengthEncodeHandler(HandlerProcessorProceed):
+class ContentLengthEncodeHandler(HandlerProcessor):
     '''
     Implementation for a processor that provides the encoding of content length HTTP response header.
     '''
 
-    nameContentLength = 'Content-Length'
-    # The name for the content length header
-
-    def __init__(self):
-        assert isinstance(self.nameContentLength, str), 'Invalid content length name %s' % self.nameContentLength
-        super().__init__()
-
-    def process(self, response:ResponseEncode, responseCnt:ResponseContentEncode, **keyargs):
+    def process(self, chain, response:HeadersDefines, responseCnt:ResponseContentEncode, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Encodes the content length.
         '''
-        assert isinstance(response, ResponseEncode), 'Invalid response %s' % response
         assert isinstance(responseCnt, ResponseContentEncode), 'Invalid response content %s' % responseCnt
-        assert isinstance(response.encoderHeader, IEncoderHeader), \
-        'Invalid response header encoder %s' % response.encoderHeader
 
-        if responseCnt.length is not None:
-            response.encoderHeader.encode(self.nameContentLength, str(responseCnt.length))
+        if responseCnt.length is not None: CONTENT_LENGTH.put(response, str(responseCnt.length))

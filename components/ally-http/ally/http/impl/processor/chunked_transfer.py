@@ -12,21 +12,14 @@ Provides the chunked transfer encoding.
 from ally.container.ioc import injected
 from ally.design.processor.attribute import requires
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessorProceed
-from ally.http.spec.server import IEncoderHeader
+from ally.design.processor.handler import HandlerProcessor
+from ally.http.spec.headers import HeadersDefines, CONTENT_LENGTH, \
+    TRANSFER_ENCODING, TRANSFER_ENCODING_CHUNKED
 from ally.support.util_io import IInputStream, readGenerator
 from codecs import ascii_encode
 from collections import Iterable, deque
 
 # --------------------------------------------------------------------
-
-class Response(Context):
-    '''
-    The response context.
-    '''
-    # ---------------------------------------------------------------- Required
-    headers = requires(dict)
-    encoderHeader = requires(IEncoderHeader)
 
 class ResponseContent(Context):
     '''
@@ -38,17 +31,11 @@ class ResponseContent(Context):
 # --------------------------------------------------------------------
 
 @injected
-class ChunkedTransferEncodingHandler(HandlerProcessorProceed):
+class ChunkedTransferEncodingHandler(HandlerProcessor):
     '''
     Implementation for a processor that provides the HTTP chuncked transfer encoding.
     '''
-    
-    nameTransferEncoding = 'Transfer-Encoding'
-    # The name for the chunked transfer encoding header.
-    valueChunked = 'chunked'
-    # The chunked value to place on the transfer encoding header.
-    nameContentLength = 'Content-Length'
-    # The name of the content length header
+
     chunkMark = '%s\r\n'
     # The mark used to represent chunks.
     chunkEnding = '\r\n'
@@ -57,9 +44,6 @@ class ChunkedTransferEncodingHandler(HandlerProcessorProceed):
     # The maximum chunck size in bytes, also used in case the source is a stream.
 
     def __init__(self):
-        assert isinstance(self.nameTransferEncoding, str), 'Invalid transfer encoding name %s' % self.nameTransferEncoding
-        assert isinstance(self.valueChunked, str), 'Invalid chunked value %s' % self.valueChunked
-        assert isinstance(self.nameContentLength, str), 'Invalid content length name %s' % self.nameContentLength
         assert isinstance(self.chunkMark, str), 'Invalid chunk mark %s' % self.chunkMark
         assert isinstance(self.chunkEnding, str), 'Invalid chunk ending %s' % self.chunkEnding
         assert isinstance(self.maximumChunkSize, int), 'Invalid stream chunck size %s' % self.maximumChunkSize
@@ -67,25 +51,19 @@ class ChunkedTransferEncodingHandler(HandlerProcessorProceed):
         
         self._chunkEndingBytes = ascii_encode(self.chunkEnding)[0]
 
-    def process(self, response:Response, responseCnt:ResponseContent, **keyargs):
+    def process(self, chain, response:HeadersDefines, responseCnt:ResponseContent, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Encodes the content length.
         '''
-        assert isinstance(response, Response), 'Invalid response %s' % response
         assert isinstance(responseCnt, ResponseContent), 'Invalid response content %s' % responseCnt
-        assert isinstance(response.encoderHeader, IEncoderHeader), \
-        'Invalid response header encoder %s' % response.encoderHeader
         
         if responseCnt.source is None: return  # No content to chunck.
+        CONTENT_LENGTH.remove(response)
+        # We make sure that no content length is not on the headers since this will create a conflict.
         
-        response.encoderHeader.encode(self.nameTransferEncoding, self.valueChunked)
-        if response.headers:
-            assert isinstance(response.headers, dict), 'Invalid headers %s' % response.headers
-            response.headers.pop(self.nameContentLength, None)
-            # We make sure that no content length is not on the headers since this will create a conflict.
-                
+        TRANSFER_ENCODING.put(response, TRANSFER_ENCODING_CHUNKED)
         if isinstance(responseCnt.source, IInputStream):
             responseCnt.source = self.chuncks(readGenerator(responseCnt.source, self.maximumChunkSize))
         else:

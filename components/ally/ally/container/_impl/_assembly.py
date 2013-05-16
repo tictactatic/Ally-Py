@@ -125,7 +125,7 @@ class Assembly:
         '''
         Provides a configurations dictionary that has the configuration names trimmed.
         
-        @return:  dictionary[string, Config]
+        @return:  dictionary{string: Config}
             A dictionary of the assembly configurations, the key is the configuration name and the value 
             is a Config object.
         '''

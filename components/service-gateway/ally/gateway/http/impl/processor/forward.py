@@ -12,11 +12,11 @@ Provides the forwarding processor.
 from ally.container.ioc import injected
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires
-from ally.design.processor.context import Context
+from ally.design.processor.branch import Branch
 from ally.design.processor.execution import Processing, Chain
 from ally.design.processor.handler import HandlerBranching
-from ally.design.processor.branch import Included
 from ally.gateway.http.spec.gateway import IRepository, Match, Gateway
+from ally.http.spec.headers import HeadersRequire
 from urllib.parse import urlparse, parse_qsl
 import logging
 
@@ -26,13 +26,12 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
-class Request(Context):
+class Request(HeadersRequire):
     '''
     Context for request. 
     '''
     # ---------------------------------------------------------------- Required
     uri = requires(str)
-    headers = requires(dict)
     parameters = requires(list)
     match = requires(Match)
 
@@ -49,7 +48,7 @@ class GatewayForwardHandler(HandlerBranching):
     
     def __init__(self):
         assert isinstance(self.assembly, Assembly), 'Invalid assembly %s' % self.assembly
-        super().__init__(Included(self.assembly))
+        super().__init__(Branch(self.assembly).included())
 
     def process(self, chain, processing, request:Request, **keyargs):
         '''
@@ -60,10 +59,8 @@ class GatewayForwardHandler(HandlerBranching):
         assert isinstance(chain, Chain), 'Invalid chain %s' % chain
         assert isinstance(processing, Processing), 'Invalid processing %s' % processing
         assert isinstance(request, Request), 'Invalid request %s' % request
-        if not request.match:
-            # No forwarding if there is no match on response
-            chain.proceed()
-            return  
+        
+        if not request.match: return  # No forwarding if there is no match on response
         
         assert isinstance(request.repository, IRepository), 'Invalid request repository %s' % request.repository
         match = request.match
@@ -82,7 +79,21 @@ class GatewayForwardHandler(HandlerBranching):
             parameters.extend(request.parameters)
             request.parameters = parameters
         
-        if match.gateway.putHeaders: request.headers.update(match.gateway.putHeaders)
+        if match.gateway.putHeaders:
+            nheaders = {}
+            if request.headers is not None: remove = set()
+            for name, value in match.gateway.putHeaders:
+                nheaders[name] = value
+                if request.headers:
+                    assert isinstance(request.headers, dict), 'Invalid headers %s' % request.headers
+                    for hname in request.headers:
+                        if hname.lower() == name: remove.add(hname)
+                
+            if request.headers is None: request.headers = nheaders
+            else:
+                for hname in remove: request.headers.pop(hname)
+                request.headers.update(nheaders)
         
         assert log.debug('Forwarding request to \'%s\'', request.uri) or True
+        
         chain.branch(processing)

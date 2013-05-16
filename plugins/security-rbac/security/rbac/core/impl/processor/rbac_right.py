@@ -15,7 +15,7 @@ from ally.container.ioc import injected
 from ally.container.support import setup
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessorProceed, Handler
+from ally.design.processor.handler import HandlerProcessor, Handler
 from collections import Iterable
 from itertools import chain
 from security.rbac.core.spec import IRbacSupport
@@ -45,7 +45,7 @@ class Solicitation(Context):
 
 @injected
 @setup(Handler, name='rbacPopulateRights')
-class RbacPopulateRights(HandlerProcessorProceed):
+class RbacPopulateRights(HandlerProcessor):
     '''
     Provides the handler that populates the rights based on RBAC structure.
     '''
@@ -57,9 +57,9 @@ class RbacPopulateRights(HandlerProcessorProceed):
         assert isinstance(self.rbacSupport, IRbacSupport), 'Invalid rbac support %s' % self.rbacSupport
         super().__init__()
     
-    def process(self, solicitation:Solicitation, **keyargs):
+    def process(self, chain, solicitation:Solicitation, **keyargs):
         '''
-        @see: HandlerProcessorProceed.process
+        @see: HandlerProcessor.process
         
         Populate the rights.
         '''

@@ -16,7 +16,7 @@ from ally.core.spec.transform.index import NAME_BLOCK, ACTION_DISCARD, \
 from ally.core.spec.transform.render import IRender
 from ally.indexing.spec.model import Block, Action
 from ally.indexing.spec.perform import skip, feed, feedValue, feedName, \
-    feedIndexed, feedContent, push, pop
+    feedIndexed, feedContent, push, pop, setFlagIfBefore, remFlag
 from ally.support.util import immut
 from codecs import getwriter
 from collections import deque
@@ -49,6 +49,9 @@ SIND_CLOSE_TAG, EIND_CLOSE_TAG = 'XML start close tag', 'XML end close tag'
 SIND_NAME, EIND_NAME = 'XML start tag name', 'XML end tag name'
 SIND_ATTRS, EIND_ATTRS = 'XML start tag attributes', 'XML end tag attributes'
 SIND_CLOSE_NAME, EIND_CLOSE_NAME = 'XML close start tag name', 'XML close end tag name'
+
+# The JSON flags.
+FLAG_TAG_CLOSED = 'close tag present'
 
 # The escape characters for content value.
 ESCAPE_XML_CONTENT = {'&': '&amp;', '>': '&gt;', '<': '&lt;'}
@@ -86,8 +89,9 @@ BLOCKS_XML = {
               Block(
                     Action(ACTION_XML_ADJUST,
                            skip(SIND_CLOSE_TAG),
-                           feed(SIND_CLOSE_NAME), skip(EIND_CLOSE_NAME), feedName(VAR_XML_NAME),
-                           feed(EIND_CLOSE_TAG)),
+                           setFlagIfBefore(EIND_CLOSE_TAG, FLAG_TAG_CLOSED),
+                           feed(SIND_CLOSE_NAME), skip(EIND_CLOSE_NAME), feedName(VAR_XML_NAME, FLAG_TAG_CLOSED),
+                           feed(EIND_CLOSE_TAG), remFlag(FLAG_TAG_CLOSED)),
                     Action(ACTION_STREAM,
                            skip(SIND_CLOSE_TAG),
                            feed(EIND_CLOSE_TAG)),
@@ -326,23 +330,25 @@ class RenderXML(XMLGenerator, IRender):
         '''
         isAdjust = False
         if self._adjust:
-            assert indexBlock is None, 'No index block expected, but got %s' % indexBlock
-            assert not indexAttributesCapture, 'No attributes capture expected, but got %s' % indexAttributesCapture
             self.startDocument()  # Start the document
-            index = self._index(NAME_XML_START_ADJUST)
-            index(IND_DECL)
+            if indexBlock is None:
+                assert indexBlock is None, 'No index block expected, but got %s' % indexBlock
+                assert not indexAttributesCapture, 'No attributes capture expected, but got %s' % indexAttributesCapture
+                index = self._index(NAME_XML_START_ADJUST)
+                index(IND_DECL)
+                isAdjust = True
             self._adjust = False
-            isAdjust = True
-        elif self._block:
-            assert indexBlock is None, 'No index block expected, but got %s' % indexBlock
-            assert not indexAttributesCapture, 'No attributes capture expected, but got %s' % indexAttributesCapture
-            index = None
-        elif indexBlock:
-            assert isinstance(indexBlock, str), 'Invalid index block %s' % indexBlock
-            assert isinstance(indexAttributesCapture, dict), 'Invalid index attributes capture %s' % indexAttributesCapture
-            index = self._index(PATTERN_XML_BLOCK % indexBlock)
-            self._block = True
-        else: index = None
+        if not isAdjust:
+            if self._block:
+                assert indexBlock is None, 'No index block expected, but got %s' % indexBlock
+                assert not indexAttributesCapture, 'No attributes capture expected, but got %s' % indexAttributesCapture
+                index = None
+            elif indexBlock:
+                assert isinstance(indexBlock, str), 'Invalid index block %s' % indexBlock
+                assert isinstance(indexAttributesCapture, dict), 'Invalid index attributes capture %s' % indexAttributesCapture
+                index = self._index(PATTERN_XML_BLOCK % indexBlock)
+                self._block = True
+            else: index = None
         
         if self._pending_start_element:
             self._write('>')

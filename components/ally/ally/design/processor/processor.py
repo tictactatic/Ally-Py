@@ -11,7 +11,7 @@ Module containing processors.
 
 from .branch import IBranch
 from .context import Context
-from .execution import Chain, Processing
+from .execution import Processing
 from .resolvers import merge
 from .spec import AssemblyError, IProcessor, ContextMetaClass, ProcessorError, \
     IReport
@@ -20,6 +20,7 @@ from ally.support.util_sys import locationStack
 from collections import Iterable
 from inspect import ismethod, isfunction, getfullargspec
 import itertools
+from functools import update_wrapper
 
 # --------------------------------------------------------------------
 
@@ -69,23 +70,18 @@ class Contextual(Processor):
     Implementation for @see: IProcessor that takes as the call a function and uses the annotations on the function arguments 
     to extract the contexts.
     '''
-    __slots__ = ('proceed', 'function')
+    __slots__ = ('function',)
 
-    def __init__(self, function, proceed=False):
+    def __init__(self, function):
         '''
         Constructs a processor based on a function.
         @see: Processor.__init__
         
         @param function: function|method
             The function of the processor with the arguments annotated.
-        @param proceed: boolean
-            Flag indicating that the processor should auto proceed for the executed chain.
-            Attention if this flag is provided then the function should not have a 'chain' argument.
         '''
-        assert isinstance(proceed, bool), 'Invalid proceed flag %s' % proceed
         assert isfunction(function) or ismethod(function), 'Invalid function %s' % function
         
-        self.proceed = proceed
         self.function = function
         
         fnArgs = getfullargspec(function)
@@ -105,7 +101,7 @@ class Contextual(Processor):
                                      (clazz, name, locationStack(self.function)))
             contexts[name] = clazz
         
-        super().__init__(contexts, self.processCall(function))
+        super().__init__(contexts, function)
     
     def register(self, sources, resolvers, extensions, calls, report):
         '''
@@ -133,34 +129,10 @@ class Contextual(Processor):
         '''
         assert isinstance(arguments, (list, tuple)), 'Invalid arguments %s' % arguments
         assert isinstance(annotations, dict), 'Invalid annotations %s' % annotations
-        if self.proceed:
-            if len(arguments) > 1 and 'self' == arguments[0]: return arguments[1:], annotations
-            raise ProcessorError('Required function of form \'def processor(self, contex:Context ...)\' for:%s' % 
-                                 locationStack(self.function))
 
         if len(arguments) > 2 and 'self' == arguments[0]: return arguments[2:], annotations
         raise ProcessorError('Required function of form \'def processor(self, chain, contex:Context ...)\' for:%s' % 
                              locationStack(self.function))
-    
-    def processCall(self, call):
-        '''
-        Process the call of the process if is the case.
-        
-        @param call: callable
-            The call to wrap.
-        @return: callable
-            The wrapped call.
-        '''
-        if self.proceed:
-            def wrapper(chain, *args, **keyargs):
-                assert isinstance(chain, Chain), 'Invalid processors chain %s' % chain
-                try: call(*args, **keyargs)
-                except TypeError:
-                    raise TypeError('Problems for arguments %s and key arguments %s for call at:%s' % 
-                                    (args, keyargs, locationStack(call)))
-                chain.proceed()
-            return wrapper
-        return call
     
     # ----------------------------------------------------------------
     
@@ -179,7 +151,7 @@ class Brancher(Contextual):
     '''
     __slots__ = ('branches',)
     
-    def __init__(self, function, *branches, proceed=False):
+    def __init__(self, function, *branches):
         '''
         Construct the branching processor.
         @see: Contextual.__init__
@@ -191,7 +163,7 @@ class Brancher(Contextual):
         if __debug__:
             for branch in branches: assert isinstance(branch, IBranch), 'Invalid branch %s' % branch
         self.branches = branches
-        super().__init__(function, proceed)
+        super().__init__(function)
     
     def register(self, sources, resolvers, extensions, calls, report):
         '''
@@ -214,6 +186,7 @@ class Brancher(Contextual):
             processings.append(processing)
         
         def wrapper(*args, **keyargs): self.call(*itertools.chain(args, processings), **keyargs)
+        update_wrapper(wrapper, self.call)
         calls.append(wrapper)
         
     # ----------------------------------------------------------------

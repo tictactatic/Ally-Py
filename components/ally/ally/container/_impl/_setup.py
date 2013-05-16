@@ -255,7 +255,7 @@ class SetupConfig(SetupSource):
         for name, val in assembly.configExtern.items():
             if name == self.name or self.name.endswith('.' + name):
                 if name in assembly.configUsed:
-                    raise SetupError('The configuration %r is already in use and the configuration "%s" cannot use it '
+                    raise SetupError('The configuration "%s" is already in use and the configuration "%s" cannot use it '
                                      'again, provide a more detailed path for the configuration (ex: "ally_core.url" '
                                      'instead of "url")' % (name, self.name))
                 assembly.configUsed.add(name)
@@ -267,11 +267,12 @@ class SetupConfig(SetupSource):
 
         cfg = assembly.configurations.get(self.name)
         if not cfg:
-            cfg = Config(self.name, config.value, self.group, self.documentation)
-            assembly.configurations[self.name] = cfg
+            assembly.configurations[self.name] = Config(self.name, config.value, self.group,
+                                                        self.documentation, not config.external)
         else:
             assert isinstance(cfg, Config), 'Invalid configuration %s' % cfg
             cfg.value = config.value
+            cfg.isCommented = not config.external
 
 class SetupConfigReplace(SetupFunction):
     '''
@@ -307,7 +308,8 @@ class SetupConfigReplace(SetupFunction):
         try: config.value = self._function()
         except ConfigError as e: config.value = e
 
-        assembly.configurations[self.name] = Config(self.name, config.value, self.group, self.target.documentation)
+        assembly.configurations[self.name] = Config(self.name, config.value, self.group,
+                                                    self.target.documentation, not config.external)
 
 class SetupEvent(SetupFunction):
     '''

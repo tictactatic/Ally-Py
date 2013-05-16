@@ -16,8 +16,8 @@ from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain, Processing
-from ally.design.processor.handler import HandlerBranchingProceed
-from ally.design.processor.branch import Included
+from ally.design.processor.handler import HandlerBranching
+from ally.design.processor.branch import Branch
 
 # --------------------------------------------------------------------
 
@@ -37,7 +37,7 @@ class Create(Context):
 # --------------------------------------------------------------------
 
 @injected
-class PropertyOfModelEncode(HandlerBranchingProceed):
+class PropertyOfModelEncode(HandlerBranching):
     '''
     Implementation for a handler that provides the encoding for properties that reference another model.
     '''
@@ -48,14 +48,15 @@ class PropertyOfModelEncode(HandlerBranchingProceed):
     def __init__(self):
         assert isinstance(self.propertyModelEncodeAssembly, Assembly), \
         'Invalid model encode assembly %s' % self.propertyModelEncodeAssembly
-        super().__init__(Included(self.propertyModelEncodeAssembly))
+        super().__init__(Branch(self.propertyModelEncodeAssembly).included())
         
-    def process(self, propertyModelProcessing, create:Create, **keyargs):
+    def process(self, chain, propertyModelProcessing, create:Create, **keyargs):
         '''
-        @see: HandlerBranchingProceed.process
+        @see: HandlerBranching.process
         
         Create the property of model encoder.
         '''
+        assert isinstance(chain, Chain), 'Invalid chain %s' % chain
         assert isinstance(propertyModelProcessing, Processing), 'Invalid processing %s' % propertyModelProcessing
         assert isinstance(create, Create), 'Invalid create %s' % create
         
@@ -71,4 +72,4 @@ class PropertyOfModelEncode(HandlerBranchingProceed):
         assert modelType.hasId(), 'Model type %s, has no id' % modelType
 
         create.objType = modelType.propertyTypeId()
-        Chain(propertyModelProcessing).process(create=create).doAll()
+        chain.branch(propertyModelProcessing)
