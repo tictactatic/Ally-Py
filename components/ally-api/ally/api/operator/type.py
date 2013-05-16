@@ -371,8 +371,28 @@ class TypeExtension(TypeContainer):
         @see: Type.__init__
         
         @param clazz: class
-            The model class associated with the model.
+            The model class associated with the extension.
         @param container: Container
             The container that this extension is constructed on.
+        '''
+        super().__init__(clazz, container)
+
+# --------------------------------------------------------------------
+
+class TypeOption(TypeContainer):
+    '''
+    Provides the type for the option.
+    '''
+    __slots__ = ()
+
+    def __init__(self, clazz, container):
+        '''
+        Constructs the option type for the provided container.
+        @see: Type.__init__
+        
+        @param clazz: class
+            The model class associated with the option.
+        @param container: Container
+            The container that this option is constructed on.
         '''
         super().__init__(clazz, container)

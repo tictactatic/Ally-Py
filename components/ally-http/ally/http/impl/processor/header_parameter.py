@@ -117,4 +117,4 @@ def pushHeaders(headers, parameters, names):
                 del parameters[k]
                 k -= 1
             k += 1
-        encode(headers, hname, *value)
+        if value: encode(headers, hname, *value)

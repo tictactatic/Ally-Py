@@ -387,12 +387,14 @@ class Invoker(metaclass=abc.ABCMeta):
         self.infoAPI = infoAPI
 
     @abc.abstractmethod
-    def invoke(self, *args):
+    def invoke(self, *args, **keyargs):
         '''
         Make the invoking and return the resources.
         
         @param args: arguments
             The arguments to use in invoking.
+        @param keyargs: key arguments
+            The key arguments to use in invoking.
         '''
         
     def __str__(self):

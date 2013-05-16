@@ -17,7 +17,6 @@ from ally.container.ioc import injected
 from ally.core.http.spec.codes import FORMATING_ERROR
 from ally.core.spec.resources import Converter
 from ally.design.processor.attribute import requires, defines, optional
-from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
 from ally.http.spec.headers import HeaderRaw, HeadersRequire, HeadersDefines
 from ally.internationalization import _

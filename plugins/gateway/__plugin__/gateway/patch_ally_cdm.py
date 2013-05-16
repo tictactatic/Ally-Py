@@ -20,12 +20,9 @@ log = logging.getLogger(__name__)
 # --------------------------------------------------------------------
 
 try:
-    from __setup__ import ally_cdm
+    from __setup__ import ally_cdm # @UnusedImport
 except ImportError: log.info('No ally CDM service available, thus no need to create configurations based on it')
 else:
-    ally_cdm = ally_cdm  # Just to avoid the import warning
-    # ----------------------------------------------------------------
-    
     from __setup__.ally_cdm.server import server_pattern_content, server_provide_content
     from ally.http.spec.server import HTTP_GET
     

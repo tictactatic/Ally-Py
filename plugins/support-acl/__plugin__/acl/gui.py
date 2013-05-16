@@ -21,12 +21,9 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
-try: from .. import gui_action
+try: from .. import gui_action # @UnusedImport
 except ImportError: log.info('No gui action plugin available, thus no support available for it')
 else:
-    gui_action = gui_action  # Just to avoid the import warning
-    # ----------------------------------------------------------------
-    
     from gui.action.api.action import IActionManagerService
     from acl.right_action import RightAction
     

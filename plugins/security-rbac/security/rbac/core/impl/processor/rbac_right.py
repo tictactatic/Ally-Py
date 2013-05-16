@@ -17,8 +17,8 @@ from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor, Handler
 from collections import Iterable
-from itertools import chain
 from security.rbac.core.spec import IRbacSupport
+import itertools
 
 # --------------------------------------------------------------------
 
@@ -75,5 +75,5 @@ class RbacPopulateRights(HandlerProcessor):
             rights.extend(aclType.rightsFor(names))
             
         solicitation.types = types
-        if solicitation.rights is not None: solicitation.rights = chain(solicitation.rights, rights)
+        if solicitation.rights is not None: solicitation.rights = itertools.chain(solicitation.rights, rights)
         else: solicitation.rights = rights

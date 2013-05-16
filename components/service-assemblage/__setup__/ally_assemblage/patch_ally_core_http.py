@@ -23,7 +23,7 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
-try: from .. import ally_core_http
+try: from .. import ally_core_http # @UnusedImport
 except ImportError:
     log.info('No REST core available, you need to configure an external request assembly for assemblages')
     
@@ -32,9 +32,6 @@ except ImportError:
         if server_provide_assemblage() == ASSEMBLAGE_INTERNAL:
             raise SetupError('Cannot configure internal assemblage because the ally core http component is not present')
 else: 
-    ally_core_http = ally_core_http  # Just to avoid the import warning
-    # ----------------------------------------------------------------
-
     from ..ally_core_http.server import resourcesRouter, server_provide_resources, server_provide_errors, \
     updateAssemblyServerForResources
     

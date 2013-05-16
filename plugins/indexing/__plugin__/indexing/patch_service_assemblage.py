@@ -22,14 +22,10 @@ log = logging.getLogger(__name__)
 # --------------------------------------------------------------------
 
 try:
-    from __setup__ import ally_assemblage
-    from __setup__ import ally_core_http
+    from __setup__ import ally_assemblage # @UnusedImport
+    from __setup__ import ally_core_http # @UnusedImport
 except ImportError: log.info('No assemblage service available, thus no need to publish the assemblage data')
 else:
-    ally_assemblage = ally_assemblage  # Just to avoid the import warning
-    ally_core_http = ally_core_http  # Just to avoid the import warning
-    # ----------------------------------------------------------------
-    
     from __setup__.ally_assemblage.processor import assemblage_indexes_uri
     from __setup__.ally_core_http.processor import root_uri_resources
     

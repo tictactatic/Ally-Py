@@ -10,7 +10,7 @@ Provides general used criteria for APIs.
 '''
 
 from .type import Date, Time, DateTime
-from ally.api.config import criteria
+from .config import criteria
 
 # --------------------------------------------------------------------
 

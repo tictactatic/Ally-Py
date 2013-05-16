@@ -12,6 +12,7 @@ Provides the components introspection.
 from admin.api.domain_admin import modelAdmin
 from ally.api.config import service, call, query
 from ally.api.criteria import AsLike, AsBoolean
+from ally.api.option import Slice #@UnusedImport
 from ally.api.type import Iter
 
 # --------------------------------------------------------------------
@@ -61,7 +62,7 @@ class IComponentService:
         '''
 
     @call
-    def getComponents(self, offset:int=None, limit:int=None, q:QComponent=None) -> Iter(Component.Id):
+    def getComponents(self, q:QComponent=None, **options:Slice) -> Iter(Component.Id):
         '''
         Provides all the components.
         '''

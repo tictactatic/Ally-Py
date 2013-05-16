@@ -19,12 +19,9 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
-try: from .. import security
+try: from .. import security # @UnusedImport
 except ImportError: log.info('No security plugin available, thus no support available for it')
 else:
-    security = security  # Just to avoid the import warning
-    # ----------------------------------------------------------------
-    
     from acl.core.impl.synchronizer import SynchronizerRights
     from security.api.right import IRightService
     

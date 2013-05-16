@@ -26,7 +26,7 @@ from ally.design.processor.handler import HandlerProcessor, Handler
 from ally.support.core.util_resources import iterateNodes, pathForNode, \
     METHOD_NODE_ATTRIBUTE, invokerCallOf
 from collections import Iterable
-from itertools import chain
+import itertools
 
 # --------------------------------------------------------------------
 
@@ -260,7 +260,7 @@ class CheckResourceAvailableRights(HandlerProcessor):
             available = self.iterAvailableRights(serviceRights, solicitation.method)
         else:
             available = self.iterAvailableRights(serviceRights)
-        if reply.rightsAvailable is not None: reply.rightsAvailable = chain(reply.rightsAvailable, available)
+        if reply.rightsAvailable is not None: reply.rightsAvailable = itertools.chain(reply.rightsAvailable, available)
         else: reply.rightsAvailable = available
         
     # ----------------------------------------------------------------
@@ -367,7 +367,8 @@ class IterateResourcePermissions(HandlerProcessor):
         
         permissions = self.iterPermissions(indexed, Permission)
         
-        if solicitation.permissions is not None: solicitation.permissions = chain(solicitation.permissions, permissions)
+        if solicitation.permissions is not None:
+            solicitation.permissions = itertools.chain(solicitation.permissions, permissions)
         else: solicitation.permissions = permissions
                         
     # ----------------------------------------------------------------

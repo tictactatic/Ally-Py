@@ -289,7 +289,7 @@ class RequestHandler(dispatcher, BaseHTTPRequestHandler):
         request.uri = url.path.lstrip('/')
         if RequestHTTP.headers in request: request.headers = dict(self.headers)
         if RequestHTTP.parameters in request: request.parameters = parse_qsl(url.query, True, False)
-        
+
         chain = Chain(proc, True, request=request, requestCnt=requestCnt)
         chain.onFinalize(self._processRespond)
         

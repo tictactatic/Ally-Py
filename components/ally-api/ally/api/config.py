@@ -16,7 +16,7 @@ from .operator.extract import extractCriterias, extractProperties, \
     extractPropertiesInherited, extractContainersFrom, extractCriteriasInherited, \
     extractOuputInput, processGenericCall
 from .operator.type import TypeModel, TypeProperty, TypeModelProperty, \
-    TypeCriteria, TypeQuery, TypeCriteriaEntry, TypeService, TypeExtension
+    TypeCriteria, TypeQuery, TypeCriteriaEntry, TypeService, TypeExtension, TypeOption
 from .type import typeFor
 from abc import ABCMeta, abstractmethod
 from ally.api.type import List, Input
@@ -45,6 +45,9 @@ RULE_QUERY_CRITERIA = ('^[a-z]{1,}[\w]*$',
 
 RULE_EXTENSION_PROPERTY = ('^[a-z]{1,}[\w]*$',
                            'The extension property name needs to start with a lower case, got "%s"')
+
+RULE_OPTION_PROPERTY = ('^[a-z]{1,}[\w]*$',
+                        'The option property name needs to start with a lower case, got "%s"')
 
 RULE_CALL_PARAMETERS = ('^[a-z]{1,}[\w]*$',
                         'The call parameter name needs to start with a lower case, got "%s", at:%s')
@@ -475,6 +478,47 @@ def extension(*args):
             setattr(clazz, prop, Property(propType))
     
         clazz._ally_type = extensionType  # This specified the detected type for the model class by using 'typeFor'
+        clazz._ally_reference = reference  # The references to be returned by the properties when used only with class
+        clazz.__new__ = ContainerSupport.__new__
+    
+        return clazz
+    if args: return decorator(*args)
+    return decorator
+
+def option(*args):
+    '''
+    Used for decorating classes that are API options. The option is used to group multiple key argument declarations that
+    tend to repeat in services.
+    
+    ex:
+        @option
+        class Slice:
+    
+            offset = int
+            limit = int
+    '''
+    def decorator(clazz):
+        assert isclass(clazz), 'Invalid class %s' % clazz
+    
+        properties = extractPropertiesInherited(clazz.__bases__, TypeOption)
+        log.info('Extracted option inherited properties %s for class %s', properties, clazz)
+        properties.update(extractProperties(clazz.__dict__))
+        log.info('Extracted option properties %s for class %s', properties, clazz)
+        for prop, typ in properties.items():
+            if not match(RULE_OPTION_PROPERTY[0], prop): raise DevelError(RULE_OPTION_PROPERTY[1] % prop)
+            if not typ.isPrimitive:
+                raise DevelError('Invalid type %s for property \'%s\', only primitives allowed' % (typ, prop))
+    
+        optionContainer = Container(properties)
+        optionType = TypeOption(clazz, optionContainer)
+    
+        reference = {}
+        for prop in optionContainer.properties:
+            propType = TypeProperty(optionType, prop)
+            reference[prop] = Reference(propType)
+            setattr(clazz, prop, Property(propType))
+    
+        clazz._ally_type = optionType  # This specified the detected type for the model class by using 'typeFor'
         clazz._ally_reference = reference  # The references to be returned by the properties when used only with class
         clazz.__new__ = ContainerSupport.__new__
     

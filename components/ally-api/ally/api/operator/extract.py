@@ -14,10 +14,9 @@ from .container import Call, Container, Query
 from .type import TypeContainer, TypeCriteria, TypeQuery, TypeModelProperty, \
     TypeModel
 from ally.exception import DevelError
-from ally.support.util import IS_PY3K
-from inspect import isfunction, getfullargspec, getargspec
+from inspect import isfunction, getfullargspec
 import logging
-from ally.api.operator.type import TypeProperty
+from ally.api.operator.type import TypeProperty, TypeOption
 
 # --------------------------------------------------------------------
 
@@ -80,7 +79,7 @@ def extractPropertiesInherited(classes, forType=TypeContainer):
         A dictionary containing as a key the property name and as a value the property type.
     '''
     containers = extractContainersFrom(classes, forType)
-    containers.reverse() #We reverse since the priority is from first class to last
+    containers.reverse()  # We reverse since the priority is from first class to last
     properties = {}
     for container in containers:
         assert isinstance(container, Container)
@@ -126,7 +125,7 @@ def extractCriteriasInherited(classes):
     queries = [typeFor(base) for base in classes]
     queries = [typ.query for typ in queries if isinstance(typ, TypeQuery)]
 
-    queries.reverse() #We reverse since the priority is from first class to last
+    queries.reverse()  # We reverse since the priority is from first class to last
     criterias = {}
     for query in queries:
         assert isinstance(query, Query)
@@ -153,16 +152,11 @@ def extractOuputInput(function, types=None, modelToId=False):
     '''
     assert isfunction(function), 'Invalid function %s' % function
     assert isinstance(modelToId, bool), 'Invalid model to id flag %s' % modelToId
-    if IS_PY3K:
-        fnArgs = getfullargspec(function)
-        args, varargs, keywords, defaults = fnArgs.args, fnArgs.varargs, fnArgs.varkw, fnArgs.defaults
-        annotations = fnArgs.annotations
-    else:
-        args, varargs, keywords, defaults = getargspec(function)
-        annotations = {}
+    fnArgs = getfullargspec(function)
+    args, keywords, defaults = fnArgs.args, fnArgs.varkw, fnArgs.defaults
+    annotations = fnArgs.annotations
 
-    assert varargs is None, 'No variable arguments are allowed'
-    assert keywords is None, 'No keywords arguments are allowed'
+    assert fnArgs.varargs is None, 'No variable arguments are allowed'
     assert 'self' == args[0], 'The call needs to be tagged in a class definition'
 
     if types:
@@ -172,20 +166,33 @@ def extractOuputInput(function, types=None, modelToId=False):
         'arguments %s' % (annotations, types)
         annotations['return'] = types[0]
         annotations.update({args[k]:types[k] for k in range(1, len(args))})
+    
+    args = args[1:]  # We remove the self argument
 
-    mandatory = len(args) - (1 if defaults is None else len(defaults) + 1)
-    typ = fnArgs.annotations.get('return')
+    mandatory = len(args)
+    if defaults: mandatory -= len(defaults)
+    typ = annotations.get('return')
     output, inputs = typeFor(Non if typ is None else typ), []
-    for k, arg in enumerate(args[1:]):
-        if arg in args:
-            if arg not in annotations: raise DevelError('There is no type for %s' % arg)
-            typ = typeFor(annotations[arg])
-            assert isinstance(typ, Type), 'Could not obtain a valid type for %s with %s' % (arg, annotations[arg])
-            if modelToId and isinstance(typ, TypeModel):
-                assert isinstance(typ, TypeModel)
-                typ = typ.propertyTypeId()
-            if k < mandatory: inputs.append(Input(arg, typ))
-            else: inputs.append(Input(arg, typ, True, defaults[k - mandatory]))
+    for k, arg in enumerate(args):
+        if arg not in annotations: raise DevelError('There is no type for \'%s\'' % arg)
+        typ = typeFor(annotations[arg])
+        assert isinstance(typ, Type), 'Could not obtain a valid type for \'%s\' with %s' % (arg, annotations[arg])
+        if modelToId and isinstance(typ, TypeModel):
+            assert isinstance(typ, TypeModel)
+            typ = typ.propertyTypeId()
+        if k < mandatory: inputs.append(Input(arg, typ))
+        else: inputs.append(Input(arg, typ, True, defaults[k - mandatory]))
+    
+    if keywords:
+        if keywords not in annotations: raise DevelError('There is option type for keywords \'%s\'' % keywords)
+        optionType = typeFor(annotations[keywords])
+        assert isinstance(optionType, TypeOption), 'Invalid option type for %s with %s' % (keywords, annotations[keywords])
+        assert isinstance(optionType.container, Container)
+        option = optionType.clazz()
+        for prop, typ in optionType.container.properties.items():
+            if prop in args:
+                raise DevelError('There is already the argument name \'%s\' cannot process options %s' % (prop, optionType))
+            inputs.append(Input(prop, typ, True, getattr(option, prop), True))
 
     return output, inputs
 

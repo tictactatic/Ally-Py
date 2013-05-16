@@ -18,7 +18,6 @@ from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context, pushIn
 from ally.design.processor.execution import Processing
 from ally.design.processor.handler import HandlerBranching
-from ally.exception import DevelError
 import logging
 
 # --------------------------------------------------------------------

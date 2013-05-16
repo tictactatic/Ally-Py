@@ -87,17 +87,21 @@ class InvokingHandler(HandlerProcessor):
         'Method cannot be processed for invoker \'%s\', something is wrong in the setups' % request.invoker.name
         assert isinstance(request.arguments, dict), 'Invalid arguments %s' % request.arguments
 
-        arguments = []
+        args, keyargs = [], {}
         for inp in request.invoker.inputs:
             assert isinstance(inp, Input), 'Invalid input %s' % inp
-            if inp.name in request.arguments: arguments.append(request.arguments[inp.name])
-            elif inp.hasDefault: arguments.append(inp.default)
+            if inp.name in request.arguments:
+                if inp.isKeyArgument: keyargs[inp.name] = request.arguments[inp.name]
+                else: args.append(request.arguments[inp.name])
+            elif inp.isKeyArgument:
+                if inp.hasDefault: keyargs[inp.name] = inp.default
+            elif inp.hasDefault: args.append(inp.default)
             else:
                 raise DevelError('No value for mandatory input \'%s\' for invoker \'%s\'' % (inp.name, request.invoker.name))
         try:
-            value = request.invoker.invoke(*arguments)
-            assert log.debug('Successful on calling invoker \'%s\' with values %s', request.invoker,
-                             tuple(arguments)) or True
+            value = request.invoker.invoke(*args, **keyargs)
+            assert log.debug('Successful on calling invoker \'%s\' with arguments %s and key arguments', request.invoker,
+                             args, keyargs) or True
 
             callBack(request.invoker, value, response)
         except InputError as e:

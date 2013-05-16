@@ -13,7 +13,7 @@ from .context import create
 from .execution import Processing
 from .resolvers import resolversFor, checkIf, solve, reportFor
 from .spec import IProcessor, AssemblyError, LIST_UNAVAILABLE
-from abc import ABCMeta
+from abc import ABCMeta # @UnusedImport
 from ally.design.processor.report import ReportUnused
 from collections import Iterable
 import logging
@@ -21,7 +21,6 @@ import logging
 # --------------------------------------------------------------------
 
 log = logging.getLogger(__name__)
-ABCMeta = ABCMeta  # Just to avoid the warning
 
 # --------------------------------------------------------------------
 

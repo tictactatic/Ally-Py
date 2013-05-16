@@ -36,7 +36,7 @@ def root_uri_my_resources():
 
 # --------------------------------------------------------------------
 
-try: from .. import ally_core_http
+try: from .. import ally_core_http # @UnusedImport
 except ImportError:
     log.info('No REST core available, you need to configure an external request assembly for gateway')
     
@@ -46,9 +46,6 @@ except ImportError:
             raise SetupError('Cannot configure internal gateway because the ally core http component is not present')
     
 else: 
-    ally_core_http = ally_core_http  # Just to avoid the import warning
-    # ----------------------------------------------------------------
-
     from ..ally_core_http.server import resourcesRouter, server_provide_resources, updateAssemblyServerForResources, \
     errorsRouter, server_provide_errors, server_pattern_resources
     from ..ally_core_http.processor import assemblyResources, encoderPathResource, converterPath

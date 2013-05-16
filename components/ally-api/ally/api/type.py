@@ -381,9 +381,9 @@ class Input:
     '''
     Provides an input entry for a call, this is used for keeping the name and also the type of a call parameter.
     '''
-    __slots__ = ('name', 'type', 'hasDefault', 'default')
+    __slots__ = ('name', 'type', 'hasDefault', 'default', 'isKeyArgument')
 
-    def __init__(self, name, type, hasDefault=False, default=None):
+    def __init__(self, name, type, hasDefault=False, default=None, isKeyArgument=False):
         '''
         Construct the input.
         
@@ -395,13 +395,19 @@ class Input:
             A flag indicating that this input has a default value.
         @param default: object
             The default value.
+        @param isKeyArgument: boolean
+            Flag indicating that the input is a key argument.
         '''
         assert isinstance(name, str), 'Invalid name %s' % name
         assert isinstance(type, Type), 'Invalid type %s' % type
+        assert isinstance(hasDefault, bool), 'Invalid has default flag %s' % hasDefault
+        assert isinstance(isKeyArgument, bool), 'Invalid is key argument flag %s' % isKeyArgument
+        
         self.name = name
         self.type = type
         self.hasDefault = hasDefault
         self.default = default
+        self.isKeyArgument = isKeyArgument
 
     def __hash__(self):
         return hash((self.name, self.type))
@@ -412,7 +418,16 @@ class Input:
         return False
 
     def __str__(self):
-        return '%s=%s[%s:%s]' % (self.name, self.type, self.hasDefault, self.default)
+        st = []
+        if self.isKeyArgument: st.append('*')
+        st.append(self.name)
+        st.append('=')
+        st.append(str(self.type))
+        if self.hasDefault:
+            st.append('[')
+            st.append(str(self.default))
+            st.append(']')
+        return ''.join(st)
 
 # --------------------------------------------------------------------
 

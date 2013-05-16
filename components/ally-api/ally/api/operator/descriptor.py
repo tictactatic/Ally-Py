@@ -11,7 +11,7 @@ Provides the operator descriptors for the APIs.
 
 from ..type import typeFor, Type, TypeSupport
 from .type import TypeContainer, TypeCriteriaEntry, TypeProperty, TypeQuery
-from abc import ABCMeta
+from abc import ABCMeta # @UnusedImport
 from ally.api.operator.container import Query, Container
 from ally.api.operator.type import TypeCriteria
 from ally.exception import DevelError
@@ -266,8 +266,6 @@ class CriteriaEntry(TypeSupport):
         return str(self._ally_type)
 
 # --------------------------------------------------------------------
-
-ABCMeta = ABCMeta  # Just to get rid of the pydev warning of not used
 
 class ContainerSupport(metaclass=ABCMeta):
     '''

@@ -9,7 +9,7 @@ Created on Aug 2, 2012
 Provides standard extended objects.
 '''
 
-from ally.api.config import extension
+from .config import extension
 from collections import Iterable
 
 # --------------------------------------------------------------------

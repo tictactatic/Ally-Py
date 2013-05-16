@@ -28,7 +28,7 @@ from ally.support.core.util_resources import findNodesFor, propertyTypesOf, \
     ReplacerWithMarkers, pathForNode
 from collections import Callable, Iterable
 from gateway.api.gateway import Gateway
-from itertools import chain
+import itertools
 import logging
 
 # --------------------------------------------------------------------
@@ -112,7 +112,7 @@ class GatewaysFromPermissions(HandlerProcessor):
         assert callable(solicitation.provider), 'Invalid provider %s' % solicitation.provider
         
         gateways = self.processGateways(solicitation.permissions, solicitation.provider, solicitation.encoderPath)
-        if reply.gateways is not None: reply.gateways = chain(reply.gateways, gateways)
+        if reply.gateways is not None: reply.gateways = itertools.chain(reply.gateways, gateways)
         else: reply.gateways = gateways
         
     # ----------------------------------------------------------------

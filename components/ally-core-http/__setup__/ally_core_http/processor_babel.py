@@ -25,13 +25,9 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
-try: import babel
+try: import babel  # @UnusedImport
 except ImportError: log.info('No Babel library available, no Babel conversion')
 else:
-    babel = babel  # Just to avoid import warning
-    # ----------------------------------------------------------------
-
-    
     from ally.core.http.impl.processor.text_conversion import \
     BabelConverterRequestHandler, BabelConverterResponseHandler, BabelConversionEncodeHandler, FORMAT, CONTENT_FORMAT
     

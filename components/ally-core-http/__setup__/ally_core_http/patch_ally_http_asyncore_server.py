@@ -21,12 +21,9 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
-try: from .. import ally_http_asyncore_server
+try: from .. import ally_http_asyncore_server  # @UnusedImport
 except ImportError: log.info('No asyncore available thus skip the resources patching')
 else:
-    ally_http_asyncore_server = ally_http_asyncore_server  # Just to avoid the import warning
-    # ----------------------------------------------------------------
-
     from ..ally_http_asyncore_server.processor import asyncoreContent
     from ..ally_http_asyncore_server.server import SERVER_ASYNCORE
     

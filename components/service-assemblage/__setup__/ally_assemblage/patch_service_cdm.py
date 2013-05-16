@@ -21,13 +21,9 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
-try: from .. import ally_cdm, ally_core_http
+try: from .. import ally_cdm, ally_core_http # @UnusedImport
 except ImportError: log.info('No CDM service available, no need to patch it')
 else: 
-    ally_cdm = ally_cdm  # Just to avoid the import warning
-    ally_core_http = ally_core_http  # Just to avoid the import warning
-    # ----------------------------------------------------------------
-    
     from ..ally_cdm.server import server_provide_content, contentRouter, updateAssemblyServerForContent
     
     @ioc.after(updateAssemblyForward)

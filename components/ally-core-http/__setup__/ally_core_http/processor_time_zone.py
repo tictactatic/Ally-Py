@@ -23,12 +23,9 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
-try: import pytz
+try: import pytz # @UnusedImport
 except ImportError: log.info('No pytz library available, no time zone conversion available')
 else:
-    pytz = pytz  # Just to avoid the import warning
-    # ----------------------------------------------------------------
-
     from ally.core.http.impl.processor.time_zone import TimeZoneConverterRequestHandler, \
         TimeZoneConverterResponseHandler, TIME_ZONE, CONTENT_TIME_ZONE
     

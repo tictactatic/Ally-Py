@@ -20,12 +20,9 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
-try: from .. import ally_http_mongrel2_server
+try: from .. import ally_http_mongrel2_server # @UnusedImport
 except ImportError: log.info('No mongrel2 available thus skip the CDM patching')
 else:
-    ally_http_mongrel2_server = ally_http_mongrel2_server  # Just to avoid the import warning
-    # ----------------------------------------------------------------
-    
     ioc.doc(server_provide_content, '''
     !Attention, if the mongrel2 server is selected this option will always be "false"
     ''')

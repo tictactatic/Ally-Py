@@ -12,12 +12,6 @@ Provides implementations that provide general behavior or functionality.
 from collections import Iterable, Iterator, namedtuple
 from inspect import isclass, isfunction
 from weakref import WeakKeyDictionary
-import sys
-
-# --------------------------------------------------------------------
-
-# Flag indicating that the python version is 3k or more.
-IS_PY3K = int(sys.version[:1]) >= 3
 
 # --------------------------------------------------------------------
 

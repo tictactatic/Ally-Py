@@ -70,11 +70,11 @@ class InvokerCall(Invoker):
         self.implementation = implementation
         self.call = call
 
-    def invoke(self, *args):
+    def invoke(self, *args, **keyargs):
         '''
         @see: Invoker.invoke
         '''
-        return getattr(self.implementation, self.call.name)(*args)
+        return getattr(self.implementation, self.call.name)(*args, **keyargs)
 
 class InvokerFunction(Invoker):
     '''
@@ -98,11 +98,11 @@ class InvokerFunction(Invoker):
         super().__init__(name, method, output, inputs, hints, infoIMPL)
         self.function = function
 
-    def invoke(self, *args):
+    def invoke(self, *args, **keyargs):
         '''
         @see: Invoker.invoke
         '''
-        return self.function(*args)
+        return self.function(*args, **keyargs)
 
 # --------------------------------------------------------------------
 
@@ -150,7 +150,7 @@ class InvokerRestructuring(Invoker):
         super().__init__(invoker.name, invoker.method, invoker.output, inputs, invoker.hints,
                          invoker.infoIMPL, invoker.infoAPI)
 
-    def invoke(self, *args):
+    def invoke(self, *args, **keyargs):
         '''
         @see: Invoker.invoke
         '''
@@ -173,4 +173,4 @@ class InvokerRestructuring(Invoker):
                 if val is None: setattr(obj, prop, arg)
                 elif val != arg: raise DevelError('Cannot set value %s for \'%s\', expected value %s' % (val, prop, arg))
 
-        return self.invoker.invoke(*wargs)
+        return self.invoker.invoke(*wargs, **keyargs)

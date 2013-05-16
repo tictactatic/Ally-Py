@@ -22,12 +22,9 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
-try: from .. import ally_gateway
+try: from .. import ally_gateway # @UnusedImport
 except ImportError: log.info('No gateway service available, no need to patch it')
 else: 
-    ally_gateway = ally_gateway  # Just to avoid the import warning
-    # ----------------------------------------------------------------
-    
     from ..ally_gateway.server import gatewayRouter, server_provide_gateway, GATEWAY_EXTERNAL, GATEWAY_INTERNAL, \
     updateAssemblyServerForGatewayExternal
     
@@ -41,7 +38,7 @@ else:
         if server_provide_gateway() == GATEWAY_EXTERNAL and server_provide_assemblage() == ASSEMBLAGE_EXTERNAL:
             assemblyServer().remove(gatewayRouter())
 
-    try: from .. import ally_core_http
+    try: from .. import ally_core_http # @UnusedImport
     except ImportError:
         @ioc.before(assemblyForward)
         def updateAssemblyForwardForGatewayInternal():
@@ -51,12 +48,8 @@ else:
                 elif server_provide_assemblage() == ASSEMBLAGE_INTERNAL:
                     raise SetupError('Cannot configure internal assemblage because the ally core http component is not present')
     else: 
-        ally_core_http = ally_core_http  # Just to avoid the import warning
-        # ----------------------------------------------------------------
-        
         from ..ally_gateway.patch_ally_core_http import updateAssemblyServerForGatewayInternal
         from .patch_ally_core_http import updateAssemblyForwardForResources, resourcesRouter, isInternal
-        
     
         @ioc.after(updateAssemblyForwardForResources)
         def updateAssemblyForwardForGatewayInternal():

@@ -20,12 +20,9 @@ log = logging.getLogger(__name__)
 # --------------------------------------------------------------------
 
 try:
-    from __setup__ import ally_core_http
+    from __setup__ import ally_core_http # @UnusedImport
 except ImportError: log.info('No ally core http service available, thus no need to create configurations based on it')
 else:
-    ally_core_http = ally_core_http  # Just to avoid the import warning
-    # ----------------------------------------------------------------
-    
     from __setup__.ally_core_http.processor_error import statusToCode
     from __setup__.ally_core_http.server import server_pattern_resources, \
         server_pattern_errors, server_provide_errors

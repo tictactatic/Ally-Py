@@ -50,7 +50,7 @@ class ComponentService(IComponentService):
         if len(modules) != 1: raise InputError(Ref(_('Invalid component id'), ref=Component.Id))
         return self.componentFor(modules[0])
 
-    def getComponents(self, offset=None, limit=None, q=None):
+    def getComponents(self, q=None, offset=None, limit=None):
         '''
         @see: IComponentService.getComponents
         '''
