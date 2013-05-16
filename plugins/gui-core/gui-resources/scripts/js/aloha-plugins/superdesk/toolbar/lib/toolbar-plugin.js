@@ -87,22 +87,13 @@ define([
 
         adoptInto: function (slot, component) 
         {
-            var tab = this._tabBySlot[slot],
-
-            // replace components with top level matched components from template
-            newEl = $(component.element).clone(true, true),
-            modelEl = $("[data-editor-ui-component='"+component.name+"']", Aloha.settings.plugins.toolbar.element);
-            if( modelEl.length )
-            {
-                $(modelEl.prop('attributes')).each(function(){ newEl.attr(this.name, this.value); }) 
-                modelEl.replaceWith(newEl);
-                component.element = newEl;
-            }
-            
-            return;
+            var tab = this._tabBySlot[slot];
             
             var newElement = $("[data-editor-ui-component='"+component.name+"']", Aloha.settings.plugins.toolbar.element),
                 evts, i, j;
+
+            component.element.appendTo(Aloha.settings.plugins.toolbar.element);
+            
             if( newElement.length )
             {
                 var data = $(component.element).data();

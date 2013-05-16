@@ -5,7 +5,7 @@ function($)
     {
         settings: 
         {
-            bundles: { oer: config.cjs('aloha-plugins/oer') },
+            bundles: { oer: config.cjs('aloha-plugins/oer'), superdesk: config.cjs('aloha-plugins/superdesk') },
             predefinedModules: 
             {
                 'jquery': $,
@@ -202,7 +202,7 @@ function($)
                 'tmpl': config.cjs('require/tmpl'),
                 
                 // fixed toolbar
-                //"ui/toolbar": config.cjs("aloha-plugins/oer/toolbar/lib/toolbar-plugin"),
+                "ui/toolbar": config.cjs("aloha-plugins/superdesk/toolbar/lib/toolbar-plugin")
                 //"toolbar/vendor": config.cjs("aloha-plugins/oer/toolbar/vendor"),
                 //"toolbar/css": config.cjs("aloha-plugins/oer/toolbar/css"),
                 //"toolbar/nls": config.cjs("aloha-plugins/oer/toolbar/nls"),
