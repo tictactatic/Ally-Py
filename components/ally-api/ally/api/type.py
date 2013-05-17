@@ -13,9 +13,9 @@ from .. import type_legacy as numbers
 from ..support.util import Uninstantiable, Singletone
 from ..type_legacy import Iterable
 from .model import Content
+from abc import ABCMeta
 from datetime import datetime, date, time
 from inspect import isclass
-from abc import ABCMeta
 import abc
 
 # --------------------------------------------------------------------
@@ -381,9 +381,9 @@ class Input:
     '''
     Provides an input entry for a call, this is used for keeping the name and also the type of a call parameter.
     '''
-    __slots__ = ('name', 'type', 'hasDefault', 'default', 'isKeyArgument')
+    __slots__ = ('name', 'type', 'hasDefault', 'default')
 
-    def __init__(self, name, type, hasDefault=False, default=None, isKeyArgument=False):
+    def __init__(self, name, type, hasDefault=False, default=None):
         '''
         Construct the input.
         
@@ -395,19 +395,17 @@ class Input:
             A flag indicating that this input has a default value.
         @param default: object
             The default value.
-        @param isKeyArgument: boolean
-            Flag indicating that the input is a key argument.
+        @param optionType: TypeOption|None
+            The option type associated with the input, if this is provided the input is a key argument input type.
         '''
         assert isinstance(name, str), 'Invalid name %s' % name
         assert isinstance(type, Type), 'Invalid type %s' % type
         assert isinstance(hasDefault, bool), 'Invalid has default flag %s' % hasDefault
-        assert isinstance(isKeyArgument, bool), 'Invalid is key argument flag %s' % isKeyArgument
         
         self.name = name
         self.type = type
         self.hasDefault = hasDefault
         self.default = default
-        self.isKeyArgument = isKeyArgument
 
     def __hash__(self):
         return hash((self.name, self.type))
@@ -419,7 +417,6 @@ class Input:
 
     def __str__(self):
         st = []
-        if self.isKeyArgument: st.append('*')
         st.append(self.name)
         st.append('=')
         st.append(str(self.type))

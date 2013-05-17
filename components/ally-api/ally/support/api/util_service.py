@@ -10,6 +10,7 @@ Provides utility methods for service implementations.
 '''
 
 from ally.api.criteria import AsBoolean, AsLike, AsEqual, AsOrdered
+from ally.api.extension import IterPart
 from ally.api.operator.container import Model
 from ally.api.operator.type import TypeQuery, TypeContainer, TypeModel
 from ally.api.type import typeFor
@@ -146,24 +147,31 @@ def trimIter(collection, size=None, offset=None, limit=None):
     for _k in zip(range(0, offset), collection): pass
     return (v for v, _k in zip(collection, range(0, limit)))
 
-def processQuery(objects, query, clazz):
+def processQuery(collection, clazz, query, fetcher=None):
     '''
     Filters the iterable of entities based on the provided query.
     
-    @param objects: Iterable(model object of clazz)
+    @param collection: Iterable(model object of clazz or reference)
         The entities objects iterator to be processed.
-    @param query: query
-        The query object to provide filtering on.
     @param clazz: class
         The model class to use the query on.
-    @return: list[model object of clazz]
-        The list of processed entities.
+    @param query: query|None
+        The query object to provide filtering on.
+    @param fetcher: callable(object) -> object|None
+        The callable used in fetching the actual models of clazz in case the collection only contains references
+        of the models.
+    @return: list[model object of clazz or reference]
+        The list of processed entities or references.
     '''
-    assert isinstance(objects, Iterable), 'Invalid entities objects iterable %s' % objects
-    assert query is not None, 'A query object is required'
+    assert isinstance(collection, Iterable), 'Invalid entities objects iterable %s' % collection
+    if query is None:
+        if not isinstance(collection, list): collection = list(collection)
+        return collection
+    
     qclazz = query.__class__
 
-    filtered = list(objects)
+    if fetcher: filtered = [(reference, fetcher(reference)) for reference in collection]
+    else: filtered = [(obj, fetcher(id)) for obj in collection]
     ordered, unordered = [], []
     properties = {prop.lower(): prop for prop in namesForModel(clazz)}
     for criteria in namesForQuery(qclazz):
@@ -173,7 +181,7 @@ def processQuery(objects, query, clazz):
             if isinstance(crt, AsBoolean):
                 assert isinstance(crt, AsBoolean)
                 if AsBoolean.value in crt:
-                    filtered = [obj for obj in filtered if crt.value == getattr(obj, prop)]
+                    filtered = [item for item in filtered if crt.value == getattr(item[1], prop)]
             elif isinstance(crt, AsLike):
                 assert isinstance(crt, AsLike)
                 regex = None
@@ -183,12 +191,12 @@ def processQuery(objects, query, clazz):
                     if crt.ilike is not None: regex = likeAsRegex(crt.ilike, True)
 
                 if regex is not None:
-                    filtered = ((obj, getattr(obj, prop)) for obj in filtered)
-                    filtered = [obj for obj, value in filtered if value is not None and regex.match(value)]
+                    filtered = ((item, getattr(item[1], prop)) for item in filtered)
+                    filtered = [item for item, value in filtered if value is not None and regex.match(value)]
             elif isinstance(crt, AsEqual):
                 assert isinstance(crt, AsEqual)
                 if AsEqual.equal in crt:
-                    filtered = [obj for obj in filtered if crt.equal == getattr(obj, prop)]
+                    filtered = [item for item in filtered if crt.equal == getattr(item[1], prop)]
             if isinstance(crt, AsOrdered):
                 assert isinstance(crt, AsOrdered)
                 if AsOrdered.ascending in crt:
@@ -199,9 +207,35 @@ def processQuery(objects, query, clazz):
 
             ordered.sort(key=lambda pack: pack[2])
             for prop, asc, __ in reversed(list(chain(ordered, unordered))):
-                filtered.sort(key=lambda obj: getattr(obj, prop), reverse=not asc)
+                filtered.sort(key=lambda item: getattr(item[1], prop), reverse=not asc)
 
-    return filtered
+    return [item[0] for item in filtered]
+
+def processCollection(collection, clazz, query=None, fetcher=None, offset=0, limit=None, withTotal=False):
+    '''
+    Process the collection based on the provided parameters.
+    
+    @param collection: Iterable(model object of clazz or reference)
+        The entities objects iterator to be processed.
+    @param clazz: class
+        The model class to use the query on.
+    @param query: query|None
+        The query object to provide filtering on.
+    @param fetcher: callable(object) -> object|None
+        The callable used in fetching the actual models of clazz in case the collection only contains references
+        of the models.
+        
+    ... the options
+    
+    @return: Iterable(model object of clazz or reference)
+        The processed collection.
+    '''
+    assert isinstance(withTotal, bool), 'Invalid with total flag %s' % withTotal
+    collection = processQuery(collection, clazz, query, fetcher)
+    total = len(collection)
+    collection = trimIter(collection, total, offset, limit)
+    if withTotal: return IterPart(collection, total, offset, limit)
+    return collection
 
 # --------------------------------------------------------------------
 

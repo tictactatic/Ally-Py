@@ -13,7 +13,7 @@ from ..ally_core.parsing_rendering import assemblyParsing
 from ..ally_core.processor import argumentsBuild, argumentsPrepare, encoding, \
     invoking, default_charset, rendering, createDecoder, content, renderEncoder, \
     normalizerRequest, converterRequest, normalizerResponse, converterResponse, \
-    blockIndexing
+    blockIndexing, optionSlice
 from ..ally_core.resources import resourcesRoot
 from ..ally_http.processor import encoderPath, contentLengthDecode, \
     contentLengthEncode, methodOverride, allowEncode, contentTypeRequestDecode, \
@@ -225,7 +225,7 @@ def updateAssemblyResources():
                             contentTypeRequestDecode(), contentLengthDecode(), contentLanguageDecode(), acceptDecode(),
                             rendering(), normalizerRequest(), converterRequest(), createDecoder(),
                             normalizerResponse(), converterResponse(), encoding(), parsingMultiPart(), content(),
-                            parameter(), argumentsBuild(), invoking(), renderEncoder(), status(), explainError(),
+                            parameter(), argumentsBuild(), optionSlice(), invoking(), renderEncoder(), status(), explainError(),
                             contentIndexEncode(), contentTypeResponseEncode(), contentLanguageEncode(), contentLengthEncode(),
                             allowEncode())
     

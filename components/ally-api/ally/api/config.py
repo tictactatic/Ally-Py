@@ -16,7 +16,8 @@ from .operator.extract import extractCriterias, extractProperties, \
     extractPropertiesInherited, extractContainersFrom, extractCriteriasInherited, \
     extractOuputInput, processGenericCall
 from .operator.type import TypeModel, TypeProperty, TypeModelProperty, \
-    TypeCriteria, TypeQuery, TypeCriteriaEntry, TypeService, TypeExtension, TypeOption
+    TypeCriteria, TypeQuery, TypeCriteriaEntry, TypeService, TypeExtension, \
+    TypeOption, TypeOptionProperty
 from .type import typeFor
 from abc import ABCMeta, abstractmethod
 from ally.api.type import List, Input
@@ -242,7 +243,7 @@ def criteria(*args, main=None):
     
         reference = {}
         for prop in criteriaContainer.properties:
-            propType = TypeProperty(criteriaType, prop)
+            propType = TypeProperty(criteriaType, prop, isContainable=False)
             reference[prop] = Reference(propType)
             setattr(clazz, prop, Property(propType))
     
@@ -473,7 +474,7 @@ def extension(*args):
     
         reference = {}
         for prop in extensionContainer.properties:
-            propType = TypeProperty(extensionType, prop)
+            propType = TypeProperty(extensionType, prop, isContainable=False)
             reference[prop] = Reference(propType)
             setattr(clazz, prop, Property(propType))
     
@@ -514,7 +515,7 @@ def option(*args):
     
         reference = {}
         for prop in optionContainer.properties:
-            propType = TypeProperty(optionType, prop)
+            propType = TypeOptionProperty(optionType, prop)
             reference[prop] = Reference(propType)
             setattr(clazz, prop, Property(propType))
     

@@ -179,7 +179,7 @@ class TypeProperty(Type):
     '''
     __slots__ = ('parent', 'property', 'container', 'type')
 
-    def __init__(self, parent, property, type=None):
+    def __init__(self, parent, property, type=None, isContainable=True):
         '''
         Constructs the property type for the provided property name and parent container type.
         @see: Type.__init__
@@ -189,7 +189,7 @@ class TypeProperty(Type):
         @param property: string
             The property name that this type represents.
         @param type: Type|None
-            container.
+            The type to associate with the property type, if not provided then the container property type is used.
         '''
         assert isinstance(parent, TypeContainer), 'Invalid container type %s' % parent
         assert isinstance(property, str), 'Invalid property %s' % property
@@ -201,7 +201,7 @@ class TypeProperty(Type):
         self.property = property
         self.container = parent.container
         self.type = type or self.container.properties[property]
-        super().__init__(False, True)
+        super().__init__(False, isContainable)
 
     def isOf(self, type):
         '''
@@ -396,3 +396,20 @@ class TypeOption(TypeContainer):
             The container that this option is constructed on.
         '''
         super().__init__(clazz, container)
+
+class TypeOptionProperty(TypeProperty):
+    '''
+    This type is used to wrap a option property as types.
+    '''
+
+    def __init__(self, parent, property, type=None):
+        '''
+        Constructs the property type for the provided property name and parent container type.
+        @see: TypeProperty.__init__
+        
+        @param parent: TypeOption
+            The model of the property type.
+        '''
+        assert isinstance(parent, TypeOption), 'Invalid option type %s' % parent
+        super().__init__(parent, property, type, isContainable=False)
+        

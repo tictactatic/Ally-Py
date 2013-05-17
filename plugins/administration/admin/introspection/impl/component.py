@@ -9,14 +9,13 @@ Created on Mar 4, 2012
 Implementation for the components introspection.
 '''
 
-from ..api.component import IComponentService, Component, QComponent
-from ally.api.extension import IterPart
+from ..api.component import IComponentService, Component
 from ally.container.aop import modulesIn
 from ally.container.ioc import injected
 from ally.container.support import setup
 from ally.exception import InputError, Ref
 from ally.internationalization import _
-from ally.support.api.util_service import trimIter, processQuery
+from ally.support.api.util_service import processCollection
 from os import path
 import sys
 
@@ -48,38 +47,10 @@ class ComponentService(IComponentService):
         assert isinstance(id, str), 'Invalid id %s' % id
         modules = modulesIn('%s.%s' % (self.package, id)).asList()
         if len(modules) != 1: raise InputError(Ref(_('Invalid component id'), ref=Component.Id))
-        return self.componentFor(modules[0])
-
-    def getComponents(self, q=None, offset=None, limit=None):
-        '''
-        @see: IComponentService.getComponents
-        '''
-        modules = modulesIn('%s.*' % self.package).asList()
-        modules.sort()
-        components = (self.componentFor(module) for module in modules)
-        length = len(modules)
-        if q:
-            assert isinstance(q, QComponent), 'Invalid query %s' % q
-            components = processQuery(components, q, Component)
-            length = len(components)
-
-        return IterPart(trimIter((component.Id for component in components), length, offset, limit), length, offset, limit)
-
-    # ----------------------------------------------------------------
-
-    def componentFor(self, module):
-        '''
-        Create a component based on the provided module.
         
-        @param module: string
-            The module to create a component for.
-        @return: Component
-            The component reflecting the module.
-        '''
         c = Component()
-        c.Id = module[len(self.package) + 1:]
-
-        m = sys.modules.get(module)
+        c.Id = id
+        m = sys.modules.get(modules[0])
         if m:
             c.Loaded = True
             c.Name = getattr(m, 'NAME', None)
@@ -91,5 +62,14 @@ class ComponentService(IComponentService):
             c.InEgg = not path.isfile(m.__file__)
         else:
             c.Loaded = False
-
+            
         return c
+
+    def getComponents(self, q=None, **options):
+        '''
+        @see: IComponentService.getComponents
+        '''
+        modules = modulesIn('%s.*' % self.package).asList()
+        modules.sort()
+        modules = (module[len(self.package) + 1:] for module in modules)
+        return processCollection(modules, Component, q, self.getById, withTotal=True, **options)

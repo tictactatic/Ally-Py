@@ -67,7 +67,7 @@ class PluginService(IPluginService):
     
     def idOf(self, module):
         '''
-        Provides the id base don module.
+        Provides the id based on module.
         '''
         assert isinstance(module, str), 'Invalid module %s' % module
         return module[len('__plugin__') + 1:]

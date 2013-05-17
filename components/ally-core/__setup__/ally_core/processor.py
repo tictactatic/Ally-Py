@@ -27,12 +27,13 @@ from ally.core.impl.processor.text_conversion import NormalizerRequestHandler, \
 from ally.core.spec.resources import Normalizer, Converter
 from ally.design.processor.handler import Handler
 from ally.core.impl.processor.block_indexing import BlockIndexingHandler
+from ally.core.impl.processor.option_slice import OptionSliceHandler
 
 # --------------------------------------------------------------------
 # Creating the processors used in handling the request
 
 @ioc.config
-def default_language():
+def default_language() -> str:
     '''The default language to use in case none is provided in the request'''
     return 'en'
 
@@ -42,8 +43,26 @@ def default_charset() -> str:
     return 'UTF-8'
 
 @ioc.config
-def explain_detailed_error():
+def explain_detailed_error() -> bool:
     '''If True will provide as an error response a detailed response containing info about where the problem originated'''
+    return True
+
+@ioc.config
+def slice_limit_maximum() -> int:
+    ''' The maximum imposed slice limit on a collection, if none then no maximum limit will be imposed'''
+    return 100
+
+@ioc.config
+def slice_limit_default() -> int:
+    '''
+    The default slice limit on a collection if none is specified, if none then the 'slice_limit_maximum' limit
+    will be used as the default one.
+    '''
+    return 30
+
+@ioc.config
+def slice_with_total() -> bool:
+    ''' The default value for providing the total count'''
     return True
 
 # --------------------------------------------------------------------
@@ -111,6 +130,14 @@ def content() -> Handler: return ContentHandler()
 
 @ioc.entity
 def argumentsBuild() -> Handler: return ArgumentsBuildHandler()
+
+@ioc.entity
+def optionSlice() -> Handler:
+    b = OptionSliceHandler()
+    b.maximumLimit = slice_limit_maximum()
+    b.defaultLimit = slice_limit_default()
+    b.defaultWithTotal = slice_with_total()
+    return b
 
 @ioc.entity
 def invoking() -> Handler: return InvokingHandler()

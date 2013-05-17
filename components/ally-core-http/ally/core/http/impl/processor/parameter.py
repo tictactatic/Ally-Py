@@ -11,7 +11,8 @@ Provides the parameters handler.
 
 from ally.api.criteria import AsOrdered
 from ally.api.operator.container import Criteria, Query
-from ally.api.operator.type import TypeQuery, TypeCriteriaEntry, TypeCriteria
+from ally.api.operator.type import TypeQuery, TypeCriteriaEntry, TypeCriteria,\
+    TypeOptionProperty
 from ally.api.type import Input, Type, Iter, typeFor
 from ally.container.ioc import injected
 from ally.core.http.spec.codes import PARAMETER_ILLEGAL
@@ -394,7 +395,7 @@ class ParameterHandler(HandlerProcessor, INodeInvokerListener):
             typeInp = inp.type
             assert isinstance(typeInp, Type)
 
-            if typeInp.isPrimitive:
+            if typeInp.isPrimitive or isinstance(typeInp, TypeOptionProperty):
                 if isinstance(typeInp, Iter):
                     assert isinstance(typeInp, Iter)
 

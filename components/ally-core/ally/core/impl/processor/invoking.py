@@ -10,7 +10,7 @@ Provides the invoking handler.
 '''
 
 from ally.api.config import GET, INSERT, UPDATE, DELETE
-from ally.api.operator.type import TypeModelProperty
+from ally.api.operator.type import TypeModelProperty, TypeOptionProperty
 from ally.api.type import Input
 from ally.core.spec.codes import INPUT_ERROR, INSERT_ERROR, INSERT_SUCCESS, \
     UPDATE_SUCCESS, UPDATE_ERROR, DELETE_SUCCESS, DELETE_ERROR, Coded
@@ -90,10 +90,11 @@ class InvokingHandler(HandlerProcessor):
         args, keyargs = [], {}
         for inp in request.invoker.inputs:
             assert isinstance(inp, Input), 'Invalid input %s' % inp
+            
             if inp.name in request.arguments:
-                if inp.isKeyArgument: keyargs[inp.name] = request.arguments[inp.name]
+                if isinstance(inp.type, TypeOptionProperty): keyargs[inp.name] = request.arguments[inp.name]
                 else: args.append(request.arguments[inp.name])
-            elif inp.isKeyArgument:
+            elif isinstance(inp.type, TypeOptionProperty):
                 if inp.hasDefault: keyargs[inp.name] = inp.default
             elif inp.hasDefault: args.append(inp.default)
             else:

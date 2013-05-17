@@ -27,7 +27,7 @@ log = logging.getLogger(__name__)
 @injected
 class ResourcesRegister(IResourcesRegister):
     '''
-    @see: IResourcesRegister, IResourcesLocator implementations.
+    @see: IResourcesRegister implementations.
     '''
 
     root = Node

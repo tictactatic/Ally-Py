@@ -187,12 +187,13 @@ def extractOuputInput(function, types=None, modelToId=False):
         if keywords not in annotations: raise DevelError('There is option type for keywords \'%s\'' % keywords)
         optionType = typeFor(annotations[keywords])
         assert isinstance(optionType, TypeOption), 'Invalid option type for %s with %s' % (keywords, annotations[keywords])
-        assert isinstance(optionType.container, Container)
         option = optionType.clazz()
-        for prop, typ in optionType.container.properties.items():
-            if prop in args:
-                raise DevelError('There is already the argument name \'%s\' cannot process options %s' % (prop, optionType))
-            inputs.append(Input(prop, typ, True, getattr(option, prop), True))
+        for typ in optionType.propertyTypes():
+            assert isinstance(typ, TypeProperty), 'Invalid property type %s' % typ
+            if typ.property in args:
+                raise DevelError('There is already the argument name \'%s\' cannot process options %s' % 
+                                 (typ.property, optionType))
+            inputs.append(Input(typ.property, typ, True, getattr(option, typ.property)))
 
     return output, inputs
 

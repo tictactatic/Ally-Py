@@ -24,7 +24,7 @@ class IterPart(Iterable):
     offset = int
     limit = int
 
-    def __init__(self, wrapped, total, offset=None, limit=None):
+    def __init__(self, wrapped, total, offset=0, limit=None):
         '''
         Construct the partial iterable.
         
@@ -32,14 +32,20 @@ class IterPart(Iterable):
             The iterable that provides the actual data.
         '''
         assert isinstance(wrapped, Iterable), 'Invalid iterable %s' % wrapped
+        assert isinstance(total, int), 'Invalid total %s' % total
+        assert total >= 0, 'Invalid total value %s' % total
+        assert isinstance(offset, int), 'Invalid offset %s' % offset
+        assert limit is None or isinstance(limit, int), 'Invalid limit %s' % limit
+        
+        if offset < 0: offset = 0
+        elif offset > total: offset = total
+        if limit is None: limit = total - offset
+        elif limit > total - offset: limit = total - offset
 
         self.wrapped = wrapped
         self.total = total
-        if offset is None: self.offset = 0
-        else: self.offset = offset
-        if limit is None: self.limit = total
-        elif limit > total: self.limit = total
-        else: self.limit = limit
+        self.offset = offset
+        self.limit = limit
 
     def __iter__(self): return self.wrapped.__iter__()
 
