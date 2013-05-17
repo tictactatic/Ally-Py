@@ -1,3 +1,6 @@
+/*!
+ * actually redefining MultiSplit
+ */
 define([ 'jquery', 'ui/multiSplit', 'format/format-plugin' ],
 function ($, MultiSplit, Format) 
 {
@@ -6,22 +9,36 @@ function ($, MultiSplit, Format)
 	var origInit = MultiSplit.prototype.init;
 	MultiSplit.prototype.init = function()
 	{
-	    var ret = origInit.apply(this, arguments);
+	    var ret = origInit.apply(this, arguments),
+	        settingsToolbar = Aloha.settings.plugins.toolbar.element;
 
 	    // make list item from each button
 	    for( var btn in this.buttons)
 	    {
 	        var newEl = $('<li />').append($(this.buttons[btn].element).clone(true, true)),
-            modelEl = $("[data-format='"+btn+"']", Aloha.settings.plugins.toolbar.element);
+                modelEl = $("[data-format='"+btn+"']", settingsToolbar);
             modelEl.length 
                 && $(modelEl.prop('attributes')).each(function(){ newEl.attr(this.name, this.value); })
                 && $(this.buttons[btn].element).replaceWith(newEl);
 	    };
 	    
 	    // make the container ul
-	    var newContent = $('[data-format-content]', Aloha.settings.plugins.toolbar.element).clone(true, true);
-	    newContent.append(this.contentElement.contents());
+	    var newContent = $('[data-format-content]', settingsToolbar).clone(true, true);
+	    newContent.html(this.contentElement.contents());
 	    this.contentElement.replaceWith(newContent);
+	    
+	    var modelToggle = $('[data-editor-ui-component="formatBlock"] [data-format-toggle]', settingsToolbar).clone(true, true);
+	    this.toggleButton.html(modelToggle.html());
+	    this.toggleButton.addClass(modelToggle.prop('class'));
+	    
+	    var currentFormat = $('[data-editor-ui-component="formatBlock"] [data-format-current]', settingsToolbar);
+	    if( currentFormat.length )
+	    {
+	        this._hasFormatInfo = true;
+	        currentFormat.insertBefore($(this.toggleButton, this.element));
+	    }
+	    
+	    this.element.__isComplex = true;
 	    
 	    return ret;
 	};
@@ -43,6 +60,25 @@ function ($, MultiSplit, Format)
         this.element.toggleClass('open');
         this._isOpen = !this._isOpen;
     };
+    
+    MultiSplit.prototype.setActiveButton = function(name) 
+    {
+        if (!name) {
+            name = null;
+        }
+        if (null !== this._activeButton) {
+            this.buttons[this._activeButton]
+                .element.removeClass('aloha-multisplit-active');
+        }
+        this._activeButton = name;
+        if (null !== name) {
+            this.buttons[name]
+                .element.addClass('aloha-multisplit-active');
+        }
+        
+        this._hasFormatInfo && this.buttons[this._activeButton] &&
+            this.element.find('[data-format-current]').text($(this.buttons[this._activeButton].element).text());
+    }
 	
 	return MultiSplit
 });
