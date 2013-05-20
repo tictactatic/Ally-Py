@@ -9,7 +9,8 @@ function($)
             { 
                 oer: config.cjs('aloha-plugins/oer'),
                 superdesk: config.cjs('aloha-plugins/superdesk'),
-                impl: config.content_url + '/' + config.guiJs('superdesk/sandbox', 'aloha')
+                // TODO these have no place here
+                impl: config.content_url + '/' + config.guiJs('superdesk/article', 'aloha')
             },
             predefinedModules: 
             {
@@ -210,7 +211,8 @@ function($)
                 "superdesk/toolbar": config.cjs("aloha-plugins/superdesk/toolbar/lib/toolbar"),
                 "superdesk/image": config.cjs("aloha-plugins/superdesk/image/lib/image"),
                 "superdesk/image-plugin": config.cjs("aloha-plugins/superdesk/image/lib/image-plugin"),
-                "impl/image": config.guiJs('superdesk/sandbox', 'aloha/image'),
+                // TODO move to specific plugin
+                "impl/image": config.guiJs('superdesk/article', 'aloha/image'),
                 
                 "ui/toolbar": config.cjs("aloha-plugins/superdesk/toolbar/lib/toolbar"),
                 "toolbar/vendor": config.cjs("aloha-plugins/oer/toolbar/vendor"),
