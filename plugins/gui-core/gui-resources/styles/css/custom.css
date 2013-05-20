@@ -1418,7 +1418,7 @@ input[type="file"] {
 	font-weight: bold;
 	line-height: 14px;
 	padding: 0;
-	margin-bottom: 10px;
+	margin-bottom: 15px;
 }
 .select-all-colaborator input[type="checkbox"]{
 	margin: 0 15px 0 10px !important;
@@ -1566,6 +1566,34 @@ a.collaborator-name-large  {
 	background: none !important;
 }
 
+.avatar-small {
+	width: 23px;
+	height: 23px;
+	background: url(../../images/avatar_small.png) no-repeat 0 0;
+	overflow: hidden;
+}
+
+.avatar-small img {
+	min-width: 23px;
+	max-width: 23px;
+	height: auto !important;
+	min-height: 100%;
+}
+
+.avatar-medium {
+	width: 32px;
+	height: 32px;
+	background: url(../../images/avatar_default_collaborator.png) no-repeat 0 0;
+	background-size: 32px 32px;
+	overflow: hidden;
+}
+
+.avatar-medium img {
+	min-width: 32px;
+	max-width: 32px;
+	height: auto !important;
+	min-height: 100%;
+}
 
 .searchbox {
 	padding-left: 30px;
@@ -2219,3 +2247,48 @@ label.bgcolor {
 	height: 150px;
 	display:none;
 }
+
+
+/* login popup style override */
+.sf-jquery-dialog {
+	width: 450px !important;
+}
+
+.login-popup {
+	padding: 0 30px !important;
+}
+.login-popup .fullwidth-input {
+	margin-bottom: 10px;
+	height: 33px;
+	font-size: 14px;
+	color: #333;
+}
+.login-popup .form-horizontal {
+	margin: 0;
+}
+.login-popup .form-horizontal fieldset {
+	margin-top: 20px;
+}
+.login-popup .fullwidth-input.login-pass:focus {
+	
+}
+
+.login-popup .alert {
+	margin: 0 -30px 5px -30px;
+	border-width: 1px 0;
+	border-radius: 0;
+	-moz-border-radius:0px;
+	-webkit-border-radius:0px;
+	-ms-border-radius:0px;
+	-o-border-radius:0px;
+}
+
+.ui-dialog-titlebar .ui-state-hover .ui-icon {
+	background: #fff !important;
+}
+
+.ui-dialog .ui-dialog-titlebar-close:before {
+	content: 'x';
+	font-size: 16px;
+}
+/* end of login popup style override */
