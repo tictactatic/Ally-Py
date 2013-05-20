@@ -31,7 +31,7 @@ def server_type() -> str:
     '''
     The type of the server to use, the options are:
     "basic"- single threaded server, the safest but slowest server to use.
-    ''' % SERVER_BASIC
+    '''
     return SERVER_BASIC
 
 @ioc.config
