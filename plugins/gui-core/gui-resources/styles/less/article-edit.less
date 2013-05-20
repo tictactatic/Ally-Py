@@ -146,6 +146,7 @@ html, body.article-edit {
     .tabcontent {
       display:none;
       padding:@tabcontent-padding;
+      padding-bottom: @tabcontent-padding + 30px; //because of scratchpad
       .box-sizing(border-box);
       position: absolute;
       bottom: 0;
@@ -310,148 +311,6 @@ html, body.article-edit {
   user-select: none;
 }
 
-.confirmation-label {
-  display:block;
-  position:absolute;
-  right:0;
-  top:12px;
-  font-weight:normal;
-  .border-radius(3px);
-  color:#fff;
-  padding:2px 4px;
-  line-height:13px;
-  font-size:11px;
-}
-
-.ingest-header {
-  position:absolute;
-  left:@tabcontent-padding;
-  right:@tabcontent-padding+2;
-  top:@tabcontent-padding;
-  height:72px; 
-  z-index:50;
-  border-bottom:1px solid #d6d6d6;
-    .ingest-nav {
-      width:100%;
-      .box-sizing(border-box);
-      margin:15px 0;
-    }
-    .ingest-label {
-       color:#7d7d7d;
-       font-size:13px;
-    }
-}
-
-
-
-.ingest-feed {
-  margin:0;
-  list-style-type:none;
-  position:absolute;
-  bottom:@tabcontent-padding;
-  left:@tabcontent-padding;
-  right:0;
-  top:87px;
-  padding-right:@tabcontent-padding;
-  overflow:auto;
-  z-index:49;
-    li {
-      border-top:1px solid #d6d6d6;
-      padding: 10px 0;
-      position:relative;
-      &:first-child {
-        border-top:0;
-      }
-        h5 a {
-          color:#007fb3;
-          font-size:14px;
-          margin-bottom:4px;
-          line-height:20px;
-          font-weight:normal;
-          border-left: 5px solid #ccc;
-          padding-left: 7px;
-          display: block;
-          max-height: 40px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        .h5:after {
-          display:none;
-        }
-        .ingest-text {
-          color: #000;
-          font-size: 13px;
-          line-height: 20px;
-          max-height: 80px;
-          height:auto;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        .ingest-info {
-            color:#7d7d7d;
-            font-style:italic;
-            font-size:12px;
-            margin-top:4px;
-              i.ingest-icon {
-                width:16px;
-                height:16px;
-                margin-right:5px;
-                display:inline-block;
-                vertical-align:middle;
-              }
-              .ingest-source {
-                padding-right:6px;
-                border-right: 1px solid #cacaca;
-                margin-right:5px;
-                display:inline-block;
-                vertical-align:middle;
-                line-height:16px;
-              }
-              time {
-                display:inline-block;
-                vertical-align:middle;
-                line-height:16px;
-              }
-        }
-        &.confirmed {
-            h5 a {
-              border-color: #37b300;
-              padding-right: 65px;
-            }
-            h5:after {
-              .confirmation-label;
-              background-color: #37b300 !important;
-              content:"Confirmed";
-
-            }
-        }
-        &.unconfirmed {
-            h5 a {
-              border-color: #cf0000;
-              padding-right: 75px;
-            }
-            h5:after {
-              .confirmation-label;
-              background-color: #cf0000 !important;
-              content:"Unconfirmed";
-            }
-        }
-    }
-}
-
-.source-bbc .ingest-icon {
-    background: url("../../images/ingest-icons/bbc.png") no-repeat 0px -1px;
-}
-.source-reuters .ingest-icon {
-    background: url("../../images/ingest-icons/reuters.png") no-repeat 0px 0px;
-}
-.source-afp .ingest-icon {
-    background: url("../../images/ingest-icons/afp.png") no-repeat 0px 0px;
-}
-.source-local .ingest-icon {
-    width: 0px !important;
-    margin: 0px !important;
-}
 
 .sf-searchbox {
   position:relative;
@@ -815,6 +674,309 @@ button:focus {
   }
 
 }
+
+.confirmation-label {
+  display:block;
+  position:absolute;
+  right:0;
+  top:12px;
+  font-weight:normal;
+  .border-radius(3px);
+  color:#fff;
+  padding:2px 4px;
+  line-height:13px;
+  font-size:11px;
+}
+
+/* 
+  -static tabpane header with search, and dropdowns
+  -currently used for 
+      > ingest tab, 
+      > article archive tab
+*/
+.generic-tabpane-header {
+  position:absolute;
+  left:@tabcontent-padding;
+  right:@tabcontent-padding+2;
+  top:@tabcontent-padding;
+  height:72px; 
+  z-index:50;
+  border-bottom:1px solid #d6d6d6;
+    .tabpane-header-nav {
+      width:100%;
+      .box-sizing(border-box);
+      margin:15px 0;
+    }
+    .tabpane-header-label {
+       color:#7d7d7d;
+       font-size:13px;
+    }
+}
+
+.generic-tabpane-header-small {
+  position:absolute;
+  left:@tabcontent-padding;
+  right:@tabcontent-padding+2;
+  top:@tabcontent-padding;
+  height:48px; 
+  z-index:50;
+    .tabpane-header-nav {
+      width:100%;
+      .box-sizing(border-box);
+      margin:15px 0;
+    }
+    .tabpane-header-label {
+       color:#7d7d7d;
+       font-size:13px;
+    }
+}
+
+/* feed list */
+.generic-feed {
+  margin:0;
+  list-style-type:none;
+  position:absolute;
+  bottom:@tabcontent-padding + 30px; //because of scratchpad
+  left:@tabcontent-padding;
+  right:0;
+  top:87px;
+  padding-right:@tabcontent-padding;
+  overflow:auto;
+  z-index:49;
+    > li {
+      border-top:1px solid #d6d6d6;
+      padding: 10px 0;
+      position:relative;
+      &:first-child {
+        border-top:0;
+      }
+        h5 a {
+          color:#007fb3;
+          font-size:14px;          
+          line-height:20px;
+          font-weight:normal;
+          display: block;
+          margin:2px 0 4px;
+          max-height: 40px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .h5:after {
+          display:none;
+        }
+        .feed-text {
+          color: #000;
+          font-size: 13px;
+          line-height: 20px;
+          max-height: 80px;
+          height:auto;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .feed-info {
+            color:#7d7d7d;
+            font-style:italic;
+            font-size:12px;
+            margin-top:4px;
+              i.feed-icon {
+                width:16px;
+                height:16px;
+                margin-right:5px;
+                display:inline-block;
+                vertical-align:middle;
+              }
+              .feed-source {
+                padding-right:6px;
+                border-right: 1px solid #cacaca;
+                margin-right:5px;
+                display:inline-block;
+                vertical-align:middle;
+                line-height:16px;
+              }
+              time {
+                display:inline-block;
+                vertical-align:middle;
+                line-height:16px;
+                color: #949494;
+              }
+        }
+        .dropdown {
+          margin-top: -20px;
+          height: 22px;
+          display: none;
+        }
+        &:hover {
+          .dropdown {
+            display: block;
+          }
+        }
+        &.confirmed {
+            h5 a {
+              border-color: #37b300;
+              padding-right: 65px;
+            }
+            h5:after {
+              .confirmation-label;
+              background-color: #37b300 !important;
+              content:"Confirmed";
+
+            }
+        }
+        &.unconfirmed {
+            h5 a {
+              border-color: #cf0000;
+              padding-right: 75px;
+            }
+            h5:after {
+              .confirmation-label;
+              background-color: #cf0000 !important;
+              content:"Unconfirmed";
+            }
+        }
+    }
+}
+
+
+
+/* ARTICLE ARCHIVE TAB*/
+.article-archive-header {
+  .generic-tabpane-header();
+  .tabpane-header-label {
+    padding-top: 3px;
+    margin-right: 3px;
+  }
+  .sf-datepicker {
+    padding-top: 4px;
+  }
+}
+.article-archive {
+  .generic-feed();
+  > li {
+    &.pinned {
+      background: #fff;
+      border: 1px solid #c8c8c8;
+      .border-radius(3px);
+      padding: 10px;
+      .box-shadow(1px 1px 4px -1px #ccc);
+      margin-top: 10px;
+      .unpin-article {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        .opacity(30);
+        display: none;
+        &:hover {
+          .opacity(60);
+          cursor: pointer;
+        }
+      }
+      &:hover {
+        .unpin-article {
+          display: block;
+        }
+      }
+      .feed-info {
+        margin-top:0px; 
+      }
+      .feed-text {
+        max-height: 40px;
+      }
+    }
+    &.disabled {
+      .opacity(40);
+      cursor: default !important;
+    }
+    
+  }
+  .feed-info {
+    time {
+      font-size: 11px;
+    }
+  }
+}
+
+.archive-list-view {
+  display: block;
+}
+.archive-single-view {
+  display: none;
+  header {
+    .generic-tabpane-header-small();
+  }
+  article {
+    margin:0;
+    position:absolute;
+    bottom:@tabcontent-padding + 30px; //because of scratchpad
+    left:@tabcontent-padding;
+    right:0;
+    top:@tabcontent-padding + 48px;
+    padding: 0 7px;
+    padding-right:@tabcontent-padding;
+    overflow:auto;
+    z-index:49;
+    .archive-article-info {
+      font-style: italic !important;
+      font-size: 12px;
+      time {
+        color:#949494;
+      }
+      .author {
+        font-family: Georgia,serif;
+        color: #333;
+      }
+    }
+    h2 {
+      font-family: Georgia,serif;
+      font-size: 22px;
+      line-height: 26px;
+      font-weight: normal;
+      color: #333;
+      margin-top: 10px;
+    }
+    h6 {
+      font-size:16px;
+      font-weight: normal;
+      line-height: 23px;
+      text-transform: none;
+      color: #333;
+      margin: 10px 0;
+    }
+    p {
+      font-size: 13px;
+      line-height: 20px;
+    }
+  }
+}
+
+
+
+/* INGEST TAB*/
+
+.ingest-header {
+  .generic-tabpane-header();
+}
+.ingest-feed {
+  .generic-feed();
+  li h5 a {
+    border-left: 5px solid #ccc;
+    padding-left: 7px;
+  }
+}
+
+.source-bbc .feed-icon {
+    background: url("../../images/ingest-icons/bbc.png") no-repeat 0px -1px;
+}
+.source-reuters .feed-icon {
+    background: url("../../images/ingest-icons/reuters.png") no-repeat 0px 0px;
+}
+.source-afp .feed-icon {
+    background: url("../../images/ingest-icons/afp.png") no-repeat 0px 0px;
+}
+.source-local .feed-icon {
+    width: 0px !important;
+    margin: 0px !important;
+}
+
 
 /* MEDIA TAB */
 .media-tab {
