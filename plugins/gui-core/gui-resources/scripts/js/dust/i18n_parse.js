@@ -45,7 +45,7 @@ function parseFunction(fnx, string, replacerFnx) {
 			 * If the arguments in format aren't object or array
 			 *   make the arguments an array.
 			 */
-			if(fparams[0] !== '[' || fparams[0] !== '{')
+			if(fparams[0] !== '[' && fparams[0] !== '{')
 				fparams = '['+fparams+']';
 			/*!
 			 * use here a special json_parser function because the parameters
