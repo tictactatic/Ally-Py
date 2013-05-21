@@ -152,7 +152,7 @@ define( [
             '</div>'+
             '<div class="modal-footer">'+
                 '<a href="#" class="btn" data-dismiss="modal">Ok</a>'+
-                '<a href="#" class="btn btn-primary" data-dismiss="modal">Cancel</a>'+
+                '<a href="#" class="btn" data-button="remove-link" data-dismiss="modal">Remove</a>'+
             '</div>'+
         '</div>' ).modal({show: false});
     
@@ -539,6 +539,13 @@ define( [
                     that.removeLink();
                 }
             });
+            
+            
+            modal.find('[data-button="remove-link"]').on('click', function()
+            { 
+                Aloha.activateEditable($(this).data('active-editable')); 
+                that.removeLink(); 
+            });
         },
 
         /**
@@ -684,7 +691,9 @@ define( [
             
             // do not nest a link inside a link
             if ( this.findLinkMarkup( range ) ) {
-                showLinkModal().find('[data-placeholder="link-value"]').append(this.hrefField.getInputElem());
+                var modal = showLinkModal();
+                modal.find('[data-button="remove-link"]').data('active-editable', Aloha.activeEditable);
+                modal.find('[data-placeholder="link-value"]').append(this.hrefField.getInputElem());
                 return;
             }
             
@@ -718,6 +727,7 @@ define( [
             var modal = showLinkModal();
             modal.find('[data-placeholder="link-value"]').html(this.hrefField.getInputElem());
             modal.find('[data-placeholder="link-text"]').html($('<input value="'+linkText+'" />'));
+            modal.find('[data-button="remove-link"]').data('active-editable', Aloha.activeEditable);
             
             // prefill and select the new href
             // We need this guard because sometimes the element has not yet been initialized
@@ -737,8 +747,8 @@ define( [
         /**
          * Remove an a tag and clear the current item from the hrefField
          */
-        removeLink: function ( terminateLinkScope ) {
-            var range = Aloha.Selection.getRangeObject(),
+        removeLink: function ( terminateLinkScope, range ) {
+            var range = range || Aloha.Selection.getRangeObject(),
                 foundMarkup = this.findLinkMarkup();
             
             // clear the current item from the href field
