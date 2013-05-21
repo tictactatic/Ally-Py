@@ -6,7 +6,8 @@ function ($, MultiSplit, Format)
 {
 	'use strict';
 	
-	var origInit = MultiSplit.prototype.init;
+	var origInit = MultiSplit.prototype.init,
+	    _activeButtonText = false;
 	MultiSplit.prototype.init = function()
 	{
 	    var ret = origInit.apply(this, arguments),
@@ -34,8 +35,15 @@ function ($, MultiSplit, Format)
 	    var currentFormat = $('[data-editor-ui-component="formatBlock"] [data-format-current]', settingsToolbar);
 	    if( currentFormat.length )
 	    {
+	        _activeButtonText = currentFormat.text(); 
 	        this._hasFormatInfo = true;
 	        currentFormat.insertBefore($(this.toggleButton, this.element));
+	        
+	        var self = this;
+	        $('[data-format-current]', $(this.element)).on('click.aloha-plugin-format', function()
+	        { 
+	            self.toggleButton.trigger('click'); 
+	        });
 	    }
 	    
 	    this.element.__isComplex = true;
@@ -78,6 +86,9 @@ function ($, MultiSplit, Format)
         
         this._hasFormatInfo && this.buttons[this._activeButton] &&
             this.element.find('[data-format-current]').text($(this.buttons[this._activeButton].element).text());
+        
+        this._hasFormatInfo && !this.buttons[this._activeButton] &&
+            this.element.find('[data-format-current]').text(_activeButtonText);
     }
 	
 	return MultiSplit
