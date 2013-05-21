@@ -10,8 +10,8 @@
             var login = localStorage.getItem('superdesk.login.selfHref');
             this.data.url = login ? '/Action' : 'GUI/Action';
             this.data.root = login ? login : rootUrl;
-            //console.log('url: ',this.data.url,'root: ',this.data.root);
-            return Gizmo.Url.prototype.get.apply(this, arguments);
+            var url = Gizmo.Url.prototype.get.apply(this, arguments);
+            return url;
         }
     });
     actionUrlInst = new actionUrl('GUI/Action');
