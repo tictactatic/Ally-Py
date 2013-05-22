@@ -241,10 +241,14 @@ html, body.article-edit {
     margin: 10px 20px 10px 0;
   }
 
+  &.desktop { max-width: 960px; }
+  &.tablet { max-width: 678px; }
+  &.print { max-width: 960px; }
   /* article view on mobile phones*/
   &.mobile {
     padding-left: 5px;
     padding-right: 5px;
+    max-width: 320px;
     section {
       header {
         visibility:hidden;
@@ -409,7 +413,6 @@ button:focus {
   left:0;
   top:170px;
   z-index:9;
-  display:none;
   .switch-view-tabs {
     background:#e5e5e5;
     .box-shadow (inset -5px 0px 8px -5px #999);  
