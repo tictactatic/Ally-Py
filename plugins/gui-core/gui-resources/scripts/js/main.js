@@ -28,13 +28,17 @@ requirejs.config
         'backbone': config.cjs('backbone'),
         'moment': config.cjs('moment'),
         'router': config.cjs('router'),
-        'vendor': config.cjs('vendor')
+        'vendor': config.cjs('vendor'),
+        'angular': 'http://ajax.googleapis.com/ajax/libs/angularjs/1.1.4/angular',
+        'angular-resource': 'http://code.angularjs.org/1.1.4/angular-resource'
 	},
     shim: {
         'vendor/backbone': {
             deps: ['vendor/underscore', 'jquery'],
             exports: 'Backbone'
-        }
+        },
+        'angular': {exports: 'angular'},
+        'angular-resource': {deps: ['angular']}
     }
 });
 
