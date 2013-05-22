@@ -13,7 +13,7 @@ from .respository import GatewayRepositoryHandler, Repository
 from ally.container.ioc import injected
 from ally.design.processor.attribute import defines
 from ally.design.processor.execution import Processing
-from ally.gateway.http.spec.gateway import IRepository
+from ally.gateway.http.spec.gateway import IRepository, Match
 from ally.http.spec.codes import BAD_REQUEST, BAD_GATEWAY, INVALID_AUTHORIZATION, \
     CodedHTTP
 from ally.http.spec.headers import HeaderRaw, HeadersRequire
@@ -37,6 +37,9 @@ class Request(HeadersRequire):
     '''
     # ---------------------------------------------------------------- Defined
     repository = defines(IRepository)
+    match = defines(Match)
+    # ---------------------------------------------------------------- Required
+    decoderHeader = requires(IDecoderHeader)
 
 class Response(CodedHTTP):
     '''
@@ -76,7 +79,8 @@ class GatewayAuthorizedRepositoryHandler(GatewayRepositoryHandler):
             jobj, status, _text = obtainJSON(processing, self.uri % quote(authentication), details=True)
             if jobj is None:
                 if status == BAD_REQUEST.status: INVALID_AUTHORIZATION.set(response)
-                else: return BAD_GATEWAY.set(response)
+                else: BAD_GATEWAY.set(response)
+                return
             repository = self._repositories[authentication] = Repository(jobj)
         self._lastAccess[authentication] = datetime.now()
         

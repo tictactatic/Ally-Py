@@ -20,9 +20,7 @@ setup(
     install_requires=['ally_api >= 1.0', 'ally_core_plugin >= 1.0', 'support_cdm >= 1.0'],
     platforms=['all'],
     zip_safe=True,
-    package_data={
-        '': ['*.gif', '*.png', '*.jpg', '*.jpeg', '*.js', '*.css', '*.less', '*.dust', '*.html'],
-    },
+    include_package_data=True,
 
     # metadata for upload to PyPI
     author="Gabriel Nistor",
@@ -31,5 +29,5 @@ setup(
     long_description='The plugin that contains the core GUI resources',
     license="GPL v3",
     keywords="Ally REST framework plugin GUI",
-    url="http://www.sourcefabric.org/en/superdesk/", # project home page
+    url="http://www.sourcefabric.org/en/superdesk/",  # project home page
 )

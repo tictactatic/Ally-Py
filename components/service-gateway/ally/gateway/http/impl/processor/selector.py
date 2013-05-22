@@ -64,6 +64,7 @@ class GatewaySelectorHandler(HandlerProcessor):
                 METHOD_NOT_AVAILABLE.set(response)
                 if response.allows is None: response.allows = allows
                 else: response.allows.update(allows)
+                request.match = request.repository.find(request.method, request.headers, request.uri, METHOD_NOT_AVAILABLE.status)
             else:
                 PATH_NOT_FOUND.set(response)
                 request.match = request.repository.find(request.method, request.headers, request.uri, PATH_NOT_FOUND.status)

@@ -39,19 +39,18 @@ class SetupEntityWire(Setup):
             - find all entity calls that have the name starting with the provided group and their class is in the
               wired classes.
             - perform all required wirings (this means all wired attributes that have not been set).
-        
+
         @param group: string
             The group name of the call entities to be wired.
         '''
         assert isinstance(group, str), 'Invalid group %s' % group
         self.group = group
         self._wirings = {}
-        self._mappings = {}
 
     def update(self, name, wiring, mapping):
         '''
         Updates the wiring of this entity setup wiring.
-        
+
         @param name: string
             The entity setup name to bind with the provided wiring.
         @param wiring: Wiring
@@ -63,10 +62,10 @@ class SetupEntityWire(Setup):
         assert isinstance(name, str), 'Invalid name %s' % name
         assert isinstance(wiring, Wiring), 'Invalid wiring %s' % wiring
         assert isinstance(mapping, dict), 'Invalid mapping %s' % mapping
-        assert name not in self._wirings, 'There is already a wiring for \'%s\'' % name
-        
-        self._wirings[name] = wiring
-        self._mappings[name] = mapping
+
+        wirings = self._wirings.get(name)
+        if wirings is None: wirings = self._wirings[name] = {}
+        wirings[wiring] = mapping
 
     def assemble(self, assembly):
         '''
@@ -74,43 +73,47 @@ class SetupEntityWire(Setup):
         '''
         assert isinstance(assembly, Assembly), 'Invalid assembly %s' % assembly
         for name, call in assembly.calls.items():
-            wiring = self._wirings.get(name)
-            if wiring is not None and isinstance(call, CallEntity):
+            wirings = self._wirings.get(name)
+            if wirings is not None and isinstance(call, CallEntity):
                 assert isinstance(call, CallEntity)
                 if call.marks.count(self) == 0:
-                    call.addInterceptor(partial(self._intercept, assembly, wiring, self._mappings[name]))
+                    call.addInterceptor(partial(self._intercept, assembly, wirings))
                     call.marks.append(self)
 
-    def _intercept(self, assembly, wiring, mapping, value, followUp):
+    def _intercept(self, assembly, wirings, value, followUp):
         '''
         FOR INTERNAL USE!
         This is the interceptor method used in performing the wiring.
         '''
         assert isinstance(assembly, Assembly), 'Invalid assembly %s' % assembly
-        assert isinstance(wiring, Wiring), 'Invalid wiring %s' % wiring
-        assert isinstance(mapping, dict), 'Invalid mapping %s' % mapping
+        assert isinstance(wirings, dict), 'Invalid wiring %s' % wirings
         if value is not None:
             def followWiring():
                 from ally.container.support import entityFor
-                for wentity in wiring.entities:
-                    assert isinstance(wentity, WireEntity)
-                    if wentity.name not in value.__dict__:
-                        try: setattr(value, wentity.name, entityFor(wentity.type, wentity.name))
-                        except: raise SetupError('Cannot solve wiring \'%s\' at: %s' % 
-                                                 (wentity.name, locationStack(value.__class__)))
-                
-                for wconfig in wiring.configurations:
-                    assert isinstance(wconfig, WireConfig)
-                    if wconfig.name not in value.__dict__:
-                        name = mapping.get(wconfig.name )
-                        if name is not None: setattr(value, wconfig.name, assembly.processForName(name))
-                        
+                wiring = Wiring.wiringOf(value.__class__)
+                if wiring:
+                    assert isinstance(wiring, Wiring), 'Invalid wiring %s' % wiring
+                    for wentity in wiring.entities:
+                        assert isinstance(wentity, WireEntity)
+                        if wentity.name not in value.__dict__:
+                            try: setattr(value, wentity.name, entityFor(wentity.type, wentity.name))
+                            except: raise SetupError('Cannot solve wiring \'%s\' at: %s' %
+                                                     (wentity.name, locationStack(value.__class__)))
+
+                    mapping = wirings.get(wiring)
+                    if mapping:
+                        assert isinstance(mapping, dict), 'Invalid mapping %s' % mapping
+                        for wconfig in wiring.configurations:
+                            assert isinstance(wconfig, WireConfig)
+                            if wconfig.name not in value.__dict__:
+                                name = mapping.get(wconfig.name)
+                                if name is not None: setattr(value, wconfig.name, assembly.processForName(name))
+
                 if followUp: followUp()
             return value, followWiring
         return value, followUp
-    
-    def __str__(self): return '%s for:%s' % (self.__class__.__name__,
-                                             '\n'.join(locationStack(clazz) for clazz in self._wirings))
+
+    def __str__(self): return '%s for %s' % (self.__class__.__name__, ', '.join(self._wirings.keys()))
 
 class SetupEntityListen(Setup):
     '''
@@ -122,7 +125,7 @@ class SetupEntityListen(Setup):
     def __init__(self, group, classes, listeners):
         '''
         Creates a setup that will listen for entities that inherit or are in the provided classes.
-        
+
         @param group: string|None
             The name group of the call entities to be listened.
         @param classes: list[class]|tuple(class)
@@ -166,7 +169,7 @@ class SetupEntityListen(Setup):
                     for listener in self._listeners: listener(value)
                     break
         return value, followUp
-    
+
     def __str__(self): return '%s for:%s' % (self.__class__.__name__,
                                              '\n'.join(locationStack(clazz) for clazz in self._classes))
 
@@ -185,7 +188,7 @@ class SetupEntityProxy(Setup):
             - if the entity instance inherits a class from the provided proxy classes it will create a proxy for
               that and wrap the entity instance.
             - after the proxy is created invoke all the proxy binders.
-        
+
         @param group: string
             The name group of the call entities to be proxied.
         @param classes: list[class]|tuple(class)
@@ -231,9 +234,9 @@ class SetupEntityProxy(Setup):
                         binder(valueProxy)
                     value = valueProxy
                     break
-            
+
         return value, followUp
-    
+
     def __str__(self): return '%s for:%s' % (self.__class__.__name__,
                                              '\n'.join(locationStack(clazz) for clazz in self._classes))
 
@@ -260,7 +263,7 @@ class SetupEntityCreate(SetupSource):
     def __init__(self, function, types, **keyargs):
         '''
         Create a setup for entity creation.
-        
+
         @param types: tuple(class)|None
             The api classes of the entity to create.
         @see: SetupSource.__init__
@@ -286,7 +289,7 @@ class CreateEntity:
     def __init__(self, clazz):
         '''
         Create the entity creator.
-        
+
         @param clazz: class
             The class to create the entity based on.
         '''
@@ -304,7 +307,7 @@ class CreateEntity:
 def classesFrom(classes):
     '''
     Provides the classes from the list of provided class references.
-    
+
     @param classes: list(class|AOPClasses)|tuple(class|AOPClasses)
         The classes or class reference to pull the classes from.
     @return: list[class]

@@ -1,3 +1,0 @@
-internationalization
-__unit_test__
-__plugin__

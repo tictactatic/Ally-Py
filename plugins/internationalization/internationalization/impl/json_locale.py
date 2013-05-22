@@ -98,8 +98,8 @@ class JSONFileService(IJSONLocaleFileService):
             try: cdmFileTimestamp = self.cdmLocale.getTimestamp(path)
             except PathNotFound: republish = True
             else:
-                mngFileTimestamp = mngFileTimestamp = max(self.poFileManager.getGlobalPOTimestamp(locale) or datetime.min,
-                                                          self.poFileManager.getPluginPOTimestamp(plugin, locale) or datetime.min)
+                mngFileTimestamp = max(self.poFileManager.getGlobalPOTimestamp(locale) or datetime.min,
+                                       self.poFileManager.getPluginPOTimestamp(plugin, locale) or datetime.min)
                 republish = False if mngFileTimestamp is None else cdmFileTimestamp < mngFileTimestamp
 
             if republish:

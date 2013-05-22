@@ -56,7 +56,8 @@ function($, superdesk, giz)
         {
             var self = this,
                 src = this.getSearchTerm();
-            if( src.length <= 1 )
+            self.src = src;
+            if( src.length <= 0 )
             {
                 this.refresh();
                 $('[data-action="cancel-search"]', self.el).addClass('hide');
@@ -65,7 +66,21 @@ function($, superdesk, giz)
             
             this.collection._list = [];
             this.syncing = true;
-            this.collection.xfilter('*').sync({data: this.searchData(src), done: function(data){ self.syncing = false; }});
+            if( this.collection.setSearchUrl ) this.collection.setSearchUrl(src);
+
+            var searchData = this.searchData(src),
+                myData = null;
+            if( $.isObject(searchData) ) 
+                myData = $.extend({}, searchData, {limit: this.page.limit, offset: this.page.offset});
+            else
+                myData = 'limit='+this.page.limit+'&offset='+this.page.offset+'&'+searchData.toString();
+
+            this.collection.xfilter('*').sync({data: myData}).done(function(data)
+            { 
+                self.syncing = false; 
+                self.page.total = data.total;
+                self.renderList(); 
+            });
             
             $('[data-action="cancel-search"]', self.el).removeClass('hide');
         },
@@ -137,6 +152,7 @@ function($, superdesk, giz)
         init: function()
         {
             var self = this;
+            this.src = '';
             this.page = // pagination data 
             { 
                 limit: 25, 
@@ -162,6 +178,7 @@ function($, superdesk, giz)
          */
         refresh: function(opts)
         {
+            if( this.collection.resetSearchUrl ) this.collection.resetSearchUrl();
             var self = this;
             this.collection._list = [];
             this.syncing = true;
@@ -179,7 +196,14 @@ function($, superdesk, giz)
          */
         refreshData: function()
         {
-            return {limit: this.page.limit, offset: this.page.offset};
+            var self = this;
+            if( self.src.length <= 0 )
+            {
+                return {limit: this.page.limit, offset: this.page.offset};
+            } else {
+                return {limit: this.page.limit, offset: this.page.offset, 'search.all': self.src};
+            }
+            
         },
         /*!
          * where to render it
@@ -195,7 +219,7 @@ function($, superdesk, giz)
             var self = this;
             return this.refresh().done(function()
             {
-                $(self.renderPlaceholder).html(self.el);
+                !$(self.renderPlaceholder).find(self.el).length && $(self.renderPlaceholder).html(self.el);
                 if( self._resetEvents ) self.resetEvents();
                 self._resetEvents = true;
             });
@@ -247,12 +271,15 @@ function($, superdesk, giz)
         /*!
          * render the complete list
          */
-        renderList: function()
+        renderList: function(isSearch)
         {
+            
             if(!this.firstRender) return;
             var self = this;
             self.clearList();
-            this.collection.each(function(){ self.addItem(this); });
+            this.collection.each(function(){
+                self.addItem(this); 
+            });
         },
         /*!
          * the html element to place the view in
@@ -271,7 +298,8 @@ function($, superdesk, giz)
         render: function(cb)
         {
             this.paginate();
-            var data = {pagination: this.page},
+            var self = this;
+            var data = {pagination: this.page, src: self.src},
                 self = this;
             this.firstRender = true;
             $.tmpl(self.tmpl, data, function(e, o)

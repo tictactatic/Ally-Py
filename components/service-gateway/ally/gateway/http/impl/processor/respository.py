@@ -149,6 +149,8 @@ class Repository(IRepository):
             assert isinstance(gateway, Gateway)
             groupsURI = self._match(gateway, None, headers, uri, None)
             if groupsURI is not None: allowed.update(gateway.methods)
+        # We need to remove auxiliar methods
+        allowed.discard(HTTP_OPTIONS)
         return allowed
         
     def obtainCache(self, identifier):
@@ -188,6 +190,7 @@ class Repository(IRepository):
                             break
                     if isOk: break
                 if not isOk: return
+        elif gateway.headers: return
                 
         if uri is not None:
             assert isinstance(uri, str), 'Invalid URI %s' % uri
@@ -195,11 +198,13 @@ class Repository(IRepository):
                 matcher = gateway.pattern.match(uri)
                 if matcher: groupsURI = matcher.groups()
                 else: return
+        elif gateway.pattern: return
                 
         if error is not None:
             assert isinstance(error, int), 'Invalid error %s' % error
             if gateway.errors:
                 if error not in gateway.errors: return
             else: return
+        elif gateway.errors: return
             
         return groupsURI

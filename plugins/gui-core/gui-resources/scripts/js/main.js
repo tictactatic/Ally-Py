@@ -22,29 +22,47 @@ requirejs.config
 		'model': config.cjs('require/model'),
 		'i18n': config.cjs('require/i18n'),
 		'gizmo': config.cjs('gizmo'),
+		'loadaloha': config.cjs('aloha-init'),
 		'concat': config.cjs('concat'),		
-		'newgizmo': config.cjs('newgizmo')		
-	}
+		'newgizmo': config.cjs('newgizmo'),
+        'backbone': config.cjs('backbone'),
+        'moment': config.cjs('moment'),
+        'router': config.cjs('router'),
+        'vendor': config.cjs('vendor')
+	},
+    shim: {
+        'vendor/backbone': {
+            deps: ['vendor/underscore', 'jquery'],
+            exports: 'Backbone'
+        }
+    }
 });
-require(['concat'], function(){
+
+// backbone must be loaded asap because it requires underscore
+// but '_' is taken later for localization
+require(['concat', 'backbone'], function(){
 	require
 	([
 	  config.cjs('views/menu.js'), 
 	  config.cjs('views/auth.js'), 
-	  'jquery', 'jquery/superdesk', 'gizmo/superdesk/action', 'jquery/i18n', 'jqueryui/ext'
+	  'jquery', 'jquery/superdesk', 'gizmo/superdesk/action',
+      'router',
+      'jquery/i18n', 'jqueryui/ext'
 	], 
-	function(MenuView, authView, $, superdesk, Action)
+	function(MenuView, authView, $, superdesk, Action, router)
 	{
 	    $(authView).on('logout login', function(){ Action.clearCache(); });
+
         // initialize menu before auth because we have some events bound to auth there
         var menu = new MenuView({ el: $('#navbar-top') });
-	    $(menu).on('path-clear', function()
-	    {
-	        $.superdesk.applyLayout('layouts/dashboard', {}, function(){ Action.initApps('modules.dashboard.*', $($.superdesk.layoutPlaceholder)); });
-	    });
-	    // initialize navigation authentication display
-        $.superdesk.navigation.init(function(){ authView.render(); });
-	    // apply layout
-	    $(superdesk.layoutPlaceholder).html(authView.el);
+
+	    // render auth view
+        $(superdesk.layoutPlaceholder).html(authView.render().el);
+
+        router.route('', 'home', function() {
+	        $.superdesk.applyLayout('layouts/dashboard', {}, function() {
+                Action.initApps('modules.dashboard.*', $($.superdesk.layoutPlaceholder));
+            });
+        });
 	});
 });

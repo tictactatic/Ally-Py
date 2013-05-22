@@ -28,11 +28,16 @@ log = logging.getLogger(__name__)
 def loadPlugins():
     ''' Add the plugins to the python path'''
     if os.path.isdir(plugins_path()):
+        if '__plugin__' in sys.modules:
+            raise ImportError('The __plugin__ module is already present in the system modules, this means that adding '
+                              'plugin paths will have no effect. To correct this you need to remove from all '
+                              'components setups any import that contains __plugin__!')
         for name in os.listdir(plugins_path()):
             path = os.path.join(plugins_path(), name)
             for exclude in excluded_plugins():
                 if name.startswith(exclude): break
             else:
+                path = os.path.abspath(path)
                 if path not in sys.path: sys.path.append(path)
 
 def openPlugins():
