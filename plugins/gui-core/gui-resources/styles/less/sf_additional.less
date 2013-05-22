@@ -282,6 +282,17 @@
 	}
 }
 
+.dropup {
+	.sf-dropdown {
+		margin-bottom: 10px !important;
+		&:before {
+			bottom:-13px;
+			top:auto;
+			background: url(../../images/dropup-caret.png) no-repeat;
+		}
+	}	
+}
+
 .sf-dropdown-simple {
 	border: 2px solid #7e7e7e;
 	margin-top: -2px;
@@ -884,3 +895,20 @@
 }
 
 
+.scroll-shadow {
+	.box-shadow(0px 10px 8px -8px #a0a0a0);
+}
+.scroll-shadow-itself {
+	&:after {
+		content: " ";
+		height: 15px;
+		.box-shadow(inset 0px 10px 8px -8px #a0a0a0);
+		content: " ";
+		top: 0;
+		left: 0;
+		position: absolute;
+		z-index: 2000;
+		right: 0;
+	}
+	
+}

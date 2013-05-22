@@ -136,15 +136,16 @@
     background: #aaa;
   }
 
-  &.todo-container {
-    border-top-color: @todo-color; 
-  }
-  &.inprogress-container {
-    border-top-color: @inprogress-color; 
-  }
-  &.done-container {
-    border-top-color: @done-color; 
-  }
+  &.boardcolor-1 { border-top-color: @board1; }
+  &.boardcolor-2 { border-top-color: @board2; }
+  &.boardcolor-3 { border-top-color: @board3; }
+  &.boardcolor-4 { border-top-color: @board4; }
+  &.boardcolor-5 { border-top-color: @board5; }
+  &.boardcolor-6 { border-top-color: @board6; }
+  &.boardcolor-7 { border-top-color: @board7; }
+  &.boardcolor-8 { border-top-color: @board8; }
+  &.boardcolor-9 { border-top-color: @board9; }
+  &.boardcolor-10 { border-top-color: @board10; }
 
 }
 
@@ -348,55 +349,39 @@
     min-height: 40px;
     margin-top: 21px;
     font-size: 10px;
-    &:before {
+    header {
       height: 21px;
+      top:-21px;
       position: absolute;
-      top: -21px;
       line-height: 21px;
       padding-left: 3px;
+      text-transform: uppercase;
     }
-    &.todo {
-      &:before {
-        content: "TO DO";
-        color: @todo-color;
+    .boardcolor-assign(@color) {
+      header {
+        color: @color;
       }
       .assignments li {
-        border-left: 3px solid @todo-color;
+        border-left: 3px solid @color;
       }
       .subtasks.open {
         .subtask-num-info {
-          background-color: @todo-color;
+          background-color: @color;
         }
       }
     }
-    &.inprogress {
-      &:before {
-        content: "IN PROGRESS";
-        color: @inprogress-color;
-      }
-      .assignments li {
-        border-left: 3px solid @inprogress-color;
-      }
-      .subtasks.open {
-        .subtask-num-info {
-          background-color: @inprogress-color;
-        }
-      }
-    }
-    &.done {
-      &:before {
-        content: "DONE";
-        color: @done-color;
-      }
-      .assignments li {
-        border-left: 3px solid @done-color;
-      }
-      .subtasks.open {
-        .subtask-num-info {
-          background-color: @done-color;
-        }
-      }
-    }
+
+    &.boardcolor-1 { .boardcolor-assign(@board1); }
+    &.boardcolor-2 { .boardcolor-assign(@board2); }
+    &.boardcolor-3 { .boardcolor-assign(@board3); }
+    &.boardcolor-4 { .boardcolor-assign(@board4); }
+    &.boardcolor-5 { .boardcolor-assign(@board5); }
+    &.boardcolor-6 { .boardcolor-assign(@board6); }
+    &.boardcolor-7 { .boardcolor-assign(@board7); }
+    &.boardcolor-8 { .boardcolor-assign(@board8); }
+    &.boardcolor-9 { .boardcolor-assign(@board9); }
+    &.boardcolor-10 { .boardcolor-assign(@board10); }
+
 
   } /*end of section*/
 
@@ -536,31 +521,28 @@
       }
 
 
-      &.todo-container {
+
+      .boardcolor-assign(@color) {
         .desk-header {
-          background-color: @todo-color;
+          background-color: @color;
         }
         .assignments li {
-            border-left: 7px solid @todo-color;
-          }
-      }
-      &.inprogress-container {
-        .desk-header {
-          background-color: @inprogress-color;
+            border-left: 7px solid @color;
         }
-        .assignments li {
-            border-left: 7px solid @inprogress-color;
-          }
-      }
-      &.done-container {
-        .desk-header {
-          background-color:  @done-color;
-        }
-        .assignments li {
-            border-left: 7px solid @done-color;
-          }
       }
 
+
+      &.boardcolor-1 { .boardcolor-assign(@board1); }
+      &.boardcolor-2 { .boardcolor-assign(@board2); }
+      &.boardcolor-3 { .boardcolor-assign(@board3); }
+      &.boardcolor-4 { .boardcolor-assign(@board4); }
+      &.boardcolor-5 { .boardcolor-assign(@board5); }
+      &.boardcolor-6 { .boardcolor-assign(@board6); }
+      &.boardcolor-7 { .boardcolor-assign(@board7); }
+      &.boardcolor-8 { .boardcolor-assign(@board8); }
+      &.boardcolor-9 { .boardcolor-assign(@board9); }
+      &.boardcolor-10 { .boardcolor-assign(@board10); }
+      
 
       .desk {
          width: 100%;
@@ -616,7 +598,6 @@
 .done-status {
   background: @done-color; 
 }
-
 
 .add-comment-box {
   width: 100%;
@@ -827,6 +808,16 @@
          .border-radius(3px);
          color: #fff;
          text-align: center;
+         &.boardcolor-1 { background-color: @board1; }
+         &.boardcolor-2 { background-color: @board2; }
+         &.boardcolor-3 { background-color: @board3; }
+         &.boardcolor-4 { background-color: @board4; }
+         &.boardcolor-5 { background-color: @board5; }
+         &.boardcolor-6 { background-color: @board6; }
+         &.boardcolor-7 { background-color: @board7; }
+         &.boardcolor-8 { background-color: @board8; }
+         &.boardcolor-9 { background-color: @board9; }
+         &.boardcolor-10 { background-color: @board10; }
       }
 
     }
