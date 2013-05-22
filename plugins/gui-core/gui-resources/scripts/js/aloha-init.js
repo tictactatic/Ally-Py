@@ -5,7 +5,13 @@ function($)
     {
         settings: 
         {
-            bundles: { oer: config.cjs('aloha-plugins/oer') },
+            bundles: 
+            { 
+                oer: config.cjs('aloha-plugins/oer'),
+                superdesk: config.cjs('aloha-plugins/superdesk'),
+                // TODO these have no place here
+                impl: config.content_url + '/' + config.guiJs('superdesk/article', 'aloha')
+            },
             predefinedModules: 
             {
                 'jquery': $,
@@ -191,7 +197,7 @@ function($)
                 "listenforcer/nls": "../plugins/extra/listenforcer/nls",
                 "listenforcer/res": "../plugins/extra/listenforcer/res",
                 
-                // superdesk paths
+                //
                 'utils': config.cjs('utils'),
                 'jquery': config.cjs('jquery'),
                 'jqueryui': config.cjs('jquery/ui'),
@@ -201,12 +207,18 @@ function($)
                 'order': config.cjs('require/order'),
                 'tmpl': config.cjs('require/tmpl'),
                 
-                // fixed toolbar
-                //"ui/toolbar": config.cjs("aloha-plugins/oer/toolbar/lib/toolbar-plugin"),
-                //"toolbar/vendor": config.cjs("aloha-plugins/oer/toolbar/vendor"),
-                //"toolbar/css": config.cjs("aloha-plugins/oer/toolbar/css"),
-                //"toolbar/nls": config.cjs("aloha-plugins/oer/toolbar/nls"),
-                //"toolbar/res": config.cjs("aloha-plugins/oer/toolbar/res")
+                "superdesk/fix": config.cjs("aloha-plugins/superdesk/fix/lib"),
+                "superdesk/toolbar": config.cjs("aloha-plugins/superdesk/toolbar/lib/toolbar"),
+                "superdesk/image": config.cjs("aloha-plugins/superdesk/image/lib/image"),
+                "superdesk/image-plugin": config.cjs("aloha-plugins/superdesk/image/lib/image-plugin"),
+                // TODO move to specific plugin
+                "impl/image": config.guiJs('superdesk/article', 'aloha/image'),
+                
+                "ui/toolbar": config.cjs("aloha-plugins/superdesk/toolbar/lib/toolbar"),
+                "toolbar/vendor": config.cjs("aloha-plugins/oer/toolbar/vendor"),
+                "toolbar/css": config.cjs("aloha-plugins/oer/toolbar/css"),
+                "toolbar/nls": config.cjs("aloha-plugins/oer/toolbar/nls"),
+                "toolbar/res": config.cjs("aloha-plugins/oer/toolbar/res")
             }
         }, ['aloha'], function(){ alohaDfd.resolve(Aloha); });
     };

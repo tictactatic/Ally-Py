@@ -87,22 +87,28 @@ define([
 
         adoptInto: function (slot, component) 
         {
-            console.log(slot, component);
+            var tab = this._tabBySlot[slot];
             
-            var tab = this._tabBySlot[slot],
+            var newElement = $("[data-editor-ui-component='"+component.name+"']", Aloha.settings.plugins.toolbar.element),
+                evts, i, j;
 
-                // replace components with top level matched components from template
-                newEl = $(component.element).clone(true, true),
-                modelEl = $("[data-editor-ui-component='"+component.name+"']", Aloha.settings.plugins.toolbar.element);
-            if( modelEl.length )
-            {
-                $(modelEl.prop('attributes')).each(function(){ newEl.attr(this.name, this.value); });
-                !component.element.__isComplex && newEl.html(modelEl.html());
-                modelEl.replaceWith(newEl);
-                component.element = newEl;
-            }
+            component.element.appendTo(Aloha.settings.plugins.toolbar.element);
             
-            return;
+            if( newElement.length )
+            {
+                var data = $(component.element).data();
+                newElement.data($(component.element).data());
+                //console.log(newElement.data());
+                evts = $(component.element).data('events');
+                for( i in evts )
+                    for( j=0; j<evts[i].length; j++ )
+                        newElement.on( evts[i][j].type + (evts[i][j].namespace ? '.'+evts[i][j].namespace : ''),
+                            evts[i][j].selector, 
+                            evts[i][j].data, 
+                            evts[i][j].handler );
+                component.element = newElement; 
+            }
+            //return tab && tab.adoptInto(slot, component);
         },
 
         getActiveContainer: function () {
