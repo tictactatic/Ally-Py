@@ -9,9 +9,13 @@ Created on Jan 21, 2013
 Contains the setups for populating default data.
 '''
 
-from ally.container import support, ioc
+from ally.container import support, app, ioc
 from ally.internationalization import NC_
-from security.rbac.api.rbac import IRoleService, QRole, Role
+from security.rbac.api.rbac import IRoleService, Role, QRole
+
+# --------------------------------------------------------------------
+
+NAME_ROOT = NC_('security role', 'ROOT')  # The name for the root role
 
 # --------------------------------------------------------------------
 
@@ -19,12 +23,16 @@ from security.rbac.api.rbac import IRoleService, QRole, Role
 def rootRoleId():
     roleService = support.entityFor(IRoleService)
     assert isinstance(roleService, IRoleService)
+    return roleService.getByName(NAME_ROOT).Id
 
-    roles = roleService.getAll(limit=1, q=QRole(name='ROOT'))
-    try: rootRole = next(iter(roles))
-    except StopIteration:
+@app.populate(priority=app.PRIORITY_FIRST)
+def populateRootRole():
+    roleService = support.entityFor(IRoleService)
+    assert isinstance(roleService, IRoleService)
+
+    roles = roleService.getAll(limit=1, q=QRole(name=NAME_ROOT))
+    if not roles:
         rootRole = Role()
-        rootRole.Name = NC_('security role', 'ROOT')
+        rootRole.Name = NAME_ROOT
         rootRole.Description = NC_('security role', 'Default role that provides access to all available roles and rights')
-        return roleService.insert(rootRole)
-    return rootRole.Id
+        roleService.insert(rootRole)

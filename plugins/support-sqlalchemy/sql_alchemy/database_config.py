@@ -9,7 +9,7 @@ Created on Jan 8, 2012
 Contains sql alchemy database setup.
 '''
 
-from ally.container import ioc
+from ally.container import ioc, app
 from ally.container.error import ConfigError
 from sqlalchemy.engine import create_engine
 from sqlalchemy.engine.base import Engine
@@ -32,7 +32,9 @@ def database_url():
     raise ConfigError('A database URL is required')
 
 @ioc.config
-def alchemy_pool_recycle(): '''The time to recycle pooled connection'''; return 3600
+def alchemy_pool_recycle():
+    '''The time to recycle pooled connection'''
+    return 3600
 
 @ioc.entity
 def alchemySessionCreator(): return sessionmaker(bind=alchemyEngine())
@@ -44,9 +46,8 @@ def alchemyEngine() -> Engine:
 @ioc.entity
 def metas(): return []
 
-# ---------------------------------
+# --------------------------------------------------------------------
 
+@app.populate(app.DEVEL, app.CHANGED, priority=app.PRIORITY_TOP)
 def createTables():
-    for meta in metas():
-        log.info('Create tables for meta %s', meta)
-        meta.create_all(alchemyEngine())
+    for meta in metas(): meta.create_all(alchemyEngine())

@@ -25,7 +25,7 @@ import sys
 # --------------------------------------------------------------------
 
 @injected
-@setup(IPluginService)
+@setup(IPluginService, name='pluginService')
 class PluginService(IPluginService):
     '''
     Provides the implementation for @see: IPluginService.

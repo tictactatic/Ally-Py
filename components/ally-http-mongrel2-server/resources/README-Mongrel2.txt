@@ -11,11 +11,11 @@ Installing ZeroMQ
 
 First we fetch the zeromg POSIX tarball, you can access "http://www.zeromq.org/intro:get-the-software" and download the 
 POSIX tarball or:
-	wget http://download.zeromq.org/zeromq-3.2.1-rc2.tar.gz
+	wget http://download.zeromq.org/zeromq-3.2.3.tar.gz
 
 The we insall the zeromq:
-	tar -xzvf zeromq-3.2.1-rc2.tar.gz
-	cd zeromq-3.2.1/
+	tar -xzvf zeromq-3.2.3.tar.gz
+	cd zeromq-3.2.3/
 	./configure 
 	make
 	sudo make install
@@ -121,8 +121,6 @@ Now we need to adjust the "application_support.properties", change the following
 And in "plugins_support.properties", change the following configurations to:
 	publish_gui_resources: false
 this is to prevent the unnecessary publication of client files again by the support applications
-	scan_localized_messages: false
-if this has been enabled for the main application, this will avoid unnecessary scanning for localized messages
 	perform_cleanup: false
 this prevents the superdesk authorization to clean the expired sessions and login tokens by the support applications
 

@@ -9,7 +9,7 @@ Created on Jan 9, 2012
 Contains the services for the introspection.
 '''
 
-from ..plugin.registry import addService
+from ..plugin.registry import registerService
 from ally.container import support
 
 # --------------------------------------------------------------------
@@ -17,7 +17,7 @@ from ally.container import support
 SERVICES = 'gui.*.api.**.I*Service'
 
 support.createEntitySetup('gui.*.impl.**.*')
-support.listenToEntities(SERVICES, listeners=addService())
+support.listenToEntities(SERVICES, listeners=registerService)
 support.loadAllEntities(SERVICES)
 
 # --------------------------------------------------------------------

@@ -13,14 +13,17 @@ from ally.api.extension import IterPart
 from ally.container import wire
 from ally.container.ioc import injected
 from ally.container.support import setup
+from ally.exception import InputError, Ref
+from ally.internationalization import _
 from ally.support.sqlalchemy.util_service import buildQuery, buildLimits
 from security.api.right import QRight
 from security.meta.right import RightMapped
-from security.rbac.api.rbac import IRoleService, QRole
+from security.rbac.api.rbac import IRoleService, QRole, Role
 from security.rbac.core.spec import IRbacService
 from security.rbac.meta.rbac import RoleMapped
-from security.rbac.meta.rbac_intern import RbacRight, RbacRole
+from security.rbac.meta.rbac_intern import RbacRight
 from sql_alchemy.impl.entity import EntityServiceAlchemy
+from sqlalchemy.orm.exc import NoResultFound
 
 # --------------------------------------------------------------------
     
@@ -37,6 +40,13 @@ class RoleServiceAlchemy(EntityServiceAlchemy, IRoleService):
     def __init__(self):
         assert isinstance(self.rbacService, IRbacService), 'Invalid rbac service %s' % self.rbacService
         EntityServiceAlchemy.__init__(self, RoleMapped, QRole)
+        
+    def getByName(self, name):
+        '''
+        @see: IRoleService.getByName
+        '''
+        try: return self.session().query(RoleMapped).filter(RoleMapped.Name == name).one()
+        except NoResultFound: raise InputError(Ref(_('Unknown name'), ref=Role.Name))
     
     def getRoles(self, roleId, offset=None, limit=None, detailed=False, q=None):
         '''

@@ -10,16 +10,16 @@ Provides the basic web server based on the python build in http server (this typ
 thread serving requests one at a time).
 '''
 
-from ally.design.processor import Processing, Assembly, ONLY_AVAILABLE, \
-    CREATE_REPORT, Chain
-from ally.http.spec.server import METHOD_GET, METHOD_DELETE, METHOD_POST, \
-    METHOD_PUT, METHOD_OPTIONS, RequestHTTP, ResponseHTTP, RequestContentHTTP, \
-    ResponseContentHTTP
+from ally.container.ioc import injected
+from ally.design.processor.assembly import Assembly
+from ally.design.processor.execution import Processing, Chain
+from ally.http.spec.server import RequestHTTP, ResponseHTTP, RequestContentHTTP, \
+    ResponseContentHTTP, HTTP_GET, HTTP_POST, HTTP_PUT, HTTP_DELETE, HTTP_OPTIONS, \
+    HTTP
 from ally.support.util_io import readGenerator, IInputStream
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qsl
 import logging
-import re
 
 # --------------------------------------------------------------------
 
@@ -31,68 +31,78 @@ class RequestHandler(BaseHTTPRequestHandler):
     '''
     The server class that handles the HTTP requests.
     '''
+    
+    def __init__(self, request, address, server):
+        '''
+        Create the request.
+        
+        @param request: socket
+            The connection request socket.
+        @param address: tuple(string, integer)
+            The client address.
+        @param server: BasicServer
+            The server that created the request.
+        '''
+        assert isinstance(address, tuple), 'Invalid address %s' % address
+        assert isinstance(server, BasicServer), 'Invalid server %s' % server
+        self.server_version = server.serverVersion  # Needs to be before the __init__
+        super().__init__(request, address, server)
 
     def do_GET(self):
-        self._process(METHOD_GET)
+        self._process(HTTP_GET)
 
     def do_POST(self):
-        self._process(METHOD_POST)
+        self._process(HTTP_POST)
 
     def do_PUT(self):
-        self._process(METHOD_PUT)
+        self._process(HTTP_PUT)
 
     def do_DELETE(self):
-        self._process(METHOD_DELETE)
+        self._process(HTTP_DELETE)
 
     def do_OPTIONS(self):
-        self._process(METHOD_OPTIONS)
+        self._process(HTTP_OPTIONS)
 
     # ----------------------------------------------------------------
 
     def _process(self, method):
+        assert isinstance(method, str), 'Invalid method %s' % method
+        proc = self.server.processing
+        assert isinstance(proc, Processing), 'Invalid processing %s' % proc
+        
+        request, requestCnt = proc.ctx.request(), proc.ctx.requestCnt()
+        assert isinstance(request, RequestHTTP), 'Invalid request %s' % request
+        assert isinstance(requestCnt, RequestContentHTTP), 'Invalid request content %s' % requestCnt
+        
         url = urlparse(self.path)
-        path = url.path.lstrip('/')
-        for regex, processing in self.server.pathProcessing:
-            match = regex.match(path)
-            if match:
-                uriRoot = path[:match.end()]
-                if not uriRoot.endswith('/'): uriRoot += '/'
+        request.scheme, request.method = HTTP, method.upper()
+        request.headers = dict(self.headers)
+        request.uri = url.path.lstrip('/')
+        request.parameters = parse_qsl(url.query, True, False)
+        
+        requestCnt.source = self.rfile
 
-                assert isinstance(processing, Processing), 'Invalid processing %s' % processing
-                req, reqCnt = processing.contexts['request'](), processing.contexts['requestCnt']()
-                rsp, rspCnt = processing.contexts['response'](), processing.contexts['responseCnt']()
+        chain = Chain(proc)
+        chain.process(request=request, requestCnt=requestCnt,
+                      response=proc.ctx.response(), responseCnt=proc.ctx.responseCnt()).doAll()
 
-                assert isinstance(req, RequestHTTP), 'Invalid request %s' % req
-                assert isinstance(reqCnt, RequestContentHTTP), 'Invalid request content %s' % reqCnt
-                assert isinstance(rsp, ResponseHTTP), 'Invalid response %s' % rsp
-                assert isinstance(rspCnt, ResponseContentHTTP), 'Invalid response content %s' % rspCnt
+        response, responseCnt = chain.arg.response, chain.arg.responseCnt
+        assert isinstance(response, ResponseHTTP), 'Invalid response %s' % response
+        assert isinstance(responseCnt, ResponseContentHTTP), 'Invalid response content %s' % responseCnt
 
-                req.scheme, req.uriRoot, req.uri = 'http', uriRoot, path[match.end():]
-                req.parameters = parse_qsl(url.query, True, False)
-                break
-        else:
-            self.send_response(404)
-            self.end_headers()
-            return
+        if ResponseHTTP.headers in response and response.headers is not None:
+            for name, value in response.headers.items(): self.send_header(name, value)
 
-        req.methodName = method
-        req.headers = dict(self.headers)
-        reqCnt.source = self.rfile
-
-        Chain(processing).process(request=req, requestCnt=reqCnt, response=rsp, responseCnt=rspCnt).doAll()
-
-        assert isinstance(rsp.code, int), 'Invalid response code %s' % rsp.code
-        if ResponseHTTP.headers in rsp:
-            for name, value in rsp.headers.items(): self.send_header(name, value)
-
-        if ResponseHTTP.text in rsp: self.send_response(rsp.code, rsp.text)
-        else: self.send_response(rsp.code)
-
+        assert isinstance(response.status, int), 'Invalid response status code %s' % response.status
+        if ResponseHTTP.text in response and response.text: text = response.text
+        elif ResponseHTTP.code in response and response.code: text = response.code
+        else: text = None
+        self.send_response(response.status, text)
         self.end_headers()
 
-        if rspCnt.source is not None:
-            if isinstance(rspCnt.source, IInputStream): source = readGenerator(rspCnt.source)
-            else: source = rspCnt.source
+        if ResponseContentHTTP.source in responseCnt and responseCnt.source is not None:
+            if isinstance(responseCnt.source, IInputStream): source = readGenerator(responseCnt.source)
+            else: source = responseCnt.source
 
             for bytes in source: self.wfile.write(bytes)
 
@@ -106,61 +116,54 @@ class RequestHandler(BaseHTTPRequestHandler):
 
 # --------------------------------------------------------------------
 
+@injected
 class BasicServer(HTTPServer):
     '''
     The basic server.
     '''
     
-    def __init__(self, serverAddress, pathProcessing, requestHandlerFactory):
+    serverVersion = str
+    # The server version name
+    serverHost = str
+    # The server address host
+    serverPort = int
+    # The server port
+    requestHandlerFactory = RequestHandler
+    # The factory that provides request handlers, takes as arguments the server, request socket
+    # and client address.
+    assembly = Assembly
+    # The assembly used for resolving the requests
+    
+    def __init__(self):
         '''
         Construct the server.
-        
-        @param serverAddress: tuple(string, integer)
-            The server address host and port.
-        @param pathProcessing: list[tuple(regex, Processing)] 
-            A list that contains tuples having on the first position a regex for matching a path, and the second value 
-            the processing for handling the path.
-        @param requestHandlerFactory: callable(AsyncServer, socket, tuple(string, integer))
-            The factory that provides request handlers, takes as arguments the server, request socket
-            and client address.
         '''
-        assert isinstance(serverAddress, tuple), 'Invalid server address %s' % serverAddress
-        assert isinstance(pathProcessing, list), 'Invalid path processing %s' % pathProcessing
-        assert callable(requestHandlerFactory), 'Invalid request handler factory %s' % requestHandlerFactory
-        super().__init__(serverAddress, requestHandlerFactory)
-        
-        self.pathProcessing = pathProcessing
+        assert isinstance(self.serverVersion, str), 'Invalid server version %s' % self.serverVersion
+        assert isinstance(self.serverHost, str), 'Invalid server host %s' % self.serverHost
+        assert isinstance(self.serverPort, int), 'Invalid server port %s' % self.serverPort
+        assert callable(self.requestHandlerFactory), 'Invalid request handler factory %s' % self.requestHandlerFactory
+        assert isinstance(self.assembly, Assembly), 'Invalid assembly %s' % self.assembly
+        super().__init__((self.serverHost, self.serverPort), self.requestHandlerFactory)
+
+        self.processing = self.assembly.create(request=RequestHTTP, requestCnt=RequestContentHTTP,
+                                               response=ResponseHTTP, responseCnt=ResponseContentHTTP)
 
 # --------------------------------------------------------------------
 
-def run(pathAssemblies, server_version, host='', port=80):
+def run(server):
     '''
     Run the basic server.
     
-    @param pathAssemblies: list[(regex, Assembly)]
-        A list that contains tuples having on the first position a string pattern for matching a path, and as a value 
-        the assembly to be used for creating the context for handling the request for the path.
+    @param server: BasicServer
+        The server to run.
     '''
-    assert isinstance(pathAssemblies, list), 'Invalid path assemblies %s' % pathAssemblies
-    RequestHandler.server_version = server_version
-    pathProcessing = []
-    for pattern, assembly in pathAssemblies:
-        assert isinstance(pattern, str), 'Invalid pattern %s' % pattern
-        assert isinstance(assembly, Assembly), 'Invalid assembly %s' % assembly
-
-        processing, report = assembly.create(ONLY_AVAILABLE, CREATE_REPORT,
-                                             request=RequestHTTP, requestCnt=RequestContentHTTP,
-                                             response=ResponseHTTP, responseCnt=ResponseContentHTTP)
-
-        log.info('Assembly report for pattern \'%s\':\n%s', pattern, report)
-        pathProcessing.append((re.compile(pattern), processing))
+    assert isinstance(server, BasicServer), 'Invalid server %s' % server
     
     try:
-        server = BasicServer((host, port), pathProcessing, RequestHandler)
-        print('=' * 50, 'Started HTTP server...')
+        log.info('=' * 50 + ' Started HTTP server...')
         server.serve_forever()
     except KeyboardInterrupt:
-        print('=' * 50, '^C received, shutting down server')
+        log.info('=' * 50 + ' ^C received, shutting down server')
         server.server_close()
     except:
         log.exception('=' * 50 + ' The server has stooped')

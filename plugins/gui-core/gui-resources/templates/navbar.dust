@@ -5,13 +5,14 @@
 			<span class="icon-bar">...</span>
 			<span class="icon-bar">...</span>
 		</a>
-		<a class="brand" href="#">Superdesk</a>
+		<a class="brand" href="#/">Superdesk</a>
 		<div class="nav-collapse">
 			<ul class="nav main">
+			<li class="divider-vertical"></li>
 			{#superdesk.menu}
 				<li class="dropdown">
-					<a href="{?NavBar}{NavBar}{:else}#{/NavBar}" script-path="{Script.href}" 
-						class="menu-{Name} dropdown-toggle" data-toggle="dropdown" {?Subs}data-loader="false"{/Subs}>
+					<a href="#{NavBar}" script-path="{Script.href}"
+						{?Subs}class="menu-{Name} dropdown-toggle" data-toggle="dropdown" data-loader="false"{:else}class="menu-{Name}"{/Subs}>
 						{Label} {?Subs}<b class="caret"></b>{/Subs}</a>
 					{?Subs}
 						<ul {Subs} class="dropdown-menu submenu-{Name}">
@@ -19,6 +20,7 @@
                   		</ul>
 					{/Subs}
 				</li>
+				<li class="divider-vertical"></li>
 			{/superdesk.menu}
 			</ul>
 			<ul class="nav pull-right">
@@ -48,14 +50,32 @@
 						<li class="divider"></li>
 						-->
 						<li>
-							<a href="#" id="navbar-logout">Logout</a>
+							<a href="#" id="navbar-logout" style="color:#FFFFFF!important">Logout</a>
 						</li>
 					</ul>
 					{/user}
 				</li>
 				<li class="divider-vertical"></li>
 				<li>
-					<a href="#myModal" data-toggle="modal">Help</a>
+					<a href="http://en.flossmanuals.net/live-blog-en-1-0/" data-toggle="modal" data-action="help" target="_blank" data-location="http://en.flossmanuals.net/live-blog-en-1-0/">Help</a>
+				</li>
+				<li class="divider-vertical"></li>
+				<li class="dropdown">
+					<a class="dropdown-toggle" data-toggle="dropdown" href="#">English <b class="caret"></b></a>
+					<ul class="dropdown-menu">
+						<li>
+							<a href="#">English</a>
+						</li>
+						<li>
+							<a href="#">French</a>
+						</li>
+						<li>
+							<a href="#">Spanish</a>
+						</li>
+						<li>
+							<a href="#">German</a>
+						</li>
+					</ul>
 				</li>
 			</ul>
 		</div>

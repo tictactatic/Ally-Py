@@ -14,15 +14,16 @@ from ally.api.operator.container import Criteria, Query
 from ally.api.operator.type import TypeQuery, TypeCriteriaEntry, TypeCriteria
 from ally.api.type import Input, Type, Iter, typeFor
 from ally.container.ioc import injected
-from ally.core.spec.codes import ILLEGAL_PARAM
+from ally.core.http.spec.codes import PARAMETER_ILLEGAL
 from ally.core.spec.resources import Invoker, Path, Node, INodeInvokerListener, \
     Normalizer, Converter
 from ally.core.spec.transform.render import Object, List
 from ally.core.spec.transform.support import obtainOnDict, setterOnDict, \
     getterChain, getterOnObj, setterOnObj, setterWithGetter, obtainOnObj, \
     getterOnDict, getterOnObjIfIn, SAMPLE
-from ally.design.context import Context, requires, defines
-from ally.design.processor import HandlerProcessorProceed
+from ally.design.processor.attribute import requires, defines
+from ally.design.processor.context import Context
+from ally.design.processor.handler import HandlerProcessorProceed
 from collections import deque, Iterable, OrderedDict
 from weakref import WeakKeyDictionary
 import logging
@@ -52,9 +53,9 @@ class Response(Context):
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    code = defines(int)
+    code = defines(str)
+    status = defines(int)
     isSuccess = defines(bool)
-    text = defines(str)
     errorMessage = defines(str)
     errorDetails = defines(Object)
 
@@ -133,8 +134,7 @@ class ParameterHandler(HandlerProcessorProceed, INodeInvokerListener):
                     request.path.node.addNodeListener(self)
                     self._cacheEncode[invoker] = encode
 
-                response.code, response.isSuccess = ILLEGAL_PARAM
-                response.text = 'Illegal parameter'
+                response.code, response.status, response.isSuccess = PARAMETER_ILLEGAL
                 context = dict(normalizer=request.normalizerParameters, converter=request.converterParameters)
                 sample = encode(value=SAMPLE, **context)
 
@@ -316,17 +316,17 @@ class ParameterHandler(HandlerProcessorProceed, INodeInvokerListener):
         '''
         assert isinstance(typeEntry, TypeCriteriaEntry), 'Invalid entry type %s' % typeEntry
         assert callable(getterQuery), 'Invalid getter %s' % getterQuery
-        assert isinstance(typeEntry.parent, TypeQuery)
 
         def exploit(path, target, value, **data):
             assert isinstance(path, deque), 'Invalid path %s' % path
+            assert isinstance(typeEntry.parent, TypeQuery)
             if path: return False
             # Only if there are no other elements in path we process the exploit
             query = getterQuery(target)
             assert typeEntry.parent.isValid(query), 'Invalid query object %s' % query
             # We first find the biggest priority in the query
             priority = 0
-            for etype in typeEntry.parent.childTypes():
+            for etype in typeEntry.parent.criteriaEntryTypes():
                 assert isinstance(etype, TypeCriteriaEntry)
                 if etype == typeEntry: continue
                 if not etype.isOf(AsOrdered): continue
@@ -416,7 +416,7 @@ class ParameterHandler(HandlerProcessorProceed, INodeInvokerListener):
                     childrenQuery[nameEntry] = self.decodeCriteria(typeFor(classCriteria), getter)
 
                     if issubclass(classCriteria, AsOrdered):
-                        orderedQuery[nameEntry] = self.decodeSetOrder(typeInp.childTypeFor(nameEntry), getterQuery)
+                        orderedQuery[nameEntry] = self.decodeSetOrder(typeInp.criteriaEntryTypeFor(nameEntry), getterQuery)
 
                 isUpdated = False
                 if invoker.output.isOf(typeInp.owner):
@@ -540,7 +540,7 @@ class ParameterHandler(HandlerProcessorProceed, INodeInvokerListener):
         children, childrenMain = OrderedDict(), OrderedDict()
         for prop, typeProp in sorted(criteria.properties.items(), key=lambda item: item[0]):
             if prop in exclude: continue
-            propEncode = self.encodePrimitive(typeProp, getterOnObjIfIn(prop, typeCriteria.childTypeFor(prop)))
+            propEncode = self.encodePrimitive(typeProp, getterOnObjIfIn(prop, typeCriteria.propertyTypeFor(prop)))
             if prop in criteria.main: childrenMain[prop] = propEncode
             else: children[prop] = propEncode
 
@@ -680,11 +680,11 @@ class ParameterHandler(HandlerProcessorProceed, INodeInvokerListener):
                 childrenQuery, orderedQuery, getterQuery = OrderedDict(), OrderedDict(), getterOnDict(inp.name)
                 for nameEntry, classCriteria in typeInp.query.criterias.items():
 
-                    getter = getterChain(getterQuery, getterOnObjIfIn(nameEntry, typeInp.childTypeFor(nameEntry)))
+                    getter = getterChain(getterQuery, getterOnObjIfIn(nameEntry, typeInp.criteriaEntryTypeFor(nameEntry)))
                     childrenQuery[nameEntry] = self.encodeCriteria(typeFor(classCriteria), getter)
 
                     if issubclass(classCriteria, AsOrdered):
-                        orderedQuery[nameEntry] = self.encodeGetOrder(typeInp.childTypeFor(nameEntry), getterQuery)
+                        orderedQuery[nameEntry] = self.encodeGetOrder(typeInp.criteriaEntryTypeFor(nameEntry), getterQuery)
 
                 isUpdated = False
                 if invoker.output.isOf(typeInp.owner):

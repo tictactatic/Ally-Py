@@ -8,8 +8,7 @@ Created on Feb 23, 2012
 '''
 
 from .service import addAction
-from ally.container import ioc
-from distribution.container import app
+from ally.container import ioc, app
 from gui.action.api.action import Action
 
 # --------------------------------------------------------------------

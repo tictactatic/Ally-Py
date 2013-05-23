@@ -11,17 +11,17 @@ Implementation for the PO file management.
 
 from admin.introspection.api.component import IComponentService
 from admin.introspection.api.plugin import IPluginService, Plugin
+from ally.cdm.spec import ICDM, PathNotFound
 from ally.container import wire
 from ally.container.ioc import injected
 from ally.container.support import setup
 from ally.exception import InputError
 from ally.internationalization import _
-from cdm.spec import ICDM, PathNotFound
 from datetime import datetime
 from internationalization.api.json_locale import IJSONLocaleFileService
 from internationalization.core.spec import IPOFileManager, InvalidLocaleError
-from json.encoder import JSONEncoder
 from io import BytesIO
+from json.encoder import JSONEncoder
 from sys import getdefaultencoding
 
 # --------------------------------------------------------------------
@@ -62,7 +62,8 @@ class JSONFileService(IJSONLocaleFileService):
                 republish = False if mngFileTimestamp is None else cdmFileTimestamp < mngFileTimestamp
 
             if republish:
-                self.cdmLocale.publishContent(path, JSONEncoder().encode(self.poFileManager.getGlobalAsDict(locale)))
+                jsonString = JSONEncoder().encode(self.poFileManager.getGlobalAsDict(locale))
+                self.cdmLocale.publishContent(path, BytesIO(bytes(jsonString, getdefaultencoding())))
         except InvalidLocaleError: raise InputError(_('Invalid locale %(locale)s') % dict(locale=locale))
         return self.cdmLocale.getURI(path, scheme)
 
@@ -81,7 +82,8 @@ class JSONFileService(IJSONLocaleFileService):
                 republish = False if mngFileTimestamp is None else cdmFileTimestamp < mngFileTimestamp
 
             if republish:
-                self.cdmLocale.publishContent(path, JSONEncoder().encode(self.poFileManager.getComponentAsDict(component, locale)))
+                jsonString = JSONEncoder().encode(self.poFileManager.getComponentAsDict(component, locale))
+                self.cdmLocale.publishContent(path, BytesIO(bytes(jsonString, getdefaultencoding())))
         except InvalidLocaleError: raise InputError(_('Invalid locale %(locale)s') % dict(locale=locale))
         return self.cdmLocale.getURI(path, scheme)
 
@@ -98,8 +100,8 @@ class JSONFileService(IJSONLocaleFileService):
             try: cdmFileTimestamp = self.cdmLocale.getTimestamp(path)
             except PathNotFound: republish = True
             else:
-                mngFileTimestamp = mngFileTimestamp = max(self.poFileManager.getGlobalPOTimestamp(locale) or datetime.min,
-                                                          self.poFileManager.getPluginPOTimestamp(plugin, locale) or datetime.min)
+                mngFileTimestamp = max(self.poFileManager.getGlobalPOTimestamp(locale) or datetime.min,
+                                       self.poFileManager.getPluginPOTimestamp(plugin, locale) or datetime.min)
                 republish = False if mngFileTimestamp is None else cdmFileTimestamp < mngFileTimestamp
 
             if republish:

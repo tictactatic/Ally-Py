@@ -1,2 +1,0 @@
-gui_action >= 1.0
-security >= 1.0

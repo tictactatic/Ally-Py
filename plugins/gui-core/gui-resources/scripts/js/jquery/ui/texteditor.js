@@ -184,6 +184,7 @@ define('jqueryui/texteditor', ['jquery','jqueryui/widget', 'jqueryui/ext', 'jque
                     this.execute = function() 
                     {
                         document.execCommand(command, false, null);
+                        this.toggleState();
                         $(this).trigger('command-'+command+'.text-editor');
                     };
                     this.toggleState = function()
@@ -525,9 +526,9 @@ define('jqueryui/texteditor', ['jquery','jqueryui/widget', 'jqueryui/ext', 'jque
                         // we cancel the mousedown default to prevent the button from getting focus
                         // (doesn't work in IE)
                         if (evt.preventDefault) evt.preventDefault();
-                    });     
+                    });
                     $(elem).on( "click", function(evt) 
-                    { 
+                    {
                         command.execute();
                         $(this).trigger('command-executed.text-editor');
                     });
@@ -568,7 +569,7 @@ define('jqueryui/texteditor', ['jquery','jqueryui/widget', 'jqueryui/ext', 'jque
                             this.plugins.toolbar.element.append(cmd.getElements());
                             cmds.push(cmd);
                         }
-                        catch(e){ /* console.exception(e); */ }
+                        catch(e){ console.exception(e); }
                     var self = this;
                     $(elements).on('keyup.texteditor mouseup.texteditor', function()
                     {
@@ -580,68 +581,84 @@ define('jqueryui/texteditor', ['jquery','jqueryui/widget', 'jqueryui/ext', 'jque
                         catch(e){ /*console.exception(e);*/ }
                     });
                     $(elements).trigger('toolbar-created');
+                    
+                    var justifyGrp = []
+                    for( var i=0; i<cmds.length; i++ )
+                        if( $.inArray(cmds[i].id, ['JustifyCenter', 'JustifyLeft', 'JustifyRight']) != -1 )
+                            justifyGrp.push(cmds[i]);
+                    
+                    $(justifyGrp).each(function(i, curCmd)
+                    {
+                        $(curCmd._elements).on('click', function()
+                        {
+                            for( var j=0; j<justifyGrp.length; j++ ) justifyGrp[j].toggleState();
+                            curCmd.toggleState();
+                        });
+                    });
+                    
                 };
             },
+            controlElements: {},
             controls : 
             {
                 bold : function()
                 {
-                    var element = $('<a class="bold" />').text('b'),
+                    var element = this.plugins.controlElements.bold || $('<a class="bold" />').text('b'),
                         command = new this.plugins.lib.commandFactory( new this.plugins.lib.command( "bold" ), element );
                     return command;
                 },
                 italic : function() 
                 {
-                    var element = $('<a class="italic" />').text('i'),
+                    var element = this.plugins.controlElements.italic || $('<a class="italic" />').text('i'),
                         command = new this.plugins.lib.commandFactory( new this.plugins.lib.command( "italic" ), element );
                     return command;
                 },
                 underline : function()
                 {
-                    var element = $('<a class="underline" />').text('u'),
+                    var element = this.plugins.controlElements.underline || $('<a class="underline" />').text('u'),
                         command = new this.plugins.lib.commandFactory( new this.plugins.lib.command( "underline" ), element );
                     return command;
                 },
                 strikeThrough : function()
                 {
-                    var element = $('<a class="strike" />').text('s'),
+                    var element = this.plugins.controlElements.strike || $('<a class="strike" />').text('s'),
                         command = new this.plugins.lib.commandFactory( new this.plugins.lib.command( "strikeThrough" ), element );
                     return command;
                 },
                 justifyLeft : function()
                 {
-                    var element = $('<a class="align left" />').html(''),
+                    var element = this.plugins.controlElements.justLeft || $('<a class="align left" />').html(''),
                         command = new this.plugins.lib.commandFactory( new this.plugins.lib.command( "JustifyLeft" ), element);
                     return command;
                 },
                 justifyCenter : function()
                 {
-                    var element = $('<a class="align center" />').html(''),
+                    var element = this.plugins.controlElements.justCenter || $('<a class="align center" />').html(''),
                         command = new this.plugins.lib.commandFactory( new this.plugins.lib.command( "JustifyCenter" ), element );
                     return command;
                 },
                 justifyRight : function()
                 {
-                    var element = $('<a class="align right" />').html(''),
+                    var element = this.plugins.controlElements.justRight || $('<a class="align right" />').html(''),
                         command = new this.plugins.lib.commandFactory( new this.plugins.lib.command( "JustifyRight" ), element );
                     return command;
                 },
                 link : function(calledForElements)
                 {
-                    var element = $('<a class="link" />').html(''),
+                    var element = this.plugins.controlElements.link || $('<a class="link" />').html(''),
                         command = new this.plugins.lib.commandFactory( new this.plugins.lib.linkCommand(this, calledForElements), element );
                     return command;
                 },
                 image : function(calledForElements)
                 {
-                    var element = $('<a class="image" />').html('');
+                    var element = this.plugins.controlElements.image || $('<a class="image" />').html('');
                     var command = new this.plugins.lib.commandFactory( new this.plugins.lib.imageCommand(this, calledForElements), element );
                     this.plugins.floatingToolbar && this.plugins.floatingToolbar.blockElements.push('img');
                     return command;
                 },
                 html : function(calledForElements)
                 {
-                    var element = $('<a class="code" />').html('&lt;/&gt');
+                    var element = this.plugins.controlElements.html || $('<a class="code" />').html('&lt;/&gt');
                     var command = new this.plugins.lib.commandFactory( new this.plugins.lib.htmlCodeCommand(this, calledForElements), element );
                     return command;
                 }

@@ -9,22 +9,20 @@ Created on Nov 24, 2011
 Provides the configurations for the processors used in handling the request.
 '''
 
-from .encoder_decoder import renderingAssembly, parsingAssembly
+from .encoder_decoder import renderingAssembly, assemblyParsing
 from ally.container import ioc
 from ally.core.impl.processor.arguments import ArgumentsPrepareHandler, \
     ArgumentsBuildHandler
 from ally.core.impl.processor.content import ContentHandler
 from ally.core.impl.processor.decoder import CreateDecoderHandler
 from ally.core.impl.processor.encoder import CreateEncoderHandler
-from ally.core.impl.processor.explain_error import ExplainErrorHandler
 from ally.core.impl.processor.invoking import InvokingHandler
-from ally.core.impl.processor.method_invoker import MethodInvokerHandler
 from ally.core.impl.processor.parsing import ParsingHandler
 from ally.core.impl.processor.render_encoder import RenderEncoderHandler
 from ally.core.impl.processor.rendering import RenderingHandler
 from ally.core.impl.processor.text_conversion import ConversionSetHandler
 from ally.core.spec.resources import Normalizer, Converter
-from ally.design.processor import Handler, Assembly
+from ally.design.processor.handler import Handler
 
 # --------------------------------------------------------------------
 # Creating the processors used in handling the request
@@ -68,9 +66,6 @@ def converter() -> Converter: return Converter()
 def argumentsPrepare() -> Handler: return ArgumentsPrepareHandler()
 
 @ioc.entity
-def methodInvoker() -> Handler: return MethodInvokerHandler()
-
-@ioc.entity
 def renderer() -> Handler:
     b = RenderingHandler()
     b.charSetDefault = default_characterset()
@@ -94,7 +89,7 @@ def createEncoder() -> Handler: return CreateEncoderHandler()
 def parser() -> Handler:
     b = ParsingHandler()
     b.charSetDefault = default_characterset()
-    b.parsingAssembly = parsingAssembly()
+    b.parsingAssembly = assemblyParsing()
     return b
 
 @ioc.entity
@@ -113,22 +108,3 @@ def renderEncoder() -> Handler:
     b.bufferSize = chunck_size()
     return b
 
-@ioc.entity
-def explainError(): return ExplainErrorHandler()
-
-# --------------------------------------------------------------------
-
-@ioc.entity
-def assemblyResources() -> Assembly:
-    '''
-    The assembly containing the handlers that will be used in processing a REST request.
-    '''
-    return Assembly()
-
-# --------------------------------------------------------------------
-
-@ioc.before(assemblyResources)
-def updateAssemblyResources():
-    assemblyResources().add(argumentsPrepare(), methodInvoker(), renderer(), conversion(), createDecoder(),
-                            createEncoder(), parser(), content(), argumentsBuild(), invoking(), renderEncoder(),
-                            explainError())

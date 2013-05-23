@@ -10,8 +10,9 @@ Provides support for setting fixed headers on responses.
 '''
 
 from ally.container.ioc import injected
-from ally.design.context import Context, requires
-from ally.design.processor import HandlerProcessorProceed
+from ally.design.processor.attribute import requires
+from ally.design.processor.context import Context
+from ally.design.processor.handler import HandlerProcessorProceed
 from ally.http.spec.server import IEncoderHeader
 import logging
 
@@ -37,7 +38,7 @@ class HeaderSetEncodeHandler(HandlerProcessorProceed):
     '''
 
     headers = dict
-    # The static header values to set on the response.
+    # The static header values to set on the response is of type dictionary{string, list[string]}
 
     def __init__(self):
         assert isinstance(self.headers, dict), 'Invalid header dictionary %s' % self.header
@@ -57,4 +58,4 @@ class HeaderSetEncodeHandler(HandlerProcessorProceed):
         assert isinstance(response.encoderHeader, IEncoderHeader), \
         'Invalid header encoder %s' % response.encoderHeader
 
-        for name, value in self.headers.items(): response.encoderHeader.encode(name, ','.join(value))
+        for name, value in self.headers.items(): response.encoderHeader.encode(name, *value)

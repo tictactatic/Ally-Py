@@ -222,9 +222,14 @@ class NodeRoot(Node):
         @see: Node.newMatch
         '''
         return self._match
-
-    def __eq__(self, other):
-        return isinstance(other, self.__class__)
+    
+    def correspondentIn(self, nodes):
+        '''
+        @see: Node.correspondentIn
+        '''
+        for node in nodes:
+            if isinstance(node, self.__class__): return True
+        return False
 
     def __str__(self):
         return '<Node Root>'
@@ -269,10 +274,13 @@ class NodePath(Node):
         @see: Node.newMatch
         '''
         return self._match
-
-    def __eq__(self, other):
-        if isinstance(other, NodePath):
-            return self.name == other.name
+    
+    def correspondentIn(self, nodes):
+        '''
+        @see: Node.correspondentIn
+        '''
+        for node in nodes:
+            if isinstance(node, NodePath) and self.name == node.name: return True
         return False
 
     def __str__(self):
@@ -322,6 +330,14 @@ class NodeProperty(Node):
         @see: Node.newMatch
         '''
         return MatchProperty(self)
+    
+    def correspondentIn(self, nodes):
+        '''
+        @see: Node.correspondentIn
+        '''
+        for node in nodes:
+            if isinstance(node, self.__class__) and self.type == node.type: return True
+        return False
 
     def isFor(self, inp):
         '''
@@ -347,12 +363,7 @@ class NodeProperty(Node):
         assert self.isFor(inp), 'Invalid input %s, is not for this node' % inp
         self.inputs.add(inp)
         self.typesProperties.add(inp.type)
-
-    def __eq__(self, other):
-        if isinstance(other, self.__class__):
-            return self.type == other.type
-        return False
-
+        
     def __str__(self):
         return '<%s[%s]>' % (self.__class__.__name__, [str(inp) for inp in self.inputs])
 

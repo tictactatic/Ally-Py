@@ -12,7 +12,6 @@ Provides the ACL specifications.
 from ally.api.operator.type import TypeProperty
 from ally.api.type import typeFor
 from collections import Iterable
-import abc
 
 # --------------------------------------------------------------------
 
@@ -46,51 +45,12 @@ class Filter:
         self.resource = resource
         self.filter = filter
 
-class RightBase(metaclass=abc.ABCMeta):
+class RightAcl:
     '''
-    The ACL right model base. Any class that extends the right base class needs to also override the "iterPermissions" class
-    method.
+    The ACL right model base
     '''
     
-    @classmethod
-    def iterPermissions(cls, node, rights, method=None):
-        '''
-        Iterates over the permissions for the node with rights and optionally the method, the filters are joined base
-        on the policy:
-        - if a call has multiple representation and there is a filter for that call then only the call representation that
-          can be filtered will be used and also the filter with the highest priority will be used.
-
-        @param node: Node
-            The node to get the permissions for.
-        @param rights: Iterable(RightBase)|RightBase
-            The rights to provide the permissions for.
-        @param method: integer|None
-            The method to get the permissions one of (GET, INSERT, UPDATE, DELETE) or a combination of those using the
-            "|" operator, if None then all methods are considered.
-        @return: Iterator(tuple(integer, Path, Invoker, dictionary{TypeProperty:Filter}))|
-            The permissions tuples of (method, path, invoker, filters) for the provided node, rights and method.
-            The filters will always have the resource types found in the path.
-        '''
-        if isinstance(rights, RightBase):
-            clazz = type(rights)
-            assert clazz.iterPermissions is not RightBase.iterPermissions, \
-            'Invalid implementation %s, needs to override the \'iterPermissions\' class method' % clazz
-            return clazz.iterPermissions(node, rights, method)
-        assert isinstance(rights, Iterable), 'Invalid rights %s' % rights
-        indexed = {}
-        for right in rights:
-            assert isinstance(right, RightBase), 'Invalid right %s' % right
-            clazz = type(right)
-            assert clazz.iterPermissions is not RightBase.iterPermissions, \
-            'Invalid implementation %s, needs to override the \'iterPermissions\' class method' % clazz
-            indexedRights = indexed.get(clazz)
-            if indexedRights is None: indexedRights = indexed[clazz] = [right]
-            else: indexedRights.append(right)
-        permisions = []
-        for clazz, rights in indexed.items(): permisions.extend(clazz.iterPermissions(node, rights, method))
-        return permisions
-    
-    def __init__(self, name, description, type=None):
+    def __init__(self, name, description):
         '''
         Construct the right model.
         
@@ -98,37 +58,20 @@ class RightBase(metaclass=abc.ABCMeta):
             The right name.
         @param description: string
             The description for the right.
-        @param type: Type|None
-            The type of the right.
         '''
         assert isinstance(name, str), 'Invalid name %s' % name
         assert isinstance(description, str), 'Invalid description %s' % description
+        
         self.name = name.strip()
         self.description = description.strip()
-        
-        if type:
-            assert isinstance(type, TypeAcl)
-            type.add(self)
-    
-    @abc.abstractmethod
-    def hasPermissions(self, node, method=None):
-        '''
-        Checks if there are any permissions for the provided node and optionally the method.
-
-        @param node: Node
-            The node to check the permissions for.
-        @param method: integer|None
-            The method to check for the filter, if None then all methods are considered.
-        @return: boolean
-            True if there are permissions for the provided node and method.
-        '''
+        self.type = None
 
 class TypeAcl:
     '''
     The ACL type model.
     '''
     
-    def __init__(self, name, description, acl=None):
+    def __init__(self, name, description):
         '''
         Construct the type model.
         
@@ -136,64 +79,73 @@ class TypeAcl:
             The type name.
         @param description: string
             The description for the type.
-        @param acl: Acl|None
-            The acl of the type.
         '''
         assert isinstance(name, str), 'Invalid name %s' % name
         assert isinstance(description, str), 'Invalid description %s' % description
         self.name = name.strip()
         self.description = description.strip()
         self._rights = {}
+        self._defaults = []
+            
+    rights = property(lambda self: self._rights.values(), doc=
+'''
+@type rights: Iterable(RightAcl)
+    The rights for the type.
+''')
+    defaults = property(lambda self: iter(self._defaults), doc=
+'''
+@type defaults: Iterable(RightAcl)
+    The default rights for the type.
+''')
+    
+    def rightsFor(self, names):
+        '''
+        Provides the rights for the provided name(s).
         
-        if acl:
-            assert isinstance(acl, Acl)
-            acl.add(self)
+        @param names: string|Iterable(string)
+            The name(s) to provide rights for.
+        @return: Iterable(RightAcl)
+            The rights that correspond with the provided names.
+        '''
+        if isinstance(names, str): names = (names,)
+        assert isinstance(names, Iterable), 'Invalid names %s' % names
+        for name in names:
+            assert isinstance(name, str), 'Invalid name %s' % name
+            right = self._rights.get(name)
+            if right: yield right
     
     def add(self, right):
         '''
         Add a new ACL right that is binded to this ACL type.
         
-        @param right: RightBase
+        @param right: RightAcl
             The ACL right to be added.
-        @return: Right
+        @return: RightAcl
             The same right.
         '''
-        assert isinstance(right, RightBase), 'Invalid right %s' % right
+        assert isinstance(right, RightAcl), 'Invalid right %s' % right
         assert right.name not in self._rights, 'Already a right with name %s' % right.name
+        assert right.type is None, 'The right %s already has a type' % right.type
         self._rights[right.name] = right
+        right.type = self
         return right
     
-    def hasPermissions(self, node, method=None):
+    def addDefault(self, right):
         '''
-        Checks if there are any permissions for the provided node and optionally the method.
-
-        @param node: Node
-            The node to check the permissions for.
-        @param method: integer|None
-            The method to check for the filter, if None then all methods are considered.
-        @return: boolean
-            True if there are permissions for the provided node and method.
-        '''
-        for right in self._rights.values():
-            assert isinstance(right, RightBase)
-            if right.hasPermissions(node, method): return True
-        return False
+        Add a default ACL right that is binded to this ACL type. The default rights are always present when there is a single
+        right for that type.
         
-    def activeRights(self, node, method=None):
+        @param right: RightAcl
+            The ACL right to be added.
+        @return: RightAcl
+            The same right.
         '''
-        Provides the rights that have valid accesses in respect with the provided node and optionally method.
-        
-        @param node: Node
-            The node to provide the active rights for.
-        @param method: integer|None
-            The method to get the active rights for, if None then all methods are considered.
-        @return: Iterable(RightBase)
-            The iterable of active rights.
-        '''
-        for right in self._rights.values():
-            assert isinstance(right, RightBase)
-            if right.hasPermissions(node, method): yield right
-
+        assert isinstance(right, RightAcl), 'Invalid right %s' % right
+        assert right.type is None, 'The right %s already has a type' % right.type
+        self._defaults.append(right)
+        right.type = self
+        return right
+    
 class Acl:
     '''
     The ACL repository.
@@ -205,11 +157,17 @@ class Acl:
         '''
         self._types = {}
         
+    types = property(lambda self: self._types.values(), doc=
+'''
+@type types: Iterable(TypeAcl)
+    The types for the acl repository.
+''')
+        
     def add(self, type):
         '''
         Add a new ACL type that is binded to this ACL repository.
         
-        @param type: Type
+        @param type: TypeAcl
             The ACL type to be added.
         @return: Type
             The same type.
@@ -218,19 +176,3 @@ class Acl:
         assert type.name not in self._types, 'Already a type with name %s' % type.name
         self._types[type.name] = type
         return type
-    
-    def activeTypes(self, node, method=None):
-        '''
-        Provides the types that have valid accesses in respect with the provided node and optionally method.
-        
-        @param node: Node
-            The node to provide the active types for.
-        @param method: integer|None
-            The method to get the types rights for, if None then all methods are considered.
-        @return: Iterable(Type)
-            The iterable of active types.
-        '''
-        for type in self._types.values():
-            assert isinstance(type, TypeAcl)
-            if type.hasPermissions(node, method): yield type
-                            

@@ -17,8 +17,9 @@ from ally.core.spec.resources import Invoker, Normalizer, Converter
 from ally.core.spec.transform.exploit import handleExploitError
 from ally.core.spec.transform.support import setterOnObj, obtainOnDict, \
     obtainOnObj
-from ally.design.context import defines, Context, requires
-from ally.design.processor import HandlerProcessorProceed
+from ally.design.processor.attribute import requires, defines
+from ally.design.processor.context import Context
+from ally.design.processor.handler import HandlerProcessorProceed
 from ally.exception import InputError, Ref
 from ally.internationalization import _
 from collections import Callable, deque
@@ -68,9 +69,6 @@ class CreateDecoderHandler(HandlerProcessorProceed):
     '''
 
     def __init__(self):
-        '''
-        Construct the decoder.
-        '''
         super().__init__()
 
         self._cache = WeakKeyDictionary()
@@ -84,8 +82,8 @@ class CreateDecoderHandler(HandlerProcessorProceed):
         assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(response, Response), 'Invalid response %s' % response
 
-        if response.isSuccess is False: return # Skip in case the response is in error
-        if Request.decoder in request: return # There is already a decoder no need to create another one
+        if response.isSuccess is False: return  # Skip in case the response is in error
+        if request.decoder: return  # There is already a decoder no need to create another one
         assert isinstance(request.invoker, Invoker), 'Invalid request invoker %s' % request.invoker
 
         for inp in request.invoker.inputs:
@@ -147,7 +145,7 @@ class CreateDecoderHandler(HandlerProcessorProceed):
         exploit = exploit or DecodeObject(ofType.container.name, getter)
         assert isinstance(exploit, DecodeObject), 'Invalid decode object %s' % exploit
 
-        for typeProp in ofType.childTypes():
+        for typeProp in ofType.propertyTypes():
             assert isinstance(typeProp, TypeModelProperty)
 
             self.registerProperty(typeProp.property, typeProp, exploit)
@@ -237,9 +235,9 @@ class CreateDecoderHandler(HandlerProcessorProceed):
             expectedType = typeProp.type
         elif isinstance(typeProp.type, TypeModel):
             assert isinstance(typeProp.type, TypeModel)
-            decoder = DecodeDelegate(self.decoderId(propertyName, typeProp.type.childTypeId().type),
-                                     self.decoderProperty(propertyName, typeProp.type.childTypeId()))
-            expectedType = typeProp.type.childTypeId().type
+            decoder = DecodeDelegate(self.decoderId(propertyName, typeProp.type.propertyTypeId().type),
+                                     self.decoderProperty(propertyName, typeProp.type.propertyTypeId()))
+            expectedType = typeProp.type.propertyTypeId().type
         else:
             decoder = self.decoderPrimitive(propertyName, typeProp.type)
             expectedType = typeProp.type
@@ -356,8 +354,10 @@ class DecodePrimitive:
         if value is not None:
             if not isinstance(value, str): return False
             # If the value is not a string then is not valid
-            try: value = converter.asValue(value, self.typeValue)
-            except ValueError: return False
+            if value:
+                try: value = converter.asValue(value, self.typeValue)
+                except ValueError: return False
+            else: value = None
         self.setter(target, value)
         return True
 

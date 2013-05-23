@@ -14,7 +14,7 @@ from __setup__.ally_http import server_port, server_type
 from __setup__.ally_http_mongrel2_server.server import send_spec, send_ident, \
     recv_spec, recv_ident
 from ally.container import aop, ioc, support, context
-from ally.container.config import load, save
+from ally.container.impl.config import load, save
 from ally.support.util_io import openURI, ReplaceInFile, pipe
 from ally.support.util_sys import pythonPath
 from os import path, makedirs, renames

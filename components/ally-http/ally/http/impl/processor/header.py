@@ -10,15 +10,39 @@ Provides the standard headers handling.
 '''
 
 from ally.container.ioc import injected
-from ally.design.context import Context, defines, requires, optional
-from ally.design.processor import HandlerProcessorProceed
+from ally.design.processor.attribute import requires, optional, defines
+from ally.design.processor.context import Context
+from ally.design.processor.handler import HandlerProcessorProceed
 from ally.http.spec.server import IDecoderHeader, IEncoderHeader
 from collections import deque, Iterable
 import re
 
 # --------------------------------------------------------------------
 
-class Request(Context):
+class HeaderConfigurations:
+    '''
+    Provides the configurations for handling HTTP headers.
+    '''
+
+    separatorMain = ','
+    # The separator used in splitting value and attributes from each other. 
+    separatorAttr = ';'
+    # The separator used between the attributes and value.
+    separatorValue = '='
+    # The separator used between attribute name and attribute value.
+
+    def __init__(self):
+        assert isinstance(self.separatorMain, str), 'Invalid main separator %s' % self.separatorMain
+        assert isinstance(self.separatorAttr, str), 'Invalid attribute separator %s' % self.separatorAttr
+        assert isinstance(self.separatorValue, str), 'Invalid value separator %s' % self.separatorValue
+
+        self.reSeparatorMain = re.compile(self.separatorMain)
+        self.reSeparatorAttr = re.compile(self.separatorAttr)
+        self.reSeparatorValue = re.compile(self.separatorValue)
+
+# --------------------------------------------------------------------
+
+class RequestDecode(Context):
     '''
     The request context.
     '''
@@ -29,10 +53,120 @@ class Request(Context):
     # ---------------------------------------------------------------- Defined
     decoderHeader = defines(IDecoderHeader, doc='''
     @rtype: IDecoderHeader
-    The decoder used for reading the headers.
+    The decoder used for reading the request headers.
     ''')
 
-class Response(Context):
+# --------------------------------------------------------------------
+
+@injected
+class HeaderDecodeRequestHandler(HandlerProcessorProceed, HeaderConfigurations):
+    '''
+    Provides the request decoder for handling HTTP headers.
+    '''
+    useParameters = False
+    # If true then if the data is present in the parameters will override the header.
+
+    def __init__(self):
+        assert isinstance(self.useParameters, bool), 'Invalid use parameters flag %s' % self.useParameters
+        HeaderConfigurations.__init__(self)
+        HandlerProcessorProceed.__init__(self)
+
+    def process(self, request:RequestDecode, **keyargs):
+        '''
+        @see: HandlerProcessorProceed.process
+        
+        Provide the request headers decoders.
+        '''
+        assert isinstance(request, RequestDecode), 'Invalid request %s' % request
+
+        if not request.decoderHeader:  # Only add the decoder if one is not present
+            if self.useParameters and RequestDecode.parameters in request and request.parameters:
+                request.decoderHeader = DecoderHeader(self, request.headers, request.parameters)
+            else: request.decoderHeader = DecoderHeader(self, request.headers)
+
+# --------------------------------------------------------------------
+
+class ResponseDecode(Context):
+    '''
+    The response context.
+    '''
+    # ---------------------------------------------------------------- Required
+    headers = requires(dict)
+    # ---------------------------------------------------------------- Defined
+    decoderHeader = defines(IDecoderHeader, doc='''
+    @rtype: IDecoderHeader
+    The decoder used for reading the response headers.
+    ''')
+
+# --------------------------------------------------------------------
+
+@injected
+class HeaderDecodeResponseHandler(HandlerProcessorProceed, HeaderConfigurations):
+    '''
+    Provides the response decoding for handling HTTP headers.
+    '''
+
+    def __init__(self):
+        HeaderConfigurations.__init__(self)
+        HandlerProcessorProceed.__init__(self)
+
+    def process(self, response:ResponseDecode, **keyargs):
+        '''
+        @see: HandlerProcessorProceed.process
+        
+        Provide the response headers decoders.
+        '''
+        assert isinstance(response, ResponseDecode), 'Invalid response %s' % response
+
+        if not response.decoderHeader and response.headers is not None: 
+            # Only add the decoder if one is not present or there are no headers
+            response.decoderHeader = DecoderHeader(self, response.headers)
+
+# --------------------------------------------------------------------
+
+class RequestEncode(Context):
+    '''
+    The request encode context.
+    '''
+    # ---------------------------------------------------------------- Defined
+    headers = defines(dict, doc='''
+    @rtype: dictionary{string, string}
+    The raw headers for the request that the encoder will place values to.
+    ''')
+    encoderHeader = defines(IEncoderHeader, doc='''
+    @rtype: IEncoderHeader
+    The header encoder used for encoding headers that will be used in the request.
+    ''')
+
+# --------------------------------------------------------------------
+    
+@injected
+class HeaderEncodeRequestHandler(HandlerProcessorProceed, HeaderConfigurations):
+    '''
+    Provides the request encoder for handling HTTP headers.
+    '''
+
+    def __init__(self):
+        HeaderConfigurations.__init__(self)
+        HandlerProcessorProceed.__init__(self)
+
+    def process(self, request:RequestEncode, **keyargs):
+        '''
+        @see: HandlerProcessorProceed.process
+        
+        Provide the request headers encoders.
+        '''
+        assert isinstance(request, RequestEncode), 'Invalid request %s' % request
+
+        if not request.encoderHeader:  # Only add the encoder if one is not present
+            request.encoderHeader = EncoderHeader(self)
+        
+            if request.headers: request.encoderHeader.headers.update(request.headers)
+            request.headers = request.encoderHeader.headers
+            
+# --------------------------------------------------------------------
+
+class ResponseEncode(Context):
     '''
     The response context.
     '''
@@ -42,52 +176,31 @@ class Response(Context):
     The raw headers for the response.
     ''')
     encoderHeader = defines(IEncoderHeader, doc='''
-    @rtype: IEncoderPath
-    The path encoder used for encoding paths that will be rendered in the response.
+    @rtype: IEncoderHeader
+    The header encoder used for encoding headers that will be rendered in the response.
     ''')
 
 # --------------------------------------------------------------------
-
+    
 @injected
-class HeaderHandler(HandlerProcessorProceed):
+class HeaderEncodeResponseHandler(HandlerProcessorProceed, HeaderConfigurations):
     '''
-    Provides encoder/decoder for handling HTTP headers.
+    Provides the response encoder for handling HTTP headers.
     '''
-
-    useParameters = False
-    # If true then if the data is present in the parameters will override the header.
-
-    separatorMain = ','
-    # The separator used in splitting value and attributes from each other. 
-    separatorAttr = ';'
-    # The separator used between the attributes and value.
-    separatorValue = '='
-    # The separator used between attribute name and attribute value.
 
     def __init__(self):
-        assert isinstance(self.useParameters, bool), 'Invalid use parameters flag %s' % self.useParameters
-        assert isinstance(self.separatorMain, str), 'Invalid main separator %s' % self.separatorMain
-        assert isinstance(self.separatorAttr, str), 'Invalid attribute separator %s' % self.separatorAttr
-        assert isinstance(self.separatorValue, str), 'Invalid value separator %s' % self.separatorValue
-        super().__init__()
+        HeaderConfigurations.__init__(self)
+        HandlerProcessorProceed.__init__(self)
 
-        self.reSeparatorMain = re.compile(self.separatorMain)
-        self.reSeparatorAttr = re.compile(self.separatorAttr)
-        self.reSeparatorValue = re.compile(self.separatorValue)
-
-    def process(self, request:Request, response:Response, **keyargs):
+    def process(self, response:ResponseEncode, **keyargs):
         '''
         @see: HandlerProcessorProceed.process
         
-        Provide the headers encoders and decoders.
+        Provide the response headers encoders.
         '''
-        assert isinstance(request, Request), 'Invalid request %s' % request
-        assert isinstance(response, Response), 'Invalid response %s' % response
+        assert isinstance(response, ResponseEncode), 'Invalid response %s' % response
 
-        if Request.decoderHeader not in request:  # Only add the decoder if one is not present 
-            request.decoderHeader = DecoderHeader(self, request.headers, request.parameters
-                                                  if Request.parameters in request and self.useParameters else None)
-        if Response.encoderHeader not in response:  # Only add the encoder if one is not present
+        if not response.encoderHeader:  # Only add the encoder if one is not present
             response.encoderHeader = EncoderHeader(self)
         
             if response.headers: response.encoderHeader.headers.update(response.headers)
@@ -99,24 +212,24 @@ class DecoderHeader(IDecoderHeader):
     '''
     Implementation for @see: IDecoderHeader.
     '''
-    __slots__ = ('handler', 'headers', 'parameters', 'parametersUsed')
+    __slots__ = ('configuration', 'headers', 'parameters', 'parametersUsed')
 
-    def __init__(self, handler, headers, parameters=None):
+    def __init__(self, configuration, headers, parameters=None):
         '''
         Construct the decoder.
         
-        @param handler: HeaderHandler
-            The header handler of the decoder.
+        @param configuration: HeaderConfigurations
+            The header configuration.
         @param headers: dictionary{string, string}
             The header values.
         @param parameters: list[tuple(string, string)]
             The parameter values, this list will have have the used parameters removed.
         '''
-        assert isinstance(handler, HeaderHandler), 'Invalid handler %s' % handler
+        assert isinstance(configuration, HeaderConfigurations), 'Invalid configuration %s' % configuration
         assert isinstance(headers, dict), 'Invalid headers %s' % headers
         assert parameters is None or isinstance(parameters, list), 'Invalid parameters %s' % parameters
 
-        self.handler = handler
+        self.configuration = configuration
         self.headers = {hname.lower():hvalue for hname, hvalue in headers.items()}
         self.parameters = parameters
         if parameters: self.parametersUsed = {}
@@ -126,10 +239,12 @@ class DecoderHeader(IDecoderHeader):
         @see: IDecoderHeader.retrieve
         '''
         assert isinstance(name, str), 'Invalid name %s' % name
-
+        cfg = self.configuration
+        assert isinstance(cfg, HeaderConfigurations)
+        
         name = name.lower()
         value = self.readParameters(name)
-        if value: return self.handler.separatorMain.join(value)
+        if value: return cfg.separatorMain.join(value)
 
         return self.headers.get(name)
 
@@ -163,15 +278,15 @@ class DecoderHeader(IDecoderHeader):
             The parsed values, if parsed is provided then it will be the same list.
         '''
         assert isinstance(value, str), 'Invalid value %s' % value
-        handler = self.handler
-        assert isinstance(handler, HeaderHandler)
+        cfg = self.configuration
+        assert isinstance(cfg, HeaderConfigurations)
 
         parsed = [] if parsed is None else parsed
-        for values in handler.reSeparatorMain.split(value):
-            valAttr = handler.reSeparatorAttr.split(values)
+        for values in cfg.reSeparatorMain.split(value):
+            valAttr = cfg.reSeparatorAttr.split(values)
             attributes = {}
             for k in range(1, len(valAttr)):
-                val = handler.reSeparatorValue.split(valAttr[k])
+                val = cfg.reSeparatorValue.split(valAttr[k])
                 attributes[val[0].strip()] = val[1].strip().strip('"') if len(val) > 1 else None
             parsed.append((valAttr[0].strip(), attributes))
         return parsed
@@ -207,18 +322,18 @@ class EncoderHeader(IEncoderHeader):
     '''
     Implementation for @see: IEncoderHeader.
     '''
-    __slots__ = ('handler', 'headers')
+    __slots__ = ('configuration', 'headers')
 
-    def __init__(self, handler):
+    def __init__(self, configuration):
         '''
         Construct the encoder.
         
-        @param handler: HeaderHandler
-            The header handler of the encoder.
+        @param configuration: HeaderConfigurations
+            The header configuration.
         '''
-        assert isinstance(handler, HeaderHandler), 'Invalid handler %s' % handler
+        assert isinstance(configuration, HeaderConfigurations), 'Invalid configuration %s' % configuration
 
-        self.handler = handler
+        self.configuration = configuration
         self.headers = {}
 
     def encode(self, name, *value):
@@ -227,8 +342,8 @@ class EncoderHeader(IEncoderHeader):
         '''
         assert isinstance(name, str), 'Invalid name %s' % name
 
-        handler = self.handler
-        assert isinstance(handler, HeaderHandler)
+        cfg = self.configuration
+        assert isinstance(cfg, HeaderConfigurations)
 
         values = []
         for val in value:
@@ -236,7 +351,7 @@ class EncoderHeader(IEncoderHeader):
             if isinstance(val, str): values.append(val)
             else:
                 value, attributes = val
-                attributes = handler.separatorValue.join(attributes)
-                values.append(handler.separatorAttr.join((value, attributes)) if attributes else value)
+                attributes = cfg.separatorValue.join(attributes)
+                values.append(cfg.separatorAttr.join((value, attributes)) if attributes else value)
 
-        self.headers[name] = handler.separatorMain.join(values)
+        self.headers[name] = cfg.separatorMain.join(values)

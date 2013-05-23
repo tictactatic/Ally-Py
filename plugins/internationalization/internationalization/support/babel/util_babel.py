@@ -17,7 +17,7 @@ def msgId(msg):
     Returns the message identifier used to retrieve the message from the
     catalog. This is be different from the id attribute when the message
     has plural forms.
-    
+
     @param msg: Message
         The message for which to return the identifier
     @return: string
@@ -42,7 +42,7 @@ def isMsgTranslated(msg):
 def copyTranslation(src, dst):
     '''
     Copy the translation from the source message to the destination message.
-    
+
     @param src: Message
         The message from which to copy the translation
     @param dst: Message
@@ -52,9 +52,7 @@ def copyTranslation(src, dst):
     '''
     assert isinstance(src, Message), 'Invalid message %s' % src
     assert isinstance(dst, Message), 'Invalid message %s' % dst
-    if type(src.string) == type(dst.string):
-        dst.string = src.string
-    elif isinstance(src.string, (list, tuple)):
+    if type(src.string) == type(dst.string) or dst.string is None or isinstance(src.string, (list, tuple)):
         dst.string = src.string
     elif isinstance(dst.string, list):
         dst[0] = src.string
@@ -68,7 +66,7 @@ def fixBabelCatalogAddBug(msg, numPlurals):
     '''
     The Babel catalog does not set the translation strings properly when the
     message has plural form. Regardless of the number of plurals, when adding
-    a new message only two strings are set for the translation. E.g.: for 
+    a new message only two strings are set for the translation. E.g.: for
     Romanian the num_plurals catalog attribute is 3 but the translation
     strings is a tuple of 2: ('', ''). This issue is fixed though when writing
     the PO file - the PO file contains the proper number of plurals. So when

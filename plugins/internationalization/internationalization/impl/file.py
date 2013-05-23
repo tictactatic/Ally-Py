@@ -18,7 +18,7 @@ from ally.container.support import setup
 # --------------------------------------------------------------------
 
 @injected
-@setup(IFileService)
+@setup(IFileService, name='fileService')
 class FileServiceAlchemy(EntityServiceAlchemy, IFileService):
     '''
     Alchemy implementation for @see: IFileService

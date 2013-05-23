@@ -15,12 +15,23 @@ from ally.api.type import List, TypeClass
 from ally.container import ioc
 from ally.core.impl.invoker import InvokerFunction
 from ally.core.spec.resources import Path, InvokerInfo
-from ally.support.core.util_resources import findGetAllAccessible
+from ally.support.core.util_resources import findGetAllAccessible, nodeLongName
 from functools import partial
+
+# --------------------------------------------------------------------
+
+
+def rootPaths(pathOrNode):
+    '''
+    Provides the root paths.
+    '''
+    paths = findGetAllAccessible(pathOrNode)
+    paths.sort(key=lambda path: nodeLongName(path.node))
+    return paths
 
 # --------------------------------------------------------------------
 
 @ioc.after(resourcesRoot)
 def decorateRoot():
-    resourcesRoot().get = InvokerFunction(GET, partial(findGetAllAccessible, resourcesRoot()), List(TypeClass(Path)),
+    resourcesRoot().get = InvokerFunction(GET, partial(rootPaths, resourcesRoot()), List(TypeClass(Path)),
                                           [], {}, 'accessible', InvokerInfo('accessible', '.', 0, ''))

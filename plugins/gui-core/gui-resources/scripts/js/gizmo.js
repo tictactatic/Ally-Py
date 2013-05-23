@@ -184,18 +184,21 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
             self._forDelete = false;
             self.clearChangeset();
             self._clientHash = null;
-            if( options && typeof options == 'object' ) $.extend(self, options);
             if( typeof data == 'object' ) {
                 self._parse(data);
             }
-			//console.log('Changes',self.changeset);
-            if(!$.isEmptyObject(self.changeset)) {
+            if(self.isDeleted()){
+                //console.log('pull remove');
+                self._remove();
+            } else if(!$.isEmptyObject(self.changeset)) {
                 //console.log('_constructor update', self.changeset);
                 self.triggerHandler('update', self.changeset).clearChangeset();
             }
-
+            options = $.extend({}, { init: true}, this.options);
+            options.init && this.init.apply(this, arguments);
             return self;
         },
+		init: function(){},
         /*!
          * adapter for data sync
          */
@@ -221,9 +224,17 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
                 }
             return ret;
         },
+        /*!
+         * Property href setter
+         */
+        setHref: function(href)
+        {
+            this.href = href;
+            return this;
+        },
         _setToUrl: function(){
             if(!this.href && this.url) {
-                this.href = this.url.get();
+                this.setHref(this.url.get());
             }
         },
         /*!
@@ -256,6 +267,7 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
                 return dataAdapter(href).insert(feed).done(function(data)
                 {
                     self._changed = false;
+                    self._parseHash(data);
                     self._parse(data);
 
                     self._uniq && self._uniq.replace(self._clientHash, self.hash(), self);
@@ -666,9 +678,14 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
             buildData.call(this);
             options = $.extend({}, { init: true}, this.options);
             options.init && this.init.apply(this, arguments);
-
         },
         init: function(){},
+		reset: function(models, options) {
+			if(!$.isArray(models))  models = [models];
+			models = this._parse(models);
+			this._list = models;
+			return this;
+		},
         get: function(key)
         {
             var dfd = $.Deferred(),
@@ -695,7 +712,7 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
         },
         syncAdapter: Sync,
         /*!
-         *
+         * Property href setter
          */
         setHref: function(href)
         {
@@ -924,29 +941,6 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
             }
             return this;
         },
-        /*!
-         * used to place events on this model,
-         * scope of the call method is sent as obj argument
-         */
-        one: function(evt, handler, obj)
-        {
-            if(obj === undefined) {
-                $(this).off(evt, handler);
-                $(this).one(evt, handler);
-            }
-            else {          
-                var newhandler = function(){
-                    handler.apply(obj, arguments);
-                };
-                $(this).off(evt, newhandler );
-                $(this).one(evt, newhandler );
-            }
-            var arrEvt = evt.split(" ");
-            for(var i = 0, count = arrEvt.length; i < count; i++ ){
-                this._events[arrEvt[i]] = true;
-            }
-            return this;
-        },
 		/*!
          * used to place events on this model,
          * scope of the call method is sent as obj argument
@@ -1025,6 +1019,8 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
         namespace: 'view',
         _constructor: function(data, options)
         {
+            if(this.events && data && data.events)
+                $.extend(data.events, this.events);
             $.extend(this, data);
             options = $.extend({}, { init: true, events: true, ensure: true}, options);
 			options.ensure && this._ensureElement();

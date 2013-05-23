@@ -19,7 +19,7 @@ if True:
 from ally.api.config import model, service, call
 from ally.container.binder_op import validateAutoId, validateMaxLength, \
     validateManaged, bindValidations, validateRequired
-from ally.container.proxy import proxyWrapFor
+from ally.container.impl.proxy import proxyWrapFor
 from ally.exception import InputError
 import unittest
 

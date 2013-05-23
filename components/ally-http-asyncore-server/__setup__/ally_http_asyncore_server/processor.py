@@ -10,6 +10,8 @@ Provides the setup for the asyncore processor.
 '''
 
 from ally.container import ioc
+from ally.design.processor.handler import Handler
+from ally.http.impl.processor.asyncore_content import AsyncoreContentHandler
 from os import path
 
 # --------------------------------------------------------------------
@@ -24,4 +26,13 @@ def dump_requests_size():
 def dump_requests_path():
     '''The path where the requests are dumped when they are to big to keep in memory'''
     return path.join('workspace', 'asyncore')
+
+# --------------------------------------------------------------------
+    
+@ioc.entity
+def asyncoreContent() -> Handler:
+    b = AsyncoreContentHandler()
+    b.dumpRequestsSize = dump_requests_size()
+    b.dumpRequestsPath = dump_requests_path()
+    return b
 

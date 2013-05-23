@@ -343,7 +343,6 @@ class Invoker(metaclass=abc.ABCMeta):
     '''
     Contains all the data required for accessing a call.
     '''
-    __slots__ = ('name', 'method', 'output', 'inputs', 'mandatory', 'hints', 'infoIMPL', 'infoAPI')
 
     def __init__(self, name, method, output, inputs, hints, infoIMPL, infoAPI=None):
         '''
@@ -395,7 +394,7 @@ class Invoker(metaclass=abc.ABCMeta):
         @param args: arguments
             The arguments to use in invoking.
         '''
-
+        
     def __str__(self):
         inputs = ['%s%s=%s' % ('defaulted:' if i >= self.mandatory else '', inp.name, inp.type)
                   for i, inp in enumerate(self.inputs)]
@@ -537,7 +536,7 @@ class Node(metaclass=abc.ABCMeta):
         self._children = []
         if parent is not None:
             assert isinstance(parent, Node), 'Invalid parent node %s' % parent
-            assert self not in parent._children, 'Already contains child node %s' % self
+            assert not self.correspondentIn(parent._children), 'Already contains child node %s' % self
             parent._children.append(self)
             parent._children.sort(key=lambda node: node.order)
             parent._onChildAdded(self)
@@ -637,17 +636,21 @@ class Node(metaclass=abc.ABCMeta):
         Constructs a blank match object represented by this node, this is used in creating path for nodes.
         So basically this used when we need a path for a node.
 
-        @return: Match| list | None
+        @return: Match|list[Match]|None
             A match object or a list with match objects, None if there is no match needed by this node.
         '''
-
+    
     @abc.abstractmethod
-    def __eq__(self, other):
+    def correspondentIn(self, nodes):
         '''
-        Needs to have the equal implemented in order to determine if there isn't already a child node with the same
-        specification in the parent.
+        Checks if there is a correspondent node for this node in the provided nodes.
+        
+        @param nodes: Iterable(Node)
+            The nodes to check.
+        @return: boolean
+            True if the node has correspondent in the provided nodes, False otherwise.
         '''
-
+        
     # ----------------------------------------------------------------
 
     def _onInvokerChange(self, old, new):

@@ -14,12 +14,13 @@ from ..meta.right import RightMapped
 from ally.api.extension import IterPart
 from ally.container.ioc import injected
 from ally.container.support import setup
+from ally.exception import InputError, Ref
+from security.api.right import Right
+from security.meta.right_type import RightTypeMapped
 from sql_alchemy.impl.entity import EntityGetServiceAlchemy, \
     EntityCRUDServiceAlchemy, EntitySupportAlchemy
 from sqlalchemy.orm.exc import NoResultFound
-from ally.exception import InputError, Ref
-from security.meta.right_type import RightTypeMapped
-from security.api.right import Right
+from ally.internationalization import _
 
 # --------------------------------------------------------------------
 
@@ -38,15 +39,15 @@ class RightServiceAlchemy(EntityGetServiceAlchemy, EntityCRUDServiceAlchemy, IRi
         @see: IRightService.getByName
         '''
         assert isinstance(nameType, str), 'Invalid type name %s' % nameType
-        assert isinstance(nameType, str), 'Invalid name %s' % name
+        assert isinstance(name, str), 'Invalid name %s' % name
 
         sql = self.session().query(RightMapped).join(RightTypeMapped)
         sql = sql.filter(RightTypeMapped.Name == nameType).filter(RightMapped.Name == name)
 
         try: return sql.one()
         except NoResultFound: raise InputError(Ref(_('Invalid names for right'), ref=Right.Name))
-
-    def getAll(self, typeId=None, offset=None, limit=None, detailed=True, q=None):
+        
+    def getAll(self, typeId=None, offset=None, limit=None, detailed=False, q=None):
         '''
         @see: IRightService.getAll
         '''

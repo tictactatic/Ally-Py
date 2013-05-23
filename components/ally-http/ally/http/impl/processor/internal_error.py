@@ -10,8 +10,11 @@ Provide the internal error representation. This is usually when the server fails
 '''
 
 from ally.container.ioc import injected
-from ally.design.context import defines, Context, optional
-from ally.design.processor import HandlerProcessor, Chain
+from ally.design.processor.attribute import defines
+from ally.design.processor.context import Context
+from ally.design.processor.execution import Chain
+from ally.design.processor.handler import Handler
+from ally.design.processor.processor import Processor
 from ally.http.spec.codes import INTERNAL_ERROR
 from ally.support.util_io import convertToBytes, IInputStream
 from collections import Iterable
@@ -31,10 +34,9 @@ class Response(Context):
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    code = defines(int)
+    code = defines(str)
+    status = defines(int)
     isSuccess = defines(bool)
-    text = defines(str)
-    errorMessage = defines(str)
     headers = defines(dict)
 
 class ResponseContent(Context):
@@ -42,12 +44,12 @@ class ResponseContent(Context):
     The response content context.
     '''
     # ---------------------------------------------------------------- Optional
-    source = optional(IInputStream, Iterable)
+    source = defines(IInputStream, Iterable)
 
 # --------------------------------------------------------------------
 
 @injected
-class InternalErrorHandler(HandlerProcessor):
+class InternalErrorHandler(Handler):
     '''
     Implementation for a processor that provides the handling of internal errors.
     '''
@@ -55,24 +57,19 @@ class InternalErrorHandler(HandlerProcessor):
     errorHeaders = {'Content-Type':'text'}
     # The headers that will be placed on the response.
 
-    def __init__(self):
+    def __init__(self, response=Response, responseCnt=ResponseContent, **contexts):
         '''
         Construct the internal error handler.
         '''
         assert isinstance(self.errorHeaders, dict), 'Invalid error headers %s' % self.errorHeaders
-        super().__init__()
+        super().__init__(Processor(dict(response=Response, responseCnt=ResponseContent, **contexts), self.process))
 
-    def process(self, chain, response:Response, responseCnt:ResponseContent, **keyargs):
+    def process(self, chain, **keyargs):
         '''
-        @see: HandlerProcessor.process
-        
         Provides the additional arguments by type to be populated.
         '''
         assert isinstance(chain, Chain), 'Invalid processors chain %s' % chain
-        assert isinstance(response, Response), 'Invalid response %s' % response
-        assert isinstance(responseCnt, ResponseContent), 'Invalid response content %s' % responseCnt
-
-        chain.callBackError(partial(self.handleError, chain, response, responseCnt))
+        chain.callBackError(partial(self.handleError, chain))
         if __debug__:
             # If in debug mode and the response content has a source generator then we will try to read that
             # in order to catch any exception before the actual streaming.
@@ -80,6 +77,10 @@ class InternalErrorHandler(HandlerProcessor):
                 '''
                 Handle the finalization
                 '''
+                try: response, responseCnt = chain.arg.response, chain.arg.responseCnt
+                except AttributeError: return  # If there is no response or response content we take no action
+                assert isinstance(response, Response), 'Invalid response %s' % response
+                assert isinstance(responseCnt, ResponseContent), 'Invalid response content %s' % responseCnt
                 if isinstance(responseCnt.source, Iterable):
                     content = BytesIO()
                     try:
@@ -88,8 +89,7 @@ class InternalErrorHandler(HandlerProcessor):
                         log.exception('Exception occurred while processing the chain')
                         error = StringIO()
                         traceback.print_exc(file=error)
-                        response.code, response.isSuccess = INTERNAL_ERROR
-                        response.text = 'Cannot render response, please consult the server logs'
+                        response.code, response.status, response.isSuccess = INTERNAL_ERROR
                         response.headers = self.errorHeaders
                         responseCnt.source = convertToBytes(self.errorResponse(error), 'utf8', 'backslashreplace')
                     else:
@@ -98,24 +98,29 @@ class InternalErrorHandler(HandlerProcessor):
             
             chain.callBack(onFinalize)
             
-    def handleError(self, chain, response, responseCnt):
+    def handleError(self, chain):
         '''
         Handle the error.
         '''
         assert isinstance(chain, Chain), 'Invalid processors chain %s' % chain
+        try: response = chain.arg.response
+        except AttributeError: response = Response()
+        
+        try: responseCnt = chain.arg.responseCnt
+        except AttributeError: responseCnt = ResponseContent()
+        
         assert isinstance(response, Response), 'Invalid response %s' % response
         assert isinstance(responseCnt, ResponseContent), 'Invalid response content %s' % responseCnt
         
         # If there is an explanation for the error occurred, we do not need to make another one
-        if ResponseContent.source in responseCnt: return
+        if responseCnt.source is not None: return
         
         log.exception('Exception occurred while processing the chain')
         error = StringIO()
         traceback.print_exc(file=error)
-        response.code, response.isSuccess = INTERNAL_ERROR
-        response.text = 'Upps, please consult the server logs'
+        response.code, response.status, response.isSuccess = INTERNAL_ERROR
         response.headers = self.errorHeaders
-        responseCnt.source = convertToBytes(self.errorResponse(error), 'utf8', 'backslashreplace')
+        responseCnt.source = convertToBytes(self.errorResponse(error), 'utf-8', 'backslashreplace')
 
     def errorResponse(self, error):
         '''

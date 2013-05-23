@@ -14,6 +14,11 @@ from ally.container import ioc
 from ally.core.impl.resources_management import ResourcesRegister
 from ally.core.spec.resources import IResourcesRegister, Node
 from ally.core.impl.node import NodeRoot
+import logging
+
+# --------------------------------------------------------------------
+
+log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 # Creating the resource manager
@@ -26,3 +31,15 @@ def resourcesRegister() -> IResourcesRegister:
     b = ResourcesRegister(); yield b
     b.root = resourcesRoot()
     b.assemblers = assemblers()
+
+@ioc.entity
+def services() -> list:
+    ''' The list of services to be registered'''
+    return []
+
+# --------------------------------------------------------------------
+
+@ioc.start
+def register():
+    log.info('Registering %s services into the resources structure', len(services()))
+    for service in services(): resourcesRegister().register(service)

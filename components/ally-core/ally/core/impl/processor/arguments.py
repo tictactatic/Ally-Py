@@ -11,8 +11,9 @@ Provides the integration of the additional arguments into the main arguments.
 
 from ally.api.type import Input, typeFor
 from ally.core.spec.resources import Invoker, Path
-from ally.design.context import defines, Context, requires
-from ally.design.processor import HandlerProcessorProceed
+from ally.design.processor.attribute import requires, defines
+from ally.design.processor.context import Context
+from ally.design.processor.handler import HandlerProcessorProceed
 
 # --------------------------------------------------------------------
 
@@ -76,7 +77,7 @@ class ArgumentsBuildHandler(HandlerProcessorProceed):
         Transpose the additional arguments into the main arguments.
         '''
         assert isinstance(request, Request), 'Invalid request %s' % request
-        if Request.invoker not in request: return # If there is no invoker it means that no arguments need to be processed
+        if request.invoker is None: return  # If there is no invoker it means that no arguments need to be processed
         assert isinstance(request.path, Path), 'Invalid request path %s' % request.path
         assert isinstance(request.invoker, Invoker), 'Invalid request invoker %s' % request.invoker
 
