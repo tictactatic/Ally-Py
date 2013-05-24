@@ -7,7 +7,19 @@ function ($, MultiSplit, Format)
 	'use strict';
 	
 	var origInit = MultiSplit.prototype.init,
-	    _activeButtonText = false;
+	    _activeButtonText = false,
+	    origAddMarkup = Format.addMarkup;
+	Format.addMarkup = function()
+	{
+	    if( Aloha.editables.length == 0 ) return;
+	    if( !Aloha.activeEditable ) 
+	    {
+	        Aloha.activateEditable(Aloha.editables[0]);
+	        Aloha.activeEditable.obj.focus();
+	    }
+	    origAddMarkup.apply(this, arguments);
+	}
+	
 	MultiSplit.prototype.init = function()
 	{
 	    var ret = origInit.apply(this, arguments),
