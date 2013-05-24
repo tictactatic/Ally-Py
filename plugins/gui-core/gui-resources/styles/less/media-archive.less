@@ -1,40 +1,4 @@
 
-.rounded-corners (@radius: 5px) {
-	border-radius: @radius;
-	-webkit-border-radius: @radius;
-	-moz-border-radius: @radius;
-}
-
-.box-shadow (@x: 0, @y: 0, @blur: 3px, @spread: 0px, @color: #000) {
-	box-shadow: @arguments;
-    -moz-box-shadow: @arguments;
-    -webkit-box-shadow: @arguments;
-    filter: progid:DXImageTransform.Microsoft.gradient(enabled=false); /* IE6-9 */
-}
-.box-shadow-inset (@x: 0, @y: 0, @blur: 3px, @spread: 0px, @color: #000) {
-    box-shadow: inset @arguments;
-	-moz-box-shadow: inset @arguments;
-    -webkit-box-shadow: inset @arguments;
-    filter: progid:DXImageTransform.Microsoft.gradient(enabled=false); /* IE6-9 */
-}
-
-.text-shadow (@x: 0, @y: 0, @blur: 3px, @color: #000) {
-	text-shadow: @arguments;
-}
-
-.gradient-background (@direction: left, @first-color: #fff, @second-color: #000) {
-	background-image: -ms-linear-gradient(@direction, @first-color 0%, @second-color 100%);
-	background-image: -moz-linear-gradient(@direction, @first-color 0%, @second-color 100%);
-	background-image: -o-linear-gradient(@direction, @first-color 0%, @second-color 100%);
-	background-image: -webkit-linear-gradient(@direction, @first-color 0%, @second-color 100%);
-	filter: progid:DXImageTransform.Microsoft.gradient(startColorstr=@first-color, endColorstr=@second-color);
-}
-
-.box-sizing-border {
-	-moz-box-sizing: border-box;
-    box-sizing: border-box;
-}
-
 .reset-bootstrap-effects {
 	-webkit-transition: none;
 	-moz-transition: none;
@@ -122,7 +86,7 @@ body > header {
 .subnav {
   width: 100%;
   border: 1px solid #e5e5e5;
-  .rounded-corners(4px);
+  .border-radius(4px);
 }
 */
 /*
@@ -136,8 +100,8 @@ body > header {
 	background:#f6f4f9;
     border-color: #d5d5d5;
     border-width: 0 0 1px;
-    .rounded-corners(0px);
-	.box-shadow(0, 1px, 5px, 0, rgba(0,0,0,.1));		 
+    .border-radius(0px);
+	.box-shadow(0 1px 5px 0 rgba(0,0,0,.1));		 
 }
 
 .subnav.subnav-fixed{ height:34px; }
@@ -185,7 +149,7 @@ body > header {
 /* FORM ELEMENTS */
 
 input, textarea, select {
-	.box-sizing-border;
+	.box-sizing(border-box);
 	width:100%;
 	height:25px;
 	line-height:15px;
@@ -194,7 +158,7 @@ input, textarea, select {
 	color:#000;
 	padding:2px;
 	border: 1px solid #9d9d9d;
-	.rounded-corners(0px);	
+	.border-radius(0px);	
 	.reset-bootstrap-effects;
 	vertical-align:middle;
 	margin:0px;
@@ -202,7 +166,7 @@ input, textarea, select {
 
 input{
 	&.date {
-		.box-shadow-inset (0,5px,5px,-5px,#cacaca);
+		.box-shadow(inset 0 5px 5px -5px #cacaca);
 		background: url(../../images/date-field.png) no-repeat right center #fff;
 		.reset-bootstrap-effects;
 		padding:0 30px 0 5px;
@@ -248,7 +212,7 @@ input{
 		float:left;
 		font-size:12px;
 		.header {
-			.rounded-corners(4px);
+			.border-radius(4px);
 			width:auto;
 			height:24px;
 			margin-bottom:10px;
@@ -297,7 +261,7 @@ input{
 	height:auto;
 	background-color:#f8f8f8;
 	left:275px;
-	.box-shadow(-1px, 0, 6px, 0, rgba(0,0,0,.1));
+	.box-shadow(-1px 0px 6px 0px rgba(0,0,0,.1));
 	border-left: 1px solid #bbb;
 	&.wide {
 		left:10px;
@@ -385,6 +349,23 @@ input{
 	background:#d2d2d2;
 }
 
+.source-select {
+	float: left;
+	margin-right: 20px;
+	.dropdown-toggle {
+		text-align: left;	
+		width:180px;
+		.caret {
+			float: right;
+		}
+	}
+}
+.source-select [class^="dropdown-icon-"] {
+	margin: -2px 8px 0 10px;
+}
+.source-select .sf-dropdown {
+	width:200px;
+}
 
 
 /* scracthpad */
@@ -403,10 +384,9 @@ input{
 		height:31px;
 		border-top: 1px solid #303030;
 		border-bottom: 1px solid #000;
-		.box-shadow(0,6px,6px,0,#111);
-		.box-shadow-inset (0,1px,1px,-1px,#ccc);
-		.gradient-background(bottom,#444,#585858);
-		background-image: linear-gradient(to top, #444444 0%, #585858 100%);
+		.box-shadow(0 6px 6px 0 #111);
+		.box-shadow (inset 0 1px 1px -1px #ccc);
+		.gradientBar(#444,#585858);
 		.title {
 			width:auto;
 			line-height:15px;
@@ -414,7 +394,7 @@ input{
 			font-weight:bold;
 			color:#969494;
 			font-size:12px;
-			.text-shadow(0px,-1px, 1px,#333);
+			text-shadow: 0px -1px 1px #333;
 			border-right:1px solid #292929;
 			float:left;
 			position:relative;
@@ -434,14 +414,14 @@ input{
 		}
 		.btn-group {
 			.btn {
-				.rounded-corners(0px);
+				.border-radius(0px);
 				background:none;
 				border:0;
 				border-left:1px solid #292929;
 				color:#bbb;
 				font-size:13px;
-				.text-shadow(0px,-1px, 1px,#333);
-				.box-shadow(0px,0px,0px,0px,#000);
+				text-shadow: 0px -1px  1px #333 ;
+				.box-shadow(0px 0px 0px 0px #000);
 				padding:8px;
 				line-height:15px;
 				&.dropdown-toggle {
@@ -454,7 +434,7 @@ input{
 			}
 			&.open {
 				.btn {
-					.gradient-background(top,#1a1a1a,#444);
+					.gradientBar(#1a1a1a,#444);
 					background-image: linear-gradient(to bottom, #1a1a1a 0%, #444 100%);
 					color:#fff;
 				}
@@ -480,7 +460,7 @@ input{
 	}
 
 	.content {
-		.box-sizing-border;
+		.box-sizing(border-box);
 		height:@scratchpad-content-height;
 		background-color:rgb(195,195,195);
 		background-color:rgba(195,195,195,0.8);
@@ -490,7 +470,7 @@ input{
 }
 
 .scratchpad-row {
-	.box-sizing-border;
+	.box-sizing(border-box);
 	width:100%;
 	height:auto;
 	padding: 5px 80px;
@@ -516,8 +496,8 @@ input{
 		height:auto;
 		width: auto;
 		min-width: 100px;
-		border: 1px solid #9c9c9c;
-		.rounded-corners(3px);
+		border: 1px solid #d8d8d8;
+		.border-radius(3px);
 		padding:5px 5px 32px;
 		position:relative;
 		float:left;
@@ -551,7 +531,7 @@ input{
 			background-position: left bottom;
 		}
 		figure {
-			.box-sizing-border;
+			.box-sizing(border-box);
 			margin:0px;
 			width:100%;
 			height:@sfbox_mediaHeight+2; //+2 media border
@@ -615,7 +595,7 @@ input{
 		padding-bottom:5px;
 		border:0;
 		border-top:1px solid #bcbcbc;
-		.rounded-corners(0px);
+		.border-radius(0px);
 		background:none;
 		margin:0;
 		&.selected {
@@ -647,7 +627,7 @@ input{
 			}
 		}
 		.media-info {
-			.box-sizing-border;
+			.box-sizing(border-box);
 			padding-left:@sfbox_mediaMaxWidth+30px;
 			padding-right:100px;	//space for action menu right
 			width:100%;
@@ -689,7 +669,7 @@ input{
 					a {
 						width:16px;
 						height:16px;
-						.box-sizing-border;
+						.box-sizing(border-box);
 						padding: 3px 0 0 4px;
 						display:block;
 						background:#333;
@@ -716,7 +696,7 @@ input{
 					background-color: #333;
 					.nav-pills > li > a {
 						padding:0px;
-						.rounded-corners(0px);
+						.border-radius(0px);
 						margin:0px;
 						padding:1px 4px 1px 2px;
 						background-color:#333;
@@ -749,9 +729,9 @@ input{
 	border: 2px solid #383838;
 	padding:10px 10px 10px;
 	margin: 0px;
-	
 	position:absolute;
-	.box-shadow(0px,0px,6px,0px,#777777);
+	.box-shadow(0px 0px 6px 0px #777777);
+	display: none;
 	&.selected {
 		background-color:#bfdfec;
 		border: 2px solid #007fb3;
@@ -809,6 +789,7 @@ input{
 
 .media-box-hover-list {
 	.list-view.media-box;
+	display: none;
 	&.selected {
 			background-color:#bfdfec;
 			border:0;
@@ -866,6 +847,146 @@ input{
 	
 	
 }
+
+/********************************
+	LIGHTBOX PREVIEW
+*********************************/
+@lightbox-bg : #000;
+@lightbox-sidepane : 320px ;
+@lightbox-toppane : 45px;
+
+.lightbox-preview {
+	&.modal {
+		//reset modal styles
+		position: fixed;
+		.border-radius(0px);
+		top:0 !important;
+		bottom: 0 !important;
+		left: 0 !important;
+		right: 0 !important;
+		background: @lightbox-bg !important;
+		margin: 0 !important;
+		width: auto !important;
+	}
+
+	.lightbox-right {
+		width: @lightbox-sidepane;
+		position: absolute;
+		.box-sizing(border-box);
+		right: 0;
+		top: 0;
+		bottom:0;
+		background: @background-main;
+		padding: 15px;
+		//info boxes 
+		.lightbox-title {
+			font-size: 18px;
+			font-weight: normal;
+			max-width: 100%;
+			height: 24px;
+			overflow: hidden;
+			text-overflow:ellipsis;
+			white-space: nowrap; 
+		}
+		.lightbox-modified-info {
+			color: #a9a9a9;
+			font-size: 12px;
+			display: block;
+		}
+		.lightbox-media-type {
+			display: block;
+			.opacity(40);
+			float: none;
+			margin-left: -2px;
+		}
+		.lightbox-descritpion {
+			width: 100%;
+			margin-top: 10px;
+			color: #484848;
+		}
+		.tabmodule {
+			margin: 20px 0;
+		}
+	}
+	.lightbox-left {
+		position: absolute;
+		.box-sizing(border-box);
+		right: @lightbox-sidepane;
+		top: @lightbox-toppane;
+		bottom:0;
+		left:0;
+		.lightbox-large-preview {
+			text-align: center;
+			img {
+				max-width: 100%;
+				height: auto!important;
+				max-height: 100%;
+			}
+		}
+	}
+	.lightbox-top {
+		position: absolute;
+		.box-sizing(border-box);
+		right: @lightbox-sidepane;
+		top: 0;
+		height: @lightbox-toppane;
+		background: #191919;
+		left:0;
+		padding: 8px;
+		text-align: center;
+		.btn {
+			.box-shadow-both(inset 0px 1px 0px 0px #383838, 0px 1px 0px 0px #292929);
+			margin: 0 5px;
+			i[class*="icon-"]{
+				.opacity(80);
+				margin-right: 5px;
+			}
+		}
+	}
+	.lightbox-media-data {
+		position: absolute;
+		top:85px;
+		left:15px;
+		right: 5px;
+		bottom: 15px;
+		overflow: auto;
+		padding-right: 10px;
+	}
+
+}
+
+
+.metadata-details-new {
+	font-size:13px;
+	color:#777;
+	position:relative;
+	height:auto;
+	margin:0;
+	dt {
+		width:100px;
+		float: left;
+		clear: left;
+		font-weight:normal;
+		color:#474747;
+		margin-bottom:5px;
+		line-height:16px;
+		vertical-align:middle;
+	}
+	dt:after {
+		content : ":";
+	}
+	dd { 
+		width:180px;
+		max-width: 180px;
+		float:left;
+		margin-left:0px;
+		line-height:16px;
+		margin-bottom:5px;
+		vertical-align:middle;
+	}
+}
+
+/* END OF LIGHTBOX PREVIEW */
 
 
 /* override bootstrap*/
@@ -1017,7 +1138,7 @@ input{
 /*scratchpad media box*/
 .media-box-scratchpad {
 	.media-box-generic;
-	.box-shadow(0px,0px,6px,0px,#000);
+	.box-shadow(0px 0px 6px 0px #000);
 	border:1px solid #414141;
 	.media-box-button {
 		.media-box-button-generic;
@@ -1031,7 +1152,7 @@ input{
 					a {
 						width:16px;
 						height:16px;
-						.box-sizing-border;
+						.box-sizing(border-box);
 						padding: 3px 4px 4px 4px;
 						display:block;
 						background:#333;
@@ -1077,14 +1198,14 @@ input{
 .jspHorizontalBar
 {
 	height: 6px;
-	.rounded-corners(3px);
+	.border-radius(3px);
 }
 
 .jspTrack
 {
 	background: #8d8d8d;
 	position: relative;
-	.rounded-corners(3px);
+	.border-radius(3px);
 }
 
 .jspDrag
@@ -1094,7 +1215,7 @@ input{
 	top: 0;
 	left: 0;
 	cursor: pointer;
-	.rounded-corners(3px);
+	.border-radius(3px);
 	&:hover {
 		background:#4d4d4d;
 	}
