@@ -53,7 +53,7 @@
 			float:left;
 			margin:0 25px 25px 0;
 			position:relative;
-			.rounded-corners(4px);
+			.border-radius(4px);
 			.active-blogs-title {
 				max-height:38px;
 				overflow:hidden;
@@ -79,14 +79,14 @@
 					padding:0 10px 0 0;
 					margin: 0 10px 0 0;
 					width:auto;
-					.rounded-corners(0px);
+					.border-radius(0px);
 					border-right:1px dotted #9b9b9b;
 					line-height:12px;
 					&:last-child {
 						border-right:0;
 					}
 					&:hover {
-						.box-shadow(0px,0px,0px,0px);
+						.box-shadow(0px 0px 0px 0px);
 					}
 				}
 			}
@@ -99,7 +99,7 @@
 				text-overflow: ellipsis;
 			}
 			.active-blogs-notification {
-				.rounded-corners(4px);
+				.border-radius(4px);
 				background:#959595;
 				margin:0;
 				list-style-type:none;
@@ -117,7 +117,7 @@
 					line-height:11px;
 					margin:0;
 					width:auto;
-					.rounded-corners(0px);
+					.border-radius(0px);
 					border-right:1px dotted #fff;
 					&:last-child {
 						border-right:0;
@@ -136,13 +136,13 @@
 						background: url("../../images/post-icon.png") no-repeat 7px 4px;
 					}
 					&:hover {
-						.box-shadow(0px,0px,0px,0px);
+						.box-shadow(0px 0px 0px 0px);
 					}
 				}
 			}
 			&:hover {
 				border: 1px solid #e5e5e5;
-				.box-shadow(0px,1px,2px,0px,#ddd);
+				.box-shadow(0px 1px 2px 0px #ddd);
 			}
 		}
 		&.list-active-blogs {
@@ -209,7 +209,7 @@
 				&:hover {
 					background:#fff;
 					border-width:1px 0 0;
-					.box-shadow(0px,0px,0px,0px);
+					.box-shadow(0px 0px 0px 0px);
 				}
 				&:last-child {
 					border-bottom: 1px solid #ddd;
