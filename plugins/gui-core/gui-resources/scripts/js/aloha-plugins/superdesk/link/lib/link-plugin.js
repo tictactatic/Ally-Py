@@ -678,6 +678,7 @@ define( [
          * selected text will be the link text.
          */
         insertLink: function ( extendToWord ) {
+            if( !Aloha.activeEditable ) return;
             var that = this,
                 range = Aloha.Selection.getRangeObject(),
                 linkText = (new GENTICS.Utils.RangeObject(true)).getText(),
