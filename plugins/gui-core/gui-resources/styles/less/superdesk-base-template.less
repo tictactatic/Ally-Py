@@ -356,7 +356,6 @@ textarea, select {
 }
 
 .btn-dark {
-
 	background-color: #131313;
 	*background-color: #131313;
 
@@ -378,8 +377,26 @@ textarea, select {
 .btn-dark.active,
 .btn-dark.disabled,
 .btn-dark[disabled] {
+	/*
 	color: #d1d1d1;
 	text-shadow: 0 -1px #070707;
 	background-color: #131313;
 	*background-color: #131313;
+	*/
+
+	background-color: #252525;
+	*background-color: #252525;
+	background-position:  0 0px;
+	background-image: -moz-linear-gradient(top, #434343, #252525);
+	background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#434343), to(#252525));
+	background-image: -webkit-linear-gradient(top, #434343, #252525);
+	background-image: -o-linear-gradient(top, #434343, #252525);
+	background-image: linear-gradient(to bottom, #434343, #252525);
+	background-repeat: repeat-x;
+	border-color: #252525;
+	border-color: rgb(0, 0, 0) rgb(0, 0, 0) rgb(0, 0, 0);
+	color: #f0f0f0;
+	text-shadow: 0 -1px #070707;
+	filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#434343', endColorstr='#252525', GradientType=0);
+	filter: progid:DXImageTransform.Microsoft.gradient(enabled=false);
 }
