@@ -8,6 +8,50 @@
  .liveblog-page {
  	overflow: hidden;
  }
+
+.configure-blog {
+    margin: 0;
+    padding: 10px 20px 20px !important;
+    position: relative;
+    top: 105px;
+	background: #FFF;
+	.controls {
+		input[readonly] {
+			color: #999;
+		}
+		input[type="text"] {
+			width: 500px !important;
+		}
+		.embed-script-input {
+			width: 500px !important;
+			height: auto !important;
+			min-height: 70px;
+		}
+	}
+
+	.api-keys {
+		ol {
+			list-style-type: none;
+			margin: 0;
+			padding: 0;
+			margin-top: 3px;
+			width: 500px;
+			> li {
+				line-height: 22px;
+				margin-bottom: 10px;
+				font-weight: bold;
+				text-transform: capitalize;
+				color: #666;
+			}
+		}
+	}
+}
+
+
+
+
+
+
 .manage-feeds-top {
 	height: 30px;
 	margin-bottom: 30px;
