@@ -29,8 +29,8 @@ requirejs.config
         'moment': config.cjs('moment'),
         'router': config.cjs('router'),
         'vendor': config.cjs('vendor'),
-        'angular': 'http://ajax.googleapis.com/ajax/libs/angularjs/1.1.4/angular',
-        'angular-resource': 'http://code.angularjs.org/1.1.4/angular-resource'
+        'angular': 'http://ajax.googleapis.com/ajax/libs/angularjs/1.0.7/angular',
+        'angular-resource': 'http://code.angularjs.org/1.0.7/angular-resource'
 	},
     shim: {
         'vendor/backbone': {
