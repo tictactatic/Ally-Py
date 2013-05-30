@@ -9,6 +9,132 @@
  	overflow: hidden;
  }
 
+ /*
+====================================================
+  Blogtype 
+====================================================
+*/
+
+.blogtype-list {
+	margin-left:0;
+	width: 500px;
+	margin-top: 20px;
+	> li {
+		border-top:1px solid #d0d0d0;
+		list-style-type: none;
+		.blogtype-header {
+			padding: 5px;
+			label.radio {
+				float: left;
+				padding: 2px 5px;
+				display: inline-block;
+				vertical-align: middle;
+			}
+			label input[type="radio"] {
+			 	margin:0;
+			 }
+			h3 {
+			 	font-size: 12px;
+			 	line-height: 18px;
+			 	padding-left: 40px;
+				background: url(../../images/collapse-close.png) no-repeat 28px 50%;
+				&:hover {
+					 	text-decoration: underline;
+				}
+			}
+		}
+		.blogtype-content {
+			padding: 5px;
+			border-top: 1px solid #d0d0d0;
+			background: #f8f8f8;
+			display: none;
+			h4 {
+			 	font-size: 13px;
+			 	font-weight: normal;
+			 	color:#999;
+			 	float: left;
+				line-height: 20px;
+				height: 20px;
+				margin-right: 5px;
+				&:after {
+					content: ":";
+				}
+			}
+		}
+		&.collapse-open h3 {
+			background: url(../../images/collapse-open.png) no-repeat 26px 50%;
+		}
+		&:last-child {
+			border-bottom:1px solid #d0d0d0;
+		}
+		&:hover {
+			.blogtype-header {
+				cursor:pointer;
+			}
+			.tool-box-right {
+			 	display: block;
+			}
+		}
+	}
+}
+
+.posttypes {
+	list-style-type: none;
+	margin:0;
+	li {
+		border: 0;
+		margin-right: 5px;
+		display: inline-block;
+		line-height: 20px;
+		&:after {
+			content: ",";
+		}
+		&:last-child:after {
+			content: " ";
+		}
+	}
+}
+
+.blogpost-selection {
+	border:1px solid #d0d0d0;
+	-webkit-border-radius: 2px;
+  	-moz-border-radius: 2px;
+  	border-radius: 2px;
+  	width:524px;
+  	height: 180px;
+  	padding: 2px;
+  	margin: 10px 0;
+  	overflow-y: scroll;
+  	list-style-type: none;
+  	li {
+		line-height: 13px;
+		padding: 0 3px 1px 3px;
+		margin:0 2px 3px 0;
+		-webkit-border-radius: 2px;
+	  	-moz-border-radius: 2px;
+	  	border-radius: 2px;
+	  	height: 20px;
+	  	&:hover {
+			background-color: #e0e0e0;
+			cursor:pointer;
+			.tool-box-right {
+				display: block;
+			}
+		}
+	}
+	label.checkbox {
+		margin:0;
+		font-weight: bold;
+		clear: both;
+		float:left;
+		&:hover {
+			text-decoration: underline;
+			cursor: pointer;
+		}
+	}
+}
+
+
 .configure-blog {
     margin: 0;
     padding: 10px 20px 20px !important;
@@ -80,7 +206,6 @@
 			}
 			&.blogtypes {
 				margin-top: -10px;
-				width: 270px;
 				.blogtype-list{
 					width: auto;
 				}
