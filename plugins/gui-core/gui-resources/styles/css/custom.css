@@ -897,9 +897,10 @@ li.google .config-notif, li.ads .config-notif, li.flickr .config-notif, li.youtu
 
 .blogtype-list {
 	margin-left:0;
+	width: 500px;
 }
 .blogtype-list li {
-	border:1px solid #e5e5e5;
+	border:1px solid #d0d0d0;
 	list-style-type: none;
 	margin-top:10px;
 	-webkit-border-radius: 2px;
@@ -1068,14 +1069,14 @@ li.google .config-notif, li.ads .config-notif, li.flickr .config-notif, li.youtu
 }
 
 ul.blogpost-selection {
-	border:1px solid #adadad;
+	border:1px solid #d0d0d0;
 	-webkit-border-radius: 2px;
   	-moz-border-radius: 2px;
   	border-radius: 2px;
-  	width:514px;
+  	width:524px;
   	height: 180px;
   	padding: 2px;
-  	margin: 5px 0 10px;
+  	margin: 10px 0;
   	overflow-y: scroll;
   	list-style-type: none;
 }
@@ -1304,6 +1305,15 @@ label.bgcolor {
 .modalscreen {
 	display: none;
 }
+.modalscreen form {
+	margin: 0 !important;
+}
+
+.modalscreen textarea {
+	 resize:vertical;
+	 min-height: 50px;
+}
+
 .btn-toolbar.row-display {
 	margin-top: 0px;
 	display: inline-block;
@@ -1668,7 +1678,7 @@ a.collaborator-name-large  {
 	margin-left:0;
 }
 .blogtype-list li {
-	border:1px solid #e5e5e5;
+	border:1px solid #d0d0d0;
 	list-style-type: none;
 	margin-top:10px;
 	-webkit-border-radius: 2px;
@@ -1687,8 +1697,8 @@ a.collaborator-name-large  {
 }
 .blogtype-content {
 	padding: 5px 45px;
-	border-top: 1px solid #e5e5e5;
-	--display: none;
+	border-top: 1px solid #d0d0d0;
+	display: none;
 }
 .blogtype-list label.radio {
 	float: left;
