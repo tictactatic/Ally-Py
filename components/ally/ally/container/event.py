@@ -27,24 +27,27 @@ class ITrigger(metaclass=abc.ABCMeta):
     '''
     The event trigger specification.
     '''
-    
+
     @abc.abstractmethod
-    def isTriggered(self, triggers):
+    def isTriggered(self, triggers, revert=True):
         '''
         Checks if the trigger is valid for the provided triggers.
-        
-        @param triggers: Iterable(object)
+
+        @param triggers: list(object)|tuple(object)|set(object)
             The triggers to check against this trigger.
+        @param revert: boolean
+            Flag indicating that the provided triggers should be checked against this trigger if applicable,
+            basically a revert trigger check.
         @return: boolean
             True if the trigger is valid for the provided triggers objects, False otherwise.
         '''
-    
+
     @abc.abstractmethod
     def __hash__(self):
         '''
         The trigger hash.
         '''
-        
+
     @abc.abstractmethod
     def __eq__(self, other):
         '''
@@ -56,11 +59,11 @@ class Trigger(ITrigger):
     Implementation for a @see: ITrigger that is based on the instance unicity, basically check the same object.
     The trigger can optionally wrap other triggers.
     '''
-    
+
     def __init__(self, name, *triggers):
         '''
         Construct the composite trigger.
-        
+
         @param name: string
             A name for the trigger.
         @param triggers: arguments[ITrigger]
@@ -68,33 +71,37 @@ class Trigger(ITrigger):
         '''
         if __debug__:
             for trigger in triggers: assert isinstance(trigger, ITrigger), 'Invalid trigger %s' % trigger
-        
+
         self.name = name
         self.triggers = frozenset(triggers)
-    
-    def isTriggered(self, triggers):
+
+    def isTriggered(self, triggers, revert=True):
         '''
         @see: ITrigger.isTriggered
         '''
+        assert isinstance(triggers, (list, tuple, set)), 'Invalid triggers %s' % triggers
         for trigger in triggers:
             if trigger is self: return True
         for trigger in self.triggers:
             assert isinstance(trigger, ITrigger), 'Invalid trigger %s' % trigger
             if trigger.isTriggered(triggers): return True
+        if revert:
+            for trigger in triggers:
+                if isinstance(trigger, ITrigger) and trigger.isTriggered((self,), revert=False): return True
         return False
-    
+
     def __hash__(self):
         '''
         @see: ITrigger.__hash__
         '''
         return id(self)
-    
+
     def __eq__(self, other):
         '''
         @see: ITrigger.__eq__
         '''
         return self is other
-    
+
 # --------------------------------------------------------------------
 
 REPAIR = Trigger('repair')
@@ -103,9 +110,9 @@ REPAIR = Trigger('repair')
 def on(*triggers, priority=ioc.PRIORITY_NORMAL):
     '''
     Decorator for setup functions that need to be executed as controlled events, used also for defining an event on entity
-    function member. The detection is made based on the 'self' argument, if 'self' is found as an argument on the first 
+    function member. The detection is made based on the 'self' argument, if 'self' is found as an argument on the first
     position then it means the event is for a function member, otherwise is for a setup function.
-    
+
     @param triggers: arguments[ITrigger]
         The trigger(s) to be considered for calling the setup function.
     @param priority: Priority
@@ -119,12 +126,12 @@ def dispatch(*classes):
     '''
     Decorator for setup functions that need to have the events dispatched. Attention you need to decorate an already decorated
     setup function, as an example:
-        
+
         @event.dispatch(MyClassWitEventImpl)
         @ioc.entity
         def myEntity() -> IMyClassAPI:
             return MyClassWitEventImpl()
-    
+
     @param clazz: class
         The class that contains the events to be associated with the entity of the decorated setup function.
     '''
@@ -140,7 +147,7 @@ def dispatch(*classes):
             if not createEvents(clazz, setup, group, registry, nameEntity, nameInEntity):
                 raise SetupError('Invalid class %s, has no events' % clazz)
         return setup
-    
+
     return decorator
 
 # --------------------------------------------------------------------
@@ -148,7 +155,7 @@ def dispatch(*classes):
 def onDecorator(triggers, priority, registry):
     '''
     Used for creating the decorator function.
-    
+
     @param triggers: Iterable(ITrigger)
         The trigger(s) to be considered for the decorator.
     @param priority: Priority
@@ -159,22 +166,22 @@ def onDecorator(triggers, priority, registry):
     assert isinstance(triggers, Iterable), 'Invalid triggers %s' % triggers
     assert isinstance(priority, Priority), 'Invalid priority %s' % priority
     assert isinstance(registry, dict), 'Invalid registry %s' % registry
-    
+
     def decorator(function):
         args = getargspec(function).args
         if args and args[0] == 'self':
             Advent.adventFor(registry).addEvent(function.__name__, priority, triggers)
             return function
-        hasType, type = ioc.process(function)
+        hasType, _type = ioc.process(function)
         if hasType: raise SetupError('No return annotation expected for function %s' % function)
-        
+
         return update_wrapper(register(SetupEventControlled(function, priority, triggers), registry), function)
     return decorator
 
 def createEvents(clazz, target, group, registry, nameEntity, nameInEntity):
     '''
     Create event setups for the provided parameters.
-    
+
     @param clazz: class
         The class that contains the events.
     @param target: object
@@ -196,7 +203,7 @@ def createEvents(clazz, target, group, registry, nameEntity, nameInEntity):
     assert isinstance(registry, dict), 'Invalid registry %s' % registry
     assert callable(nameEntity), 'Invalid entity name call %s' % nameEntity
     assert callable(nameInEntity), 'Invalid name in entity call %s' % nameInEntity
-    
+
     advent = Advent.adventOf(clazz)
     if not advent: return False
     assert isinstance(advent, Advent)
@@ -211,7 +218,7 @@ def callerEntityEvent(name, nameEvent, assembly=None):
     '''
     !Attention this function is only available in an open assembly if the assembly is not provided @see: ioc.open!
     Calls a inner entity event.
-    
+
     @param name: string
         The setup name of the entity having the event function.
     @param nameEvent: string|function
@@ -222,10 +229,10 @@ def callerEntityEvent(name, nameEvent, assembly=None):
     assert isinstance(name, str), 'Invalid setup name %s' % name
     if isfunction(nameEvent) or ismethod(nameEvent): nameEvent = nameEvent.__name__
     assert isinstance(nameEvent, str), 'Invalid event name %s' % nameEvent
-    
+
     assembly = assembly or Assembly.current()
     assert isinstance(assembly, Assembly), 'Invalid assembly %s' % assembly
-    
+
     Assembly.stack.append(assembly)
     entity = assembly.processForName(name)
     try: caller = getattr(entity, nameEvent)
