@@ -293,7 +293,7 @@
 		}
 
 	}
-	&.internal, &.smspost {
+	&.internal {
 		.result-content figure,
 		.attributes {
 			display: none;
@@ -356,6 +356,26 @@
 		.result-content {
 			figure {
 				display: none;
+			}
+		}
+	}
+	&.smspost {
+		.attributes {
+			display: none;
+		}
+		.result-content {
+			figure {
+				display: none;
+			}
+			.result-text {
+				.border-radius(2px);
+				border: 1px solid #e5e5e5 !important;
+				padding: 7px 10px;
+				background: #f5f5f5;
+				&:focus {
+					.box-shadow(0 0 3px 0 #c8c8c8);
+					border-color:#c0c0c0 !important;
+				}
 			}
 		}
 	}
@@ -1045,6 +1065,27 @@ overrides
 					background-position:-40px 0;
 				}
 
+			}
+		}
+		&.smspost {
+
+			.attributes {
+				display: none;
+			}
+			.result-content {
+				figure {
+					display: none;
+				}
+				.result-text {
+					.border-radius(2px);
+					border: 1px solid #e5e5e5 !important;
+					padding: 7px 10px;
+					background: #f5f5f5;
+					&:focus {
+						.box-shadow(0 0 3px 0 #c8c8c8);
+						border-color:#c0c0c0 !important;
+					}
+				}
 			}
 		}
         &.googlelink, &.googlenews, &.twitter, &.facebook {

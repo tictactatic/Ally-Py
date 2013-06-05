@@ -642,6 +642,10 @@
 
 .generic-inline-action-menu {
   margin-left: 42px;
+  overflow: hidden;
+  position: absolute;
+  bottom:0;
+  display: none;
   a {
     font-size: 11px;
     line-height: 14px;
@@ -667,7 +671,9 @@
   margin: 0;
   padding: 0;
   li {
-    margin-bottom: 18px;
+    padding-bottom: 15px;
+    margin-bottom: 8px;
+    position: relative;
     .comment-info {
       figure {
         border: 1px solid #b9b9b9;
@@ -710,6 +716,11 @@
     }
     .action-menu {
       .generic-inline-action-menu();
+    }
+    &:hover {
+      .action-menu {
+        display: block;
+      }
     }
   }
 
@@ -880,10 +891,53 @@
       margin-top: 20px;    
       clear: both;
       header {
-        font-size: 18px;
+        position: relative;
+        overflow: hidden;
         padding-bottom: 10px;
+        padding-top: 10px;
+        &:before {
+          content: " ";
+          height: 1px;
+          position: absolute;
+          left: 0;
+          right: 0;
+          background: #d6d7d9;
+          top:22px;
+        }
+        span {
+          font-size: 18px;
+          line-height: 24px;
+          background: #fff;
+          padding-right: 20px;
+          position: relative;
+        }
+        .module-header-menu {
+          background: #fff;
+          padding: 0 0 0 5px;
+          position: absolute;
+          display: inline-block;
+          right:0px;
+          
+          a {
+            font-size: 11px;
+            color: #656568;
+            padding: 3px 5px;
+            width: 15px;
+            min-width: 15px;
+            height: 18px;
+            overflow: hidden;
+            display: inline-block;
+            i {
+              margin-right: 5px;
+            }
+            &:hover {
+              width: auto;
+              cursor: pointer;
+            }
+          } 
+        }
       }
-
+      
       //subtask list for the current task
       .subtask-list-view {
         list-style-type: none;
@@ -917,6 +971,7 @@
         li {
           min-height: 61px;
           margin-bottom: 10px;
+          position: relative;
           figure {
             width: 84px;
             height: 61px;
@@ -954,9 +1009,16 @@
           }
           .action-menu {
             .generic-inline-action-menu();
-             margin-left: 0;
+            margin-left: 92px;
+
+          }
+          &:hover {
+            .action-menu {
+              display: block;
+            }
           }
         }
+        
       }
 
 
@@ -966,12 +1028,17 @@
         margin: 0;
         padding: 0;
         li {
-          margin-bottom: 10px;
-          h6 {
+          margin-bottom: 5px;
+          padding-bottom: 15px;
+          position: relative;
+          .linkdesc {
             text-transform: none;
             margin: 0;
+            font-weight: bold;
+            font-size: 12px;
+            color: #666;
           }
-          a {
+          .linkurl {
             color: #007fb3;
             font-size: 11px;
             display: block;
@@ -979,13 +1046,34 @@
             overflow: hidden;
             text-overflow:ellipsis;
             white-space: nowrap;
-            margin-bottom: 3px;
           }
+          .action-menu {
+            .generic-inline-action-menu();
+             margin-left: 0;
+          }
+          &:hover {
+            .action-menu {
+               display: block;
+            }
+          }
+          fieldset {
+            input {
+              margin-bottom: 4px !important;
+              height: 22px !important;
+            }
+          }
+          /*
+          &.editing-mode {
+            > .linkdesc, > .linkurl {display: none}
+            .action-menu {
+               height: 18px !important;margin-top: 0 !important;
+               .okbtn { display: inline-block; }
+               .edtbtn { display: none; }
+            }
+          }
+          */
         }
-        .action-menu {
-          .generic-inline-action-menu();
-           margin-left: 0;
-        }
+        
       }
 
     }
