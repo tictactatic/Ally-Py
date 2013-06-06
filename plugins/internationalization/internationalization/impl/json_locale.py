@@ -62,7 +62,7 @@ class JSONFileService(IJSONLocaleFileService):
                 republish = False if mngFileTimestamp is None else cdmFileTimestamp < mngFileTimestamp
 
             if republish:
-                jsonString = JSONEncoder().encode(self.poFileManager.getGlobalAsDict(locale))
+                jsonString = JSONEncoder(ensure_ascii=False).encode(self.poFileManager.getGlobalAsDict(locale))
                 self.cdmLocale.publishContent(path, BytesIO(bytes(jsonString, getdefaultencoding())))
         except InvalidLocaleError: raise InputError(_('Invalid locale %(locale)s') % dict(locale=locale))
         return self.cdmLocale.getURI(path, scheme)
@@ -82,7 +82,7 @@ class JSONFileService(IJSONLocaleFileService):
                 republish = False if mngFileTimestamp is None else cdmFileTimestamp < mngFileTimestamp
 
             if republish:
-                jsonString = JSONEncoder().encode(self.poFileManager.getComponentAsDict(component, locale))
+                jsonString = JSONEncoder(ensure_ascii=False).encode(self.poFileManager.getComponentAsDict(component, locale))
                 self.cdmLocale.publishContent(path, BytesIO(bytes(jsonString, getdefaultencoding())))
         except InvalidLocaleError: raise InputError(_('Invalid locale %(locale)s') % dict(locale=locale))
         return self.cdmLocale.getURI(path, scheme)
@@ -105,7 +105,7 @@ class JSONFileService(IJSONLocaleFileService):
                 republish = False if mngFileTimestamp is None else cdmFileTimestamp < mngFileTimestamp
 
             if republish:
-                jsonString = JSONEncoder().encode(self.poFileManager.getPluginAsDict(plugin, locale))
+                jsonString = JSONEncoder(ensure_ascii=False).encode(self.poFileManager.getPluginAsDict(plugin, locale))
                 self.cdmLocale.publishContent(path, BytesIO(bytes(jsonString, getdefaultencoding())))
         except InvalidLocaleError: raise InputError(_('Invalid locale %(locale)s') % dict(locale=locale))
         return self.cdmLocale.getURI(path, scheme)
