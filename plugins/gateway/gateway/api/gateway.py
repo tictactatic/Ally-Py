@@ -75,5 +75,5 @@ class IGatewayService:
     @call
     def getAnonymous(self) -> Iter(Gateway):
         '''
-        Get the gateway options that apply for an anonymous accesses for the provided scheme.
+        Get the gateway options that apply for an anonymous accesses.
         '''

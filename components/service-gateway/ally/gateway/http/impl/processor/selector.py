@@ -13,7 +13,7 @@ from ally.container.ioc import injected
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessorProceed
-from ally.gateway.http.spec.gateway import IRepository, Match
+from ally.gateway.http.spec.gateway import IRepository
 from ally.http.spec.codes import PATH_NOT_FOUND, METHOD_NOT_AVAILABLE
 
 # --------------------------------------------------------------------
@@ -28,7 +28,7 @@ class Request(Context):
     uri = requires(str)
     repository = requires(IRepository)
     # ---------------------------------------------------------------- Defined
-    match = defines(Match)
+    match = defines(Context)
     
 class Response(Context):
     '''

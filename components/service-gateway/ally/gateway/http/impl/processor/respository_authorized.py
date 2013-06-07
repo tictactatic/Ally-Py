@@ -9,12 +9,14 @@ Created on Apr 12, 2012
 Provides the gateway repository processor.
 '''
 
-from .respository import GatewayRepositoryHandler, Repository
+from . import respository
+from .respository import GatewayRepositoryHandler, Repository, Identifier, \
+    Response
 from ally.container.ioc import injected
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Processing
-from ally.gateway.http.spec.gateway import IRepository, Match
+from ally.gateway.http.spec.gateway import IRepository, RepositoryJoined
 from ally.http.spec.codes import BAD_REQUEST, BAD_GATEWAY, INVALID_AUTHORIZATION, \
     isSuccess
 from ally.http.spec.server import IDecoderHeader
@@ -27,25 +29,17 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
-class Request(Context):
+class Request(respository.Request):
     '''
     The request context.
     '''
     # ---------------------------------------------------------------- Defined
-    repository = defines(IRepository)
-    match = defines(Match)
+    match = defines(Context, doc='''
+    @rtype: Context
+    The error match in case of failure.
+    ''')
     # ---------------------------------------------------------------- Required
     decoderHeader = requires(IDecoderHeader)
-
-class Response(Context):
-    '''
-    The response context.
-    '''
-    # ---------------------------------------------------------------- Defined
-    code = defines(str)
-    status = defines(int)
-    isSuccess = defines(bool)
-    text = defines(str)
 
 # --------------------------------------------------------------------
 
@@ -64,7 +58,7 @@ class GatewayAuthorizedRepositoryHandler(GatewayRepositoryHandler):
         
         self._timeOut = timedelta(seconds=self.cleanupInterval)
 
-    def process(self, processing, request:Request, response:Response, **keyargs):
+    def process(self, processing, request:Request, response:Response, Gateway:Context, Match:Context, **keyargs):
         '''
         @see: HandlerBranchingProceed.process
         
@@ -93,7 +87,9 @@ class GatewayAuthorizedRepositoryHandler(GatewayRepositoryHandler):
                     response.code, response.status, response.isSuccess = BAD_GATEWAY
                     response.text = text
                 return
-            repository = self._repositories[authentication] = Repository(robj)
+            assert 'GatewayList' in robj, 'Invalid objects %s, not GatewayList' % robj
+            repository = Repository([self.populate(Identifier(Gateway()), obj) for obj in robj['GatewayList']], Match)
+            self._repositories[authentication] = repository
         self._lastAccess[authentication] = datetime.now()
         
         if request.repository: request.repository = RepositoryJoined(repository, request.repository)
@@ -121,53 +117,3 @@ class GatewayAuthorizedRepositoryHandler(GatewayRepositoryHandler):
         for authentication in expired:
             self._repositories.pop(authentication, None)
             self._lastAccess.pop(authentication, None)
-
-# --------------------------------------------------------------------
-
-class RepositoryJoined(IRepository):
-    '''
-    Repository that uses other repositories to provide services.
-    '''
-    __slots__ = ('_repositories',)
-    
-    def __init__(self, main, *repositories):
-        '''
-        Construct the joined repositories.
-        
-        @param main: IRepository
-            The main repository, this will be used for storing caches.
-        @param repositories: arguments[IRepository]
-            The repositories to join with the main repositories.
-        '''
-        assert isinstance(main, IRepository), 'Invalid main repository %s' % main
-        assert repositories, 'At least one other repository is required for joining'
-        if __debug__:
-            for repository in repositories: assert isinstance(repository, IRepository), 'Invalid repository %s' % repository
-        
-        self._repositories = [main]
-        self._repositories.extend(repositories)
-        
-    def find(self, method=None, headers=None, uri=None, error=None):
-        '''
-        @see: IRepository.find
-        '''
-        for repository in self._repositories:
-            assert isinstance(repository, IRepository), 'Invalid repository %s' % repository
-            match = repository.find(method, headers, uri, error)
-            if match is not None: return match
-        
-    def allowsFor(self, headers=None, uri=None):
-        '''
-        @see: IRepository.allowsFor
-        '''
-        allowed = set()
-        for repository in self._repositories:
-            assert isinstance(repository, IRepository), 'Invalid repository %s' % repository
-            allowed.update(repository.allowsFor(headers, uri))
-        return allowed
-        
-    def obtainCache(self, identifier):
-        '''
-        @see: IRepository.obtainCache
-        '''
-        return self._repositories[0].obtainCache(identifier)

@@ -16,7 +16,7 @@ from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessorProceed, Handler
 from collections import Iterable
-from itertools import chain
+import itertools
 
 # --------------------------------------------------------------------
 
@@ -59,5 +59,5 @@ class RegisterDefaultRights(HandlerProcessorProceed):
             assert isinstance(typeAcl, TypeAcl), 'Invalid ACL type %s' % typeAcl
             rights.extend(typeAcl.defaults)
         
-        if solicitation.rights is not None: solicitation.rights = chain(solicitation.rights, rights)
+        if solicitation.rights is not None: solicitation.rights = itertools.chain(solicitation.rights, rights)
         else: solicitation.rights = rights

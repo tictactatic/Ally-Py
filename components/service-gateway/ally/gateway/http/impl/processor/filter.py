@@ -16,7 +16,7 @@ from ally.design.processor.context import Context
 from ally.design.processor.execution import Processing, Chain
 from ally.design.processor.handler import HandlerBranchingProceed
 from ally.design.processor.processor import Using
-from ally.gateway.http.spec.gateway import IRepository, Match, Gateway
+from ally.gateway.http.spec.gateway import IRepository
 from ally.http.spec.codes import FORBIDDEN_ACCESS, BAD_GATEWAY, isSuccess
 from ally.http.spec.server import HTTP, RequestHTTP, ResponseContentHTTP, \
     ResponseHTTP, HTTP_GET
@@ -33,6 +33,21 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
+class Gateway(Context):
+    '''
+    The gateway context.
+    '''
+    # ---------------------------------------------------------------- Required
+    filters = requires(list)
+    
+class Match(Context):
+    '''
+    The match context.
+    '''
+    # ---------------------------------------------------------------- Required
+    gateway = requires(Context)
+    groupsURI = requires(tuple)
+    
 class Request(Context):
     '''
     The request context.
@@ -42,7 +57,7 @@ class Request(Context):
     headers = requires(dict)
     uri = requires(str)
     repository = requires(IRepository)
-    match = requires(Match)
+    match = requires(Context)
     
 class Response(Context):
     '''
@@ -86,7 +101,8 @@ class GatewayFilterHandler(HandlerBranchingProceed):
         assert isinstance(self.assembly, Assembly), 'Invalid assembly %s' % self.assembly
         super().__init__(Using(self.assembly, request=RequestFilter).sources('requestCnt', 'response', 'responseCnt'))
 
-    def process(self, processing, request:Request, response:Response, **keyargs):
+    #TODO: Gabriel: Move Gateway, Match in __init__ after refactoring.
+    def process(self, processing, request:Request, response:Response, Gateway:Gateway, Match:Match, **keyargs):
         '''
         @see: HandlerBranchingProceed.process
         '''
@@ -136,8 +152,6 @@ class GatewayFilterHandler(HandlerBranchingProceed):
             The processing used for delivering the request.
         @param uri: string
             The URI to call, parameters are allowed.
-        @return: boolean
-            True if the filter URI provided a True value, False otherwise.
         @return: tuple(boolean|None, integer, string)
             A tuple containing as the first True if the filter URI provided a True value, None if the filter cannot be fetched,
             on the second position the response status and on the last position the response text.

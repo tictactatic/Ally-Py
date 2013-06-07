@@ -1,7 +1,7 @@
 '''
 Created on Feb 8, 2013
 
-@package: service CDM
+@package: gateway service
 @copyright: 2012 Sourcefabric o.p.s.
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor

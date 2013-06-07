@@ -16,7 +16,7 @@ from ally.design.processor.context import Context
 from ally.design.processor.execution import Processing, Chain
 from ally.design.processor.handler import HandlerBranching
 from ally.design.processor.processor import Included
-from ally.gateway.http.spec.gateway import IRepository, Match, Gateway
+from ally.gateway.http.spec.gateway import IRepository
 from urllib.parse import urlparse, parse_qsl
 import logging
 
@@ -26,6 +26,22 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
+class Gateway(Context):
+    '''
+    The gateway context.
+    '''
+    # ---------------------------------------------------------------- Required
+    navigate = requires(str)
+    putHeaders = requires(list)
+    
+class Match(Context):
+    '''
+    The match context.
+    '''
+    # ---------------------------------------------------------------- Required
+    gateway = requires(Context)
+    groupsURI = requires(tuple)
+    
 class Request(Context):
     '''
     Context for request. 
@@ -34,7 +50,7 @@ class Request(Context):
     uri = requires(str)
     headers = requires(dict)
     parameters = requires(list)
-    match = requires(Match)
+    match = requires(Context)
 
 # --------------------------------------------------------------------
 
@@ -51,7 +67,8 @@ class GatewayForwardHandler(HandlerBranching):
         assert isinstance(self.assembly, Assembly), 'Invalid assembly %s' % self.assembly
         super().__init__(Included(self.assembly))
 
-    def process(self, chain, processing, request:Request, **keyargs):
+    #TODO: Gabriel: Move Gateway, Match in __init__ after refactoring.
+    def process(self, chain, processing, request:Request, Gateway:Gateway, Match:Match, **keyargs):
         '''
         @see: HandlerBranching.process
         

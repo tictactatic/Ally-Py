@@ -58,16 +58,17 @@ class Solicitation(Context):
     '''
     The solicitation context.
     '''
+    # ---------------------------------------------------------------- Optional
+    provider = optional(Callable, doc='''
+    @rtype: callable(TypeProperty) -> string|None
+    Callable used for getting the authenticated value for the provided property type.
+    ''')
     # ---------------------------------------------------------------- Required
     encoderPath = requires(IEncoderPath, doc='''
     @rtype: IEncoderPath
     The path encoder used for encoding resource paths and patterns that will be used in gateways.
     ''')
     permissions = requires(Iterable)
-    provider = requires(Callable, doc='''
-    @rtype: callable(TypeProperty) -> string|None
-    Callable used for getting the authenticated value for the provided property type.
-    ''')
 
 class Reply(Context):
     '''
@@ -112,9 +113,13 @@ class GatewaysFromPermissions(HandlerProcessorProceed):
         assert isinstance(reply, Reply), 'Invalid reply %s' % reply
         assert isinstance(solicitation.encoderPath, IEncoderPath), 'Invalid encoder path %s' % solicitation.encoderPath
         assert isinstance(solicitation.permissions, Iterable), 'Invalid permissions %s' % solicitation.permissions
-        assert callable(solicitation.provider), 'Invalid provider %s' % solicitation.provider
         
-        gateways = self.processGateways(solicitation.permissions, solicitation.provider, solicitation.encoderPath)
+        if Solicitation.provider in solicitation and solicitation.provider is not None:
+            provider = solicitation.provider
+            assert callable(provider), 'Invalid provider %s' % provider
+        else: provider = None
+        
+        gateways = self.processGateways(solicitation.permissions, provider, solicitation.encoderPath)
         if reply.gateways is not None: reply.gateways = chain(reply.gateways, gateways)
         else: reply.gateways = gateways
         
@@ -140,7 +145,7 @@ class GatewaysFromPermissions(HandlerProcessorProceed):
         
         @param permissions: Iterable(PermissionResource)
             The permissions to create the gateways for.
-        @param provider: callable
+        @param provider: callable|None
             The callable used in solving the authenticated values.
         @param encoder: IEncoderPath
             The encoder path to be used for the gateways resource paths and patterns.
@@ -191,7 +196,7 @@ class GatewaysFromPermissions(HandlerProcessorProceed):
             captured.
         @param filters: Iterable(Filter)
             The filters to process.
-        @param provider: callable
+        @param provider: callable|None
             The callable used in solving the authenticated values.
         @param encoder: IEncoderPath
             The encoder path to be used for the gateways resource paths and patterns.
@@ -228,7 +233,7 @@ class GatewaysFromPermissions(HandlerProcessorProceed):
         
         @param rfilter: Filter
             The resource filter to process.
-        @param provider: callable
+        @param provider: callable|None
             The callable used in solving the authenticated values.
         @param marker: string
             The resource marker to place in the filter path, this marker is used to identify the group in the gateway pattern.
@@ -241,7 +246,6 @@ class GatewaysFromPermissions(HandlerProcessorProceed):
         assert isinstance(rfilter.filter, IAclFilter), 'Invalid filter %s of %s' % (rfilter.filter, rfilter)
         typeService = typeFor(rfilter.filter)
         assert isinstance(typeService, TypeService), 'Invalid filter %s, is not a REST service' % rfilter.filter
-        assert callable(provider), 'Invalid authenticated provider %s' % provider
         assert isinstance(marker, str), 'Invalid marker %s' % marker
         assert isinstance(encoder, IEncoderPath), 'Invalid encoder path %s' % encoder
         
@@ -270,7 +274,10 @@ class GatewaysFromPermissions(HandlerProcessorProceed):
                 assert indexAuth < indexRsc, 'Invalid path %s, improper order for types' % path
     
         assert isinstance(path, Path), 'Invalid path %s' % path
-        valueAuth = provider(rfilter.authenticated)
+        if provider:
+            assert callable(provider), 'Invalid authenticated provider %s' % provider
+            valueAuth = provider(rfilter.authenticated)
+        else: valueAuth = None
         if valueAuth is None:
             log.error('The filter service %s has not authenticated value for %s', typeService, rfilter.authenticated)
             return

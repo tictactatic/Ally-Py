@@ -57,7 +57,7 @@ class RoutingByPathHandler(HandlerBranching):
         
         self._regex = re.compile(self.pattern)
             
-    def process(self, chain, processing, request:Request, requestCnt, response, responseCnt):
+    def process(self, chain, processing, request:Request, requestCnt, response, responseCnt, **keyargs):
         '''
         @see: HandlerBranching.process
         
