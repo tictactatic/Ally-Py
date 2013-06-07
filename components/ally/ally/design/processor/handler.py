@@ -11,7 +11,7 @@ Contains the handlers support.
 
 from .assembly import Container
 from .context import Context
-from .processor import Contextual, Brancher, ProcessorRenamer
+from .processor import Composite, Contextual, Brancher, Renamer
 from .spec import ContextMetaClass, IProcessor, ProcessorError
 from ally.support.util_sys import locationStack
 import abc
@@ -45,6 +45,32 @@ class HandlerProcessor(Handler):
             Additional context that are not used in the contextual function but they are required in assembly.
         '''
         super().__init__(push(Contextual(self.process), contexts))
+
+    @abc.abstractclassmethod
+    def process(self, chain, **keyargs):
+        '''
+        The contextual process function used by the handler.
+        
+        @param chain: Chain
+            The processing chain.
+        '''
+        
+class HandlerComposite(Handler):
+    '''
+    A handler that contains a processor derived on the contextual 'process' function and allows other processors to be
+    added.
+    '''
+
+    def __init__(self, *processors, **contexts):
+        '''
+        Construct the handler with the processor automatically created from the 'process' function.
+        
+        @param processors: arguments[IProcessor]
+            Additional processors to be incorporated into the handler.
+        @param contexts: key arguments
+            Additional context that are not used in the contextual function but they are required in assembly.
+        '''
+        super().__init__(Composite(push(Contextual(self.process), contexts), *processors))
 
     @abc.abstractclassmethod
     def process(self, chain, **keyargs):
@@ -115,7 +141,7 @@ class HandlerRenamer(Handler):
             assert len(target.processors) == 1, 'Container %s, is required to have only one processor' % target
             processor = target.processors[0]
         assert isinstance(processor, IProcessor), 'Invalid processor %s' % processor
-        super().__init__(ProcessorRenamer(processor, *mapping))
+        super().__init__(Renamer(processor, *mapping))
 
 # --------------------------------------------------------------------
 

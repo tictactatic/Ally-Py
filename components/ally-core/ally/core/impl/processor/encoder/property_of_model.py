@@ -65,11 +65,11 @@ class PropertyOfModelEncode(HandlerBranching):
         if not isinstance(create.objType, TypeModelProperty) or not isinstance(create.objType.type, TypeModel): return
         # The type is not for a model property, nothing to do, just move along
             
-        modelType = create.objType.type
+        model = create.objType.type
         
         assert isinstance(create.name, str), 'Invalid property name %s' % create.name
-        assert isinstance(modelType, TypeModel)
-        assert modelType.hasId(), 'Model type %s, has no id' % modelType
+        assert isinstance(model, TypeModel)
+        assert model.hasId(), 'Model type %s, has no id' % model
 
-        create.objType = modelType.propertyTypeId()
+        create.objType = model.propertyTypeId()
         chain.branch(propertyModelProcessing)

@@ -13,12 +13,8 @@ from ally.http.spec.headers import HeaderCmx, HeaderRaw
         
 # --------------------------------------------------------------------
 
-ACCEPT_LANGUAGE = HeaderCmx('Accept-Language', False)
-# Accept language as described at: http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html chapter 14.4
 CONTENT_DISPOSITION = HeaderCmx('Content-Disposition', True)
 # Content disposition as described at: http://www.w3.org/Protocols/rfc2616/rfc2616-sec19.html chapter 19.5.1
-CONTENT_LANGUAGE = HeaderRaw('Content-Language')
-# Content language as described at: http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html chapter 14.12
 LOCATION = HeaderRaw('Location')
 # Location as described at: http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html chapter 14.30
 

@@ -1,0 +1,125 @@
+'''
+Created on May 30, 2013
+
+@package: ally core http
+@copyright: 2011 Sourcefabric o.p.s.
+@license: http://www.gnu.org/licenses/gpl-3.0.txt
+@author: Gabriel Nistor
+
+Provides the paths adjustments for update invokers.
+'''
+
+from ally.api.operator.type import TypeModel, TypeModelProperty
+from ally.design.processor.attribute import requires, defines
+from ally.design.processor.context import Context
+from ally.design.processor.handler import HandlerProcessor
+from ally.exception import DevelError
+from ally.http.spec.server import HTTP_PUT
+from collections import Callable
+from functools import partial
+import logging
+
+# --------------------------------------------------------------------
+
+log = logging.getLogger(__name__)
+
+# --------------------------------------------------------------------
+
+class Register(Context):
+    '''
+    The register context.
+    '''
+    # ---------------------------------------------------------------- Required
+    invokers = requires(list)
+    
+class Invoker(Context):
+    '''
+    The invoker context.
+    '''
+    # ---------------------------------------------------------------- Defined
+    path = defines(list)
+    prepare = defines(Callable, doc='''
+    @rtype: callable(dictionary{Type|string: object})
+    A callable that prepares the arguments for invoking, takes in a dictionary of type or string to object mapping of 
+    arguments.
+    ''')
+    # ---------------------------------------------------------------- Required
+    methodHTTP = requires(str)
+    target = requires(TypeModel)
+    location = requires(str)
+    
+class ElementUpdate(Context):
+    '''
+    The element context.
+    '''
+    # ---------------------------------------------------------------- Defined
+    name = defines(str)
+    property = defines(TypeModelProperty)
+    # ---------------------------------------------------------------- Required
+    model = requires(TypeModel)
+    
+# --------------------------------------------------------------------
+
+class PathUpdateHandler(HandlerProcessor):
+    '''
+    Implementation for a processor that provides the invoker adjustments for updates.
+    '''
+    
+    def __init__(self):
+        super().__init__(Invoker=Invoker)
+
+    def process(self, chain, register:Register, Element:ElementUpdate, **keyargs):
+        '''
+        @see: HandlerProcessor.process
+        
+        Provides the paths adjustments based on target models.
+        '''
+        assert isinstance(register, Register), 'Invalid register %s' % register
+        assert issubclass(Element, ElementUpdate), 'Invalid element %s' % Element
+        assert isinstance(register.invokers, list), 'Invalid invokers %s' % register.invokers
+
+        k = 0
+        while k < len(register.invokers):
+            invoker = register.invokers[k]
+            k += 1
+            assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
+            
+            if invoker.methodHTTP != HTTP_PUT: continue
+            if not invoker.target: continue
+            assert isinstance(invoker.target, TypeModel), 'Invalid target %s' % invoker.target
+            if not invoker.target.hasId(): continue
+            
+            if invoker.path is None: invoker.path = []
+            for el in invoker.path:
+                assert isinstance(el, ElementUpdate), 'Invalid element %s' % el
+                if el.model == invoker.target:
+                    log.error('Cannot use for update because the %s is already present as input, at:%s',
+                              invoker.target, invoker.location)
+                    k -= 1
+                    del register.invokers[k]
+                    break
+            else:
+                invoker.path.append(Element(name=invoker.target.container.name, model=invoker.target))
+                invoker.path.append(Element(property=invoker.target.propertyTypeId()))
+                invoker.prepare = partial(self.prepare, invoker, invoker.prepare)
+                
+    # ----------------------------------------------------------------
+    
+    def prepare(self, invoker, wrapped, arguments):
+        '''
+        Prepares the arguments for invoking.
+        '''
+        assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
+        assert isinstance(invoker.target, TypeModel), 'Invalid target %s' % invoker.target
+        assert isinstance(arguments, dict), 'Invalid arguments %s' % arguments
+        propertyId = invoker.target.propertyTypeId()
+        assert isinstance(propertyId, TypeModelProperty)
+        
+        modelObj, idObj = arguments[invoker.target], arguments[propertyId]
+        
+        val = getattr(modelObj, propertyId.property)
+        if val is None: setattr(modelObj, propertyId.property, idObj)
+        elif val != idObj:
+            raise DevelError('Cannot set value %s for \'%s\', expected value %s' % (val, propertyId.property, idObj))
+       
+        if wrapped: wrapped(arguments)

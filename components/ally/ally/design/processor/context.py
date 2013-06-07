@@ -156,7 +156,7 @@ class Object(metaclass=ContextMetaClass):
         Assigned to the context as the __str__ method.
         '''
         namesValues = ((name, getattr(self, name)) for name, attr in self.__attributes__.items() if attr in self)
-        attrs = ', '.join('%s=%s' % nameValue for nameValue in namesValues)
+        attrs = ', '.join('%s=%s' % (name, 'self' if value == self else value) for name, value in namesValues)
         return '%s(%s)' % (self.__class__.__name__, attrs)
 
 # --------------------------------------------------------------------
@@ -178,6 +178,7 @@ def create(resolvers, *flags):
         assert isinstance(name, str), 'Invalid name %s' % name
         assert isinstance(resolver, IResolver), 'Invalid resolver %s' % resolver
         attributes = resolver.create(*flags)
+        if not attributes: continue  # The resolver has no context to be created
         
         assert isinstance(attributes, dict), 'Invalid attributes %s' % attributes
         nameClass = '%s%s' % (name[0].upper(), name[1:])
@@ -215,7 +216,7 @@ def asData(context, *classes):
 
     return data
 
-def pushIn(dest, *srcs):
+def pushIn(dest, *srcs, interceptor=None):
     '''
     Pushes in the destination context data from the source context(s).
     
@@ -224,17 +225,39 @@ def pushIn(dest, *srcs):
     @param srcs: arguments[object]
         Sources to copy data from, attention the order is important since if the first context has no value
         for an attribute then the second one is checked and so on.
+    @param interceptor: callable(object) -> object|None
+        An interceptor callable to be called before setting the value on the destination.
     @return: object
         The destination context after copy.
     '''
     assert isinstance(dest, Object), 'Invalid destination context %s' % dest
     assert srcs, 'At least one source is required'
+    assert interceptor is None or callable(interceptor), 'Invalid interceptor %s' % interceptor
         
     for name in dest.__attributes__:
         for src in srcs:
             attribute = src.__attributes__.get(name)
             if attribute and attribute in src:
-                setattr(dest, name, getattr(src, name))
+                value = getattr(src, name)
+                if interceptor is not None: value = interceptor(value)
+                setattr(dest, name, value)
                 break
     
     return dest
+
+def cloneCollection(value):
+    '''
+    Interceptor to be used on the 'pushIn' function that creates new collections with the same items.
+    The collections copied are: set, dict, list.
+    
+    @param value: object
+        The value to intercept.
+    @return: object
+        The clone collection if is the case or the same value.
+    '''
+    if value is None: return
+    clazz = value.__class__
+    if clazz == set: return set(value)
+    elif clazz == dict: return dict(value)
+    elif clazz == list: return list(value)
+    return value

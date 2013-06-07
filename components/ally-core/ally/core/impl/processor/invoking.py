@@ -10,16 +10,17 @@ Provides the invoking handler.
 '''
 
 from ally.api.config import GET, INSERT, UPDATE, DELETE
+from ally.api.operator.container import Call
 from ally.api.operator.type import TypeModelProperty, TypeOptionProperty
 from ally.api.type import Input
 from ally.core.spec.codes import INPUT_ERROR, INSERT_ERROR, INSERT_SUCCESS, \
     UPDATE_SUCCESS, UPDATE_ERROR, DELETE_SUCCESS, DELETE_ERROR, Coded
-from ally.core.spec.resources import Invoker
 from ally.core.spec.transform.render import Object, List, Value
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
 from ally.exception import DevelError, InputError, Ref
+from collections import Callable
 import logging
 
 # --------------------------------------------------------------------
@@ -28,12 +29,24 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
+class Invoker(Context):
+    '''
+    The invoker context.
+    '''
+    # ---------------------------------------------------------------- Required
+    invoke = requires(Callable)
+    call = requires(Call)
+    method = requires(int)
+    inputs = requires(tuple)
+    prepare = requires(Callable)
+    location = requires(str)
+        
 class Request(Context):
     '''
     The request context.
     '''
     # ---------------------------------------------------------------- Required
-    invoker = requires(Invoker)
+    invoker = requires(Context)
     arguments = requires(dict)
 
 class Response(Coded):
@@ -53,15 +66,13 @@ class InvokingHandler(HandlerProcessor):
     '''
     Implementation for a processor that makes the actual call to the request method corresponding invoke. The invoking will
     use all the obtained arguments from the previous processors and perform specific actions based on the requested method.
-    In GET case it will provide to the request the invoke returned object as to be rendered to the response, in DELETE case
-    it will stop the execution chain and send as a response a success code.
     '''
 
     def __init__(self):
         '''
         Construct the handler.
         '''
-        super().__init__()
+        super().__init__(Invoker=Invoker)
 
         self.invokeCallBack = {
                                GET: self.afterGet,
@@ -80,31 +91,46 @@ class InvokingHandler(HandlerProcessor):
         assert isinstance(response, Response), 'Invalid response %s' % response
         if response.isSuccess is False: return  # Skip in case the response is in error
 
-        assert isinstance(request.invoker, Invoker), 'Invalid invoker %s' % request.invoker
-
-        callBack = self.invokeCallBack.get(request.invoker.method)
-        assert callBack is not None, \
-        'Method cannot be processed for invoker \'%s\', something is wrong in the setups' % request.invoker.name
-        assert isinstance(request.arguments, dict), 'Invalid arguments %s' % request.arguments
-
+        invoker = request.invoker
+        assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
+        if invoker.invoke is None or invoker.call is None: return  # No invoke to process
+        
+        assert callable(invoker.invoke), 'Invalid invoker invoke %s' % invoker.invoke
+        callBack = self.invokeCallBack.get(invoker.method)
+        assert callBack is not None, 'Cannot process invoker, at:%s' % invoker.location
+        assert isinstance(invoker.call, Call), 'Invalid invoker call %s' % invoker.call
+        
+        if request.arguments is None: arguments = {}
+        else: arguments = dict(request.arguments)
+        
+        if invoker.prepare:
+            assert callable(invoker.prepare), 'Invalid invoker prepare %s' % invoker.prepare
+            invoker.prepare(arguments)
+        
         args, keyargs = [], {}
-        for inp in request.invoker.inputs:
+        for inp in invoker.inputs:
             assert isinstance(inp, Input), 'Invalid input %s' % inp
             
-            if inp.name in request.arguments:
-                if isinstance(inp.type, TypeOptionProperty): keyargs[inp.name] = request.arguments[inp.name]
-                else: args.append(request.arguments[inp.name])
+            if inp.name in arguments: value = arguments[inp.name]
+            elif inp.type in arguments: value = arguments[inp.type]
             elif isinstance(inp.type, TypeOptionProperty):
                 if inp.hasDefault: keyargs[inp.name] = inp.default
-            elif inp.hasDefault: args.append(inp.default)
+                continue
+            elif inp.hasDefault:
+                args.append(inp.default)
+                continue
             else:
-                raise DevelError('No value for mandatory input \'%s\' for invoker \'%s\'' % (inp.name, request.invoker.name))
+                raise DevelError('No value for mandatory input \'%s\', at:%s' % (inp.name, invoker.location))
+            
+            if isinstance(inp.type, TypeOptionProperty): keyargs[inp.name] = value
+            else: args.append(value)
+        
         try:
-            value = request.invoker.invoke(*args, **keyargs)
-            assert log.debug('Successful on calling invoker \'%s\' with arguments %s and key arguments', request.invoker,
-                             args, keyargs) or True
+            value = invoker.invoke(*args, **keyargs)
+            assert log.debug('Successful on calling with arguments %s and key arguments %s, at:%s', invoker,
+                             args, keyargs, invoker.location) or True
 
-            callBack(request.invoker, value, response)
+            callBack(invoker, value, response)
         except InputError as e:
             assert isinstance(e, InputError)
             INPUT_ERROR.set(response)

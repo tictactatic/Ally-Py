@@ -105,30 +105,12 @@ class IEncoderPath(metaclass=abc.ABCMeta):
     __slots__ = ()
 
     @abc.abstractmethod
-    def encode(self, path, **keyargs):
+    def encode(self, path):
         '''
         Encodes the provided path to a full request path.
         
         @param path: object
             The path to be encoded, the type depends on the implementation.
-        @param keyargs: key arguments
-            Key arguments containing specific data that can be handled by the encoder, if unknown or invalid data is provided 
-            then the encoder has the duty to report that.
         @return: string
             The full compiled request path.
-        '''
-        
-    @abc.abstractmethod
-    def encodePattern(self, path, **keyargs):
-        '''
-        Encodes the provided path to a pattern path that can be used as regex to identify paths corresponding to the provided
-        path.
-        
-        @param path: object
-            The path to be encoded as a pattern, the type depends on the implementation.
-        @param keyargs: key arguments
-            Key arguments containing specific data that can be handled by the encoder, if unknown or invalid data is provided 
-            then the encoder has the duty to report that.
-        @return: string
-            The path pattern.
         '''

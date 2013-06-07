@@ -10,11 +10,10 @@ Provides a processor that provides the request content as an invoking argument.
 '''
 
 from ally.api.model import Content
-from ally.api.type import Input
+from ally.api.type import Input, typeFor
 from ally.container.ioc import injected
 from ally.core.spec.codes import CONTENT_EXPECTED, Coded
-from ally.core.spec.resources import Invoker
-from ally.design.processor.attribute import requires, optional
+from ally.design.processor.attribute import requires, optional, defines
 from ally.design.processor.context import Context, asData
 from ally.design.processor.handler import HandlerProcessor
 from ally.support.util_io import IInputStream
@@ -27,12 +26,19 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
+class Invoker(Context):
+    '''
+    The invoker context.
+    '''
+    # ---------------------------------------------------------------- Required
+    hasContent = requires(bool)
+    
 class Request(Context):
     '''
     The request context.
     '''
     # ---------------------------------------------------------------- Required
-    invoker = requires(Invoker)
+    invoker = requires(Context)
     arguments = requires(dict)
 
 class RequestContentData(Context):
@@ -54,6 +60,26 @@ class RequestContent(RequestContentData):
     # ---------------------------------------------------------------- Optional
     fetchNextContent = optional(Callable)
 
+class RegisterAssembler(Context):
+    '''
+    The register context.
+    '''
+    # ---------------------------------------------------------------- Required
+    invokers = requires(list)
+    
+class InvokerAssembler(Context):
+    '''
+    The invoker context.
+    '''
+    # ---------------------------------------------------------------- Defined
+    hasContent = defines(bool, doc='''
+    @rtype: boolean
+    Flag indicating that the content argument is required for invoker.
+    ''')
+    solved = defines(set)
+    # ---------------------------------------------------------------- Required
+    inputs = requires(tuple)
+    
 # --------------------------------------------------------------------
 
 @injected
@@ -61,6 +87,11 @@ class ContentHandler(HandlerProcessor):
     '''
     Handler that provides the content as an argument if required.
     '''
+    
+    def __init__(self):
+        super().__init__(Invoker=Invoker)
+        
+        self.contentType = typeFor(Content)
 
     def process(self, chain, request:Request, response:Coded, requestCnt:RequestContent=None, **keyargs):
         '''
@@ -70,20 +101,53 @@ class ContentHandler(HandlerProcessor):
         '''
         assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(response, Coded), 'Invalid response %s' % response
-
+        
         if response.isSuccess is False: return  # Skip in case the response is in error
-        assert isinstance(request.invoker, Invoker), 'Invalid request invoker %s' % request.invoker
+        if request.invoker is None: return  # No invoker to provide the scheme for
+        
+        assert isinstance(request.invoker, Invoker), 'Invalid invoker %s' % request.invoker
+        if not request.invoker.hasContent: return  # No scheme required
+        
+        if requestCnt is None or requestCnt.source is None: return CONTENT_EXPECTED.set(response)
+        assert isinstance(requestCnt, RequestContent), 'Invalid request content %s' % requestCnt
+        assert isinstance(requestCnt.source, IInputStream), 'Invalid request content source %s' % requestCnt.source
+        
+        if request.arguments is None: request.arguments = {}
+        request.arguments[self.contentType] = ContentData(requestCnt)
 
-        for inp in request.invoker.inputs:
-            assert isinstance(inp, Input)
+# --------------------------------------------------------------------
 
-            if inp.type.isOf(Content):
-                if requestCnt is None: return CONTENT_EXPECTED.set(response)
-                assert isinstance(requestCnt, RequestContent), 'Invalid request content %s' % requestCnt
-                assert isinstance(requestCnt.source, IInputStream), 'Invalid request content source %s' % requestCnt.source
+class AssemblerContentHandler(HandlerProcessor):
+    '''
+    Implementation for a processor that provides on the assembly the requirement for the content input.
+    '''
 
-                request.arguments[inp.name] = ContentData(requestCnt)
-                assert log.debug('Successfully provided the next content for input \'%s\'', inp.name) or True
+    def __init__(self):
+        super().__init__(Invoker=InvokerAssembler)
+        
+        self.contentType = typeFor(Content)
+
+    def process(self, chain, register:RegisterAssembler, **keyargs):
+        '''
+        @see: HandlerProcessor.process
+        
+        Populate the content flag if required.
+        '''
+        assert isinstance(register, RegisterAssembler), 'Invalid register %s' % register
+        if not register.invokers: return  # No invokers to process.
+        
+        
+        for invoker in register.invokers:
+            assert isinstance(invoker, InvokerAssembler), 'Invalid invoker %s' % invoker
+            if not invoker.inputs: continue
+            
+            for inp in invoker.inputs:
+                assert isinstance(inp, Input), 'Invalid input %s' % inp
+                if inp.type == self.contentType:
+                    if invoker.solved is None: invoker.solved = set()
+                    invoker.solved.add(inp.name)
+                    invoker.hasContent = True
+                    break
 
 # --------------------------------------------------------------------
 

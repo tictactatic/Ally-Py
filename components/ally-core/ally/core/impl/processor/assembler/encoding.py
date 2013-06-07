@@ -6,19 +6,20 @@ Created on Jul 27, 2012
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
 
-Renders the response encoder.
+Provides the invoker encoder.
 '''
 
+from ally.api.type import Type
 from ally.container.ioc import injected
-from ally.core.spec.resources import Invoker
 from ally.core.spec.transform.encoder import IEncoder
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.branch import Branch
-from ally.design.processor.context import Context, pushIn
+from ally.design.processor.context import Context
 from ally.design.processor.execution import Processing
 from ally.design.processor.handler import HandlerBranching
 import logging
+from ally.api.operator.type import TypeModelProperty
 
 # --------------------------------------------------------------------
 
@@ -26,28 +27,31 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
-class Request(Context):
+class Register(Context):
     '''
-    The request context.
+    The register context.
     '''
     # ---------------------------------------------------------------- Required
-    invoker = requires(Invoker)
-
-class Response(Context):
+    invokers = requires(list)
+    
+class Invoker(Context):
     '''
-    The response context.
+    The invoker context.
     '''
     # ---------------------------------------------------------------- Defined
     encoder = defines(IEncoder, doc='''
     @rtype: IEncoder
     The encoder to be used for rendering the response object.
     ''')
-    support = defines(object, doc='''
-    @rtype: object
-    The support object required in encoding.
+    hideProperties = defines(bool, doc='''
+    @rtype: boolean
+    Indicates that the properties of model rendering should be hidden (not rendering).
     ''')
     # ---------------------------------------------------------------- Required
-    isSuccess = requires(bool)
+    node = requires(Context)
+    output = requires(Type)
+    isCollection = requires(bool)
+    invokerGet = requires(Context)
 
 class Create(Context):
     '''
@@ -74,26 +78,32 @@ class EncodingHandler(HandlerBranching):
     
     def __init__(self):
         assert isinstance(self.encodeAssembly, Assembly), 'Invalid encode assembly %s' % self.encodeAssembly
-        super().__init__(Branch(self.encodeAssembly).
-                         using(('support', 'response'), ('support', 'request'), create=Create).included())
+        super().__init__(Branch(self.encodeAssembly).using(create=Create).
+                         included(('invoker', 'Invoker'), ('node', 'Node')).included(), Invoker=Invoker)
 
-    def process(self, chain, encodeProcessing, request:Request, response:Response, **keyargs):
+    def process(self, chain, encodeProcessing, register:Register, **keyargs):
         '''
         @see: HandlerBranching.process
         
         Process the encoder rendering.
         '''
         assert isinstance(encodeProcessing, Processing), 'Invalid processing %s' % encodeProcessing
-        assert isinstance(request, Request), 'Invalid request %s' % request
-        assert isinstance(response, Response), 'Invalid response %s' % response
-
-        if response.isSuccess is False: return  # Skip in case the response is in error
-        if response.encoder: return  # There is already an encoder no need to create another one
-        assert isinstance(request.invoker, Invoker), 'Invalid request invoker %s' % request.invoker
+        assert isinstance(register, Register), 'Invalid register %s' % register
+        if not register.invokers: return  # No invokers to process.
         
-        arg = encodeProcessing.execute(create=encodeProcessing.ctx.create(objType=request.invoker.output),
-                                       support=pushIn(encodeProcessing.ctx.support(), response, request), **keyargs)
-        assert isinstance(arg.create, Create), 'Invalid create %s' % arg.create
-        if arg.create.encoder is not None:
-            response.encoder = arg.create.encoder
-            response.support = arg.support
+        for invoker in register.invokers:
+            assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
+            
+            if invoker.invokerGet:
+                if invoker.isCollection:
+                    # TODO: Gabriel: This is a temporary fix to get the same rendering as before until we refactor the plugins
+                    # to return only ids.
+                    invoker.hideProperties = True
+                elif isinstance(invoker.output, TypeModelProperty):
+                    assert isinstance(invoker.output, TypeModelProperty)
+                    if invoker.output.isId(): invoker.hideProperties = True
+            
+            arg = encodeProcessing.executeWithAll(create=encodeProcessing.ctx.create(objType=invoker.output),
+                                                  node=invoker.node, invoker=invoker, **keyargs)
+            assert isinstance(arg.create, Create), 'Invalid create %s' % arg.create
+            if arg.create.encoder is not None: invoker.encoder = arg.create.encoder

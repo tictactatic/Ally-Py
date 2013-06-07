@@ -160,7 +160,7 @@ def iterRefClass(refsClass):
 class immut(dict):
     '''The immutable dictionary class'''
 
-    __slots__ = ('__hash__value')
+    __slots__ = ('__hash__value',)
 
     def __new__(cls, *args, **keyargs):
         if not (args or keyargs):

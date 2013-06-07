@@ -12,8 +12,8 @@ Contains the assembly support.
 from .context import create
 from .execution import Processing
 from .resolvers import resolversFor, checkIf, solve, reportFor
-from .spec import IProcessor, AssemblyError, LIST_UNAVAILABLE
-from abc import ABCMeta # @UnusedImport
+from .spec import IProcessor, IFinalizer, AssemblyError, LIST_UNAVAILABLE
+from abc import ABCMeta  # @UnusedImport
 from ally.design.processor.report import ReportUnused
 from collections import Iterable
 import logging
@@ -118,16 +118,17 @@ class Assembly(Container):
         
         @param contexts: key arguments of ContextMetaClass
             Key arguments that have as a value the context classes that the processing chain will be used with.
-        @return: Processing|tuple of two
-            processing: Processing
+        @return: Processing
             A processing created based on the current structure of the assembly.
-            report: string
-            A text containing the report for the processing creation
         '''
         sources, current, extensions, calls, report = resolversFor(contexts), {}, {}, [], ReportUnused()
         for processor in self.processors:
             assert isinstance(processor, IProcessor), 'Invalid processor %s' % processor
             processor.register(sources, current, extensions, calls, report)
+        for processor in self.processors:
+            if isinstance(processor, IFinalizer):
+                assert isinstance(processor, IFinalizer)
+                processor.finalized(sources, current, extensions, report)
         
         solve(current, sources)
         if checkIf(current, LIST_UNAVAILABLE):
@@ -135,7 +136,7 @@ class Assembly(Container):
                                 (self.name, reportFor(current, LIST_UNAVAILABLE)))
         solve(current, extensions)
         processing = Processing(calls, create(current))
-        reportAss = report.open('Assembly \'%s\'' % self.name)
+        reportAss = report.open('assembly \'%s\'' % self.name)
         reportAss.add(current)
         
         message = report.report()

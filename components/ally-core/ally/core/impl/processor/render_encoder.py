@@ -12,17 +12,27 @@ Renders the response encoder.
 from ally.container.ioc import injected
 from ally.core.spec.transform.encoder import IEncoder
 from ally.design.processor.attribute import requires, optional
-from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessor
+from ally.design.processor.context import Context, pushIn, cloneCollection
+from ally.design.processor.handler import HandlerComposite
+from ally.design.processor.processor import Joiner
 from collections import Callable
-import logging
 
 # --------------------------------------------------------------------
-
-log = logging.getLogger(__name__)
-
-# --------------------------------------------------------------------
-
+    
+class Invoker(Context):
+    '''
+    The invoker context.
+    '''
+    # ---------------------------------------------------------------- Required
+    encoder = requires(IEncoder)
+    
+class Request(Context):
+    '''
+    The request context.
+    '''
+    # ---------------------------------------------------------------- Required
+    invoker = requires(Context)
+    
 class Response(Context):
     '''
     The response context.
@@ -31,30 +41,36 @@ class Response(Context):
     indexerFactory = optional(Callable)
     # ---------------------------------------------------------------- Required
     renderFactory = requires(Callable)
-    encoder = requires(IEncoder)
-    support = requires(object)
     obj = requires(object)
     isSuccess = requires(bool)
 
 # --------------------------------------------------------------------
 
 @injected
-class RenderEncoderHandler(HandlerProcessor):
+class RenderEncoderHandler(HandlerComposite):
     '''
     Implementation for a handler that renders the response content encoder.
     '''
     
-    def process(self, chain, response:Response, responseCnt:Context, **keyargs):
+    def __init__(self):
+        super().__init__(Joiner(Support=('response', 'request')), Invoker=Invoker)
+    
+    def process(self, chain, request:Request, response:Response, responseCnt:Context, Support:Context, **keyargs):
         '''
-        @see: HandlerProcessor.process
+        @see: HandlerComposite.process
         
         Process the encoder rendering.
         '''
+        assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(response, Response), 'Invalid response %s' % response
-
+        
         if response.isSuccess is False: return  # Skip in case the response is in error
-        if response.encoder is None: return  # Skip in case there is no encoder to render
+        if not request.invoker: return  # No invoker available
+        assert isinstance(request.invoker, Invoker), 'Invalid invoker %s' % request.invoker
+        if not request.invoker.encoder: return  # No encoder to process
+        assert isinstance(request.invoker.encoder, IEncoder), 'Invalid encoder %s' % request.invoker.encoder
         assert callable(response.renderFactory), 'Invalid response renderer factory %s' % response.renderFactory
-        assert isinstance(response.encoder, IEncoder), 'Invalid encoder %s' % response.encoder
-
-        response.encoder.render(response.obj, response.renderFactory(responseCnt), response.support)
+        
+        renderer = response.renderFactory(responseCnt)
+        support = pushIn(Support(), response, request, interceptor=cloneCollection)
+        request.invoker.encoder.render(response.obj, renderer, support)

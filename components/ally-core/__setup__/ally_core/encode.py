@@ -16,7 +16,6 @@ from ally.core.impl.processor.encoder.extension_attribute import \
 from ally.core.impl.processor.encoder.model import ModelEncode
 from ally.core.impl.processor.encoder.model_property import ModelPropertyEncode
 from ally.core.impl.processor.encoder.property import PropertyEncode
-from ally.core.impl.processor.encoder.property_id import PropertyIdEncode
 from ally.core.impl.processor.encoder.property_of_model import \
     PropertyOfModelEncode
 from ally.design.processor.assembly import Assembly
@@ -91,9 +90,6 @@ def modelPropertyEncode() -> Handler:
 def propertyEncode() -> Handler: return PropertyEncode()
 
 @ioc.entity
-def propertyIdEncode() -> Handler: return PropertyIdEncode()
-
-@ioc.entity
 def propertyOfModelEncode() -> Handler:
     b = PropertyOfModelEncode()
     b.propertyModelEncodeAssembly = assemblyPropertyModelEncode()
@@ -121,7 +117,7 @@ def updateAssemblyPropertyModelEncode():
 
 @ioc.before(assemblyPropertyPrimitiveEncode)
 def updateAssemblyPropertyPrimitiveEncode():
-    assemblyPropertyPrimitiveEncode().add(propertyIdEncode(), propertyEncode())
+    assemblyPropertyPrimitiveEncode().add(propertyEncode())
     
 @ioc.before(assemblyPropertyEncode)
 def updateAssemblyPropertyEncode():

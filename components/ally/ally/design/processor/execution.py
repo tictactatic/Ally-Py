@@ -11,6 +11,7 @@ Contains the classes used in the execution of processors.
 
 from .spec import ContextMetaClass, isNameForClass
 from collections import Iterable, deque
+import itertools
 import logging
 import sys
 
@@ -54,6 +55,7 @@ class Processing:
         assert isinstance(calls, Iterable), 'Invalid calls %s' % calls
         
         self._calls = list(calls)
+        assert self._calls, 'At least one call is required for processing'
         if __debug__:
             for call in self._calls: assert callable(call), 'Invalid call %s' % call
                 
@@ -169,17 +171,21 @@ class Execution:
     The iterable containing key: value pairs of the key arguments.
     ''')
     
-    def process(self, **keyargs):
+    def process(self, *args, **keyargs):
         '''
         Called in order to register the arguments to be processed.
         
+        @param args: arguments[Execution.Arg|dictionary{string: object}]
         @param keyargs: key arguments
             The key arguments to update the processed arguments with.
         @return: this execution
             This execution for chaining purposes.
         '''
         assert self._status == 0, 'Execution cannot process'
-        for key, value in keyargs.items(): setattr(self.arg, key, value)
+        for arg in itertools.chain(args, (keyargs,)):
+            if isinstance(arg, Execution.Arg): arg = arg.__dict__
+            assert isinstance(arg, dict), 'Invalid argument %s' % arg
+            for key, value in arg.items(): setattr(self.arg, key, value)
         return self
     
     def do(self):

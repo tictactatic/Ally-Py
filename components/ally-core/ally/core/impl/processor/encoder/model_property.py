@@ -12,11 +12,9 @@ Provides the model property encoder.
 from ally.api.operator.container import Model
 from ally.api.operator.type import TypeModel, TypeModelProperty
 from ally.container.ioc import injected
-from ally.core.spec.resources import Normalizer
 from ally.core.spec.transform.encoder import IEncoder, EncoderWithSpecifiers
 from ally.core.spec.transform.index import NAME_BLOCK
 from ally.core.spec.transform.render import IRender
-from ally.design.cache import CacheWeak
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.branch import Branch
@@ -26,6 +24,13 @@ from ally.design.processor.handler import HandlerBranching
 from ally.exception import DevelError
 
 # --------------------------------------------------------------------
+    
+class Invoker(Context):
+    '''
+    The invoker context.
+    '''
+    # ---------------------------------------------------------------- Required
+    hideProperties = requires(bool)
 
 class Create(Context):
     '''
@@ -41,15 +46,6 @@ class Create(Context):
     specifiers = optional(list)
     # ---------------------------------------------------------------- Required
     objType = requires(object)
-    
-class Support(Context):
-    '''
-    The encoder support context.
-    '''
-    # ---------------------------------------------------------------- Optional
-    hideProperties = optional(bool)
-    # ---------------------------------------------------------------- Required
-    normalizer = requires(Normalizer)
 
 class CreateProperty(Context):
     '''
@@ -81,17 +77,16 @@ class ModelPropertyEncode(HandlerBranching):
     def __init__(self):
         assert isinstance(self.propertyEncodeAssembly, Assembly), \
         'Invalid property encode assembly %s' % self.propertyEncodeAssembly
-        super().__init__(Branch(self.propertyEncodeAssembly).included().using(create=CreateProperty), support=Support)
+        super().__init__(Branch(self.propertyEncodeAssembly).included().using(create=CreateProperty))
         
-        self._cache = CacheWeak()
-        
-    def process(self, chain, propertyProcessing, create:Create, **keyargs):
+    def process(self, chain, propertyProcessing, invoker:Invoker, create:Create, **keyargs):
         '''
         @see: HandlerBranching.process
         
         Create the model property encoder.
         '''
         assert isinstance(propertyProcessing, Processing), 'Invalid processing %s' % propertyProcessing
+        assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
         assert isinstance(create, Create), 'Invalid create %s' % create
         
         if create.encoder is not None: return 
@@ -109,16 +104,16 @@ class ModelPropertyEncode(HandlerBranching):
         if Create.specifiers in create: specifiers = create.specifiers or ()
         else: specifiers = ()
         
-        cache = self._cache.key(propertyProcessing, name, propType, *specifiers)
-        if not cache.has:
+        if not invoker.hideProperties:
             arg = propertyProcessing.execute(create=propertyProcessing.ctx.create(objType=propType, name=propType.property),
                                              **keyargs)
             assert isinstance(arg.create, CreateProperty), 'Invalid create property %s' % arg.create
             if arg.create.encoder is None: raise DevelError('Cannot encode %s' % propType)
-            cache.value = EncoderModelProperty(name, arg.create.encoder, specifiers)
+            encoder = arg.create.encoder
+        else: encoder = None
         
-        create.encoder = cache.value
-
+        create.encoder = EncoderModelProperty(name, encoder, specifiers)
+        
 # --------------------------------------------------------------------
 
 class EncoderModelProperty(EncoderWithSpecifiers):
@@ -131,7 +126,7 @@ class EncoderModelProperty(EncoderWithSpecifiers):
         Construct the model property encoder.
         '''
         assert isinstance(name, str), 'Invalid model name %s' % name
-        assert isinstance(encoder, IEncoder), 'Invalid property encoder %s' % encoder
+        assert encoder is None or isinstance(encoder, IEncoder), 'Invalid property encoder %s' % encoder
         super().__init__(specifiers)
         
         self.name = name
@@ -142,12 +137,7 @@ class EncoderModelProperty(EncoderWithSpecifiers):
         @see: IEncoder.render
         '''
         assert isinstance(render, IRender), 'Invalid render %s' % render
-        assert isinstance(support, Support), 'Invalid support %s' % support
-        assert isinstance(support.normalizer, Normalizer), 'Invalid normalizer %s' % support.normalizer
         
-        if Support.hideProperties in support: hideProperties = support.hideProperties
-        else: hideProperties = False
-            
-        render.beginObject(support.normalizer.normalize(self.name), **self.populate(obj, support, indexBlock=NAME_BLOCK))
-        if not hideProperties: self.encoder.render(obj, render, support)
+        render.beginObject(self.name, **self.populate(obj, support, indexBlock=NAME_BLOCK))
+        if self.encoder: self.encoder.render(obj, render, support)
         render.end()

@@ -83,8 +83,7 @@ class ReportUnused(IReport):
                 stack.append(name)
                 datas.append(data)
         
-        messages = []
-        reportOn(messages, self.resolvers, LIST_UNUSED)
+        messages = reportOn([], self.resolvers, LIST_UNUSED)
 
         if messages or len(datas) > 1:
             for message, stack in datas:

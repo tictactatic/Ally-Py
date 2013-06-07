@@ -6,19 +6,16 @@ Created on Jun 28, 2011
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
 
-Provides the URI request path handler.
+Provides the URI request node handler.
 '''
 
-from ally.api.type import Scheme, Type
-from ally.container.ioc import injected
-from ally.core.impl.node import NodeProperty
-from ally.core.spec.resources import ConverterPath, Path, Converter, Normalizer, \
-    Node
-from ally.design.processor.attribute import requires, defines, optional
+from ally.core.spec.resources import Converter
+from ally.design.processor.attribute import requires, defines, definesIf
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
-from ally.http.spec.codes import PATH_FOUND, PATH_NOT_FOUND, CodedHTTP
-from ally.support.core.util_resources import findPath
+from ally.http.spec.codes import PATH_FOUND, PATH_NOT_FOUND, CodedHTTP, \
+    MISSING_SLASH
+from ally.support.core.util_resources import valueOfAny
 from urllib.parse import unquote
 import logging
 
@@ -28,46 +25,49 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
+class Register(Context):
+    '''
+    The register context.
+    '''
+    # ---------------------------------------------------------------- Required
+    root = requires(Context)
+    
+class Node(Context):
+    '''
+    The node context.
+    '''
+    # ---------------------------------------------------------------- Required
+    byName = requires(dict)
+    byType = requires(dict)
+    properties = requires(set)
+    invokers = requires(dict)
+    hasMandatorySlash = requires(bool)
+
 class Request(Context):
     '''
     The request context.
     '''
-    # ---------------------------------------------------------------- Required
-    uri = requires(str)
-    # ---------------------------------------------------------------- Optional
-    argumentsOfType = optional(dict)
     # ---------------------------------------------------------------- Defined
+    node = defines(Context, doc='''
+    @rtype: Context
+    The node corresponding to the request.
+    ''')
+    pathValues = definesIf(dict, doc='''
+    @rtype: dictionary{TypeModelProperty: object}
+    A dictionary containing the path values indexed by the node properties.
+    ''')
     extension = defines(str, doc='''
     @rtype: string
     The extension of the requested URI.
     ''')
-    path = defines(Path, doc='''
-    @rtype: Path
-    The path to the resource node.
+    arguments = definesIf(dict, doc='''
+    @rtype: dictionary{Type|string: object}
+    A dictionary containing the arguments to be used for the invoking.
     ''')
-    converterId = defines(Converter, doc='''
-    @rtype: Converter
-    The converter to use for model id's.
-    ''')
-    normalizerParameters = defines(Normalizer, doc='''
-    @rtype: Normalizer
-    The normalizer to use for decoding parameters names.
-    ''')
-    converterParameters = defines(Converter, doc='''
-    @rtype: Converter
-    The converter to use for the parameters values.
-    ''')
-
-class Response(CodedHTTP):
-    '''
-    The response context.
-    '''
-    # ---------------------------------------------------------------- Defined
-    text = defines(str)
-    converterId = defines(Converter, doc='''
-    @rtype: Converter
-    The converter to use for model id's.
-    ''')
+    # ---------------------------------------------------------------- Required
+    scheme = requires(str)
+    uri = requires(str)
+    converter = requires(Converter)
 
 class ResponseContent(Context):
     '''
@@ -81,34 +81,29 @@ class ResponseContent(Context):
 
 # --------------------------------------------------------------------
 
-@injected
 class URIHandler(HandlerProcessor):
     '''
-    Implementation for a processor that provides the searches based on the request URL the resource path, also
-    populates the parameters and extension format on the request.
+    Implementation for a processor that provides the searches based on the request URI the resource node, also
+    populates the arguments based on path and extension on the request.
     '''
 
-    resourcesRoot = Node
-    # The resources node that will be used for finding the resource path.
-    converterPath = ConverterPath
-    # The converter path used for handling the URL path.
-
     def __init__(self):
-        assert isinstance(self.resourcesRoot, Node), 'Invalid resources node %s' % self.resourcesRoot
-        assert isinstance(self.converterPath, ConverterPath), 'Invalid ConverterPath object %s' % self.converterPath
-        super().__init__()
+        super().__init__(Node=Node)
 
-    def process(self, chain, request:Request, response:Response, responseCnt:ResponseContent, **keyargs):
+    def process(self, chain, register:Register, request:Request, response:CodedHTTP, responseCnt:ResponseContent, **keyargs):
         '''
         @see: HandlerProcessor.process
         
         Process the URI to a resource path.
         '''
+        assert isinstance(register, Register), 'Invalid register %s' % register
         assert isinstance(request, Request), 'Invalid required request %s' % request
-        assert isinstance(response, Response), 'Invalid response %s' % response
+        assert isinstance(response, CodedHTTP), 'Invalid response %s' % response
         assert isinstance(responseCnt, ResponseContent), 'Invalid response content %s' % responseCnt
-        assert isinstance(request.uri, str), 'Invalid request URI %s' % request.uri
+        
         if response.isSuccess is False: return  # Skip in case the response is in error
+        assert isinstance(request.uri, str), 'Invalid request URI %s' % request.uri
+        assert isinstance(request.converter, Converter), 'Invalid request converter %s' % request.converter
         
         paths = request.uri.split('/')
         i = paths[-1].rfind('.') if len(paths) > 0 else -1
@@ -123,34 +118,44 @@ class URIHandler(HandlerProcessor):
         paths = [unquote(p) for p in paths if p]
 
         if request.extension: responseCnt.type = request.extension
-        request.path = findPath(self.resourcesRoot, paths, self.converterPath)
-        assert isinstance(request.path, Path), 'Invalid path %s' % request.path
-        node = request.path.node
-        if not node:
-            # we stop the chain processing
+        
+        node = register.root
+        for path in paths:
+            assert isinstance(node, Node), 'Invalid node %s' % node
+            if node.byName:
+                assert isinstance(node.byName, dict), 'Invalid by name %s' % node.byName
+                node = node.byName.get(path)
+            else:
+                assert isinstance(node.byType, dict) and node.byType, 'Invalid node by type %s' % node.byType
+                try: value, typeValue = valueOfAny(request.converter, path, node.byType)
+                except ValueError:
+                    assert log.debug('Invalid value \'%s\' for: %s', path, ','.join(str(typ) for typ in node.byType)) or True
+                    node = None
+                else:
+                    node = node.byType[typeValue]
+                    if Request.arguments in request:
+                        assert isinstance(node.properties, set), 'Invalid properties types %s' % node.properties
+                        if request.arguments is None: request.arguments = {}
+                        for propType in node.properties: request.arguments[propType] = value
+                    if Request.pathValues in request:
+                        assert isinstance(node.properties, set), 'Invalid properties types %s' % node.properties
+                        if request.pathValues is None: request.pathValues = {}
+                        for propType in node.properties: request.pathValues[propType] = value
+
+            if node is None: break
+                
+        if node is None or not node.invokers:
             PATH_NOT_FOUND.set(response)
             assert log.debug('No resource found for URI %s', request.uri) or True
             return
         
-        if not clearExtension:
-            # We need to check if the last path element is not a string property ant there might be confusion with the extension
-            if isinstance(node, NodeProperty):
-                assert isinstance(node, NodeProperty)
-                assert isinstance(node.type, Type)
-                if node.type.isOf(str):
-                    PATH_NOT_FOUND.set(response)
-                    response.text = 'Missing trailing slash'
-                    assert log.debug('Unclear extension for URI %s', request.uri) or True
-                    return
+        if not clearExtension and node.hasMandatorySlash:
+            # We need to check if the last path element is not a string property ant there might be confusion
+            # with the extension
+            MISSING_SLASH.set(response)
+            assert log.debug('Unclear extension for URI %s', request.uri) or True
+            return
                 
         assert log.debug('Found resource for URI %s', request.uri) or True
-
-        request.converterId = self.converterPath
-        request.converterParameters = self.converterPath
-        request.normalizerParameters = self.converterPath
-
-        if Request.argumentsOfType in request and request.argumentsOfType is not None:
-            request.argumentsOfType[Scheme] = request.scheme
-
         PATH_FOUND.set(response)
-        response.converterId = self.converterPath
+        request.node = node

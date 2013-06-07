@@ -13,10 +13,8 @@ from ally.api.operator.container import Model
 from ally.api.operator.type import TypeModel, TypeModelProperty
 from ally.api.type import Iter
 from ally.container.ioc import injected
-from ally.core.spec.resources import Normalizer
 from ally.core.spec.transform.encoder import IEncoder, EncoderWithSpecifiers
 from ally.core.spec.transform.render import IRender
-from ally.design.cache import CacheWeak
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.branch import Branch
@@ -42,13 +40,6 @@ class Create(Context):
     specifiers = optional(list)
     # ---------------------------------------------------------------- Required
     objType = requires(object)
-
-class Support(Context):
-    '''
-    The encoder support context.
-    '''
-    # ---------------------------------------------------------------- Required
-    normalizer = requires(Normalizer)
   
 class CreateItem(Context):
     '''
@@ -78,9 +69,7 @@ class CollectionEncode(HandlerBranching):
     def __init__(self):
         assert isinstance(self.itemEncodeAssembly, Assembly), 'Invalid item encode assembly %s' % self.itemEncodeAssembly
         assert isinstance(self.nameMarkedList, str), 'Invalid name list %s' % self.nameMarkedList
-        super().__init__(Branch(self.itemEncodeAssembly).included().using(create=CreateItem), support=Support)
-        
-        self._cache = CacheWeak()
+        super().__init__(Branch(self.itemEncodeAssembly).included().using(create=CreateItem))
         
     def process(self, chain, itemProcessing, create:Create, **keyargs):
         '''
@@ -108,14 +97,10 @@ class CollectionEncode(HandlerBranching):
         if Create.specifiers in create: specifiers = create.specifiers or ()
         else: specifiers = ()
         
-        cache = self._cache.key(itemProcessing, name, itemType, *specifiers)
-        if not cache.has:
-            arg = itemProcessing.execute(create=itemProcessing.ctx.create(objType=itemType))
-            assert isinstance(arg.create, CreateItem), 'Invalid create item %s' % arg.create
-            if arg.create.encoder is None: raise DevelError('Cannot encode %s' % itemType)
-            cache.value = EncoderCollection(name, arg.create.encoder, specifiers)
-        
-        create.encoder = cache.value
+        arg = itemProcessing.execute(create=itemProcessing.ctx.create(objType=itemType), **keyargs)
+        assert isinstance(arg.create, CreateItem), 'Invalid create item %s' % arg.create
+        if arg.create.encoder is None: raise DevelError('Cannot encode %s' % itemType)
+        create.encoder = EncoderCollection(name, arg.create.encoder, specifiers)
 
 # --------------------------------------------------------------------
 
@@ -141,10 +126,8 @@ class EncoderCollection(EncoderWithSpecifiers):
         '''
         assert isinstance(obj, Iterable), 'Invalid collection object %s' % obj
         assert isinstance(renderer, IRender), 'Invalid renderer %s' % renderer
-        assert isinstance(support, Support), 'Invalid support %s' % support
-        assert isinstance(support.normalizer, Normalizer), 'Invalid normalizer %s' % support.normalizer
         
-        renderer.beginCollection(support.normalizer.normalize(self.name), **self.populate(obj, support))
+        renderer.beginCollection(self.name, **self.populate(obj, support))
         for objItem in obj: self.encoder.render(objItem, renderer, support)
         renderer.end()
         

@@ -12,15 +12,16 @@ Module containing processors.
 from .branch import IBranch
 from .context import Context
 from .execution import Processing
-from .resolvers import merge
-from .spec import AssemblyError, IProcessor, ContextMetaClass, ProcessorError, \
-    IReport
+from .resolvers import merge, solve
+from .spec import AssemblyError, IProcessor, IFinalizer, ContextMetaClass, \
+    ProcessorError, IReport
 from .structure import restructureData, restructureResolvers
 from ally.support.util_sys import locationStack
 from collections import Iterable
+from functools import update_wrapper
 from inspect import ismethod, isfunction, getfullargspec
 import itertools
-from functools import update_wrapper
+from ally.design.processor.spec import IResolver
 
 # --------------------------------------------------------------------
 
@@ -182,7 +183,7 @@ class Brancher(Contextual):
             assert isinstance(branch, IBranch), 'Invalid branch %s' % branch
             try: processing = branch.process(sources, resolvers, extensions, report)
             except: raise AssemblyError('Cannot create processing at:%s' % locationStack(self.function))
-            assert isinstance(processing, Processing), 'Invalid processing %s' % processing
+            assert processing is None or isinstance(processing, Processing), 'Invalid processing %s' % processing
             processings.append(processing)
         
         def wrapper(*args, **keyargs): self.call(*itertools.chain(args, processings), **keyargs)
@@ -203,8 +204,50 @@ class Brancher(Contextual):
                              'processing, ..., contex:Context ...)\' for:%s' % locationStack(self.function))
 
 # --------------------------------------------------------------------
+    
+class Composite(IProcessor, IFinalizer):
+    '''
+    Implementation for @see: IProcessor that contains other processors and registeres them as a single processor.
+    '''
+    __slots__ = ('processors',)
+    
+    def __init__(self, *processors):
+        '''
+        Construct the composite processor based on the provided processors.
+        
+        @param processors: arguments[IProcessor]
+            The processors that need to be unified as one.
+        '''
+        assert processors, 'At least one processor is required'
+        if __debug__:
+            for processor in processors: assert isinstance(processor, IProcessor), 'Invalid processor %s' % processor
 
-class ProcessorRenamer(IProcessor):
+        self.processors = processors
+
+    def register(self, sources, resolvers, extensions, calls, report):
+        '''
+        @see: IProcessor.register
+        '''
+        for processor in self.processors:
+            assert isinstance(processor, IProcessor), 'Invalid processor %s' % processor
+            processor.register(sources, resolvers, extensions, calls, report)
+            
+    def finalized(self, sources, resolvers, extensions, report):
+        '''
+        @see: IFinalizer.finalized
+        '''
+        for processor in self.processors:
+            if isinstance(processor, IFinalizer):
+                assert isinstance(processor, IFinalizer)
+                processor.finalized(sources, resolvers, extensions, report)
+        
+    # ----------------------------------------------------------------
+
+    def __eq__(self, other):
+        if not isinstance(other, self.__class__): return False
+        return self.processors == other.processors
+
+class Renamer(IProcessor):
     '''
     Implementation for @see: IProcessor that renames the context names for the provided processor.
     '''
@@ -254,3 +297,72 @@ class ProcessorRenamer(IProcessor):
             for call in wcalls: call(*args, **keyargs)
         
         calls.append(wrapper)
+        
+    # ----------------------------------------------------------------
+
+    def __eq__(self, other):
+        if not isinstance(other, self.__class__): return False
+        return self.processor == other.processor and self.mapping == other.mapping
+
+class Joiner(IProcessor):
+    '''
+    Implementation for @see: IProcessor that joins into a context other contexts.
+    '''
+    __slots__ = ('mapping',)
+    
+    def __init__(self, **mapping):
+        '''
+        Construct the processor that joins the contexts.
+        
+        @param mapping: key arguments of string or tuple(string)
+            The join mapping, as a key is considered the target context and as a value is expected either the name
+            of another context or tuple of contexts to be pushed in the target context, attention the order is crucial
+            since if two or more contexts define the same attribute only the first one will be considered.
+        '''
+        for target, names in mapping.items():
+            if isinstance(names, str): names = (names,)
+            assert isinstance(names, tuple), 'Invalid mapping names %s for %s' % (names, target)
+            for name in names: assert isinstance(name, str), 'Invalid mapping name %s for %s' % (name, target)
+            assert target not in names, 'Target %s cannot be in names %s' % (target, names)
+        
+        self.mapping = mapping
+
+    def register(self, sources, current, extensions, calls, report):
+        '''
+        @see: IProcessor.register
+        '''
+        assert isinstance(sources, dict), 'Invalid sources %s' % sources
+        assert isinstance(current, dict), 'Invalid current %s' % current
+        assert isinstance(extensions, dict), 'Invalid sources %s' % extensions
+        
+        jextensions = {}
+        for target, names in self.mapping.items():
+            self._join(target, names, sources, jextensions)
+            self._join(target, names, current, jextensions)
+            self._join(target, names, extensions, jextensions)
+        solve(extensions, jextensions)
+    
+    def _join(self, target, names, resolvers, extensions):
+        '''
+        Performs the joining for the target with names on the provided resolvers.
+        '''
+        tresolver = resolvers.get(target)
+        if tresolver is None: return
+        assert isinstance(tresolver, IResolver), 'Invalid resolver %s' % tresolver
+        resolved = set(tresolver.list())
+        for name in names:
+            resolver = resolvers.get(name)
+            if resolver is None: continue
+            assert isinstance(resolver, IResolver), 'Invalid resolver %s' % resolver
+            common = resolved.intersection(resolver.list())
+            if not common: continue
+            resolved.difference_update(common)
+            merge(resolvers, {target: resolver.copy(common)})
+            solve(extensions, {name: tresolver.copy(common)})
+            if not resolved: break
+        
+    # ----------------------------------------------------------------
+
+    def __eq__(self, other):
+        if not isinstance(other, self.__class__): return False
+        return self.mapping == other.mapping

@@ -11,7 +11,6 @@ Provides the content index header encoding.
 
 from ally.container.ioc import injected
 from ally.core.spec.transform.index import Index
-from ally.design.cache import CacheWeak
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires
 from ally.design.processor.branch import Branch
@@ -92,7 +91,7 @@ class ContentIndexEncodeHandler(HandlerBranching):
         assert isinstance(self.encoding, str), 'Invalid encoding %s' % self.encoding
         super().__init__(Branch(self.assembly).using(blocks=Blocks, Mapping=Mapping))
         
-        self._cache = CacheWeak()
+        self.blocks = None
 
     def process(self, chain, processing, response:Response, responseCnt:ResponseContent, **keyargs):
         '''
@@ -108,22 +107,20 @@ class ContentIndexEncodeHandler(HandlerBranching):
         if not responseCnt.indexes: return  # There is no index
         assert isinstance(responseCnt.indexes, list), 'Invalid indexes %s' % responseCnt.indexes
         
-        cache = self._cache.key(processing)
-        if not cache.has:
+        if self.blocks is None:
             blocks = processing.executeWithAll().blocks
             assert isinstance(blocks, Blocks), 'Invalid blocks %s' % blocks
             assert isinstance(blocks.blocks, dict), 'Invalid blocks %s' % blocks.blocks
-            cache.value = blocks.blocks
-        blocks = cache.value
-        assert isinstance(blocks, dict), 'Invalid blocks %s' % blocks
+            self.blocks = blocks.blocks
+        assert isinstance(self.blocks, dict), 'Invalid blocks %s' % blocks
         
         out = BytesIO()
         out.write(len(responseCnt.indexes).to_bytes(self.bytesIndexCount, self.byteOrder))
         values = {}
         for index in responseCnt.indexes:
             assert isinstance(index, Index), 'Invalid index %s' % index
-            assert index.block in blocks, 'Unknown block \'%s\' in definitions %s' % (index.block, list(blocks))
-            mapping = blocks[index.block]
+            assert index.block in self.blocks, 'Unknown block \'%s\' in definitions %s' % (index.block, list(self.blocks))
+            mapping = self.blocks[index.block]
             assert isinstance(mapping, Mapping), 'Invalid mapping %s' % mapping
             assert isinstance(mapping.block, Block), 'Invalid mapping block %s' % mapping.block
            

@@ -14,10 +14,9 @@ from ally.api.type import TypeReference
 from ally.container.ioc import injected
 from ally.core.http.spec.transform.index import NAME_BLOCK_CLOB, \
     ACTION_REFERENCE
-from ally.core.spec.resources import Normalizer
 from ally.core.spec.transform.encoder import IEncoder
 from ally.core.spec.transform.render import IRender
-from ally.design.processor.attribute import requires, defines, optional
+from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
 from ally.http.spec.server import IEncoderPath
@@ -41,10 +40,8 @@ class Support(Context):
     '''
     The encoder support context.
     '''
-    # ---------------------------------------------------------------- Optional
-    encoderPath = optional(IEncoderPath)
     # ---------------------------------------------------------------- Required
-    normalizer = requires(Normalizer)
+    encoderPath = requires(IEncoderPath)
     
 # --------------------------------------------------------------------
 
@@ -59,9 +56,7 @@ class PropertyReferenceEncode(HandlerProcessor):
     
     def __init__(self):
         assert isinstance(self.nameRef, str), 'Invalid reference name %s' % self.nameRef
-        super().__init__(support=Support)
-        
-        self._cache = {}
+        super().__init__(Support=Support)
         
     def process(self, chain, create:Create, **keyargs):
         '''
@@ -80,9 +75,7 @@ class PropertyReferenceEncode(HandlerProcessor):
         # The type is not a reference, just move along
         
         assert isinstance(create.name, str), 'Invalid name %s' % create.name
-        encoder = self._cache.get(create.name)
-        if not encoder: encoder = self._cache[create.name] = EncoderReference(create.name, self.nameRef)
-        create.encoder = encoder
+        create.encoder = EncoderReference(create.name, self.nameRef)
 
 # --------------------------------------------------------------------
 
@@ -107,11 +100,7 @@ class EncoderReference(IEncoder):
         '''
         assert isinstance(render, IRender), 'Invalid render %s' % render
         assert isinstance(support, Support), 'Invalid support %s' % support
-        assert isinstance(support.normalizer, Normalizer), 'Invalid normalizer %s' % support.normalizer
-        assert Support.encoderPath in support, 'No path encoder available in %s' % support
         assert isinstance(support.encoderPath, IEncoderPath), 'Invalid path encoder %s' % support.encoderPath
         
-        nameRef = support.normalizer.normalize(self.nameRef)
-        render.beginObject(support.normalizer.normalize(self.name),
-                           attributes={nameRef: support.encoderPath.encode(obj)}, indexBlock=NAME_BLOCK_CLOB,
-                           indexAttributesCapture={nameRef: ACTION_REFERENCE}).end()
+        render.beginObject(self.name, attributes={self.nameRef: support.encoderPath.encode(obj)}, indexBlock=NAME_BLOCK_CLOB,
+                           indexAttributesCapture={self.nameRef: ACTION_REFERENCE}).end()

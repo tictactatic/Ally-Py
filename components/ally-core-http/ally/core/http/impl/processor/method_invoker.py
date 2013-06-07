@@ -9,22 +9,32 @@ Created on Jul 14, 2011
 Provides the requested method validation handler.
 '''
 
-from ally.core.spec.resources import Path, Node, Invoker
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
 from ally.http.spec.codes import METHOD_NOT_AVAILABLE, CodedHTTP
-from ally.http.spec.server import HTTP_GET, HTTP_POST, HTTP_PUT, HTTP_DELETE
 
 # --------------------------------------------------------------------
 
+class Node(Context):
+    '''
+    The node context.
+    '''
+    # ---------------------------------------------------------------- Required
+    invokers = requires(dict)
+    
 class Request(Context):
     '''
     The request context.
     '''
+    # ---------------------------------------------------------------- Defined
+    invoker = defines(Context, doc='''
+    @rtype: Context
+    The invoker corresponding to the request.
+    ''')
+    # ---------------------------------------------------------------- Required
     method = requires(str)
-    path = requires(Path)
-    invoker = defines(Invoker)
+    node = requires(Context)
 
 class Response(CodedHTTP):
     '''
@@ -40,6 +50,9 @@ class MethodInvokerHandler(HandlerProcessor):
     with the resource node of the request, basically checks if the node has the invoke for the requested method.
     If the node has no invoke than this processor will provide an error response for the resource path node.
     '''
+    
+    def __init__(self):
+        super().__init__(Node=Node)
 
     def process(self, chain, request:Request, response:Response, **keyargs):
         '''
@@ -51,19 +64,12 @@ class MethodInvokerHandler(HandlerProcessor):
         assert isinstance(response, Response), 'Invalid response %s' % response
         if response.isSuccess is False: return  # Skip in case the response is in error
 
-        assert isinstance(request.path, Path), 'Invalid request path %s' % request.path
-        node = request.path.node
-        assert isinstance(node, Node), 'Invalid request path node %s' % node
-
-        if request.method == HTTP_GET: request.invoker = node.get  # Retrieving
-        elif request.method == HTTP_POST: request.invoker = node.insert  # Inserting
-        elif request.method == HTTP_PUT: request.invoker = node.update  # Updating
-        elif request.method == HTTP_DELETE: request.invoker = node.delete  # Deleting
-
-        if response.allows is None: response.allows = set()
-        if node.get is not None: response.allows.add(HTTP_GET)
-        if node.insert is not None: response.allows.add(HTTP_POST)
-        if node.update is not None: response.allows.add(HTTP_PUT)
-        if node.delete is not None: response.allows.add(HTTP_DELETE)
-
-        if request.invoker is None: METHOD_NOT_AVAILABLE.set(response)
+        assert isinstance(request.node, Node), 'Invalid request node %s' % request.node
+        assert isinstance(request.node.invokers, dict) and request.node.invokers, \
+        'Invalid request node invokers %s' % request.node.invokers
+        
+        request.invoker = request.node.invokers.get(request.method)
+        if request.invoker is None:
+            if response.allows is None: response.allows = set()
+            response.allows.update(request.node.invokers)
+            METHOD_NOT_AVAILABLE.set(response)

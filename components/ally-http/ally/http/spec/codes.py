@@ -9,7 +9,7 @@ Created on Jun 30, 2011
 Contains the codes to be used for the server responses.
 '''
 
-from ally.design.processor.attribute import defines, definesIf
+from ally.design.processor.attribute import defines
 from ally.design.processor.context import Context
 
 # --------------------------------------------------------------------
@@ -27,7 +27,7 @@ class CodedHTTP(Context):
     @rtype: integer
     The HTTP status code.
     ''')
-    isSuccess = definesIf(bool, doc='''
+    isSuccess = defines(bool, doc='''
     @rtype: boolean
     True if the context is in success mode, False otherwise.
     ''')
@@ -65,7 +65,7 @@ class CodeHTTP:
         assert isinstance(context, CodedHTTP), 'Invalid context %s' % context
         context.code = self.code
         context.status = self.status
-        if CodedHTTP.isSuccess in context: context.isSuccess = self.isSuccess
+        context.isSuccess = self.isSuccess
 
 def isSuccess(status):
     '''
@@ -87,6 +87,7 @@ PATH_FOUND = CodeHTTP('OK', 200)  # HTTP code 200 OK
 
 METHOD_NOT_AVAILABLE = CodeHTTP('Method not allowed', 405)  # HTTP code 405 Method Not Allowed
 
+MISSING_SLASH = CodeHTTP('Missing trailing slash', 400)  # HTTP code 400 Bad Request
 BAD_REQUEST = CodeHTTP('Bad Request', 400)  # HTTP code 400 Bad Request
 
 HEADER_ERROR = CodeHTTP('Invalid header', 400)  # HTTP code 400 Bad Request

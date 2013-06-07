@@ -51,5 +51,3 @@ class IRightService(IEntityGetService, IEntityCRUDService):
         '''
         Provides the rights searched by the provided query.
         '''
-
-# --------------------------------------------------------------------

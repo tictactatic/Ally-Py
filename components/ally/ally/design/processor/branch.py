@@ -14,7 +14,7 @@ from .context import create
 from .execution import Processing
 from .resolvers import copyAttributes, attributesFor, extractContexts, solve, \
     merge, checkIf, reportFor
-from .spec import ContextMetaClass, IReport, IProcessor, AssemblyError, \
+from .spec import ContextMetaClass, IReport, IProcessor, IFinalizer, AssemblyError, \
     LIST_UNAVAILABLE
 from .structure import restructureResolvers, extractResolvers
 import abc
@@ -45,8 +45,8 @@ class IBranch(metaclass=abc.ABCMeta):
             The resolvers that are not part of the current resolvers but they are rather extension for the final contexts.
         @param report: IReport
             The report to be used in the registration process.
-        @return: Processing
-            The branch processing.
+        @return: Processing|None
+            The branch processing, None if the branching is not able to provide a valid processing.
         ''' 
 
 class WithAssembly(IBranch):
@@ -83,6 +83,10 @@ class WithAssembly(IBranch):
         for proc in self._assembly.processors:
             assert isinstance(proc, IProcessor), 'Invalid processor %s' % proc
             proc.register(sources, current, extensions, calls, report)
+        for proc in self._assembly.processors:
+            if isinstance(proc, IFinalizer):
+                assert isinstance(proc, IFinalizer)
+                proc.finalized(sources, current, extensions, report)
         return calls
 
 # --------------------------------------------------------------------
@@ -283,6 +287,8 @@ class Branch(WithAssembly):
         bresolvers, bextensions = {}, {}
         try: calls = self._processAssembly(bsources, bresolvers, bextensions, report)
         except: raise AssemblyError('Cannot process Branch for \'%s\'' % self.name())
+        
+        if not calls: return  # No calls for assembly
         
         try:
             uresolvers = solve(extractResolvers(bresolvers, unames, reversed=True), sourcesUsing, joined=False)

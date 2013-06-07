@@ -10,11 +10,10 @@ Provides the configurations for the processors used in handling the request.
 '''
 
 from ..ally_core.parsing_rendering import assemblyParsing
-from ..ally_core.processor import argumentsBuild, argumentsPrepare, encoding, \
-    invoking, default_charset, rendering, createDecoder, content, renderEncoder, \
-    normalizerRequest, converterRequest, normalizerResponse, converterResponse, \
-    blockIndexing, optionSlice
-from ..ally_core.resources import resourcesRoot
+from ..ally_core.processor import invoking, default_charset, rendering, createDecoder, content, renderEncoder, \
+    converterRequest, converterResponse, \
+    blockIndexing
+from ..ally_core.resources import injectorAssembly
 from ..ally_http.processor import encoderPath, contentLengthDecode, \
     contentLengthEncode, methodOverride, allowEncode, contentTypeRequestDecode, \
     contentTypeResponseEncode, methodOverrideAllow
@@ -22,28 +21,25 @@ from ally.container import ioc
 from ally.core.http.impl.processor.content_index import \
     ContentIndexEncodeHandler
 from ally.core.http.impl.processor.explain_error import ExplainErrorHandler
-from ally.core.http.impl.processor.headers.accept import AcceptDecodeHandler
 from ally.core.http.impl.processor.headers.content_disposition import \
     ContentDispositionDecodeHandler
-from ally.core.http.impl.processor.headers.content_language import \
-    ContentLanguageDecodeHandler, ContentLanguageEncodeHandler
 from ally.core.http.impl.processor.internal_error import \
     InternalDevelErrorHandler
 from ally.core.http.impl.processor.method_invoker import MethodInvokerHandler
-from ally.core.http.impl.processor.parameter import ParameterHandler
+#TODO: from ally.core.http.impl.processor.parameter import ParameterHandler
 from ally.core.http.impl.processor.parsing_multipart import \
     ParsingMultiPartHandler
-from ally.core.http.impl.processor.path_encoder_resource import \
-    ResourcePathEncoderHandler
-from ally.core.http.impl.processor.redirect import RedirectHandler
+from ally.core.http.impl.processor.path_encoder_invoker import InvokerPathEncoderHandler
+#TODO: from ally.core.http.impl.processor.redirect import RedirectHandler
 from ally.core.http.impl.processor.uri import URIHandler
 from ally.core.http.spec.codes import CODE_TO_STATUS, CODE_TO_TEXT
-from ally.core.spec.resources import ConverterPath
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.handler import Handler
 from ally.http.impl.processor.header_parameter import HeaderParameterHandler
 from ally.http.impl.processor.method_override import METHOD_OVERRIDE
 from ally.http.impl.processor.status import StatusHandler
+from ..ally_http.processor import acceptRequestDecode
+from ally.core.http.impl.processor.scheme import SchemeHandler
 
 # --------------------------------------------------------------------
 # Creating the processors used in handling the request
@@ -81,9 +77,6 @@ def root_uri_resources():
 # --------------------------------------------------------------------
 
 @ioc.entity
-def converterPath() -> ConverterPath: return ConverterPath()
-
-@ioc.entity
 def headersCustom() -> set:
     '''
     Provides the custom header names defined by processors.
@@ -113,19 +106,10 @@ def headerParameter() -> Handler:
 def contentDispositionDecode() -> Handler: return ContentDispositionDecodeHandler()
 
 @ioc.entity
-def contentLanguageDecode() -> Handler: return ContentLanguageDecodeHandler()
-
-@ioc.entity
-def acceptDecode() -> Handler: return AcceptDecodeHandler()
-
-@ioc.entity
 def methodInvoker() -> Handler: return MethodInvokerHandler()
 
 # --------------------------------------------------------------------
 # Header encoders
-
-@ioc.entity
-def contentLanguageEncode() -> Handler: return ContentLanguageEncodeHandler()
 
 @ioc.entity
 def contentIndexEncode() -> Handler:
@@ -136,17 +120,15 @@ def contentIndexEncode() -> Handler:
 # --------------------------------------------------------------------
 
 @ioc.entity
-def uri() -> Handler:
-    b = URIHandler()
-    b.resourcesRoot = resourcesRoot()
-    b.converterPath = converterPath()
-    return b
+def uri() -> Handler: return URIHandler()
 
 @ioc.entity
-def encoderPathResource() -> Handler:
-    b = ResourcePathEncoderHandler()
+def scheme() -> Handler: return SchemeHandler()
+
+@ioc.entity
+def encoderPathInvoker() -> Handler:
+    b = InvokerPathEncoderHandler()
     b.resourcesRootURI = root_uri_resources()
-    b.converterPath = converterPath()
     return b
 
 @ioc.entity
@@ -199,13 +181,6 @@ def assemblyMultiPartPopulate() -> Assembly:
     return Assembly('Multipart content')
 
 @ioc.entity
-def assemblyRedirect() -> Assembly:
-    '''
-    The assembly containing the handlers that will be used in processing a redirect.
-    '''
-    return Assembly('Redirect')
-
-@ioc.entity
 def assemblyBlocks() -> Assembly:
     '''
     The assembly containing the indexing blocks providers.
@@ -220,14 +195,20 @@ def updateHeadersCustom():
 
 @ioc.before(assemblyResources)
 def updateAssemblyResources():
-    assemblyResources().add(internalDevelError(), encoderPath(), argumentsPrepare(), uri(),
-                            encoderPathResource(), methodInvoker(), redirect(),
-                            contentTypeRequestDecode(), contentLengthDecode(), contentLanguageDecode(), acceptDecode(),
-                            rendering(), normalizerRequest(), converterRequest(), createDecoder(),
-                            normalizerResponse(), converterResponse(), encoding(), parsingMultiPart(), content(),
-                            parameter(), argumentsBuild(), optionSlice(), invoking(), renderEncoder(), status(), explainError(),
-                            contentIndexEncode(), contentTypeResponseEncode(), contentLanguageEncode(), contentLengthEncode(),
-                            allowEncode())
+    assemblyResources().add(internalDevelError(), injectorAssembly(), converterRequest(), uri(), methodInvoker(),
+                            contentTypeRequestDecode(), contentLengthDecode(), acceptRequestDecode(), rendering(),
+                            #parsingMultiPart(),
+                            content(), scheme(), invoking(), converterResponse(), encoderPath(),
+                            encoderPathInvoker(), renderEncoder(), status(), explainError(), contentIndexEncode(),
+                            contentTypeResponseEncode(), contentLengthEncode(), allowEncode()
+                            )
+    
+
+# TODO: Gabriel: add the folowing
+#        redirect(),
+#        
+#        createDecoder(),
+#        parameter(), 
     
     if allow_method_override():
         assemblyResources().add(methodOverride(), before=methodInvoker())
@@ -237,10 +218,6 @@ def updateAssemblyResources():
 @ioc.before(assemblyMultiPartPopulate)
 def updateAssemblyMultiPartPopulate():
     assemblyMultiPartPopulate().add(contentTypeRequestDecode(), contentDispositionDecode())
-
-@ioc.before(assemblyRedirect)
-def updateAssemblyRedirect():
-    assemblyRedirect().add(argumentsBuild(), invoking())
     
 @ioc.before(assemblyBlocks)
 def updateAssemblyBlocks():

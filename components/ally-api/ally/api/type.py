@@ -39,7 +39,7 @@ class Type(metaclass=abc.ABCMeta):
             If true than this type is considered of a primitive nature, meaning that is an boolean, integer,
             string, float ... .
         @param isContainable: boolean
-            If true than this type is containable in types like List and Count.
+            If true than this type is containable in types like List or Iter.
         '''
         assert isinstance(isPrimitive, bool), 'Invalid is primitive flag %s' % isPrimitive
         assert isinstance(isContainable, bool), 'Invalid is containable flag %s' % isContainable
@@ -163,7 +163,9 @@ class TypeClass(Type):
         Checks if the provided object instance is represented by this API type.
         
         @param obj: object
-                The object instance to check.
+            The object instance to check.
+        @return: boolean
+            True if the object is of this type, False otherwise.
         '''
         return isinstance(obj, self.clazz)
 
@@ -177,7 +179,7 @@ class TypeClass(Type):
         '''
         @see: Type.__eq__
         '''
-        if isinstance(other, self.__class__): return self.clazz == other.clazz
+        if other.__class__ == self.__class__: return self.clazz == other.clazz
         return False
 
     def __str__(self):
@@ -186,35 +188,8 @@ class TypeClass(Type):
         '''
         return '%s' % self.clazz.__name__
 
-class TypePercentage(Singletone, TypeClass):
-    '''
-    Provides the type for percentage values.
-    '''
-    __slots__ = ()
-
-    def __init__(self):
-        '''
-        Constructs the percentage type.
-        @see: TypeClass.__init__
-        '''
-        super().__init__(float, True)
-
 # --------------------------------------------------------------------
 # Specific types tagging creating known value that extend normal types
-
-# TODO: check if needed for automatic translation or not.
-class TypeTranslated(Singletone, TypeClass):
-    '''
-    Provides the string type that contains as a value a message that should be translated.
-    '''
-    __slots__ = ()
-
-    def __init__(self):
-        '''
-        Constructs the translated type.
-        @see: TypeClass.__init__
-        '''
-        super().__init__(str, True, True)
 
 class TypeReference(Singletone, TypeClass):
     '''
@@ -228,19 +203,6 @@ class TypeReference(Singletone, TypeClass):
         @see: TypeClass.__init__
         '''
         super().__init__(str, True, True)
-
-class TypeLocale(Singletone, TypeClass):
-    '''
-    Provides the type representing the user requested language for presentation.
-    '''
-    __slots__ = ()
-
-    def __init__(self):
-        '''
-        Constructs the front language type.
-        @see: TypeClass.__init__
-        '''
-        super().__init__(str, False, True)
 
 class TypeScheme(Singletone, TypeClass):
     '''
@@ -455,13 +417,6 @@ class Number(Uninstantiable, float):
     '''
 _classType[Number] = _classType[numbers.Number] = _classType[float] = TypeClass(numbers.Number, True)
 
-class Percentage(Uninstantiable, float):
-    '''
-    Maps the percentage numbers.
-    Only used as a class, do not create an instance.
-    '''
-_classType[Percentage] = TypePercentage()
-
 class String(Uninstantiable, str):
     '''
     Maps the string values.
@@ -493,14 +448,6 @@ _classType[DateTime] = _classType[datetime] = TypeClass(datetime, True)
 # --------------------------------------------------------------------
 # Specific types tagging creating known value that extend normal types
 
-# TODO: check if needed for automatic translation or not.
-class Translated(Uninstantiable, str):
-    '''
-    Maps the type representing the translated messages.
-    Only used as a class, do not create an instance.
-    '''
-_classType[Translated] = TypeTranslated()
-
 class Reference(Uninstantiable, str):
     '''
     Maps the type representing the reference path.
@@ -510,13 +457,6 @@ _classType[Reference] = TypeReference()
 
 # Provides the request raw content type.
 _classType[Content] = TypeClass(Content, False, False)
-
-class Locale(Uninstantiable, str):
-    '''
-    Maps the type representing the user requested locale for presentation.
-    Only used as a class, do not create an instance.
-    '''
-_classType[Locale] = TypeLocale()
 
 class Scheme(Uninstantiable, str):
     '''

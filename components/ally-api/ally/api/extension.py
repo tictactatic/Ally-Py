@@ -13,7 +13,7 @@ from .config import extension
 from collections import Iterable
 
 # --------------------------------------------------------------------
-
+#TODO: rename to IterSlice
 @extension
 class IterPart(Iterable):
     '''
@@ -24,7 +24,7 @@ class IterPart(Iterable):
     offset = int
     limit = int
 
-    def __init__(self, wrapped, total, offset=0, limit=None):
+    def __init__(self, wrapped, total, offset=None, limit=None):
         '''
         Construct the partial iterable.
         
@@ -34,10 +34,10 @@ class IterPart(Iterable):
         assert isinstance(wrapped, Iterable), 'Invalid iterable %s' % wrapped
         assert isinstance(total, int), 'Invalid total %s' % total
         assert total >= 0, 'Invalid total value %s' % total
-        assert isinstance(offset, int), 'Invalid offset %s' % offset
+        assert offset is None or isinstance(offset, int), 'Invalid offset %s' % offset
         assert limit is None or isinstance(limit, int), 'Invalid limit %s' % limit
         
-        if offset < 0: offset = 0
+        if offset is None or offset < 0: offset = 0
         elif offset > total: offset = total
         if limit is None: limit = total - offset
         elif limit > total - offset: limit = total - offset

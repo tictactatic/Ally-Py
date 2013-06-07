@@ -11,9 +11,8 @@ Provides the operator descriptors for the APIs.
 
 from ..type import typeFor, Type, TypeSupport
 from .type import TypeContainer, TypeCriteriaEntry, TypeProperty, TypeQuery
-from abc import ABCMeta # @UnusedImport
-from ally.api.operator.container import Query, Container
-from ally.api.operator.type import TypeCriteria
+from abc import ABCMeta  # @UnusedImport
+from ally.api.operator.type import TypeCriteria, TypeModelProperty, TypeModel
 from ally.exception import DevelError
 from ally.support.util_spec import IGet, IContained, ISet, IDelete
 from ally.support.util_sys import getAttrAndClass
@@ -29,8 +28,7 @@ class Reference(TypeSupport):
     '''
     Provides the property reference that is provided by the property descriptor.
     '''
-
-    __slots__ = ('_ally_ref_parent',)
+    __slots__ = ('_ally_ref_parent', '_ally_reference')
 
     def __init__(self, type, parent=None):
         '''
@@ -45,6 +43,7 @@ class Reference(TypeSupport):
         TypeSupport.__init__(self, type)
 
         self._ally_ref_parent = parent
+        self._ally_reference = {}
 
     def __getattr__(self, name):
         '''
@@ -52,13 +51,20 @@ class Reference(TypeSupport):
         
         @param name: string
             The property to get from the contained container.
+        @return: object
+            The reference for the container property.
         '''
         assert isinstance(name, str), 'Invalid name %s' % name
-        typ = self._ally_type.type
-        if isinstance(typ, TypeContainer):
-            assert isinstance(typ, TypeContainer)
-            return Reference(typ.propertyTypeFor(name), self)
-        raise AttributeError('\'%s\' object has no attribute \'%s\'' % (self.__class__.__name__, name))
+        reference = self._ally_reference.get(name)
+        if reference is None:
+            typeContainer = self._ally_type.type
+            if isinstance(typeContainer, TypeContainer):
+                assert isinstance(typeContainer, TypeContainer)
+                type = typeContainer.properties.get(name)
+                if type: reference = self._ally_reference[name] = self.__class__(type, self)
+            if reference is None:
+                raise AttributeError('\'%s\' object has no attribute \'%s\'' % (self.__class__.__name__, name))
+        return reference
 
     def __hash__(self):
         return hash(self._ally_type)
@@ -68,7 +74,7 @@ class Reference(TypeSupport):
             return self._ally_type == other._ally_type
         return False
 
-    def __repr__(self):
+    def __str__(self):
         r = []
         if self._ally_ref_parent:
             r.append(str(self._ally_ref_parent))
@@ -79,6 +85,35 @@ class Reference(TypeSupport):
         r.append(')')
         return ''.join(r)
 
+class ReferenceModel(Reference):
+    '''
+    Provides the property model reference based on @see: Reference.
+    '''
+    __slots__ = ()
+
+    def __init__(self, type, parent=None):
+        '''
+        Constructs the container property model descriptor.
+        @see: Reference.__init__
+        '''
+        assert isinstance(type, TypeModelProperty), 'Invalid property type %s' % type
+        super().__init__(type, parent)
+        
+    def __getattr__(self, name):
+        '''
+        @see: Reference.__getattr__
+        '''
+        assert isinstance(name, str), 'Invalid name %s' % name
+        reference = self._ally_reference.get(name)
+        if reference is None:
+            if self._ally_type.model:
+                assert isinstance(self._ally_type.model, TypeModel), 'Invalid model %s' % self._ally_type.model
+                type = self._ally_type.model.properties.get(name)
+                if type: reference = self._ally_reference[name] = self.__class__(type, self)
+            if reference is None:
+                raise AttributeError('\'%s\' object has no attribute \'%s\'' % (self.__class__.__name__, name))
+        return reference
+        
 # --------------------------------------------------------------------
 
 class Property(IGet, IContained, ISet, IDelete):
@@ -107,11 +142,11 @@ class Property(IGet, IContained, ISet, IDelete):
         if obj is None:
             assert self.type.parent.isOf(clazz), 'Illegal class %s, expected %s' % (clazz, self.type.parent)
             assert issubclass(clazz, ContainerSupport), 'Invalid container class %s' % clazz
-            return clazz._ally_reference.get(self.type.property)
+            return clazz._ally_reference.get(self.type.name)
         else:
             assert isinstance(obj, ContainerSupport), 'Invalid container object %s' % obj
             assert self.type.parent.isValid(obj), 'Invalid container object %s, expected %s' % (obj, self.type.parent)
-            return obj._ally_values.get(self.type.property)
+            return obj.__dict__.get(self.type.name)
 
     def __contained__(self, obj):
         '''
@@ -119,7 +154,7 @@ class Property(IGet, IContained, ISet, IDelete):
         '''
         assert isinstance(obj, ContainerSupport), 'Invalid container object %s' % obj
         assert self.type.parent.isValid(obj), 'Invalid container object %s, expected %s' % (obj, self.type.parent)
-        return self.type.property in obj._ally_values
+        return self.type.name in obj.__dict__
 
     def __set__(self, obj, value):
         '''
@@ -127,7 +162,7 @@ class Property(IGet, IContained, ISet, IDelete):
         '''
         assert isinstance(obj, ContainerSupport), 'Invalid container object %s' % obj
         assert self.type.parent.isValid(obj), 'Invalid container object %s, expected %s' % (obj, self.type.parent)
-        obj._ally_values[self.type.property] = value
+        obj.__dict__[self.type.name] = value
         assert log.debug('Success on setting value (%s) for %s', value, self) or True
 
     def __delete__(self, obj):
@@ -136,8 +171,8 @@ class Property(IGet, IContained, ISet, IDelete):
         '''
         assert isinstance(obj, ContainerSupport), 'Invalid container object %s' % obj
         assert self.type.parent.isValid(obj), 'Invalid container object %s, expected %s' % (obj, self.type.parent)
-        if self.type.property in obj._ally_values:
-            del obj._ally_values[self.type.property]
+        if self.type.name in obj.__dict__:
+            del obj.__dict__[self.type.name]
             assert log.debug('Success on removing value for %s', self) or True
 
     def __hash__(self):
@@ -153,7 +188,7 @@ class Property(IGet, IContained, ISet, IDelete):
 
 # --------------------------------------------------------------------
 
-class CriteriaEntry(TypeSupport):
+class CriteriaEntry(Reference):
     '''
     Descriptor used for defining criteria entries in a query object.
     '''
@@ -167,7 +202,7 @@ class CriteriaEntry(TypeSupport):
             The criteria entry type represented by the criteria entry descriptor.
         '''
         assert isinstance(type, TypeCriteriaEntry), 'Invalid criteria entry type %s' % type
-        TypeSupport.__init__(self, type)
+        super().__init__(type)
 
     def __get__(self, obj, clazz=None):
         '''
@@ -188,10 +223,10 @@ class CriteriaEntry(TypeSupport):
             assert isinstance(obj, QuerySupport), 'Invalid query object %s' % obj
             assert self._ally_type.parent.isValid(obj), \
             'Invalid container object %s, expected %s' % (obj, self._ally_type.parent)
-            objCrit = obj._ally_values.get(self._ally_type.name)
+            objCrit = obj.__dict__.get(self._ally_type.name)
             if objCrit is None:
-                objCrit = self._ally_type.clazz(queryObj=obj, criteriaName=self._ally_type.name)
-                obj._ally_values[self._ally_type.name] = objCrit
+                objCrit = self._ally_type.parent.clazz(queryObj=obj, criteriaName=self._ally_type.name)
+                obj.__dict__[self._ally_type.name] = objCrit
                 assert log.debug('Created criteria object for %s', self) or True
             return objCrit
 
@@ -207,7 +242,7 @@ class CriteriaEntry(TypeSupport):
         '''
         assert isinstance(obj, QuerySupport), 'Invalid container object %s' % obj
         assert self._ally_type.parent.isValid(obj), 'Invalid query object %s, expected %s' % (obj, self._ally_type.parent)
-        return self._ally_type.name in obj._ally_values
+        return self._ally_type.name in obj.__dict__
 
     def __set__(self, obj, value):
         '''
@@ -222,10 +257,9 @@ class CriteriaEntry(TypeSupport):
         assert isinstance(obj, QuerySupport), 'Invalid query object %s' % obj
         assert self._ally_type.parent.isValid(obj), \
         'Invalid container object %s, expected %s' % (obj, self._ally_type.parent)
-        main = self._ally_type.criteria.main
+        main = self._ally_type.parent.main
         if not main:
-            raise ValueError('Cannot set value for %s because the criteria %s has no main property' % 
-                             (self, self._ally_type.criteria))
+            raise ValueError('Cannot set value for %s because the %s has no main property' % (self, self._ally_type.parent))
         obj = self.__get__(obj)
         for prop in main: setattr(obj, prop, value)
 
@@ -239,34 +273,14 @@ class CriteriaEntry(TypeSupport):
         assert isinstance(obj, QuerySupport), 'Invalid query object %s' % obj
         assert self._ally_type.parent.isValid(obj), \
         'Invalid container object %s, expected %s' % (obj, self._ally_type.parent)
-        if self._ally_type.name in obj._ally_values:
-            del obj._ally_values[self._ally_type.name]
+        if self._ally_type.name in obj.__dict__:
+            del obj.__dict__[self._ally_type.name]
             assert log.debug('Success on removing value for %s', self) or True
-
-    def __getattr__(self, name):
-        '''
-        Provides the contained criteria properties.
-        
-        @param name: string
-            The property to get from the contained criteria.
-        @return: object
-            The object for name.
-        '''
-        return Reference(self._ally_type.propertyTypeFor(name), self)
-
-    def __hash__(self):
-        return hash(self._ally_type)
-
-    def __eq__(self, other):
-        if isinstance(other, self.__class__):
-            return self._ally_type == other._ally_type
-        return False
-
-    def __str__(self):
-        return str(self._ally_type)
 
 # --------------------------------------------------------------------
 
+scapa de clase si tine numa functii pentru support, nu prea au rost clasele, scapa si de _ally_values ca nu are rost
+ca oricum ii __dict__
 class ContainerSupport(metaclass=ABCMeta):
     '''
     Support class for containers.
@@ -299,7 +313,7 @@ class ContainerSupport(metaclass=ABCMeta):
         if not isinstance(typ, TypeProperty): return False
         assert isinstance(typ, TypeProperty)
         if typ.parent.isValid(self):
-            descriptor, _clazz = getAttrAndClass(self.__class__, typ.property)
+            descriptor, _clazz = getAttrAndClass(self.__class__, typ.name)
             if isinstance(descriptor, IContained):
                 assert isinstance(descriptor, IContained)
                 return descriptor.__contained__(self)

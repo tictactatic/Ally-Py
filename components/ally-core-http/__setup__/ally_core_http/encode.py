@@ -9,34 +9,26 @@ Created on Mar 8, 2013
 Provides the setup for the encode processors.
 '''
 
-from ..ally_core.encode import assemblyModelExtraEncode, \
-    extensionAttributeEncode, updateAssemblyEncode, assemblyEncode, \
-    propertyOfModelEncode, assemblyItemEncode, updateAssemblyItemEncode, \
-    assemblyPropertyEncode, updateAssemblyPropertyEncode, modelPropertyEncode, \
-    modelEncode
+from ..ally_core.encode import assemblyModelExtraEncode, updateAssemblyEncode, \
+    assemblyEncode, propertyOfModelEncode, assemblyItemEncode, \
+    updateAssemblyItemEncode, assemblyPropertyEncode, updateAssemblyPropertyEncode, \
+    modelPropertyEncode, modelEncode
 from ..ally_core.parsing_rendering import blocksDefinitions
 from ally.container import ioc
 from ally.core.http.impl.processor.encoder.accessible_paths import \
     AccessiblePathEncode
 from ally.core.http.impl.processor.encoder.model_path import \
     ModelPathAttributeEncode
-from ally.core.http.impl.processor.encoder.path_support import PathSupport, \
+from ally.core.http.impl.processor.encoder.path_support import \
     PathUpdaterSupportEncode
 from ally.core.http.impl.processor.encoder.property_of_model_path import \
     PropertyOfModelPathAttributeEncode
 from ally.core.http.impl.processor.encoder.property_reference import \
     PropertyReferenceEncode
-from ally.core.http.impl.processor.encoder.resources import ResourcesEncode
 from ally.core.http.spec.transform.index import BLOCKS_HTTP
 from ally.design.processor.handler import Handler
 
 # --------------------------------------------------------------------
-
-@ioc.entity
-def resourcesEncode() -> Handler: return ResourcesEncode()
-
-@ioc.entity
-def pathSupport() -> Handler: return PathSupport()
 
 @ioc.entity
 def pathUpdaterSupportEncode() -> Handler: return PathUpdaterSupportEncode()
@@ -57,7 +49,6 @@ def propertyOfModelPathAttributeEncode() -> Handler: return PropertyOfModelPathA
 
 @ioc.after(updateAssemblyEncode)
 def updateAssemblyEncodeWithPath():
-    assemblyEncode().add(resourcesEncode(), pathSupport(), before=extensionAttributeEncode())
     assemblyEncode().add(modelPathAttributeEncode(), before=modelPropertyEncode())
     assemblyEncode().add(pathUpdaterSupportEncode())
 
@@ -67,7 +58,7 @@ def updateAssemblyModelExtraEncodeWithPath():
    
 @ioc.after(updateAssemblyItemEncode)
 def updateAssemblyItemEncodeWithPath():
-    # assemblyItemEncode().add(modelPathAttributeEncode(), before=modelPropertyEncode())
+    assemblyItemEncode().add(modelPathAttributeEncode(), before=modelPropertyEncode())
     # TODO: Gabriel: This is a temporary fix to get the same rendering as before until we refactor the plugins
     # to return only ids.
     assemblyItemEncode().add(modelPathAttributeEncode(), before=modelEncode())

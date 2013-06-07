@@ -181,7 +181,7 @@ def solve(resolvers, other, joined=True):
         The same resolvers dictionary after solve.
     '''
     assert isinstance(resolvers, dict), 'Invalid resolvers %s' % resolvers
-    assert isinstance(other, dict), 'Invalid other resolvers %s' % resolvers
+    assert isinstance(other, dict), 'Invalid other resolvers %s' % other
     assert isinstance(joined, bool), 'Invalid joined flag %s' % joined
     
     for name, resolverOther in other.items():

@@ -15,9 +15,7 @@ from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
 from ally.http.spec.headers import HeadersRequire, HOST
 from ally.http.spec.server import IEncoderPath
-from ally.support.util import Singletone
-from collections import Iterable
-from urllib.parse import urlsplit, urlunsplit, urlencode
+from urllib.parse import urlsplit, urlunsplit
 import logging
 
 # --------------------------------------------------------------------
@@ -38,9 +36,6 @@ class Response(Context):
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    code = defines(str)
-    status = defines(int)
-    isSuccess = defines(bool)
     encoderPath = defines(IEncoderPath, doc='''
     @rtype: IEncoderPath
     The path encoder used for encoding paths that will be rendered in the response.
@@ -62,52 +57,17 @@ class EncoderPathHandler(HandlerProcessor):
         '''
         assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(response, Response), 'Invalid response %s' % response
-        if response.isSuccess is False: return  # Skip in case the response is in error
 
         host = HOST.fetch(request)
-        if host is None:
-            response.encoderPath = EncoderPathNothing()
-            assert log.debug('No host header available for URI %s', request.uri) or True
-            return
-        response.encoderPath = EncoderPathHost(request.scheme, host)
+        if host: response.encoderPath = EncoderPathHost(request.scheme, host)
+        else: assert log.debug('No host header available for URI %s', request.uri) or True
 
 # --------------------------------------------------------------------
-
-class EncoderPathNothing(Singletone, IEncoderPath):
-    '''
-    Provides no encoding for URIs.
-    '''
-    __slots__ = ()
-
-    def encode(self, path, parameters=None):
-        '''
-        @see: IEncoderPath.encode
-        '''
-        assert isinstance(path, str), 'Invalid path %s' % path
-        url = urlsplit(path)
-        assert not url.query, 'No query expected for path \'%s\'' % path
-        assert not url.fragment, 'No fragment expected for path \'%s\'' % path
-        if parameters:
-            assert isinstance(parameters, Iterable), 'Invalid parameters %s' % parameters
-            if not isinstance(parameters, list): parameters = list(parameters)
-            for name, value in parameters:
-                assert isinstance(name, str), 'Invalid parameter name %s' % name
-                assert isinstance(value, str), 'Invalid parameter value %s' % value
-            parameters = urlencode(parameters)
-        else: parameters = ''
-        return urlunsplit((url.scheme, url.netloc, url.path, parameters, ''))
-    
-    def encodePattern(self, path):
-        '''
-        @see: IEncoderPath.encodePattern
-        '''
-        raise NotImplementedError('Not need to implement, at least until now')
 
 class EncoderPathHost(IEncoderPath):
     '''
     Provides encoding host prefixing for the URI paths to be encoded in the response.
     '''
-
     __slots__ = ('_scheme', '_host')
 
     def __init__(self, scheme, host):
@@ -124,33 +84,15 @@ class EncoderPathHost(IEncoderPath):
         self._scheme = scheme
         self._host = host
 
-    def encode(self, path, parameters=None):
+    def encode(self, path):
         '''
         @see: IEncoderPath.encode
-        
-        @param parameters: Iterable(tuple(string, string))
-            A iterable of tuples containing on the first position the parameter string name and on the second the string
-            parameter value as to be represented in the request path.
         '''
         assert isinstance(path, str), 'Invalid path %s' % path
         url = urlsplit(path)
-        assert not url.query, 'No query expected for path \'%s\'' % path
-        assert not url.fragment, 'No fragment expected for path \'%s\'' % path
-        if parameters:
-            assert isinstance(parameters, Iterable), 'Invalid parameters %s' % parameters
-            if not isinstance(parameters, list): parameters = list(parameters)
-            for name, value in parameters:
-                assert isinstance(name, str), 'Invalid parameter name %s' % name
-                assert isinstance(value, str), 'Invalid parameter value %s' % value
-            parameters = urlencode(parameters)
-        else: parameters = ''
-        if url.scheme: return urlunsplit((url.scheme, url.netloc, url.path, parameters, ''))
-        if url.netloc: return urlunsplit((self._scheme, url.netloc, url.path, parameters, ''))
+
+        if url.scheme: return urlunsplit((url.scheme, url.netloc, url.path, url.query, url.fragment))
+        if url.netloc: return urlunsplit((self._scheme, url.netloc, url.path, url.query, url.fragment))
         # We just needed to append the scheme
-        return urlunsplit((self._scheme, self._host, url.path, parameters, ''))
+        return urlunsplit((self._scheme, self._host, url.path, url.query, url.fragment))
     
-    def encodePattern(self, path):
-        '''
-        @see: IEncoderPath.encodePattern
-        '''
-        raise NotImplementedError('Not need to implement, at least until now')

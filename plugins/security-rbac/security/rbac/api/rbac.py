@@ -61,7 +61,7 @@ class IRoleService(IEntityService):
         Provides the role based on a provided name.
         '''
     
-    @call(webName='Roles')
+    @call(webName='Roles') #TODO: Gabriel: remove or adjust the web name after refactoring assemblers.
     def getRoles(self, roleId:Role, offset:int=None, limit:int=None, detailed:bool=True, q:QRole=None) -> Iter(Role):
         '''
         Provides the roles searched by the provided query.

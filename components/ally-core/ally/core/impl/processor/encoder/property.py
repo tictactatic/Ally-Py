@@ -12,11 +12,10 @@ Provides the primitive properties encoder.
 from ally.api.operator.type import TypeProperty
 from ally.api.type import Iter, Type, Dict
 from ally.container.ioc import injected
-from ally.core.spec.resources import Normalizer, Converter
+from ally.core.spec.resources import Converter
 from ally.core.spec.transform.encoder import IEncoder
 from ally.core.spec.transform.render import IRender
-from ally.design.cache import CacheWeak
-from ally.design.processor.attribute import requires, defines, optional
+from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
 from collections import Iterable
@@ -40,10 +39,8 @@ class Support(Context):
     '''
     The encoder support context.
     '''
-    # ---------------------------------------------------------------- Optional
-    converter = optional(Converter)
     # ---------------------------------------------------------------- Required
-    normalizer = requires(Normalizer)
+    converter = requires(Converter)
     
 # --------------------------------------------------------------------
 
@@ -54,9 +51,7 @@ class PropertyEncode(HandlerProcessor):
     '''
     
     def __init__(self):
-        super().__init__(support=Support)
-        
-        self._cache = CacheWeak()
+        super().__init__(Support=Support)
         
     def process(self, chain, create:Create, **keyargs):
         '''
@@ -73,11 +68,7 @@ class PropertyEncode(HandlerProcessor):
         
         valueType = create.objType.type
         assert isinstance(create.name, str), 'Invalid property name %s' % create.name
-        
-        cache = self._cache.key(create.name, valueType)
-        if not cache.has: cache.value = EncoderProperty(create.name, valueType)
-            
-        create.encoder = cache.value
+        create.encoder = EncoderProperty(create.name, valueType)
 
 # --------------------------------------------------------------------
 
@@ -101,8 +92,6 @@ class EncoderProperty(IEncoder):
         '''
         assert isinstance(render, IRender), 'Invalid render %s' % render
         assert isinstance(support, Support), 'Invalid support %s' % support
-        assert isinstance(support.normalizer, Normalizer), 'Invalid normalizer %s' % support.normalizer
-        assert Support.converter in support, 'No converter available in %s' % support
         assert isinstance(support.converter, Converter), 'Invalid converter %s' % support.converter
         
         if isinstance(self.valueType, Iter):
@@ -117,5 +106,5 @@ class EncoderProperty(IEncoder):
                      for key, item in obj.items()}
         else:
             value = support.converter.asString(obj, self.valueType)
-        render.property(support.normalizer.normalize(self.name), value)
+        render.property(self.name, value)
         

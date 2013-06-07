@@ -14,7 +14,6 @@ from ally.api.type import typeFor, Iter
 from ally.container.ioc import injected
 from ally.core.spec.transform.encoder import IEncoder, ISpecifier
 from ally.core.spec.transform.render import IRender
-from ally.design.cache import CacheWeak
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.branch import Branch
@@ -24,7 +23,7 @@ from ally.design.processor.handler import HandlerBranching
 from ally.exception import DevelError
 
 # --------------------------------------------------------------------
-
+    
 class Create(Context):
     '''
     The create encoder context.
@@ -69,8 +68,6 @@ class ExtensionAttributeEncode(HandlerBranching):
         'Invalid property encode assembly %s' % self.propertyEncodeAssembly
         super().__init__(Branch(self.propertyEncodeAssembly).using(create=CreateProperty))
         
-        self._cache = CacheWeak()
-        
     def process(self, chain, propertyProcessing, create:Create, **keyargs):
         '''
         @see: HandlerBranching.process
@@ -85,31 +82,8 @@ class ExtensionAttributeEncode(HandlerBranching):
         if not isinstance(create.objType, Iter): return
         # The type is not for a collection so no extension, nothing to do, just move along
         
-        cache = self._cache.key(propertyProcessing)
-        if not cache.has: cache.value = AttributesExtension(self.processProperties, propertyProcessing)
-        
         if create.specifiers is None: create.specifiers = []
-        create.specifiers.append(cache.value)
-        
-    # ----------------------------------------------------------------
-    
-    def processProperties(self, extensionType, processing):
-        '''
-        Process the properties encoders.
-        '''
-        assert isinstance(extensionType, TypeExtension), 'Invalid extension type %s' % extensionType
-        assert isinstance(processing, Processing), 'Invalid processing %s' % processing
-        
-        cache = self._cache.key(processing, extensionType)
-        if not cache.has:
-            properties = cache.value = []
-            for propType in extensionType.propertyTypes():
-                arg = processing.execute(create=processing.ctx.create(objType=propType, name=propType.property))
-                assert isinstance(arg.create, CreateProperty), 'Invalid create property %s' % arg.create
-                if arg.create.encoder is None: raise DevelError('Cannot encode %s' % propType)
-                properties.append((propType.property, arg.create.encoder))
-        
-        return cache.value
+        create.specifiers.append(AttributesExtension(propertyProcessing))
 
 # --------------------------------------------------------------------
 
@@ -118,15 +92,14 @@ class AttributesExtension(ISpecifier):
     Implementation for a @see: ISpecifier for extension attributes types.
     '''
     
-    def __init__(self, provider, processing):
+    def __init__(self, processing):
         '''
         Construct the extension attributes.
         '''
-        assert callable(provider), 'Invalid properties provider %s' % provider
         assert isinstance(processing, Processing), 'Invalid processing %s' % processing
         
-        self.provider = provider
         self.processing = processing
+        self.propertiesByType = {}
         
     def populate(self, obj, specifications, support):
         '''
@@ -134,11 +107,21 @@ class AttributesExtension(ISpecifier):
         '''
         typeExt = typeFor(obj)
         if not typeExt or not isinstance(typeExt, TypeExtension): return  # Is not an extension object, nothing to do
+        assert isinstance(typeExt, TypeExtension)
+        
+        if typeExt not in self.propertiesByType:
+            properties = self.propertiesByType[typeExt] = []
+            for propType in typeExt.propertyTypes():
+                arg = self.processing.execute(create=self.processing.ctx.create(objType=propType, name=propType.property))
+                assert isinstance(arg.create, CreateProperty), 'Invalid create property %s' % arg.create
+                if arg.create.encoder is None: raise DevelError('Cannot encode %s' % propType)
+                properties.append((propType.property, arg.create.encoder))
+        else: properties = self.propertiesByType[typeExt]
         
         attributes = specifications.get('attributes')
         if attributes is None: attributes = specifications['attributes'] = {}
         render = RenderAttributes(attributes)
-        for name, encoder in self.provider(typeExt, self.processing):
+        for name, encoder in properties:
             assert isinstance(encoder, IEncoder), 'Invalid property encoder %s' % encoder
             objValue = getattr(obj, name)
             if objValue is None: continue

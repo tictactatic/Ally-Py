@@ -11,17 +11,22 @@ Provides the paths for properties of model.
 
 from ally.api.operator.type import TypeModel, TypeModelProperty
 from ally.container.ioc import injected
+from ally.core.http.spec.server import IEncoderPathInvoker
 from ally.core.http.spec.transform.index import NAME_BLOCK_REST, \
     ACTION_REFERENCE
-from ally.core.spec.resources import Path, Normalizer
 from ally.core.spec.transform.encoder import ISpecifier, IEncoder
-from ally.design.cache import CacheWeak
 from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
-from ally.http.spec.server import IEncoderPath
 
 # --------------------------------------------------------------------
+    
+class Node(Context):
+    '''
+    The node context.
+    '''
+    # ---------------------------------------------------------------- Required
+    invokersGet = requires(dict)
     
 class Create(Context):
     '''
@@ -41,11 +46,9 @@ class Support(Context):
     '''
     The encoder support context.
     '''
-    # ---------------------------------------------------------------- Optional
-    encoderPath = optional(IEncoderPath)
     # ---------------------------------------------------------------- Required
-    normalizer = requires(Normalizer)
-    pathsProperties = requires(dict)
+    pathValues = requires(dict)
+    encoderPathInvoker = requires(IEncoderPathInvoker)
     
 # --------------------------------------------------------------------
 
@@ -60,18 +63,19 @@ class PropertyOfModelPathAttributeEncode(HandlerProcessor):
     
     def __init__(self):
         assert isinstance(self.nameRef, str), 'Invalid reference name %s' % self.nameRef
-        super().__init__(support=Support)
+        super().__init__(Support=Support)
         
-        self._cache = CacheWeak()
-        
-    def process(self, chain, create:Create, **keyargs):
+    def process(self, chain, node:Node, create:Create, **keyargs):
         '''
         @see: HandlerProcessor.process
         
         Create the path attributes.
         '''
+        assert isinstance(node, Node), 'Invalid node %s' % node
         assert isinstance(create, Create), 'Invalid create %s' % create
         
+        if not node.invokersGet: return  # No get invokers available
+        assert isinstance(node.invokersGet, dict), 'Invalid get invokers %s' % node.invokersGet
         if Create.encoder in create and create.encoder is not None: return 
         # There is already an encoder, nothing to do.
         if not isinstance(create.objType, TypeModelProperty) or not isinstance(create.objType.type, TypeModel): return
@@ -80,12 +84,11 @@ class PropertyOfModelPathAttributeEncode(HandlerProcessor):
         modelType = create.objType.type
         assert isinstance(modelType, TypeModel)
         assert modelType.hasId(), 'Model type %s, has no id' % modelType
-        
-        cache = self._cache.key(modelType)
-        if not cache.has: cache.value = AttributesPath(self.nameRef, modelType.propertyTypeId())
+        invoker = node.invokersGet.get(modelType.propertyTypeId())
+        if invoker is None: return  # No get invoker available
         
         if create.specifiers is None: create.specifiers = []
-        create.specifiers.append(cache.value)
+        create.specifiers.append(AttributesPath(self.nameRef, modelType.propertyTypeId(), invoker))
 
 # --------------------------------------------------------------------
 
@@ -94,7 +97,7 @@ class AttributesPath(ISpecifier):
     Implementation for a @see: ISpecifier for attributes paths.
     '''
     
-    def __init__(self, nameRef, propertyType):
+    def __init__(self, nameRef, propertyType, invoker):
         '''
         Construct the paths attributes.
         '''
@@ -103,33 +106,26 @@ class AttributesPath(ISpecifier):
         
         self.nameRef = nameRef
         self.propertyType = propertyType
+        self.invoker = invoker
         
-    def populate(self, obj, specifications, support, index=None):
+    def populate(self, obj, specifications, support):
         '''
         @see: ISpecifier.populate
         '''
         assert isinstance(support, Support), 'Invalid support %s' % support
-        if not support.pathsProperties: return  # No paths for models.
+        assert isinstance(support.encoderPathInvoker, IEncoderPathInvoker), \
+        'Invalid encoder path %s' % support.encoderPathInvoker
         
-        assert isinstance(support.normalizer, Normalizer), 'Invalid normalizer %s' % support.normalizer
-        assert isinstance(support.pathsProperties, dict), 'Invalid properties paths %s' % support.pathsProperties
-        assert Support.encoderPath in support, 'No path encoder available in %s' % support
-        assert isinstance(support.encoderPath, IEncoderPath), 'Invalid path encoder %s' % support.encoderPath
-        
-        path = support.pathsProperties.get(self.propertyType)
-        if not path: return  # No path to construct attributes for.
-        assert isinstance(path, Path), 'Invalid path %s' % path
-        path.update(obj, self.propertyType)
-        if not path.isValid(): return
+        if support.pathValues is None: support.pathValues = {}
+        support.pathValues[self.propertyType] = obj
         
         attributes = specifications.get('attributes')
         if attributes is None: attributes = specifications['attributes'] = {}
         assert isinstance(attributes, dict), 'Invalid attributes %s' % attributes
-        nameRef = support.normalizer.normalize(self.nameRef)
-        attributes[nameRef] = support.encoderPath.encode(path)
+        attributes[self.nameRef] = support.encoderPathInvoker.encode(self.invoker, support.pathValues)
         
         specifications['indexBlock'] = NAME_BLOCK_REST
         indexAttributesCapture = specifications.get('indexAttributesCapture')
         if indexAttributesCapture is None: indexAttributesCapture = specifications['indexAttributesCapture'] = {}
         assert isinstance(indexAttributesCapture, dict), 'Invalid index attributes capture %s' % indexAttributesCapture
-        indexAttributesCapture[nameRef] = ACTION_REFERENCE
+        indexAttributesCapture[self.nameRef] = ACTION_REFERENCE

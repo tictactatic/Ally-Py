@@ -215,6 +215,26 @@ class IProcessor(metaclass=abc.ABCMeta):
             The report to be used in the registration process.
         '''
 
+class IFinalizer(metaclass=abc.ABCMeta):
+    '''
+    The processor finalizer specification.
+    '''
+    
+    @abc.abstractmethod
+    def finalized(self, sources, resolvers, extensions, report):
+        '''
+        The processor finalized action on the resolvers.
+        
+        @param sources: dictionary{string: IResolver}
+            The sources resolvers that have been solved by processors.
+        @param resolvers: dictionary{string: IResolver}
+            The resolvers used in creating the final contexts.
+        @param extensions: dictionary{string: IResolver}
+            The resolvers that are not part of the current resolvers but they are rather extension for the final contexts.
+        @param report: IReport
+            The report to be used in the registration process.
+        '''
+
 # --------------------------------------------------------------------
 
 class ContextMetaClass(abc.ABCMeta):

@@ -17,6 +17,7 @@ class IContained(metaclass=abc.ABCMeta):
     '''
     Provides the contained descriptor specification. This needs to be handled.
     '''
+    __slots__ = ()
 
     @abc.abstractclassmethod
     def __contained__(self, obj):
@@ -40,6 +41,7 @@ class IGet(metaclass=abc.ABCMeta):
     '''
     Provides the get descriptor specification. This is automatically handled by the python language.
     '''
+    __slots__ = ()
 
     @abc.abstractclassmethod
     def __get__(self, obj, clazz=None):
@@ -64,6 +66,7 @@ class ISet(metaclass=abc.ABCMeta):
     '''
     Provides the set descriptor specification. This is automatically handled by the python language.
     '''
+    __slots__ = ()
 
     @abc.abstractclassmethod
     def __set__(self, obj, value):
@@ -86,6 +89,7 @@ class IDelete(metaclass=abc.ABCMeta):
     '''
     Provides the delete descriptor specification. This is automatically handled by the python language.
     '''
+    __slots__ = ()
 
     @abc.abstractclassmethod
     def __delete__(self, obj):

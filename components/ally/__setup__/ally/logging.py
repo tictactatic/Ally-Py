@@ -26,7 +26,7 @@ def format():
         "%(module)s.%(funcName)s %(lineno)d: %(message)s"
         "%(levelname)-8s %(message)-100s %(name)s"
     '''
-    return '%(levelname)-8s %(message)-100s %(name)s'
+    return '%(asctime)s %(levelname)-7s %(message)s'
 
 @ioc.config
 def debug_for():

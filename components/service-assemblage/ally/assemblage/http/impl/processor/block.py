@@ -84,7 +84,7 @@ class BlockHandler(HandlerBranching):
         oblock = obtainJSON(processing, self.uri % id)
         if oblock is None: block = None
         else:
-            uri = oblock['ActionList']['href']
+            uri = oblock['actionList']['href']
             oactions = obtainJSON(processing, uri)
             
             actions = []
@@ -104,7 +104,7 @@ class BlockHandler(HandlerBranching):
         if action is not None: return action
         
         oaction = obtainJSON(processing, uri)
-        operforms = obtainJSON(processing, oaction['PerformList']['href'])
+        operforms = obtainJSON(processing, oaction['performList']['href'])
 
         performs = []
         if operforms is not None:

@@ -15,7 +15,6 @@ from functools import update_wrapper
 from inspect import isclass, isfunction
 import abc
 import re
-from abc import ABCMeta
 
 # --------------------------------------------------------------------
 
@@ -192,7 +191,7 @@ class Execution:
         assert isinstance(handler, IProxyHandler), 'Invalid handler %s' % handler
         return handler.handle(self)
 
-class ProxyMeta(MetaClassUnextendable, ABCMeta):
+class ProxyMeta(MetaClassUnextendable, abc.ABCMeta):
     '''
     Meta describing an unextedable class that also contains abstract base class metas.
     '''
@@ -215,7 +214,7 @@ class Proxy:
         self._proxy_handlers = list(handlers)
         self._proxy_calls = {}
 
-        self._ally_listeners = {} # This will allow the proxy class to be binded with listeners
+        self._ally_listeners = {}  # This will allow the proxy class to be binded with listeners
 
 class ProxyCall:
     '''
@@ -236,7 +235,7 @@ class ProxyCall:
         self.proxy = proxy
         self.proxyMethod = proxyMethod
 
-        self._ally_listeners = {} # This will allow the proxy method to be binded with listeners
+        self._ally_listeners = {}  # This will allow the proxy method to be binded with listeners
 
     def __call__(self, *args, **keyargs):
         '''
