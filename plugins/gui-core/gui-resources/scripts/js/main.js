@@ -1,7 +1,6 @@
 requirejs.config
 ({
 	baseUrl: config.content_url,
-	//urlArgs: "v=4",
 	waitSeconds: 15,
     templatePaths:
 	{

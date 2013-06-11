@@ -22,7 +22,8 @@
 		this.lib_url = this.content_url + '/{lib_core}';
 		this.lib_js_url = this.lib_url + 'scripts/js/%s';
 		this.lib_css_url = this.lib_url + 'styles/css/%s';
-
+		this.version = 2;
+		this.url_args = 'v=' + this.version;
 		// other
 		this.lib_js_urn = '{lib_core}/scripts/js/'.replace(/\/+/g, '/');
 		
@@ -46,13 +47,20 @@
 		this.guiJs = replace(this.gui('%s/scripts/js/%s'));
 		
 	};
-	</script>		
-	<script>document.write('<script data-main="'+ config.coreScripts('main') + '" src="'+ config.coreScripts('require.js') +'"><'+'/script>')</script>
+	</script>
+	<script>
+		var require = {
+			baseUrl: config.coreScripts(''),
+			urlArgs: config.url_args,
+			deps: ['main']
+		};		
+	</script>	
+	<script>document.write('<script src="'+ config.coreScripts('require.js') +'"><'+'/script>')</script>
 	<script>document.write('<style>'+
-		'@IMPORT url("'+ config.coreStyles('bootstrap.css') +'");'+
-		'@IMPORT url("'+ config.coreStyles('responsive.css') +'");'+
-		'@IMPORT url("'+ config.coreStyles('custom.css') +'");'+
-		'@IMPORT url("'+ config.coreStyles('splitter.css') +'");'+
+		'@IMPORT url("'+ config.coreStyles('bootstrap.css') + '?' + config.url_args + '");'+
+		'@IMPORT url("'+ config.coreStyles('responsive.css') + '?' + config.url_args +'");'+
+		'@IMPORT url("'+ config.coreStyles('custom.css') + '?' + config.url_args +'");'+
+		'@IMPORT url("'+ config.coreStyles('splitter.css') + '?' + config.url_args +'");'+
 	+'</style>')</script>
 	<style>
 		#area-main { margin-top: 60px } 
