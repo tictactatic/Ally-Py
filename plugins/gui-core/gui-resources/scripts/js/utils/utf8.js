@@ -1,1 +1,1 @@
-define(function(){	return {		encode: function(s) {		  return unescape(encodeURIComponent(s));		},		decode: function(s) {		  return decodeURIComponent(escape(s));		}	}});
+define(function(){    return {        encode: function(s) {            return encodeURIComponent(s);        },        decode: function(s) {            return decodeURIComponent(s);        }    }});
