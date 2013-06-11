@@ -20,18 +20,6 @@ body {
 .navbar {
 
 	.brand {
-	  /* Superdesk
-	  background: url("../../images/superdesk_logo.png") no-repeat 0px 0px;
-	  width: 104px;
-	  height: 22px;
-	  margin: 7px 20px 5px 0;
-	  padding: 0;
-	  background-size: 104px 22px;
-	  text-indent: -9999px;
-	  white-space: nowrap;
-	  overflow: hidden;
-	  */
-
 	  /* Live blog */
 	  background: url("../../images/superdesk_logo.png") no-repeat 0px 0px;
 	  width: 85px;
@@ -95,14 +83,46 @@ body {
 }
 
 .main-background-container {
-  position:relative;
+  position:absolute;
   top:0;
+  right: 0;
+  left:0;
   padding-top:@topspace;
   .box-sizing(border-box);
   height:100%;
   background: @background-main;
   overflow-y:visible;
-
+  .transition( all 0.3s ease);
+  overflow-x:hidden; 
+  &.sf-menu-open {
+    left: @sf-main-menu-width !important;
+  	.subnav-fixed {
+  		left: @sf-main-menu-width !important;
+  		right: 0 !important;
+  	}
+  }
+}
+@media screen and (max-width: 1180px) {
+	.main-background-container {
+	  &.sf-menu-open {
+	  	right: -@sf-main-menu-width !important;
+	  	.subnav-fixed {
+	  		right: -@sf-main-menu-width !important;
+	  	}
+	  }
+	}
+}
+@media screen and (max-width: 320px) { 
+	.main-background-container {
+	  &.sf-menu-open {
+	  	left: 260px !important;
+	  	right: -260px !important;
+	  	.subnav-fixed {
+	  		left: 260px !important;
+	  		right: -260px !important;
+	  	}
+	  }
+	}
 }
 
 .subnav {
@@ -134,6 +154,7 @@ body {
     border-width: 0 0 1px; /* drop the border on the fixed edges */
     .border-radius(0px);
     .box-shadow-both(inset 0 1px 0 #fff, 0 1px 5px rgba(0,0,0,.1));
+    .transition( all 0.3s ease);
 }
 
 .subnav .nav {

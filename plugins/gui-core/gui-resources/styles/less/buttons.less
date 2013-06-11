@@ -93,6 +93,11 @@
 }
 
 
+.btn.no-shadow {
+     @shadow: inset 0 1px 0 @btnDefaultInsetShadowColor;
+    .box-shadow(@shadow) !important;
+}
+
 
 // Disabled state
 .btn.disabled,
@@ -186,6 +191,10 @@
     background-color: @btnInfoColor e("\9") !important;
     border-bottom-color: @btnInfoBorder !important;
   }
+  &.no-shadow {
+     @shadow: inset 0 1px 0 @btnInfoInsetShadowColor;
+    .box-shadow(@shadow) !important;
+  }
 }
 // Warning appears are orange
 .btn-warning {
@@ -208,6 +217,10 @@
     background-color: @btnDangerColor e("\9") !important;
     border-bottom-color: @btnDangerBorder !important;
   }
+  &.no-shadow {
+     @shadow: inset 0 1px 0 @btnDangerInsetShadowColor;
+    .box-shadow(@shadow) !important;
+  }
 }
 // Success appears as green
 .btn-success {
@@ -226,6 +239,10 @@
     background-color: @btnSuccessColor e("\9") !important;
     border-bottom-color: @btnSuccessBorder !important;
   }
+  &.no-shadow {
+     @shadow: inset 0 1px 0 @btnSuccessInsetShadowColor;
+    .box-shadow(@shadow) !important;
+  }
 }
 // Info appears as a neutral blue
 .btn-info {
@@ -243,6 +260,10 @@
     background-color: @btnInfoColor !important;
     background-color: @btnInfoColor e("\9") !important;
     border-bottom-color: @btnInfoBorder !important;
+  }
+  &.no-shadow {
+     @shadow: inset 0 1px 0 @btnInfoInsetShadowColor;
+    .box-shadow(@shadow) !important;
   }
 }
 
@@ -263,6 +284,10 @@
     background-color: @btnInverseColor e("\9") !important;
     border-bottom-color: @btnInverseBorder !important;
   }
+  &.no-shadow {
+     @shadow: inset 0 1px 0 @btnInverseInsetShadowColor;
+    .box-shadow(@shadow) !important;
+  }
 }
 
 
@@ -278,6 +303,10 @@
   outline: 0;
 }
 
+
+.btn {
+
+}
 // Cross-browser Jank
 // --------------------------------------------------
 
