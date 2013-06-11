@@ -66,6 +66,11 @@ class RequestHandler:
         assert isinstance(request, RequestHTTP), 'Invalid request %s' % request
         assert isinstance(requestCnt, RequestContentHTTP), 'Invalid request content %s' % requestCnt
 
+        if RequestHTTP.clientIP in request:
+            request.clientIP = context.get('HTTP_X_FORWARDED_FOR')
+            if request.clientIP: request.clientIP = request.clientIP.split(',')[-1].strip()
+            else: request.clientIP = context.get('REMOTE_ADDR')
+
         request.scheme, request.method = context.get('wsgi.url_scheme', '').upper(), context.get('REQUEST_METHOD', '').upper()
         request.headers = {hname[self.headerPrefixLen:].replace('_', '-'):hvalue
                            for hname, hvalue in context.items() if hname.startswith(self.headerPrefix)}

@@ -39,6 +39,9 @@ class Request(respository.Request):
     The error match in case of failure.
     ''')
     # ---------------------------------------------------------------- Required
+    method = requires(str)
+    headers = requires(dict)
+    uri = requires(str)
     decoderHeader = requires(IDecoderHeader)
 
 # --------------------------------------------------------------------

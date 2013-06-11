@@ -14,7 +14,7 @@ from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessorProceed
 from ally.http.spec.server import HTTP
-from ally.support.util_io import IInputStream, writeGenerator
+from ally.support.util_io import IInputStream
 from collections import Iterable
 from http.client import HTTPConnection
 from io import BytesIO
@@ -96,7 +96,9 @@ class ForwardHTTPHandler(HandlerProcessorProceed):
         
         if requestCnt.source is not None:
             if isinstance(requestCnt.source, Iterable):
-                body = writeGenerator(requestCnt.source, BytesIO()).getvalue()
+                source = BytesIO()
+                for bytes in requestCnt.source: source.write(bytes)
+                body = source.getbuffer()
             else:
                 assert isinstance(requestCnt.source, IInputStream), 'Invalid request source %s' % requestCnt.source
                 body = requestCnt.source.read()

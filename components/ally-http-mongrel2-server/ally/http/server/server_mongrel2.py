@@ -72,10 +72,11 @@ class RequestHandler:
         assert isinstance(request, RequestHTTP), 'Invalid request %s' % request
         assert isinstance(requestCnt, RequestContentHTTP), 'Invalid request content %s' % requestCnt
         
+        if RequestHTTP.clientIP in request: request.clientIP = req.headers.pop('x-forwarded-for')
         request.scheme, request.method = self.scheme, req.headers.pop('METHOD').upper()
+        request.parameters = parse_qsl(req.headers.pop('QUERY', ''), True, False)
         request.headers = dict(req.headers)
         request.uri = req.path.lstrip('/')
-        request.parameters = parse_qsl(req.headers.pop('QUERY', ''), True, False)
         
         if isinstance(req.body, IInputStream): requestCnt.source = req.body
         else: requestCnt.source = BytesIO(req.body)

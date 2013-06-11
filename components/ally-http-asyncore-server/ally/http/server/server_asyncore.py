@@ -263,6 +263,7 @@ class RequestHandler(dispatcher, BaseHTTPRequestHandler):
         assert isinstance(request, RequestHTTP), 'Invalid request %s' % request
         assert isinstance(requestCnt, RequestContentHTTP), 'Invalid request content %s' % requestCnt
         
+        if RequestHTTP.clientIP in request: request.clientIP = self.client_address[0]
         url = urlparse(self.path)
         request.scheme, request.method = HTTP, method.upper()
         request.headers = dict(self.headers)

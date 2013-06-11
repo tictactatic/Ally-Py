@@ -9,7 +9,8 @@ Created on Jun 1, 2012
 Provides HTTP server specification.
 '''
 
-from ally.design.processor.attribute import requires, optional, defines
+from ally.design.processor.attribute import requires, optional, defines, \
+    definesIf
 from ally.design.processor.context import Context
 from ally.support.util_io import IInputStream
 from collections import Iterable
@@ -34,6 +35,10 @@ class RequestHTTP(Context):
     Context for HTTP request data. 
     '''
     # ---------------------------------------------------------------- Defined
+    clientIP = definesIf(str, doc='''
+    @rtype: string
+    The client IP that made the request.
+    ''')
     scheme = defines(str, doc='''
     @rtype: string
     The scheme URI protocol name to be used for the response.
