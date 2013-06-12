@@ -1,10 +1,10 @@
 '''
-Created on Jun 12, 2013
+Created on Apr 9, 2012
 
 @package: example user
 @copyright: 2013 Sourcefabric o.p.s.
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
-@author: Martin Saturka
+@author: Gabriel Nistor
 
 Mapping for the user type model.
 '''
@@ -24,5 +24,5 @@ class UserTypeMapped(Base, UserType):
     __table_args__ = dict(mysql_engine='InnoDB', mysql_charset='utf8')
 
     Id = Column('id', INTEGER(unsigned=True), primary_key=True)
-    Name = Column('name', String(20))
+    Name = Column('name', String(20), nullable=False, unique=True)
 

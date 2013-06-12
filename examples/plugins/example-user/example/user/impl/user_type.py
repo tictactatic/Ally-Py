@@ -1,10 +1,10 @@
 '''
-Created on Jun 12, 2013
+Created on Apr 9, 2012
 
 @package: example user
 @copyright: 2013 Sourcefabric o.p.s.
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
-@author: Martin Saturka
+@author: Gabriel Nistor
 
 Simple implementation for the user type APIs.
 '''
@@ -16,6 +16,7 @@ from ally.container.ioc import injected
 from ally.container.support import setup
 
 # --------------------------------------------------------------------
+
 @injected
 @setup(IUserTypeService, name='userTypeService')
 class UserTypeServiceAlchemy(EntityServiceAlchemy, IUserTypeService):

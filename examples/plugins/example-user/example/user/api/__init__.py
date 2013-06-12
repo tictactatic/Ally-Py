@@ -1,10 +1,10 @@
 '''
-Created on Jun 12, 2013
+Created on Mar 29, 2012
 
 @package: example user
 @copyright: 2013 Sourcefabric o.p.s.
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
-@author: Martin Saturka
+@author: Gabriel Nistor
 
 The package where all the api modules shall be found.
 '''
