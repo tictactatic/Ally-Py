@@ -10,7 +10,7 @@ The API descriptions for user type sample.
 '''
 
 from ally.api.config import query, service
-from ally.api.criteria import AsLike
+from ally.api.criteria import AsLikeOrdered
 from example.api.domain_example import modelExample
 from ally.support.api.entity import Entity, QEntity, IEntityService
 
@@ -30,7 +30,7 @@ class QUserType(QEntity):
     '''
     The user type model query object.
     '''
-    name = AsLike
+    name = AsLikeOrdered
 
 # --------------------------------------------------------------------
 
