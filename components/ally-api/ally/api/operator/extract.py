@@ -9,14 +9,12 @@ Created on Mar 16, 2012
 Provides the configuration functions.
 '''
 
-from ..type import Non, Type, Input, Iter, List, typeFor
-from .container import Call, Container, Query
-from .type import TypeContainer, TypeCriteria, TypeQuery, TypeModelProperty, \
-    TypeModel
-from ally.exception import DevelError
-from inspect import isfunction, getfullargspec
+from ..type import Non, Type, Input, Iter, typeFor
+from .type import TypeContainer, TypeCriteria, TypeQuery, TypeModel
+from ally.api.operator.type import TypeProperty, TypeOption, Call
+from ally.support.util_sys import locationStack
+from inspect import isfunction, getfullargspec, isclass
 import logging
-from ally.api.operator.type import TypeProperty, TypeOption
 
 # --------------------------------------------------------------------
 
@@ -24,117 +22,106 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
-def extractProperties(namescape):
+def inheritedTypesFrom(clazz, forType=Type):
     '''
-    Extracts the properties from the container class.
+    Extracts the inherited types for class.
     
-    @param namescape: dictionary{string, object}
-        The class namescape to extract the properties from, usually class.__dict__
-    @return: dictionary{string, Type}
-        A dictionary containing as a key the property name and as a value the property type.
+    @param clazz: class
+        The class to extract the inherited types from.
+    @param forType: class
+        The type to be extracted, the type needs to be a subclass of Type.
+    @return: list[Type]
+        A list of the extracted types.
     '''
-    properties = {}
-    for name, value in namescape.items():
-        if name.startswith('_') or isfunction(value):
-            continue
+    assert isclass(clazz), 'Invalid class %s' % clazz
+    assert issubclass(forType, Type), 'Invalid for type class %s' % forType
+
+    types = []
+    for base in clazz.__bases__:
+        type = typeFor(base)
+        if type and isinstance(type, forType): types.append(type)
+
+    return types
+
+def extractPropertiesInhertied(clazz, forType=TypeContainer):
+    '''
+    Extracts the inherited properties definitions from the class.
+    
+    @param clazz: class
+        The class to extract the inherited properties from.
+    @param forType: class
+        The inherited type to be extracted, the type needs to be a subclass of TypeContainer.
+    @return: dictionary{string, Type}
+        A inherited properties definitions dictionary containing as a key the property name and as a value the property type.
+    '''
+    assert isclass(clazz), 'Invalid class %s' % clazz
+    assert issubclass(forType, TypeContainer), 'Invalid for type class %s' % forType
+    
+    definitions = {}
+    for container in inheritedTypesFrom(clazz, forType):
+        assert isinstance(container, TypeContainer), 'Invalid container %s' % container
+        for name, prop in container.properties.items():
+            assert isinstance(prop, TypeProperty), 'Invalid property %s' % prop
+            if name not in definitions: definitions[name] = prop.type
+    return definitions
+
+def extractProperties(clazz, forType=TypeContainer):
+    '''
+    Extracts the properties definitions from the class, including the inherited definitions.
+    It will automatically remove the used definitions from the class.
+    
+    @param clazz: class
+        The class to extract the properties from.
+    @param forType: class
+        The inherited type to be extracted, the type needs to be a subclass of TypeContainer.
+    @return: dictionary{string, Type}
+        A properties definitions dictionary containing as a key the property name and as a value the property type.
+    '''
+    assert isclass(clazz), 'Invalid class %s' % clazz
+    
+    definitions = extractPropertiesInhertied(clazz, forType)
+    for name, value in list(clazz.__dict__.items()):
+        if name.startswith('_') or isfunction(value): continue
         typ = typeFor(value)
         if typ is None:
-            log.warning('Cannot extract property for class %s attribute "%s" of value %s',
-                        namescape.get('__name__'), name, value)
+            log.warn('Invalid property \'%s\' definition \'%s\' at:%s', name, value, locationStack(clazz))
         else:
-            properties[name] = typ
-
-    return properties
-
-def extractContainersFrom(classes, forType=TypeContainer):
-    '''
-    Extracts the inherited containers from the container class.
+            definitions[name] = typ
+            delattr(clazz, name)
     
-    @param classes: tuple(class)|list(class)
-        The container class to extract the containers from.
-    @param forType: class
-        The type of the container to extract the inherited containers from, the type needs to be a subclass of
-        TypeContainer.
-    @return: list[Container]
-        A list of inherited containers in the inherited oreder.
+    return definitions
+
+def extractCriterias(clazz):
     '''
-    assert isinstance(classes, (tuple, list)), 'Invalid classes %s' % classes
-    assert issubclass(forType, TypeContainer), 'Invalid for type class %s' % forType
-
-    containers = [typeFor(base) for base in classes]
-    containers = [type.container for type in containers if isinstance(type, forType)]
-
-    return containers
-
-def extractPropertiesInherited(classes, forType=TypeContainer):
-    '''
-    Extracts the inherited properties from the container class.
+    Extract the criteria's that are found in the provided class, including the inherited definitions.
+    It will automatically remove the used definitions from the class.
     
-    @param classes: tuple(class)|list(class)
-        The container class to extract the inherited properties from.
-    @param forType: class
-        The type of the container to extract the inherited properties from, the type needs to be a subclass of
-        TypeContainer.
-    @return: dictionary{string, Type}
-        A dictionary containing as a key the property name and as a value the property type.
+    @param clazz: class
+        The class to extract the criterias from.
+    @return: dictionary{string, TypeCriteria}
+        A dictionary containing as the key the criteria name and as a value the criteria type.
     '''
-    containers = extractContainersFrom(classes, forType)
-    containers.reverse()  # We reverse since the priority is from first class to last
-    properties = {}
-    for container in containers:
-        assert isinstance(container, Container)
-        properties.update(container.properties)
-    return properties
-
-# --------------------------------------------------------------------
-
-def extractCriterias(namespace):
-    '''
-    Extract the criteria's that are found in the provided query class.
+    assert isclass(clazz), 'Invalid class %s' % clazz
     
-    @param namespace: dictionary{string, object}
-        The query class namespace to extract to extract the criteria's from.
-    @return: dictionary{string, class}
-        A dictionary containing as the key the criteria name and as a value the criteria class.
-    '''
-    criterias = {}
-    for name, value in namespace.items():
-        if name.startswith('_') or isfunction(value):
-            continue
-        typ = typeFor(value)
-        if isinstance(typ, TypeCriteria):
-            assert isinstance(typ, TypeCriteria)
-            criterias[name] = typ.clazz
+    definitions = extractPropertiesInhertied(clazz, TypeQuery)
+    for name, value in list(clazz.__dict__.items()):
+        if name.startswith('_') or isfunction(value): continue
+        criteria = typeFor(value)
+        if isinstance(criteria, TypeCriteria): 
+            assert isinstance(criteria, TypeCriteria)
+            definitions[name] = criteria.clazz
+            delattr(clazz, name)
         else:
-            log.warning('Cannot extract criteria for class %s attribute "%s" of value %s',
-                        namespace.get('__name__'), name, value)
+            log.warn('Invalid criteria \'%s\' definition \'%s\' at:%s', name, value, locationStack(clazz))
+            
+    for name, typ in extractPropertiesInhertied(clazz, TypeQuery).items():
+        if not isinstance(typ, TypeCriteria): continue
+        assert isinstance(typ, TypeCriteria)
+        if name not in definitions: definitions[name] = typ.clazz
 
-    return criterias
+    return definitions
 
-def extractCriteriasInherited(classes):
-    '''
-    Extracts the inherited criteria's from the query class.
-    
-    @param classes: tuple(class)|list[class]
-        The query classes to extract the inherited criteria's from.
-    @return: dictionary{string, class}
-        A dictionary containing as a key the criteria name and as a value the criteria class.
-    '''
-    assert isinstance(classes, (tuple, list)), 'Invalid classes %s' % classes
-
-    queries = [typeFor(base) for base in classes]
-    queries = [typ.query for typ in queries if isinstance(typ, TypeQuery)]
-
-    queries.reverse()  # We reverse since the priority is from first class to last
-    criterias = {}
-    for query in queries:
-        assert isinstance(query, Query)
-        criterias.update(query.criterias)
-    return criterias
-
-# --------------------------------------------------------------------
-
-def extractOuputInput(function, types=None, modelToId=False):
+def extractInputOuput(function, types=None, modelToId=False):
     '''
     Extracts the input and output for a call based on the provided function.
     
@@ -147,8 +134,8 @@ def extractOuputInput(function, types=None, modelToId=False):
         Flag indicating that the extract should convert all inputs that are model types to their actually
         corresponding property type, used in order not to constantly provide the id property of the model when in fact
         we can deduce that the API annotation actually refers to the id and not the model.
-    @return: tuple(Type, list[Input])
-        A tuple containing on the first position the output type of the call and second the list of inputs for the call.
+    @return: tuple(list[Input], Type)
+        A tuple containing on the first position the list of inputs for the call, and second the output type of the call.
     '''
     assert isfunction(function), 'Invalid function %s' % function
     assert isinstance(modelToId, bool), 'Invalid model to id flag %s' % modelToId
@@ -174,28 +161,30 @@ def extractOuputInput(function, types=None, modelToId=False):
     typ = annotations.get('return')
     output, inputs = typeFor(Non if typ is None else typ), []
     for k, arg in enumerate(args):
-        if arg not in annotations: raise DevelError('There is no type for \'%s\'' % arg)
+        if arg not in annotations: raise Exception('There is no type for \'%s\'' % arg)
         typ = typeFor(annotations[arg])
         assert isinstance(typ, Type), 'Could not obtain a valid type for \'%s\' with %s' % (arg, annotations[arg])
         if modelToId and isinstance(typ, TypeModel):
             assert isinstance(typ, TypeModel)
-            typ = typ.propertyTypeId()
+            assert typ.propertyId, 'The model %s has not id to use' % typ
+            typ = typ.propertyId
         if k < mandatory: inputs.append(Input(arg, typ))
         else: inputs.append(Input(arg, typ, True, defaults[k - mandatory]))
     
     if keywords:
-        if keywords not in annotations: raise DevelError('There is option type for keywords \'%s\'' % keywords)
-        optionType = typeFor(annotations[keywords])
-        assert isinstance(optionType, TypeOption), 'Invalid option type for %s with %s' % (keywords, annotations[keywords])
-        option = optionType.clazz()
-        for typ in optionType.propertyTypes():
-            assert isinstance(typ, TypeProperty), 'Invalid property type %s' % typ
-            if typ.property in args:
-                raise DevelError('There is already the argument name \'%s\' cannot process options %s' % 
-                                 (typ.property, optionType))
-            inputs.append(Input(typ.property, typ, True, getattr(option, typ.property)))
+        if keywords not in annotations: raise Exception('There is option type for keywords \'%s\'' % keywords)
+        option = typeFor(annotations[keywords])
+        assert isinstance(option, TypeOption), 'Invalid option \'%s\' with %s' % (keywords, annotations[keywords])
+        obj = option.clazz()
+        for name, prop in option.properties.items():
+            assert isinstance(prop, TypeProperty), 'Invalid property type %s' % prop
+            if name in args:
+                raise Exception('There is already the argument name \'%s\' cannot process option %s' % (name, prop))
+            inputs.append(Input(name, prop, True, getattr(obj, name)))
 
-    return output, inputs
+    return inputs, output
+
+# --------------------------------------------------------------------
 
 def processGenericCall(call, generic):
     '''
@@ -225,7 +214,7 @@ def processGenericCall(call, generic):
             updated = True
         else: inputs.append(inp)
     if updated:
-        newCall = Call(call.name, call.method, output, inputs, call.hints)
+        newCall = Call(call.name, call.method, inputs, output, call.hints)
         log.info('Generic call transformation from %s to %s' % (call, newCall))
         call = newCall
     return call
@@ -246,31 +235,31 @@ def processGenericType(forType, generic):
     '''
     assert isinstance(forType, Type), 'Invalid type %s' % type
     assert isinstance(generic, dict), 'Invalid generic %s' % generic
-    newType = None
+
     if isinstance(forType, TypeProperty):
-        assert isinstance(forType, TypeModelProperty), 'Only allowed model type properties, got %s' % forType
-        assert isinstance(forType.parent, TypeContainer)
-        genericModelClass = generic.get(forType.parent.clazz)
-        if genericModelClass is not None:
-            newModelType = typeFor(genericModelClass)
-            assert newModelType is not None, 'Invalid generic model class %s, has no model type' % genericModelClass
-            newType = TypeModelProperty(newModelType, forType.property, forType.type)
+        assert isinstance(forType, TypeProperty)
+        assert isinstance(forType.parent, TypeModel), 'Only allowed model type properties, got %s' % forType
+        modelClass = generic.get(forType.parent.clazz)
+        if modelClass is not None:
+            newModel = typeFor(modelClass)
+            assert isinstance(newModel, TypeModel), 'Invalid generic model class %s, has no model type' % modelClass
+            assert forType.name in newModel.properties, 'The %s cannot be generic for %s' % (newModel, forType.parent)
+            return newModel.properties[forType.name]
     elif isinstance(forType, TypeModel):
         assert isinstance(forType, TypeModel)
-        genericModelClass = generic.get(forType.clazz)
-        if genericModelClass is not None:
-            newType = typeFor(genericModelClass)
-            assert newType is not None, 'Invalid generic model class %s, has no model type' % newType
+        modelClass = generic.get(forType.clazz)
+        if modelClass is not None:
+            newModel = typeFor(modelClass)
+            assert isinstance(newModel, TypeModel), 'Invalid generic model class %s, has no model type' % modelClass
+            return newModel
     elif isinstance(forType, TypeQuery):
         assert isinstance(forType, TypeQuery)
-        genericQueryClass = generic.get(forType.clazz)
-        if genericQueryClass is not None:
-            newType = typeFor(genericQueryClass)
-            assert newType is not None, 'Invalid generic query class %s, has no query type' % newType
+        queryClass = generic.get(forType.clazz)
+        if queryClass is not None:
+            newQuery = typeFor(queryClass)
+            assert isinstance(newQuery, TypeQuery), 'Invalid generic query class %s, has no query type' % queryClass
+            return newQuery
     elif isinstance(forType, Iter):
         assert isinstance(forType, Iter)
         itemType = processGenericType(forType.itemType, generic)
-        if itemType:
-            if isinstance(forType, List): newType = List(itemType)
-            else: newType = Iter(itemType)
-    return newType
+        if itemType: return forType.__class__(itemType)

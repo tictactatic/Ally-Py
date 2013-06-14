@@ -9,23 +9,19 @@ Created on Jan 19, 2012
 Provides the decorators used for APIs in a much easier to use form.
 '''
 
-from .operator.container import Call, Service, Criteria, Query, Model, Container
-from .operator.descriptor import Property, Reference, CriteriaEntry, \
-    ContainerSupport, CriteriaSupport, QuerySupport
+from .operator.descriptor import processWithProperties, processAsQuery, \
+    processAsService
 from .operator.extract import extractCriterias, extractProperties, \
-    extractPropertiesInherited, extractContainersFrom, extractCriteriasInherited, \
-    extractOuputInput, processGenericCall
-from .operator.type import TypeModel, TypeProperty, TypeModelProperty, \
-    TypeCriteria, TypeQuery, TypeCriteriaEntry, TypeService, TypeExtension, \
-    TypeOption, TypeOptionProperty
+    extractInputOuput, processGenericCall, inheritedTypesFrom
+from .operator.type import Call, TypeCall, TypeModel, TypeProperty, TypeCriteria, \
+    TypeQuery, TypeService, TypeExtension, TypeOption
 from .type import typeFor
-from abc import ABCMeta, abstractmethod
 from ally.api.type import List, Input
-from ally.exception import DevelError
 from ally.support.util_sys import locationStack
 from inspect import isclass, isfunction
 from re import match
 import logging
+from ally.api.operator.type import TypePropertyContainer
 
 # --------------------------------------------------------------------
 
@@ -50,8 +46,8 @@ RULE_EXTENSION_PROPERTY = ('^[a-z]{1,}[\w]*$',
 RULE_OPTION_PROPERTY = ('^[a-z]{1,}[\w]*$',
                         'The option property name needs to start with a lower case, got "%s"')
 
-RULE_CALL_PARAMETERS = ('^[a-z]{1,}[\w]*$',
-                        'The call parameter name needs to start with a lower case, got "%s", at:%s')
+RULE_CALL_ARGUMENTS = ('^[a-z]{1,}[\w]*$',
+                        'The call argument name needs to start with a lower case, got "%s", at:%s')
 # The available method actions.
 GET = 1 << 1
 INSERT = 1 << 2
@@ -109,94 +105,41 @@ def model(*args, id=None, name=None, **hints):
             assert isinstance(name, str), 'Invalid model name %s' % name
         else:
             name = clazz.__name__
-        if not match(RULE_MODEL[0], name): raise DevelError(RULE_MODEL[1] % name)
-    
-        containers = extractContainersFrom(clazz.__bases__, TypeModel)
-        if id is None:
-            for model in containers:
-                assert isinstance(model, Model)
-                if model.propertyId is not None:
-                    id = model.propertyId
-                    log.info('Inherited id \'%s\' for class %s', id, clazz)
-                    break
-            else: log.info('No id to be inherited for class %s', clazz)
-                
-        containers.reverse()  # We reverse since the priority is from first class to last
-        properties, hintsInherited = {}, {}
-        for model in containers:
-            properties.update(model.properties)
-            hintsInherited.update(model.hints)
+        if not match(RULE_MODEL[0], name): raise Exception(RULE_MODEL[1] % name)
         
-        log.info('Extracted inherited properties %s and hints %s for class %s', properties, hintsInherited, clazz)
-        
-        properties.update(extractProperties(clazz.__dict__))
-        hintsInherited.update(hints)
-        hints = hintsInherited
-
-        log.info('Extracted model properties %s and hints %s for class %s', properties, hints, clazz)
-        for prop, typ in properties.items():
-            if not match(RULE_MODEL_PROPERTY[0], prop): raise DevelError(RULE_MODEL_PROPERTY[1] % prop)
-            if not (isinstance(typ, TypeModel) or typ.isPrimitive):
-                raise DevelError('Invalid type %s for property \'%s\', only primitives or models allowed' % (typ, prop))
+        model = TypeModel(clazz, name)
     
-        replace = hints.pop('replace', None)
+        for typ in inheritedTypesFrom(clazz, TypeModel):
+            assert isinstance(typ, TypeModel)
+            if id is None and isinstance(typ.propertyId, TypeProperty):
+                assert isinstance(typ.propertyId, TypeProperty)
+                id = typ.propertyId.name
+                log.info('Inherited id \'%s\'from %s, at:%s', id, typ, locationStack(clazz))
+            model.hints.update(hitem for hitem in typ.hints.items() if hitem[0] not in model.hints)
+        
+        for name, typ in extractProperties(clazz, TypeModel).items():
+            if not match(RULE_MODEL_PROPERTY[0], name): raise Exception(RULE_MODEL_PROPERTY[1] % name)
+            if isinstance(typ, TypeModel):
+                assert isinstance(typ, TypeModel)
+                if not typ.propertyId:
+                    raise Exception('Cannot use %s for property \'%s\', because the model has no id defined' % (typ, name))
+                model.properties[name] = TypePropertyContainer(model, name, typ.propertyId, typ)
+            elif not typ.isPrimitive:
+                raise Exception('Invalid type %s for property \'%s\', only primitives or models allowed' % (typ, name))
+            else: model.properties[name] = TypeProperty(model, name, typ)
+    
         if id is not None:
             assert isinstance(id, str), 'Invalid property id %s' % id
-            assert id in properties, 'Invalid property id %s is not in model properties' % id
+            assert id in model.properties, 'Invalid property id %s is not in model properties' % id
     
-        if id is not None:
-            if isinstance(properties[id], List):
-                raise DevelError('The id cannot be a List type, got %s' % properties[id])
-            if isinstance(properties[id], TypeModel):
-                raise DevelError('The id cannot be a model reference, got %s' % properties[id])
-    
-        modelType = TypeModel(clazz, Model(properties, name, id, hints))
-        if replace:
-            assert isclass(replace), 'Invalid class %s' % replace
-            typ = typeFor(replace)
-            if not isinstance(typ, TypeModel): raise DevelError('Invalid replace class %s, not a model class' % replace)
-            if clazz.__module__ != replace.__module__:
-                raise DevelError('Replace is available only for classes in the same API module invalid replace class '
-                                 '%s for replaced class' % (replace, clazz))
-            typ.clazz = clazz
-            typ.container = modelType.container
-    
-        reference = {}
-        for prop, typ in properties.items():
-            propType = TypeModelProperty(modelType, prop)
-            reference[prop] = Reference(propType)
-            if isinstance(typ, TypeModel):
-                assert typ.container.propertyId, \
-                'A property id is required for %s in order to be used as a referenced model in %s' % (typ, modelType)
-                propType = TypeModelProperty(modelType, prop, typ.container.properties[typ.container.propertyId])
-            setattr(clazz, prop, Property(propType))
-    
-        clazz._ally_type = modelType  # This specified the detected type for the model class by using 'typeFor'
-        clazz._ally_reference = reference  # The references to be returned by the properties when used only with class
-        clazz.__new__ = ContainerSupport.__new__
-        clazz.__str__ = ContainerSupport.__str__
-        clazz.__contains__ = ContainerSupport.__contains__
-    
-        return clazz
+            model.propertyId = model.properties[id]
+            if isinstance(model.propertyId.type, List):
+                raise Exception('The id cannot be a List type, got %s' % model.propertyId.type)
+            if isinstance(model.propertyId, TypePropertyContainer):
+                raise Exception('The id cannot be a model reference, got %s' % model.propertyId.container)
+        return processWithProperties(clazz, model)
     if args: return decorator(*args)
     return decorator
-
-def alias(*args, name=None, **hints):
-    '''
-    Used for decorating classes that are used as aliases of API models. The aliases can only be used as input parameters.
-    
-    ex:
-        @alias
-        class EntityAlias(Entity):
-            !No definitions is allowed
-    
-    @param name: string|None
-        Provide a name under which the alias will be known. If not provided the name of the alias is the class name.
-    @param hints: key word arguments
-        Provides hints for the alias.
-    '''
-    # TODO: implement alias
-    return model(*args, name=name, **hints)
 
 def criteria(*args, main=None):
     '''
@@ -218,42 +161,28 @@ def criteria(*args, main=None):
         assert isclass(clazz), 'Invalid class %s' % clazz
         nonlocal main
     
-        properties = extractPropertiesInherited(clazz.__bases__, TypeCriteria)
-        log.info('Extracted criteria inherited properties %s for class %s', properties, clazz)
-        properties.update(extractProperties(clazz.__dict__))
-        log.info('Extracted criteria properties %s for class %s', properties, clazz)
-        for prop, typ in properties.items():
-            if not match(RULE_CRITERIA_PROPERTY[0], prop): raise DevelError(RULE_CRITERIA_PROPERTY[1] % prop)
+        criteria = TypeCriteria(clazz)
+        for name, typ in extractProperties(clazz, TypeCriteria).items():
+            if not match(RULE_CRITERIA_PROPERTY[0], name): raise Exception(RULE_CRITERIA_PROPERTY[1] % name)
             if not typ.isPrimitive:
-                raise DevelError('Invalid type %s for property \'%s\', only primitives allowed' % (typ, prop))
+                raise Exception('Invalid type %s for property \'%s\', only primitives allowed' % (typ, name))
+            criteria.properties[name] = TypeProperty(criteria, name, typ, isContainable=False)
     
         if main is not None:
-            if isinstance(main, str): main = [main]
+            if isinstance(main, str): main = (main,)
         else:
-            inherited = extractContainersFrom(clazz.__bases__, TypeCriteria)
-            for crt in inherited:
-                assert isinstance(crt, Criteria)
-                if crt.main:
-                    main = crt.main
+            for typ in inheritedTypesFrom(clazz, TypeCriteria):
+                assert isinstance(typ, TypeCriteria)
+                if typ.main:
+                    main = tuple(typ.main)
                     break
             else: main = ()
+        
+        for name in main:
+            assert name in criteria.properties, 'Invalid main property name \'%s\'' % name
+            criteria.main[name] = criteria.properties[name]
     
-        criteriaContainer = Criteria(properties, main)
-        criteriaType = TypeCriteria(clazz, criteriaContainer)
-    
-        reference = {}
-        for prop in criteriaContainer.properties:
-            propType = TypeProperty(criteriaType, prop, isContainable=False)
-            reference[prop] = Reference(propType)
-            setattr(clazz, prop, Property(propType))
-    
-        clazz._ally_type = criteriaType  # This specified the detected type for the model class by using 'typeFor'
-        clazz._ally_reference = reference  # The references to be returned by the properties when used only with class
-        clazz.__new__ = CriteriaSupport.__new__
-        clazz.__str__ = CriteriaSupport.__str__
-        clazz.__contains__ = CriteriaSupport.__contains__
-    
-        return clazz
+        return processWithProperties(clazz, criteria)
     if args: return decorator(*args)
     return decorator
 
@@ -270,33 +199,18 @@ def query(owner):
             
             name = OrderBy
     '''
-    queryOwner = typeFor(owner)
-    assert isinstance(queryOwner, TypeModel), 'Invalid owner %s, has no type model' % owner
+    target = typeFor(owner)
+    assert isinstance(target, TypeModel), 'Invalid owner %s, has no type model' % owner
 
     def decorator(clazz):
         assert isclass(clazz), 'Invalid class %s' % clazz
 
-        criterias = extractCriteriasInherited(clazz.__bases__)
-        log.info('Extracted inherited criterias %s for query class %s', criterias, clazz)
-        criterias.update(extractCriterias(clazz.__dict__))
-        log.info('Extracted criterias %s for query class %s', criterias, clazz)
-        for crt in criterias:
-            if not match(RULE_QUERY_CRITERIA[0], crt): raise DevelError(RULE_QUERY_CRITERIA[1] % crt)
+        query = TypeQuery(clazz, target)
+        for name, criteria in extractCriterias(clazz).items():
+            if not match(RULE_QUERY_CRITERIA[0], name): raise Exception(RULE_QUERY_CRITERIA[1] % name)
+            query.properties[name] = TypeProperty(query, name, typeFor(criteria), isContainable=False)
 
-        queryContainer = Query(criterias)
-        queryType = TypeQuery(clazz, queryContainer, queryOwner)
-
-        for crt in queryContainer.criterias:
-            critType = TypeCriteriaEntry(queryType, crt)
-            setattr(clazz, crt, CriteriaEntry(critType))
-
-        clazz._ally_type = queryType  # This specified the detected type for the model class by using 'typeFor'
-        clazz.__new__ = QuerySupport.__new__
-        clazz.__str__ = QuerySupport.__str__
-        clazz.__contains__ = QuerySupport.__contains__
-
-        return clazz
-
+        return processAsQuery(clazz, query)
     return decorator
 
 def call(*args, method=None, **hints):
@@ -347,15 +261,15 @@ def call(*args, method=None, **hints):
                 if match(regex, name):
                     method = m
                     break
-            else: raise DevelError('Cannot deduce method for function name "%s"' % name)
+            else: raise Exception('Cannot deduce method for function name "%s"' % name)
 
-        output, inputs = extractOuputInput(function, types, modelToId=method in (GET, DELETE))
+        inputs, output = extractInputOuput(function, types, modelToId=method in (GET, DELETE))
         for inp in inputs:
             assert isinstance(inp, Input), 'Invalid input %s' % inp
-            if not match(RULE_CALL_PARAMETERS[0], inp.name):
-                raise DevelError(RULE_CALL_PARAMETERS[1] % (inp.name, locationStack(function)))
-        function._ally_call = Call(name, method, output, inputs, hints)
-        return abstractmethod(function)
+            if not match(RULE_CALL_ARGUMENTS[0], inp.name):
+                raise Exception(RULE_CALL_ARGUMENTS[1] % (inp.name, locationStack(function)))
+        function._ally_call = Call(name, method, inputs, output, hints)
+        return function
 
     if function is not None: return decorator(function)
     return decorator
@@ -406,37 +320,21 @@ def service(*generic):
     def decorator(clazz):
         assert isclass(clazz), 'Invalid class %s' % clazz
     
-        calls = []
+        service = TypeService(clazz)
         for name, function in clazz.__dict__.items():
             if isfunction(function):
-                try: calls.append(function._ally_call)
-                except AttributeError: raise DevelError('No call for method at:\n%s' % locationStack(function))
+                try: service.calls[name] = TypeCall(service, function._ally_call)
+                except AttributeError: raise Exception('No call for method at:%s' % locationStack(function))
                 del function._ally_call
     
-        services = [typeFor(base) for base in clazz.__bases__]
-        services = [typ.service for typ in services if isinstance(typ, TypeService)]
-        names = {call.name for call in calls}
-        for srv in services:
-            assert isinstance(srv, Service)
-            for name, call in srv.calls.items():
-                assert isinstance(call, Call)
-                if name not in names:
-                    calls.append(processGenericCall(call, generic))
-                    names.add(name)
+        for inherited in inheritedTypesFrom(clazz, TypeService):
+            assert isinstance(inherited, TypeService)
+            for name, call in inherited.calls.items():
+                assert isinstance(call, TypeCall)
+                if name not in service.calls:
+                    service.calls[name] = TypeCall(service, processGenericCall(call.call, generic))
     
-        service = Service(calls)
-        if type(clazz) != ABCMeta:
-            attributes = dict(clazz.__dict__)
-            attributes.pop('__dict__', None)  # Removing __dict__ since is a reference to the old class dictionary.
-            attributes.pop('__weakref__', None)
-            clazz = ABCMeta(clazz.__name__, clazz.__bases__, attributes)
-        abstract = set(clazz.__abstractmethods__)
-        abstract.update(service.calls)
-        clazz.__abstractmethods__ = frozenset(abstract)
-    
-        clazz._ally_type = TypeService(clazz, service)
-        # This specified the detected type for the model class by using 'typeFor'
-        return clazz
+        return processAsService(clazz, service)
     if clazz: return decorator(clazz)
     return decorator
 
@@ -460,29 +358,15 @@ def extension(*args):
     def decorator(clazz):
         assert isclass(clazz), 'Invalid class %s' % clazz
     
-        properties = extractPropertiesInherited(clazz.__bases__, TypeExtension)
-        log.info('Extracted extension inherited properties %s for class %s', properties, clazz)
-        properties.update(extractProperties(clazz.__dict__))
-        log.info('Extracted extension properties %s for class %s', properties, clazz)
-        for prop, typ in properties.items():
-            if not match(RULE_EXTENSION_PROPERTY[0], prop): raise DevelError(RULE_EXTENSION_PROPERTY[1] % prop)
+        extension = TypeExtension(clazz)
+    
+        for name, typ in extractProperties(clazz, TypeExtension).items():
+            if not match(RULE_EXTENSION_PROPERTY[0], name): raise Exception(RULE_EXTENSION_PROPERTY[1] % name)
             if not typ.isPrimitive:
-                raise DevelError('Invalid type %s for property \'%s\', only primitives allowed' % (typ, prop))
+                raise Exception('Invalid type %s for property \'%s\', only primitives are allowed' % (typ, name))
+            extension.properties[name] = TypeProperty(extension, name, typ, isContainable=False)
     
-        extensionContainer = Container(properties)
-        extensionType = TypeExtension(clazz, extensionContainer)
-    
-        reference = {}
-        for prop in extensionContainer.properties:
-            propType = TypeProperty(extensionType, prop, isContainable=False)
-            reference[prop] = Reference(propType)
-            setattr(clazz, prop, Property(propType))
-    
-        clazz._ally_type = extensionType  # This specified the detected type for the model class by using 'typeFor'
-        clazz._ally_reference = reference  # The references to be returned by the properties when used only with class
-        clazz.__new__ = ContainerSupport.__new__
-    
-        return clazz
+        return processWithProperties(clazz, extension)
     if args: return decorator(*args)
     return decorator
 
@@ -500,29 +384,15 @@ def option(*args):
     '''
     def decorator(clazz):
         assert isclass(clazz), 'Invalid class %s' % clazz
+        
+        option = TypeOption(clazz)
     
-        properties = extractPropertiesInherited(clazz.__bases__, TypeOption)
-        log.info('Extracted option inherited properties %s for class %s', properties, clazz)
-        properties.update(extractProperties(clazz.__dict__))
-        log.info('Extracted option properties %s for class %s', properties, clazz)
-        for prop, typ in properties.items():
-            if not match(RULE_OPTION_PROPERTY[0], prop): raise DevelError(RULE_OPTION_PROPERTY[1] % prop)
+        for name, typ in extractProperties(clazz, TypeExtension).items():
+            if not match(RULE_OPTION_PROPERTY[0], name): raise Exception(RULE_OPTION_PROPERTY[1] % name)
             if not typ.isPrimitive:
-                raise DevelError('Invalid type %s for property \'%s\', only primitives allowed' % (typ, prop))
+                raise Exception('Invalid type %s for property \'%s\', only primitives are allowed' % (typ, name))
+            option.properties[name] = TypeProperty(option, name, typ, isContainable=False)
     
-        optionContainer = Container(properties)
-        optionType = TypeOption(clazz, optionContainer)
-    
-        reference = {}
-        for prop in optionContainer.properties:
-            propType = TypeOptionProperty(optionType, prop)
-            reference[prop] = Reference(propType)
-            setattr(clazz, prop, Property(propType))
-    
-        clazz._ally_type = optionType  # This specified the detected type for the model class by using 'typeFor'
-        clazz._ally_reference = reference  # The references to be returned by the properties when used only with class
-        clazz.__new__ = ContainerSupport.__new__
-    
-        return clazz
+        return processWithProperties(clazz, option)
     if args: return decorator(*args)
     return decorator

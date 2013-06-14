@@ -11,15 +11,14 @@ Provides utility methods for SQL alchemy service implementations.
 
 from ally.api.criteria import AsLike, AsOrdered, AsBoolean, AsEqual, AsDate, \
     AsTime, AsDateTime, AsRange
-from ally.api.operator.type import TypeCriteriaEntry
+from ally.api.operator.type import TypeProperty, TypeCriteria
 from ally.api.type import typeFor
 from ally.exception import InputError, Ref
 from ally.internationalization import _
-from ally.support.api.util_service import namesForQuery, namesForModel
-from ally.support.sqlalchemy.descriptor import PropertyAttribute
+from ally.support.api.util_service import namesFor
 from itertools import chain
 from sqlalchemy.exc import IntegrityError, OperationalError
-from sqlalchemy.sql.expression import _Case
+from sqlalchemy.sql.expression import ColumnElement
 
 # --------------------------------------------------------------------
 
@@ -69,10 +68,10 @@ def buildQuery(sqlQuery, query, mapped, only=None, exclude=None):
     clazz = query.__class__
 
     columns, ordered, unordered = {}, [], []
-    for name in namesForModel(mapped):
+    for name in namesFor(mapped):
         cp, name = getattr(mapped, name), name.lower()
-        if name not in columns and isinstance(cp, (PropertyAttribute, _Case)): columns[name] = cp
-    columns = {criteria:columns.get(criteria.lower()) for criteria in namesForQuery(clazz)}
+        if name not in columns and isinstance(cp, ColumnElement): columns[name] = cp
+    columns = {name:columns.get(name.lower()) for name in namesFor(clazz)}
 
     if only:
         if not isinstance(only, tuple): only = (only,)
@@ -85,10 +84,11 @@ def buildQuery(sqlQuery, query, mapped, only=None, exclude=None):
                 onlyColumns[criteria] = column
             else:
                 typ = typeFor(criteria)
-                assert isinstance(typ, TypeCriteriaEntry), 'Invalid only criteria %s' % criteria
-                column = columns.get(criteria)
+                assert isinstance(typ, TypeProperty), 'Invalid only criteria %s' % criteria
+                assert isinstance(typ.type, TypeCriteria), 'Invalid only criteria %s' % criteria
+                column = columns.get(typ.name)
                 assert column is not None, 'Invalid only criteria \'%s\' for query class %s' % (criteria, clazz)
-                onlyColumns[criteria] = column
+                onlyColumns[typ.name] = column
         columns = onlyColumns
     elif exclude:
         if not isinstance(exclude, tuple): exclude = (exclude,)
@@ -98,7 +98,8 @@ def buildQuery(sqlQuery, query, mapped, only=None, exclude=None):
                 assert column is not None, 'Invalid exclude criteria name \'%s\' for query class %s' % (criteria, clazz)
             else:
                 typ = typeFor(criteria)
-                assert isinstance(typ, TypeCriteriaEntry), 'Invalid exclude criteria %s' % criteria
+                assert isinstance(typ, TypeProperty), 'Invalid exclude criteria %s' % criteria
+                assert isinstance(typ.type, TypeCriteria), 'Invalid only criteria %s' % criteria
                 column = columns.pop(typ.name, None)
                 assert column is not None, 'Invalid exclude criteria \'%s\' for query class %s' % (criteria, clazz)
 

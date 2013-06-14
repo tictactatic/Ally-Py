@@ -99,7 +99,7 @@ def locationStack(located):
         except IOError: return '\n  Generated class "%s.%s"' % (located.__module__, located.__name__)
         return '\n  File "%s", line %i' % (getsourcefile(located), line)
     else:
-        assert isfunction(located) or ismethod(located), 'Invalid function or class %s' % located
+        assert hasattr(located, '__code__') and hasattr(located, '__name__'), 'Invalid function or class %s' % located
         return '\n  File "%s", line %i, in %s' % (located.__code__.co_filename, located.__code__.co_firstlineno,
                                                   located.__name__)
 

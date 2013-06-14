@@ -1,19 +1,19 @@
 '''
-Created on Mar 8, 2013
+Created on Jun 14, 2013
 
-@package: ally core
+@package: ally core http
 @copyright: 2011 Sourcefabric o.p.s.
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
 
-Provides the primitive properties encoder.
+Provides the simple parameters decoding.
 '''
 
 from ally.api.operator.type import TypeProperty
 from ally.api.type import Iter, Type, Dict
 from ally.container.ioc import injected
 from ally.core.spec.resources import Converter
-from ally.core.spec.transform.encdec import IEncoder
+from ally.core.spec.transform.encdec import IEncoder, IDecoder
 from ally.core.spec.transform.render import IRender
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
@@ -24,12 +24,12 @@ from collections import Iterable
 
 class Create(Context):
     '''
-    The create encoder context.
+    The create decoder context.
     '''
     # ---------------------------------------------------------------- Defined
-    encoder = defines(IEncoder, doc='''
-    @rtype: IEncoder
-    The encoder for the property.
+    decoder = defines(IDecoder, doc='''
+    @rtype: IDecoder
+    The decoder for the simple properties.
     ''')    
     # ---------------------------------------------------------------- Required
     name = requires(str)
@@ -37,15 +37,15 @@ class Create(Context):
 
 class Support(Context):
     '''
-    The encoder support context.
+    The decoder support context.
     '''
     # ---------------------------------------------------------------- Required
-    converterContent = requires(Converter)
+    converterPath = requires(Converter)
     
 # --------------------------------------------------------------------
 
 @injected
-class PropertyEncode(HandlerProcessor):
+class SimpleParametersDecode(HandlerProcessor):
     '''
     Implementation for a handler that provides the primitive properties values encoding.
     '''

@@ -9,8 +9,8 @@ Created on Jun 5, 2013
 Provides the validation for call and model hints.
 '''
 
-from ally.api.operator.container import Call
 from ally.api.operator.type import TypeModel
+from ally.api.type import Call
 from ally.design.processor.attribute import requires
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
@@ -94,7 +94,7 @@ class ValidateHintsHandler(HandlerProcessor):
                 assert isinstance(model, TypeModel), 'Invalid model %s' % model
                 
                 unknown = []
-                for hname in model.container.hints:
+                for hname in model.hints:
                     if hname not in hintsModel: unknown.append('\'%s\'' % hname)
                 if unknown:
                     location = locationStack(model.clazz)

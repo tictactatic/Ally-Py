@@ -142,7 +142,7 @@ def createEntitySetup(*classes, module=None, wire=True, dispatch=True, nameEntit
     assert callable(nameEntity), 'Invalid entity name formatter %s' % nameEntity
     
     wireClasses = []
-    for clazz in classesFrom(classes):
+    for clazz in classesFrom(classes, mandatory=False):
         try: types, _name = clazz.__ally_setup__
         except AttributeError: continue
         

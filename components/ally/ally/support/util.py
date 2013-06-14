@@ -90,7 +90,7 @@ class Referencer:
             The reference tuple.
         '''
         function = getattr(self._ally_referencer_class, name)
-        if not isfunction(function): raise AttributeError('Invalid function name \'%s\'' % name)
+        if not callable(function): raise AttributeError('Invalid function name \'%s\'' % name)
         return self._ally_referencer_class, name
 
 def ref(clazz):

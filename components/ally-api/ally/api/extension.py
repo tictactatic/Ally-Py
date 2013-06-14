@@ -51,3 +51,6 @@ class IterPart(Iterable):
 
     def __str__(self):
         return '%s[%s(%s:%s), %s]' % (self.__class__.__name__, self.total, self.offset, self.limit, self.wrapped)
+
+#TODO: temporary for rename to IterSlice
+IterSlice = IterPart

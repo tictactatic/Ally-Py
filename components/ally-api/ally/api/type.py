@@ -29,7 +29,6 @@ class Type(metaclass=abc.ABCMeta):
     '''
     The class that represents the API types used for mapping data.
     '''
-    __slots__ = ('__weakref__', 'isPrimitive', 'isContainable')
 
     def __init__(self, isPrimitive=False, isContainable=True):
         '''
@@ -88,7 +87,6 @@ class TypeNone(Singletone, Type):
     '''
     Provides the type that matches None.
     '''
-    __slots__ = ()
 
     def __init__(self):
         '''
@@ -130,7 +128,6 @@ class TypeClass(Type):
     '''
     The class that represents the API types used for mapping data.
     '''
-    __slots__ = ('clazz',)
 
     def __init__(self, clazz, isPrimitive=False, isContainable=True):
         '''
@@ -195,7 +192,6 @@ class TypeReference(Singletone, TypeClass):
     '''
     Provides the type representing a reference path.
     '''
-    __slots__ = ()
 
     def __init__(self):
         '''
@@ -208,7 +204,6 @@ class TypeScheme(Singletone, TypeClass):
     '''
     Provides the type representing the used scheme.
     '''
-    __slots__ = ()
 
     def __init__(self):
         '''
@@ -226,7 +221,6 @@ class Iter(TypeClass):
     Since the values in an iterator can only be retrieved once than this type when validating the iterator it will
     not be able to validate also the elements.
     '''
-    __slots__ = ('itemType',)
 
     def __init__(self, itemType):
         '''
@@ -274,7 +268,6 @@ class List(Iter):
     You need also to specify in the constructor what elements this list will contain.
     Unlike the iterator type the list type also validates the contained elements.
     '''
-    __slots__ = ()
 
     def __init__(self, itemType):
         '''
@@ -297,7 +290,6 @@ class Dict(TypeClass):
     Maps a dictionary of key value pairs.
     You need to specify the key type and value type.
     '''
-    __slots__ = ('keyType', 'valueType')
 
     def __init__(self, keyType, valueType):
         '''
@@ -343,7 +335,6 @@ class Input:
     '''
     Provides an input entry for a call, this is used for keeping the name and also the type of a call parameter.
     '''
-    __slots__ = ('name', 'type', 'hasDefault', 'default')
 
     def __init__(self, name, type, hasDefault=False, default=None):
         '''
@@ -388,6 +379,50 @@ class Input:
             st.append(']')
         return ''.join(st)
 
+class Call:
+    '''
+    Provides the container for a service call. This class will basically contain all the types that are involved in
+    input and output from the call.
+    '''
+
+    def __init__(self, name, method, inputs, output, hints=None):
+        '''
+        Constructs an API call that will have the provided input and output types.
+        
+        @param name: string
+            The name of the function represented by the call.
+        @param method: integer
+            The method of the call, can be one of GET, INSERT, UPDATE or DELETE constants in this module.
+        @param inputs: list[Input]|tuple(Input)
+            A list containing all the Input's of the call.
+        @param output: Type
+            The output type for the service call.
+        @param hints: dictionary{string: object}|None
+            The hints associated with the call.
+        '''
+        assert isinstance(name, str) and name.strip(), 'Provide a valid name'
+        assert isinstance(method, int), 'Invalid method %s' % method
+        assert isinstance(inputs, (list, tuple)), 'Invalid inputs %s, needs to be a list' % inputs
+        assert isinstance(output, Type), 'Invalid output type %s' % output
+        
+        if __debug__:
+            for inp in inputs: assert isinstance(inp, Input), 'Not an input %s' % input
+        if hints is not None:
+            assert isinstance(hints, dict), 'Invalid hints %s' % hints
+            if __debug__:
+                for hintn in hints: assert isinstance(hintn, str), 'Invalid hint name %s' % hintn
+        else: hints = {}
+
+        self.name = name
+        self.method = method
+        self.inputs = tuple(inputs)
+        self.output = output
+        self.hints = hints
+
+    def __str__(self):
+        inputs = [''.join(('defaulted:' if inp.hasDefault else '', inp.name, '=', str(inp.type))) for inp in self.inputs]
+        return '%s(%s)->%s' % (self.name, ', '.join(inputs), self.output)
+    
 # --------------------------------------------------------------------
 
 class Non(Uninstantiable):
@@ -484,7 +519,6 @@ class TypeSupport(metaclass=TypeSupportMeta):
     '''
     Class that provides the support for containing types.
     '''
-    __slots__ = ('_ally_type',)
 
     def __init__(self, type):
         '''

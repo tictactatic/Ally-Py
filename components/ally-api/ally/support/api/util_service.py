@@ -10,35 +10,31 @@ Provides utility methods for service implementations.
 '''
 
 from ally.api.criteria import AsBoolean, AsLike, AsEqual, AsOrdered
-from ally.api.extension import IterPart
-from ally.api.operator.container import Model
-from ally.api.operator.type import TypeQuery, TypeContainer, TypeModel
+from ally.api.extension import IterSlice
+from ally.api.operator.type import TypeContainer, TypeModel, TypeService, \
+    TypeProperty
 from ally.api.type import typeFor
 from ally.type_legacy import Iterable, Iterator
 from collections import Sized
-from inspect import isclass
 from itertools import chain
 import re
 
 # --------------------------------------------------------------------
 
-def namesForQuery(query):
+def iterateFor(container):
     '''
-    Provides the criteria names for the provided query object or class.
+    Provides the properties names and property types for the provided container object or class.
     
-    @param query: query object|class
-        The query to provide the criteria names for.
-    @return: Iterator(string)
-        The iterator containing the criteria names
+    @param container: container object|class
+        The container to provide the properties names for.
+    @return: Iterator(tuple(string, TypeProperty))
+        The iterator containing the properties names and properties types.
     '''
-    assert query is not None, 'A query object is required'
-    if not isclass(query): qclazz = query.__class__
-    else: qclazz = query
-    queryType = typeFor(qclazz)
-    assert isinstance(queryType, TypeQuery), 'Invalid query %s' % query
-    return iter(queryType.query.criterias)
+    ctype = typeFor(container)
+    assert isinstance(ctype, TypeContainer), 'Invalid container %s' % ctype
+    return ctype.properties.items()
 
-def namesForContainer(container):
+def namesFor(container):
     '''
     Provides the properties names for the provided container object or class.
     
@@ -47,12 +43,9 @@ def namesForContainer(container):
     @return: Iterator(string)
         The iterator containing the properties names
     '''
-    assert container is not None, 'A container object is required'
-    if not isclass(container): qcontainer = container.__class__
-    else: qcontainer = container
-    containerType = typeFor(qcontainer)
-    assert isinstance(containerType, TypeContainer), 'Invalid container %s' % container
-    return iter(containerType.container.properties)
+    ctype = typeFor(container)
+    assert isinstance(ctype, TypeContainer), 'Invalid query %s' % ctype
+    return iter(ctype.properties)
 
 def nameForModel(model):
     '''
@@ -63,29 +56,38 @@ def nameForModel(model):
     @return: Iterator(string)
         The iterator containing the properties names
     '''
-    assert model is not None, 'A model object is required'
-    if not isclass(model): cmodel = model.__class__
-    else: cmodel = model
-    modelType = typeFor(cmodel)
-    assert isinstance(modelType, TypeModel), 'Invalid model %s' % model
-    assert isinstance(modelType.container, Model), 'Invalid model %s' % model
-    return modelType.container.name
+    mtype = typeFor(model)
+    assert isinstance(mtype, TypeModel), 'Invalid model %s' % model
+    return mtype.name
 
-def namesForModel(model):
+def iterateCalls(service):
     '''
-    Provides the properties names for the provided model object or class.
+    Provides the calls of the service.
     
-    @param model: model object|class
-        The model to provide the properties names for.
-    @return: Iterator(string)
-        The iterator containing the properties names
+    @param service: service object|class
+        The service to provide the calls for.
+    @return: Iterator(Call)
+        The iterator containing the calls.
     '''
-    assert model is not None, 'A model object is required'
-    if not isclass(model): qmodel = model.__class__
-    else: qmodel = model
-    modelType = typeFor(qmodel)
-    assert isinstance(modelType, TypeModel), 'Invalid model %s' % model
-    return iter(modelType.container.properties)
+    stype = typeFor(service)
+    assert isinstance(stype, TypeService), 'Invalid service %s' % service
+    return (ctype.call for ctype in stype.calls.values())
+
+def isModelId(obj):
+    '''
+    Checks if the provided property is the id of a model.
+    
+    @param obj: object
+        The object to check.
+    @return: boolean
+        True if the provided type is the id of a model, False otherwise.
+    '''
+    prop = typeFor(obj)
+    if not isinstance(prop, TypeProperty): return False
+    assert isinstance(prop, TypeProperty)
+    if not isinstance(prop.parent, TypeModel): return False
+    assert isinstance(prop.parent, TypeModel)
+    return prop.parent.propertyId == prop
 
 # --------------------------------------------------------------------
 
@@ -106,11 +108,11 @@ def copy(src, dest, exclude=()):
     @raise ValueError: If the common properties are not compatible by type.
     '''
     assert src is not None, 'A source object is required'
-    clazz, properites = src.__class__, set(namesForContainer(dest))
-    for prop in namesForContainer(src):
-        if prop not in properites: continue
-        if prop in exclude: continue
-        if getattr(clazz, prop) in src: setattr(dest, prop, getattr(src, prop))
+    properites = set(namesFor(dest))
+    for name, prop in iterateFor(src):
+        if name not in properites: continue
+        if name in exclude: continue
+        if prop in src: setattr(dest, name, getattr(src, name))
     return dest
 
 # --------------------------------------------------------------------
@@ -168,48 +170,52 @@ def processQuery(collection, clazz, query, fetcher=None):
         if not isinstance(collection, list): collection = list(collection)
         return collection
     
-    qclazz = query.__class__
-
-    if fetcher: filtered = [(reference, fetcher(reference)) for reference in collection]
-    else: filtered = [(obj, fetcher(id)) for obj in collection]
+    filtered = list(collection)
+    if fetcher:
+        items = {}
+        def get(reference):
+            if reference not in items: items[reference] = fetcher(reference)
+            return items[reference]
+    else: get = lambda item: item
+    
     ordered, unordered = [], []
-    properties = {prop.lower(): prop for prop in namesForModel(clazz)}
-    for criteria in namesForQuery(qclazz):
-        prop = properties.get(criteria.lower())
-        if prop is not None and getattr(qclazz, criteria) in query:
-            crt = getattr(query, criteria)
-            if isinstance(crt, AsBoolean):
-                assert isinstance(crt, AsBoolean)
-                if AsBoolean.value in crt:
-                    filtered = [item for item in filtered if crt.value == getattr(item[1], prop)]
-            elif isinstance(crt, AsLike):
-                assert isinstance(crt, AsLike)
+    properties = {name.lower(): name for name in namesFor(clazz)}
+    for cname, criteria in iterateFor(query):
+        pname = properties.get(cname.lower())
+        if pname is not None and criteria in query:
+            cvalue = getattr(query, cname)
+            if isinstance(cvalue, AsBoolean):
+                assert isinstance(cvalue, AsBoolean)
+                if AsBoolean.value in cvalue:
+                    filtered = [item for item in filtered if cvalue.value == getattr(get(item), pname)]
+            elif isinstance(cvalue, AsLike):
+                assert isinstance(cvalue, AsLike)
                 regex = None
-                if AsLike.like in crt:
-                    if crt.like is not None: regex = likeAsRegex(crt.like, False)
-                elif AsLike.ilike in crt:
-                    if crt.ilike is not None: regex = likeAsRegex(crt.ilike, True)
+                if AsLike.like in cvalue:
+                    if cvalue.like is not None: regex = likeAsRegex(cvalue.like, False)
+                elif AsLike.ilike in cvalue:
+                    if cvalue.ilike is not None: regex = likeAsRegex(cvalue.ilike, True)
 
                 if regex is not None:
-                    filtered = ((item, getattr(item[1], prop)) for item in filtered)
+                    filtered = ((item, getattr(get(item), pname)) for item in filtered)
                     filtered = [item for item, value in filtered if value is not None and regex.match(value)]
-            elif isinstance(crt, AsEqual):
-                assert isinstance(crt, AsEqual)
-                if AsEqual.equal in crt:
-                    filtered = [item for item in filtered if crt.equal == getattr(item[1], prop)]
-            if isinstance(crt, AsOrdered):
-                assert isinstance(crt, AsOrdered)
-                if AsOrdered.ascending in crt:
-                    if AsOrdered.priority in crt and crt.priority:
-                        ordered.append((prop, crt.ascending, crt.priority))
+            elif isinstance(cvalue, AsEqual):
+                assert isinstance(cvalue, AsEqual)
+                if AsEqual.equal in cvalue:
+                    filtered = [item for item in filtered if cvalue.equal == getattr(get(item), pname)]
+            if isinstance(cvalue, AsOrdered):
+                assert isinstance(cvalue, AsOrdered)
+                if AsOrdered.ascending in cvalue:
+                    if AsOrdered.priority in cvalue and cvalue.priority:
+                        ordered.append((pname, cvalue.ascending, cvalue.priority))
                     else:
-                        unordered.append((prop, crt.ascending, None))
+                        unordered.append((pname, cvalue.ascending, None))
 
             ordered.sort(key=lambda pack: pack[2])
             for prop, asc, __ in reversed(list(chain(ordered, unordered))):
-                filtered.sort(key=lambda item: getattr(item[1], prop), reverse=not asc)
+                filtered.sort(key=lambda item: getattr(get(item), prop), reverse=not asc)
 
-    return [item[0] for item in filtered]
+    return filtered
 
 def processCollection(collection, clazz, query=None, fetcher=None, offset=0, limit=None, withTotal=False):
     '''
@@ -234,7 +240,7 @@ def processCollection(collection, clazz, query=None, fetcher=None, offset=0, lim
     collection = processQuery(collection, clazz, query, fetcher)
     total = len(collection)
     collection = trimIter(collection, total, offset, limit)
-    if withTotal: return IterPart(collection, total, offset, limit)
+    if withTotal: return IterSlice(collection, total, offset, limit)
     return collection
 
 # --------------------------------------------------------------------

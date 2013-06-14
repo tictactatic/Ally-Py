@@ -304,12 +304,14 @@ class CreateEntity:
 
 # --------------------------------------------------------------------
 
-def classesFrom(classes):
+def classesFrom(classes, mandatory=True):
     '''
     Provides the classes from the list of provided class references.
 
     @param classes: list(class|AOPClasses)|tuple(class|AOPClasses)
         The classes or class reference to pull the classes from.
+    @param mandatory: boolean
+        The loaded classes are mandatory, if an error occurs the exception should be propagated.
     @return: list[class]
         the list of classes obtained.
     '''
@@ -317,7 +319,7 @@ def classesFrom(classes):
     clazzes = []
     for clazz in classes:
         if isinstance(clazz, str) or ismodule(clazz):
-            clazzes.extend(classesIn(clazz).asList())
+            clazzes.extend(classesIn(clazz, mandatory=mandatory).asList())
         elif isclass(clazz): clazzes.append(clazz)
         elif isinstance(clazz, AOPClasses):
             assert isinstance(clazz, AOPClasses)

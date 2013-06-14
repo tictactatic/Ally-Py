@@ -9,10 +9,9 @@ Created on Mar 18, 2013
 Provides the model property encoder.
 '''
 
-from ally.api.operator.container import Model
-from ally.api.operator.type import TypeModel, TypeModelProperty
+from ally.api.operator.type import TypeModel, TypeProperty
 from ally.container.ioc import injected
-from ally.core.spec.transform.encoder import IEncoder, EncoderWithSpecifiers
+from ally.core.spec.transform.encdec import IEncoder, EncoderWithSpecifiers
 from ally.core.spec.transform.index import NAME_BLOCK
 from ally.core.spec.transform.render import IRender
 from ally.design.processor.assembly import Assembly
@@ -91,24 +90,23 @@ class ModelPropertyEncode(HandlerBranching):
         
         if create.encoder is not None: return 
         # There is already an encoder, nothing to do.
-        if not isinstance(create.objType, TypeModelProperty): return
+        prop = create.objType
+        if not isinstance(prop, TypeProperty): return
+        # The type is not for a property, nothing to do, just move along
+        assert isinstance(prop, TypeProperty)
+        if not isinstance(prop.parent, TypeModel): return
         # The type is not for a model, nothing to do, just move along
-        propType = create.objType
-        assert isinstance(propType, TypeModelProperty)
-        modelType = propType.parent
-        assert isinstance(modelType, TypeModel)
-        assert isinstance(modelType.container, Model)
+        assert isinstance(prop.parent, TypeModel)
         
         if Create.name in create and create.name: name = create.name
-        else: name = modelType.container.name
+        else: name = prop.parent.name
         if Create.specifiers in create: specifiers = create.specifiers or ()
         else: specifiers = ()
         
         if not invoker.hideProperties:
-            arg = propertyProcessing.execute(create=propertyProcessing.ctx.create(objType=propType, name=propType.property),
-                                             **keyargs)
+            arg = propertyProcessing.execute(create=propertyProcessing.ctx.create(objType=prop, name=prop.name), **keyargs)
             assert isinstance(arg.create, CreateProperty), 'Invalid create property %s' % arg.create
-            if arg.create.encoder is None: raise DevelError('Cannot encode %s' % propType)
+            if arg.create.encoder is None: raise DevelError('Cannot encode %s' % prop)
             encoder = arg.create.encoder
         else: encoder = None
         
@@ -132,12 +130,12 @@ class EncoderModelProperty(EncoderWithSpecifiers):
         self.name = name
         self.encoder = encoder
         
-    def render(self, obj, render, support):
+    def encode(self, obj, target, support):
         '''
-        @see: IEncoder.render
+        @see: IEncoder.encode
         '''
-        assert isinstance(render, IRender), 'Invalid render %s' % render
+        assert isinstance(target, IRender), 'Invalid target %s' % target
         
-        render.beginObject(self.name, **self.populate(obj, support, indexBlock=NAME_BLOCK))
-        if self.encoder: self.encoder.render(obj, render, support)
-        render.end()
+        target.beginObject(self.name, **self.populate(obj, support, indexBlock=NAME_BLOCK))
+        if self.encoder: self.encoder.encode(obj, target, support)
+        target.end()

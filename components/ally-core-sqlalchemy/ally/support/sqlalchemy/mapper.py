@@ -10,34 +10,24 @@ Provides support for SQL alchemy mapper that is able to link the alchemy with RE
 '''
 
 from abc import ABCMeta
-from ally.api.operator.container import Model
-from ally.api.operator.descriptor import ContainerSupport, Reference
-from ally.api.operator.type import TypeModel, TypeModelProperty
+from ally.api.operator.descriptor import Reference
+from ally.api.operator.type import TypeModel
 from ally.api.type import typeFor
-from ally.container.binder_op import INDEX_PROP, validateAutoId, \
-    validateRequired, validateMaxLength, validateProperty, validateManaged
+from ally.container.binder_op import INDEX_PROP
 from ally.container.impl.binder import indexAfter
 from ally.exception import Ref
 from ally.internationalization import _
-from ally.support.sqlalchemy.descriptor import PropertyAttribute, PropertyHybrid, \
-    PropertyAssociation
 from ally.support.sqlalchemy.session import openSession
-from ally.support.util_sys import getAttrAndClass
-from collections import deque
 from functools import partial
 from inspect import isclass
 from sqlalchemy import event
-from sqlalchemy.ext.associationproxy import AssociationProxy
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.ext.declarative import DeclarativeMeta, declarative_base
-from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm.mapper import Mapper
-from sqlalchemy.orm.properties import ColumnProperty
-from sqlalchemy.schema import Table, MetaData, Column, ForeignKey
+from sqlalchemy.schema import Table, MetaData, Column
 from sqlalchemy.sql.expression import Executable, ClauseElement, Join
-from sqlalchemy.types import String
 import logging
 
 # --------------------------------------------------------------------
@@ -92,9 +82,7 @@ def mapperSimple(clazz, sql, **keyargs):
     # mapped class the provided model class will not be seen as inheriting the provided mapped class
     if inherits is not None:
         assert isclass(inherits), 'Invalid class %s' % inherits
-        if __debug__:
-            assert issubclass(inherits, ContainerSupport), 'Invalid model inheritance class %s' % inherits
-            assert isinstance(inherits, MappedSupport), 'Invalid inherit class %s, is not mapped' % inherits
+        assert isinstance(inherits, MappedSupport), 'Invalid inherit class %s, is not mapped' % inherits
         bases = (inherits, clazz)
     else:
         try: Base = metadata._ally_mapper_base
@@ -133,65 +121,40 @@ class DeclarativeMetaModel(DeclarativeMeta):
     Extension for @see: DeclarativeMeta class that provides also the merging with the API model.
     '''
 
-    def __new__(cls, name, bases, namespace):
-        namespace['_ally_type'] = None  # Makes the type None in order to avoid mistakes by inheriting the type from a model
-        return DeclarativeMeta.__new__(cls, name, bases, namespace)
-
     def __init__(self, name, bases, namespace):
         assert isinstance(namespace, dict), 'Invalid namespace %s' % namespace
 
-        mapped, models = [], []
+        mappings, models = [], []
         for cls in bases:
-            typ = typeFor(cls)
-            if isinstance(typ, TypeModelMapped): mapped.append(cls)
-            elif isinstance(typ, TypeModel): models.append(cls)
+            model = typeFor(cls)
+            if isinstance(model, TypeModel):
+                if isinstance(cls, MappedSupport):
+                    if models:
+                        raise MappingError('The mapped class %s needs to be placed before %s' % (cls, ','.join(mappings)))
+                    mappings.append(model)
+                else: models.append(model)
 
-        if not mapped and not models:
+        if not models:
             assert log.debug('Cannot find any API model class for \'%s\', no merging required', name) or True
             DeclarativeMeta.__init__(self, name, bases, namespace)
             return
 
-        if len(mapped) > 1: raise MappingError('Cannot inherit more then one mapped class, got %s' % models)
+        if len(mappings) > 1:
+            raise MappingError('Cannot inherit more then one mapped class, got %s' % ','.join(str(typ) for typ in mappings))
+        if len(models) > 1:
+            raise MappingError('Cannot merge with more then one API model class, got %s' % ','.join(str(typ) for typ in models))
 
-        if len(models) > 1: raise MappingError('Cannot merge with more then one API model class, got %s' % models)
-
-        if models: typeModel = typeFor(models[0])
-        else: typeModel = None
-        if mapped:
-            if typeModel is None: typeModel = typeFor(mapped[0]).base
-        assert isinstance(typeModel, TypeModel)
-        typeModel = TypeModelMapped(self, typeModel)
-
-        self._ally_reference = {prop: Reference(TypeModelProperty(typeModel, prop, propType))
-                                for prop, propType in typeModel.container.properties.items()}
+        model = models[0]
+        assert isinstance(model, TypeModel)
+        self._ally_type = model  # Provides the TypeSupport
+        self._ally_reference = {name: Reference(prop) for name, prop in model.properties.items()}
         self._ally_listeners = {}  # Provides the BindableSupport
-        self._ally_type = typeModel  # Provides the TypeSupport
 
         DeclarativeMeta.__init__(self, name, bases, namespace)
 
-        # TODO: see if required: self.__clause_element__ = lambda: self.__table__
-
-        for prop in typeModel.container.properties:
-            if typeFor(getattr(self, prop)) != typeFor(self._ally_reference[prop]):
-                value, _class = getAttrAndClass(self, prop)
-                setattr(self, prop, value)
-
         try: mappings = self.metadata._ally_mappers
-        except AttributeError: mappings = self.metadata._ally_mappers = deque()
+        except AttributeError: mappings = self.metadata._ally_mappers = []
         mappings.append(self)
-
-    def __setattr__(self, key, value):
-        '''
-        @see: DeclarativeMeta.__setattr__
-        '''
-        if self._ally_type is not None and key in self._ally_type.container.properties:
-            typeProperty = typeFor(self._ally_reference[key])
-
-            if isinstance(value, InstrumentedAttribute): value = PropertyAttribute(typeProperty, value)
-            elif isinstance(value, hybrid_property): value = PropertyHybrid(typeProperty, value)
-            elif isinstance(value, AssociationProxy): value = PropertyAssociation(typeProperty, value)
-
-        super().__setattr__(key, value)
 
 # --------------------------------------------------------------------
 
@@ -217,55 +180,52 @@ def registerValidation(mapped, exclude=None):
     @return: Property
         The property id of the model.
     '''
-    assert isclass(mapped), 'Invalid class %s' % mapped
-    mapper, typeModel = mappingFor(mapped), typeFor(mapped)
-    assert isinstance(mapper, Mapper), 'Invalid mapped class %s' % mapped
-    assert isinstance(typeModel, TypeModel), 'Invalid model class %s' % mapped
-    assert not exclude or isinstance(exclude, (list, tuple)), 'Invalid exclude %s' % exclude
-    model = typeModel.container
-    assert isinstance(model, Model)
-
-    properties = set(model.properties)
-    for cp in mapper.iterate_properties:
-        if not isinstance(cp, ColumnProperty): continue
-
-        assert isinstance(cp, ColumnProperty)
-        if cp.key:
-            prop = cp.key
-            try: properties.remove(prop)
-            except KeyError: continue
-
-            if not (exclude and prop in exclude):
-                propRef = getattr(mapped, prop)
-                column = getattr(mapper.c, cp.key, None)
-                assert isinstance(column, Column), 'Invalid column %s' % column
-                if __debug__:
-                    propType = typeFor(propRef)
-                    assert isinstance(propType, TypeModelProperty), 'Invalid property %s with type %s' % (prop, propType)
-
-                if column.primary_key and column.autoincrement:
-                    if prop != model.propertyId:
-                        raise MappingError('The primary key is expected to be %s, but got SQL primary key for %s' % 
-                                           (model.propertyId, prop))
-                    validateAutoId(propRef)
-                elif not column.nullable:
-                    validateRequired(propRef)
-
-                if isinstance(column.type, String) and column.type.length:
-                    validateMaxLength(propRef, column.type.length)
-                if column.unique:
-                    validateProperty(propRef, partial(onPropertyUnique, mapped))
-                if column.foreign_keys:
-                    for fk in column.foreign_keys:
-                        assert isinstance(fk, ForeignKey)
-                        try: fkcol = fk.column
-                        except AttributeError:
-                            raise MappingError('Invalid foreign column for %s, maybe you are not using the meta class'
-                                               % prop)
-                        validateProperty(propRef, partial(onPropertyForeignKey, mapped, fkcol), index=INDEX_PROP_FK)
-
-    for prop in properties:
-        if not (exclude and prop in exclude): validateManaged(getattr(mapped, prop))
+    #TODO: Gabriel: Make the validation based on concrete models in such a way that the front end can use it.
+    # also get rid of binders, create better objects with more information to validate.
+    
+#    assert isclass(mapped), 'Invalid class %s' % mapped
+#    mapper, model = mappingFor(mapped), typeFor(mapped)
+#    assert isinstance(mapper, Mapper), 'Invalid mapped class %s' % mapped
+#    assert isinstance(model, TypeModel), 'Invalid model class %s' % mapped
+#    assert not exclude or isinstance(exclude, (list, tuple)), 'Invalid exclude %s' % exclude
+#
+#    properties = dict(model.properties)
+#    for cp in mapper.iterate_properties:
+#        if not isinstance(cp, ColumnProperty): continue
+#        assert isinstance(cp, ColumnProperty)
+#        if not cp.key: continue
+#        
+#        try: prop = properties.pop(cp.key)
+#        except KeyError: continue
+#        assert isinstance(prop, TypeProperty)
+#        if exclude and prop.name in exclude: continue
+#
+#        column = getattr(mapper.c, cp.key, None)
+#        assert isinstance(column, Column), 'Invalid column %s' % column
+#
+#        if column.primary_key and column.autoincrement:
+#            if prop != model.propertyId:
+#                raise MappingError('The primary key is expected to be %s, but got SQL primary key for %s' % 
+#                                   (model.propertyId, prop))
+#            validateAutoId(propRef)
+#        elif not column.nullable:
+#            validateRequired(propRef)
+#
+#        if isinstance(column.type, String) and column.type.length:
+#            validateMaxLength(propRef, column.type.length)
+#        if column.unique:
+#            validateProperty(propRef, partial(onPropertyUnique, mapped))
+#        if column.foreign_keys:
+#            for fk in column.foreign_keys:
+#                assert isinstance(fk, ForeignKey)
+#                try: fkcol = fk.column
+#                except AttributeError:
+#                    raise MappingError('Invalid foreign column for %s, maybe you are not using the meta class'
+#                                       % prop)
+#                validateProperty(propRef, partial(onPropertyForeignKey, mapped, fkcol), index=INDEX_PROP_FK)
+#
+#    for prop in properties:
+#        if not (exclude and prop in exclude): validateManaged(getattr(mapped, prop))
 
 def mappingFor(mapped):
     '''
@@ -286,7 +246,7 @@ def mappingsOf(metadata):
     
     @param metadata: MetaData
         The meta to get the mappings for.
-    @return: dictionary{class,class}
+    @return: dictionary{class: class}
         A dictionary containing as a key the model API class and as a value the mapping class for the model.
     '''
     assert isinstance(metadata, MetaData), 'Invalid meta data %s' % metadata
@@ -294,7 +254,7 @@ def mappingsOf(metadata):
     try: mappings = metadata._ally_mappers
     except AttributeError: return {}
 
-    return {typeFor(mapped).base.clazz:mapped for mapped in mappings}
+    return {typeFor(mapped).clazz: mapped for mapped in mappings}
 
 def tableFor(mapped):
     '''
@@ -302,7 +262,7 @@ def tableFor(mapped):
     
     @param mapped: class
         The mapped class.
-    @return: Rable
+    @return: Table
         The associated table.
     '''
     assert isinstance(mapped, DeclarativeMetaModel), 'Invalid mapped class %s' % mapped
@@ -423,40 +383,6 @@ def addUpdateListener(mapped, listener, before=True):
     def onUpdate(mapper, conn, target): listener(target)
     if before: event.listen(mapped.__mapper__, 'before_update', onUpdate)
     else: event.listen(mapped.__mapper__, 'after_update', onUpdate)
-
-# --------------------------------------------------------------------
-
-class TypeModelMapped(TypeModel):
-    '''
-    A @see: TypeModel extension for mapped models.
-    '''
-
-    __slots__ = ('base',)
-
-    def __init__(self, clazz, base):
-        '''
-        Construct the mapped type model based on the provided base type model.
-        
-        @param base: TypeModel
-            The base type model for this mapped model
-        '''
-        assert isinstance(base, TypeModel), 'Invalid base type model %s' % base
-        assert not isinstance(base, TypeModelMapped), 'Invalid base type model %s, is already a mapped type' % base
-        TypeModel.__init__(self, clazz, base.container)
-
-        self.base = base
-
-    def isOf(self, type):
-        '''
-        @see: Type.isOf
-        '''
-        return super().isOf(type) or self.base.isOf(type)
-
-    def isValid(self, obj):
-        '''
-        @see: Type.isValid
-        '''
-        return super().isValid(obj) or self.base.isValid(obj)
 
 # --------------------------------------------------------------------
 

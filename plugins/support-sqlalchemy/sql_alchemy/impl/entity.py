@@ -46,20 +46,18 @@ class EntitySupportAlchemy(SessionSupport):
         assert isclass(Entity), 'Invalid class %s' % Entity
         assert issubclass(Entity, api.Entity), 'Invalid entity class %s' % Entity
         assert isinstance(Entity, MappedSupport), 'Invalid mapped class %s' % Entity
-        self.modelType = typeFor(Entity)
-        assert isinstance(self.modelType, TypeModel), 'Invalid model class %s' % Entity
+        self.model = typeFor(Entity)
+        assert isinstance(self.model, TypeModel), 'Invalid model class %s' % Entity
 
-        self.model = self.modelType.container
         self.Entity = Entity
 
         if QEntity is not None:
             assert isclass(QEntity), 'Invalid class %s' % QEntity
             assert issubclass(QEntity, api.QEntity), 'Invalid query entity class %s' % QEntity
-            self.queryType = typeFor(QEntity)
-            assert isinstance(self.queryType, TypeQuery), 'Invalid query class %s' % QEntity
-            self.query = self.queryType.query
+            self.query = typeFor(QEntity)
+            assert isinstance(self.query, TypeQuery), 'Invalid query class %s' % QEntity
         else:
-            self.query = self.queryType = None
+            self.query = None
         self.QEntity = QEntity
 
     def _getAll(self, filter=None, query=None, offset=None, limit=None, sql=None):
@@ -85,7 +83,7 @@ class EntitySupportAlchemy(SessionSupport):
         if filter is not None: sql = sql.filter(filter)
         if query:
             assert self.QEntity, 'No query provided for the entity service'
-            assert self.queryType.isValid(query), 'Invalid query %s, expected %s' % (query, self.QEntity)
+            assert self.query.isValid(query), 'Invalid query %s, expected %s' % (query, self.QEntity)
             sql = buildQuery(sql, query, self.Entity)
         sql = buildLimits(sql, offset, limit)
         return sql.all()
@@ -112,7 +110,7 @@ class EntitySupportAlchemy(SessionSupport):
         if filter is not None: sql = sql.filter(filter)
         if query:
             assert self.QEntity, 'No query provided for the entity service'
-            assert self.queryType.isValid(query), 'Invalid query %s, expected %s' % (query, self.QEntity)
+            assert self.query.isValid(query), 'Invalid query %s, expected %s' % (query, self.QEntity)
             sql = buildQuery(sql, query, self.Entity)
         sqlLimit = buildLimits(sql, offset, limit)
         if limit == 0: return (), sql.count()
@@ -170,7 +168,7 @@ class EntityCRUDServiceAlchemy(EntitySupportAlchemy):
         '''
         @see: IEntityCRUDService.insert
         '''
-        assert self.modelType.isValid(entity), 'Invalid entity %s, expected %s' % (entity, self.Entity)
+        assert self.model.isValid(entity), 'Invalid entity %s, expected %s' % (entity, self.Entity)
         entityDb = copy(entity, self.Entity())
         try:
             self.session().add(entityDb)
@@ -183,7 +181,7 @@ class EntityCRUDServiceAlchemy(EntitySupportAlchemy):
         '''
         @see: IEntityCRUDService.update
         '''
-        assert self.modelType.isValid(entity), 'Invalid entity %s, expected %s' % (entity, self.Entity)
+        assert self.model.isValid(entity), 'Invalid entity %s, expected %s' % (entity, self.Entity)
         assert isinstance(entity.Id, int), 'Invalid entity %s, with id %s' % (entity, entity.Id)
         entityDb = self.session().query(self.Entity).get(entity.Id)
         if not entityDb: raise InputError(Ref(_('Unknown id'), ref=self.Entity.Id))
@@ -198,7 +196,7 @@ class EntityCRUDServiceAlchemy(EntitySupportAlchemy):
             return self.session().query(self.Entity).filter(self.Entity.Id == id).delete() > 0
         except OperationalError:
             assert log.debug('Could not delete entity %s with id \'%s\'', self.Entity, id, exc_info=True) or True
-            raise InputError(Ref(_('Cannot delete because is in use'), model=self.model))
+            raise InputError(Ref(_('Cannot delete because is in use'), ref=self.Entity))
 
 class EntityGetCRUDServiceAlchemy(EntityGetServiceAlchemy, EntityCRUDServiceAlchemy):
     '''

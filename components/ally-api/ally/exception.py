@@ -10,8 +10,7 @@ Provides the exceptions that are used in communicating issues in the API.
 The internal errors (the ones that are made by the implementation and not data) are Exception.
 '''
 
-from .api.operator.container import Model
-from .api.operator.type import TypeModelProperty, TypeModel
+from .api.operator.type import TypeProperty, TypeModel
 from .api.type import typeFor
 
 # --------------------------------------------------------------------
@@ -68,34 +67,29 @@ class Ref:
     Maps a reference for an exception message.
     '''
 
-    def __init__(self, message, model=None, property=None, ref=None):
+    def __init__(self, message, ref=None):
         '''
         Provides a wrapping of the message which will be used as a key.
         
         @param message: string
             A message to be referenced.
-        @param model: Model|None 
-            The model associated with the message.
-        @param property: string|None 
-            The property associated with the message.
-        @param ref: TypeModelProperty|TypeModel|None 
+        @param ref: TypeProperty|TypeModel|None 
             The property type associated with the message.
         '''
         assert isinstance(message, str), 'Invalid message %s' % message
-        assert not model or isinstance(model, Model), 'Invalid model %s' % model
-        assert not property or isinstance(property, str), 'Invalid property %s' % property
         if ref:
             typ = typeFor(ref)
-            if isinstance(typ, TypeModelProperty):
-                assert isinstance(typ, TypeModelProperty)
-                self.model = typ.container.name
-                self.property = typ.property
+            if isinstance(typ, TypeProperty):
+                assert isinstance(typ, TypeProperty)
+                assert isinstance(typ.parent, TypeModel)
+                self.model = typ.parent.name
+                self.property = typ.name
             elif isinstance(typ, TypeModel):
                 assert isinstance(typ, TypeModel)
-                self.model = typ.container.name
+                self.model = typ.name
                 self.property = None
             else: raise Exception('Invalid reference %s, cannot extract any type' % ref)
         else:
-            self.model = model.name if model else None
-            self.property = property
+            self.model = None
+            self.property = None
         self.message = message

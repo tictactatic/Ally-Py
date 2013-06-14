@@ -9,7 +9,7 @@ Created on May 24, 2013
 Provides the paths based on id property inputs.
 '''
 
-from ally.api.operator.type import TypeModelProperty, TypeModel
+from ally.api.operator.type import TypeProperty, TypeModel
 from ally.api.type import Input
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context, pushIn, cloneCollection
@@ -66,8 +66,8 @@ class ElementInput(Context):
     @rtype: TypeModel
     The model represented by the element.
     ''')
-    property = defines(TypeModelProperty, doc='''
-    @rtype: TypeModelProperty
+    property = defines(TypeProperty, doc='''
+    @rtype: TypeProperty
     The property represented by the element.
     ''')
     
@@ -103,7 +103,7 @@ class PathInputHandler(HandlerProcessor):
             for inp in invoker.inputs:
                 assert isinstance(inp, Input), 'Invalid input %s' % inp
                 
-                if isinstance(inp.type, TypeModelProperty):
+                if isinstance(inp.type, TypeProperty):
                     if inp.type in properties:
                         log.error('Cannot use because the %s should appear at most once, try using an alias '
                                   'on one of the annotations, at:%s', inp.type, invoker.location)
@@ -130,8 +130,8 @@ class PathInputHandler(HandlerProcessor):
                 for invoker, inputs in elementsFor:
                     if invoker.path is None: invoker.path = []
                     for inp in inputs:
-                        assert isinstance(inp.type, TypeModelProperty)
-                        invoker.path.append(Element(name=inp.type.parent.container.name, model=inp.type.parent))
+                        assert isinstance(inp.type, TypeProperty)
+                        invoker.path.append(Element(name=inp.type.parent.name, model=inp.type.parent))
                         invoker.path.append(Element(property=inp.type))
                         
         register.invokers.extend(ninvokers)

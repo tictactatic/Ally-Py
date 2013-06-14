@@ -17,9 +17,9 @@ if True:
 # --------------------------------------------------------------------
 
 from ally.container import ioc
-from ally.core.impl.processor.text_conversion import NormalizerResponseHandler, \
-    ConverterResponseHandler, NormalizerRequestHandler, ConverterRequestHandler
-from ally.core.spec.resources import Normalizer, Converter
+from ally.core.impl.processor.text_conversion import ConverterResponseHandler, \
+    ConverterRequestHandler
+from ally.core.spec.resources import Converter
 from ally.design.processor.attribute import defines
 from ally.design.processor.context import Context, create
 from ally.design.processor.execution import Chain
@@ -29,7 +29,6 @@ import unittest
 # --------------------------------------------------------------------
 
 class Content(Context):
-    normalizer = defines(Normalizer)
     converter = defines(Converter)
 ctx = create(resolversFor(contexts=dict(Content=Content)))
 Content = ctx['Content']
@@ -40,18 +39,7 @@ class TestTextConversion(unittest.TestCase):
 
     def testTextConversion(self):
         handlers = []
-        normalizer = Normalizer()
         converter = Converter()
-        
-        handler = NormalizerRequestHandler()
-        handler.normalizer = normalizer
-        ioc.initialize(handler)
-        handlers.append(handler)
-        
-        handler = NormalizerResponseHandler()
-        handler.normalizer = normalizer
-        ioc.initialize(handler)
-        handlers.append(handler)
         
         handler = ConverterRequestHandler()
         handler.converter = converter
@@ -67,9 +55,6 @@ class TestTextConversion(unittest.TestCase):
         def callProcess(chain, **keyargs):
             for handler in handlers: handler.process(chain, **keyargs)
         Chain(callProcess, False, request=request, response=response).execute()
-
-        self.assertEqual(normalizer, request.normalizer)
-        self.assertEqual(normalizer, response.normalizer)
 
         self.assertEqual(converter, response.converter)
         self.assertEqual(converter, request.converter)

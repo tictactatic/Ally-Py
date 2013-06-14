@@ -9,11 +9,10 @@ Created on Mar 8, 2013
 Provides the collection encoder.
 '''
 
-from ally.api.operator.container import Model
-from ally.api.operator.type import TypeModel, TypeModelProperty
+from ally.api.operator.type import TypeModel, TypeProperty
 from ally.api.type import Iter
 from ally.container.ioc import injected
-from ally.core.spec.transform.encoder import IEncoder, EncoderWithSpecifiers
+from ally.core.spec.transform.encdec import IEncoder, EncoderWithSpecifiers
 from ally.core.spec.transform.render import IRender
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines, optional
@@ -90,10 +89,14 @@ class CollectionEncode(HandlerBranching):
         
         if Create.name in create and create.name: name = create.name
         else:
-            if not isinstance(itemType, (TypeModel, TypeModelProperty)):
+            if not isinstance(itemType, (TypeModel, TypeProperty)):
                 raise DevelError('Cannot get collection name for item %s' % itemType)
-            assert isinstance(itemType.container, Model), 'Invalid model %s' % itemType.container
-            name = self.nameMarkedList % itemType.container.name
+            if isinstance(itemType, TypeProperty):
+                assert isinstance(itemType, TypeProperty)
+                model = itemType.parent
+            else: model = itemType
+            assert isinstance(model, TypeModel), 'Invalid model %s' % model
+            name = self.nameMarkedList % model.name
         if Create.specifiers in create: specifiers = create.specifiers or ()
         else: specifiers = ()
         
@@ -120,14 +123,14 @@ class EncoderCollection(EncoderWithSpecifiers):
         self.name = name
         self.encoder = encoder
         
-    def render(self, obj, renderer, support):
+    def encode(self, obj, target, support):
         '''
-        @see: IEncoder.render
+        @see: IEncoder.encode
         '''
         assert isinstance(obj, Iterable), 'Invalid collection object %s' % obj
-        assert isinstance(renderer, IRender), 'Invalid renderer %s' % renderer
+        assert isinstance(target, IRender), 'Invalid target %s' % target
         
-        renderer.beginCollection(self.name, **self.populate(obj, support))
-        for objItem in obj: self.encoder.render(objItem, renderer, support)
-        renderer.end()
+        target.beginCollection(self.name, **self.populate(obj, support))
+        for objItem in obj: self.encoder.encode(objItem, target, support)
+        target.end()
         

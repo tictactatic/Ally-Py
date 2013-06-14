@@ -10,7 +10,7 @@ API specifications for RBAC right.
 '''
 
 from .domain_rbac import modelRbac
-from ally.api.config import query, service, call, UPDATE, DELETE, alias
+from ally.api.config import query, service, call, UPDATE, DELETE
 from ally.api.criteria import AsLikeOrdered
 from ally.api.type import Iter
 from ally.support.api.entity import Entity, QEntity, IEntityService
@@ -31,12 +31,6 @@ class Role(Rbac):
     '''
     Name = str
     Description = str
-
-@alias
-class ToRole(Role):
-    '''
-    Role model used as a reference for assignments.
-    '''
 
 # --------------------------------------------------------------------
 
@@ -61,7 +55,7 @@ class IRoleService(IEntityService):
         Provides the role based on a provided name.
         '''
     
-    @call(webName='Roles') #TODO: Gabriel: remove or adjust the web name after refactoring assemblers.
+    @call(webName='Sub')  # TODO: Gabriel: remove or adjust the web name after refactoring assemblers.
     def getRoles(self, roleId:Role, offset:int=None, limit:int=None, detailed:bool=True, q:QRole=None) -> Iter(Role):
         '''
         Provides the roles searched by the provided query.
@@ -73,14 +67,14 @@ class IRoleService(IEntityService):
         Provides the rights for the provided role id searched by the query.
         '''
     
-    @call(method=UPDATE)
-    def assignRole(self, toRoleId:ToRole.Id, roleId:Role.Id):
+    @call(method=UPDATE, webName='Sub')
+    def assignRole(self, toRoleId:Role.Id, roleId:Role.Id):
         '''
         Assign to the role the other role. 
         '''
     
-    @call(method=DELETE)
-    def unassignRole(self, toRoleId:ToRole.Id, roleId:Role.Id) -> bool:
+    @call(method=DELETE, webName='Sub')
+    def unassignRole(self, toRoleId:Role.Id, roleId:Role.Id) -> bool:
         '''
         Unassign from the role the other role. 
         '''

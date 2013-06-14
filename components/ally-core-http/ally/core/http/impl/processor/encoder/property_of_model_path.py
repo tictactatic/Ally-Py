@@ -9,12 +9,13 @@ Created on Mar 8, 2013
 Provides the paths for properties of model.
 '''
 
-from ally.api.operator.type import TypeModel, TypeModelProperty
+from ally.api.operator.type import TypeModel, TypeProperty, \
+    TypePropertyContainer
 from ally.container.ioc import injected
 from ally.core.http.spec.server import IEncoderPathInvoker
 from ally.core.http.spec.transform.index import NAME_BLOCK_REST, \
     ACTION_REFERENCE
-from ally.core.spec.transform.encoder import ISpecifier, IEncoder
+from ally.core.spec.transform.encdec import ISpecifier, IEncoder
 from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
@@ -78,17 +79,19 @@ class PropertyOfModelPathAttributeEncode(HandlerProcessor):
         assert isinstance(node.invokersGet, dict), 'Invalid get invokers %s' % node.invokersGet
         if Create.encoder in create and create.encoder is not None: return 
         # There is already an encoder, nothing to do.
-        if not isinstance(create.objType, TypeModelProperty) or not isinstance(create.objType.type, TypeModel): return
+        if not isinstance(create.objType, TypePropertyContainer): return
         # The type is not for a model property, nothing to do, just move along
-            
-        modelType = create.objType.type
-        assert isinstance(modelType, TypeModel)
-        assert modelType.hasId(), 'Model type %s, has no id' % modelType
-        invoker = node.invokersGet.get(modelType.propertyTypeId())
+        assert isinstance(create.objType, TypePropertyContainer)
+        model = create.objType.container
+        if not isinstance(model, TypeModel): return  # The container is not a model, move along.
+        assert isinstance(model, TypeModel)
+        if not model.propertyId: return  # No model id to use.
+        
+        invoker = node.invokersGet.get(model.propertyId)
         if invoker is None: return  # No get invoker available
         
         if create.specifiers is None: create.specifiers = []
-        create.specifiers.append(AttributesPath(self.nameRef, modelType.propertyTypeId(), invoker))
+        create.specifiers.append(AttributesPath(self.nameRef, model.propertyId, invoker))
 
 # --------------------------------------------------------------------
 
@@ -97,15 +100,15 @@ class AttributesPath(ISpecifier):
     Implementation for a @see: ISpecifier for attributes paths.
     '''
     
-    def __init__(self, nameRef, propertyType, invoker):
+    def __init__(self, nameRef, property, invoker):
         '''
         Construct the paths attributes.
         '''
         assert isinstance(nameRef, str), 'Invalid reference name %s' % nameRef
-        assert isinstance(propertyType, TypeModelProperty), 'Invalid property type %s' % propertyType
+        assert isinstance(property, TypeProperty), 'Invalid property type %s' % property
         
         self.nameRef = nameRef
-        self.propertyType = propertyType
+        self.property = property
         self.invoker = invoker
         
     def populate(self, obj, specifications, support):
@@ -117,7 +120,7 @@ class AttributesPath(ISpecifier):
         'Invalid encoder path %s' % support.encoderPathInvoker
         
         if support.pathValues is None: support.pathValues = {}
-        support.pathValues[self.propertyType] = obj
+        support.pathValues[self.property] = obj
         
         attributes = specifications.get('attributes')
         if attributes is None: attributes = specifications['attributes'] = {}

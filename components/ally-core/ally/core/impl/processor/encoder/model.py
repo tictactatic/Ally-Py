@@ -9,12 +9,11 @@ Created on Mar 7, 2013
 Provides the model encoder.
 '''
 
-from ally.api.operator.container import Model
 from ally.api.operator.type import TypeModel, TypeProperty
-from ally.api.type import Iter, Boolean, Integer, Number, Percentage, String, \
+from ally.api.type import Iter, Boolean, Integer, Number, String, \
     Time, Date, DateTime, typeFor
 from ally.container.ioc import injected
-from ally.core.spec.transform.encoder import IEncoder, EncoderWithSpecifiers
+from ally.core.spec.transform.encdec import IEncoder, EncoderWithSpecifiers
 from ally.core.spec.transform.index import NAME_BLOCK
 from ally.core.spec.transform.render import IRender
 from ally.design.processor.assembly import Assembly
@@ -90,7 +89,7 @@ class ModelEncode(HandlerBranching):
     # The encode processors to be used for encoding properties.
     modelExtraEncodeAssembly = Assembly
     # The encode processors to be used for encoding extra data on the model.
-    typeOrders = [Boolean, Integer, Number, Percentage, String, Time, Date, DateTime, Iter]
+    typeOrders = [Boolean, Integer, Number, String, Time, Date, DateTime, Iter]
     # The type that define the order in which the properties should be rendered.
     
     def __init__(self):
@@ -119,22 +118,21 @@ class ModelEncode(HandlerBranching):
         if not isinstance(create.objType, TypeModel): return
         # The type is not for a model, nothing to do, just move along
         assert isinstance(create.objType, TypeModel)
-        assert isinstance(create.objType.container, Model)
         
         if Create.name in create and create.name: name = create.name
-        else: name = create.objType.container.name
+        else: name = create.objType.name
         if Create.specifiers in create: specifiers = create.specifiers or ()
         else: specifiers = ()
         
         properties, extra = [], None
         if not invoker.hideProperties:
-            for propType in self.sortedTypes(create.objType):
-                assert isinstance(propType, TypeProperty), 'Invalid property type %s' % propType
-                arg = propertyProcessing.execute(create=propertyProcessing.ctx.create(objType=propType, name=propType.property),
+            for prop in self.sortedTypes(create.objType):
+                assert isinstance(prop, TypeProperty), 'Invalid property type %s' % prop
+                arg = propertyProcessing.execute(create=propertyProcessing.ctx.create(objType=prop, name=prop.name),
                                                  invoker=invoker, **keyargs)
                 assert isinstance(arg.create, CreateProperty), 'Invalid create property %s' % arg.create
-                if arg.create.encoder is None: raise DevelError('Cannot encode %s' % propType)
-                properties.append((propType.property, arg.create.encoder))
+                if arg.create.encoder is None: raise DevelError('Cannot encode %s' % prop)
+                properties.append((prop.name, arg.create.encoder))
         
             if modelExtraProcessing:
                 assert isinstance(modelExtraProcessing, Processing), 'Invalid processing %s' % modelExtraProcessing
@@ -152,21 +150,21 @@ class ModelEncode(HandlerBranching):
         Provides the sorted properties type for the model type.
         '''
         assert isinstance(model, TypeModel), 'Invalid type model %s' % model
-        sorted = list(model.propertyTypes())
-        if model.hasId(): sorted.remove(model.propertyTypeId())
-        sorted.sort(key=lambda propType: propType.property)
+        sorted = list(model.properties.values())
+        if model.propertyId: sorted.remove(model.propertyId)
+        sorted.sort(key=lambda prop: prop.name)
         sorted.sort(key=self.sortKey)
-        if model.hasId(): sorted.insert(0, model.propertyTypeId())
+        if model.propertyId: sorted.insert(0, model.propertyId)
         return sorted
     
-    def sortKey(self, propType):
+    def sortKey(self, prop):
         '''
         Provides the sorting key for property types, used in sort functions.
         '''
-        assert isinstance(propType, TypeProperty), 'Invalid property type %s' % propType
+        assert isinstance(prop, TypeProperty), 'Invalid property type %s' % prop
 
         for k, ord in enumerate(self.typeOrders):
-            if propType.type == ord: break
+            if prop.type == ord: break
         return k
        
 # --------------------------------------------------------------------
@@ -189,22 +187,22 @@ class EncoderModel(EncoderWithSpecifiers):
         self.properties = properties
         self.extra = extra
         
-    def render(self, obj, render, support):
+    def encode(self, obj, target, support):
         '''
-        @see: IEncoder.render
+        @see: IEncoder.encode
         '''
-        assert isinstance(render, IRender), 'Invalid render %s' % render
+        assert isinstance(target, IRender), 'Invalid target %s' % target
         
         if not self.properties:
-            render.beginObject(self.name, **self.populate(obj, support, indexBlock=NAME_BLOCK))
+            target.beginObject(self.name, **self.populate(obj, support, indexBlock=NAME_BLOCK))
         else:
-            render.beginObject(self.name, **self.populate(obj, support))
+            target.beginObject(self.name, **self.populate(obj, support))
             for name, encoder in self.properties:
                 assert isinstance(encoder, IEncoder), 'Invalid property encoder %s' % encoder
                 objValue = getattr(obj, name)
                 if objValue is None: continue
-                encoder.render(objValue, render, support)
+                encoder.encode(objValue, target, support)
                 
-            if self.extra: self.extra.render(obj, render, support)
+            if self.extra: self.extra.encode(obj, target, support)
                 
-        render.end()
+        target.end()

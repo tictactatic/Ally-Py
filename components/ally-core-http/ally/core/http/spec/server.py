@@ -26,7 +26,7 @@ class IEncoderPathInvoker(metaclass=abc.ABCMeta):
         
         @param invoker: Context
             The invoker context to have the path encoded.
-        @param values: dictionary{TypeModelProperty: object}|None
+        @param values: dictionary{TypeProperty: object}|None
             A dictionary containing the path values indexed by the node properties, if a value is string it will be used as it
             is and no actual conversion will be attempted.
         @param quoted: boolean
@@ -43,7 +43,7 @@ class IEncoderPathInvoker(metaclass=abc.ABCMeta):
         
         @param invoker: Context
             The invoker context to have the path encoded.
-        @param values: dictionary{TypeModelProperty: object}|None
+        @param values: dictionary{TypeProperty: object}|None
             A dictionary containing the path values indexed by the node properties, if a value is string it will be used as it
             is and no actual conversion will be attempted.
         @return: string

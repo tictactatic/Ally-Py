@@ -10,7 +10,7 @@ Renders the response encoder.
 '''
 
 from ally.container.ioc import injected
-from ally.core.spec.transform.encoder import IEncoder
+from ally.core.spec.transform.encdec import IEncoder
 from ally.design.processor.attribute import requires, optional
 from ally.design.processor.context import Context, pushIn, cloneCollection
 from ally.design.processor.handler import HandlerComposite
@@ -71,6 +71,5 @@ class RenderEncoderHandler(HandlerComposite):
         assert isinstance(request.invoker.encoder, IEncoder), 'Invalid encoder %s' % request.invoker.encoder
         assert callable(response.renderFactory), 'Invalid response renderer factory %s' % response.renderFactory
         
-        renderer = response.renderFactory(responseCnt)
         support = pushIn(Support(), response, request, interceptor=cloneCollection)
-        request.invoker.encoder.render(response.obj, renderer, support)
+        request.invoker.encoder.encode(response.obj, response.renderFactory(responseCnt), support)

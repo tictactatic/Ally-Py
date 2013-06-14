@@ -14,7 +14,7 @@ from ally.api.type import TypeReference
 from ally.container.ioc import injected
 from ally.core.http.spec.transform.index import NAME_BLOCK_CLOB, \
     ACTION_REFERENCE
-from ally.core.spec.transform.encoder import IEncoder
+from ally.core.spec.transform.encdec import IEncoder
 from ally.core.spec.transform.render import IRender
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
@@ -94,13 +94,13 @@ class EncoderReference(IEncoder):
         self.name = name
         self.nameRef = nameRef
         
-    def render(self, obj, render, support):
+    def encode(self, obj, target, support):
         '''
-        @see: IEncoder.render
+        @see: IEncoder.encode
         '''
-        assert isinstance(render, IRender), 'Invalid render %s' % render
+        assert isinstance(target, IRender), 'Invalid target %s' % target
         assert isinstance(support, Support), 'Invalid support %s' % support
         assert isinstance(support.encoderPath, IEncoderPath), 'Invalid path encoder %s' % support.encoderPath
         
-        render.beginObject(self.name, attributes={self.nameRef: support.encoderPath.encode(obj)}, indexBlock=NAME_BLOCK_CLOB,
+        target.beginObject(self.name, attributes={self.nameRef: support.encoderPath.encode(obj)}, indexBlock=NAME_BLOCK_CLOB,
                            indexAttributesCapture={self.nameRef: ACTION_REFERENCE}).end()

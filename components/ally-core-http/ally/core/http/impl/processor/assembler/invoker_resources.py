@@ -13,13 +13,13 @@ from ally.container.ioc import injected
 from ally.core.http.spec.server import IEncoderPathInvoker
 from ally.core.http.spec.transform.index import NAME_BLOCK_REST, \
     ACTION_REFERENCE
-from ally.core.spec.transform.encoder import IEncoder
+from ally.core.spec.transform.encdec import IEncoder
 from ally.core.spec.transform.render import IRender
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
 from ally.http.spec.server import HTTP_GET
-from collections import OrderedDict
+from ally.support.util import firstOf
 
 # --------------------------------------------------------------------
 
@@ -35,7 +35,7 @@ class Node(Context):
     The node context.
     '''
     # ---------------------------------------------------------------- Required
-    invokersAccessible = requires(OrderedDict)
+    invokersAccessible = requires(list)
 
 class InvokerResources(Context):
     '''
@@ -112,23 +112,22 @@ class EncoderResources(IEncoder):
         self.nameRef = nameRef
         self.invoker = invoker
         
-    def render(self, obj, render, support):
+    def encode(self, obj, target, support):
         '''
-        @see: IEncoder.render
+        @see: IEncoder.encode
         '''
-        assert isinstance(render, IRender), 'Invalid render %s' % render
+        assert isinstance(target, IRender), 'Invalid target %s' % target
         assert isinstance(support, Support), 'Invalid support %s' % support
         assert isinstance(support.encoderPathInvoker, IEncoderPathInvoker), \
         'Invalid encoder path %s' % support.encoderPathInvoker
         
-        render.beginCollection(self.nameResources)
+        target.beginCollection(self.nameResources)
         node = self.invoker.node
         if node:
             assert isinstance(node, Node), 'Invalid node %s' % node
             if node.invokersAccessible:
-                assert isinstance(node.invokersAccessible, dict), 'Invalid accessible invokers %s' % node.invokersAccessible
                 indexes = dict(indexBlock=NAME_BLOCK_REST, indexAttributesCapture={self.nameRef: ACTION_REFERENCE})
-                for name, invoker in node.invokersAccessible.items():
+                for name, invoker in sorted(node.invokersAccessible, key=firstOf):
                     path = support.encoderPathInvoker.encode(invoker)
-                    render.beginObject(name, attributes={self.nameRef: path}, **indexes).end()
-        render.end()
+                    target.beginObject(name, attributes={self.nameRef: path}, **indexes).end()
+        target.end()

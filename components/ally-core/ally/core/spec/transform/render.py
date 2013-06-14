@@ -66,7 +66,7 @@ class IRender(metaclass=abc.ABCMeta):
         '''
 
 # --------------------------------------------------------------------
-      
+#TODO: Gabriel Remove
 class Value:
     '''
     Container for the text value.
@@ -123,7 +123,7 @@ class List:
         self.attributes = attributes
 
 # --------------------------------------------------------------------
-
+#TODO: Gabriel Remove
 class RenderToObject(IRender):
     '''
     A @see: IRender implementation that captures the data into a text object.
@@ -212,7 +212,7 @@ class RenderToObject(IRender):
         self.stack.popleft()
 
 # --------------------------------------------------------------------
-
+#TODO: Gabriel Remove
 def renderObject(txt, render):
     '''
     Renders the text object on to the provided renderer.

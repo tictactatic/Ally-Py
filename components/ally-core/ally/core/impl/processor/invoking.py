@@ -10,9 +10,8 @@ Provides the invoking handler.
 '''
 
 from ally.api.config import GET, INSERT, UPDATE, DELETE
-from ally.api.operator.container import Call
-from ally.api.operator.type import TypeModelProperty, TypeOptionProperty
-from ally.api.type import Input
+from ally.api.operator.type import TypeOption, TypeProperty
+from ally.api.type import Input, Call
 from ally.core.spec.codes import INPUT_ERROR, INSERT_ERROR, INSERT_SUCCESS, \
     UPDATE_SUCCESS, UPDATE_ERROR, DELETE_SUCCESS, DELETE_ERROR, Coded
 from ally.core.spec.transform.render import Object, List, Value
@@ -20,6 +19,7 @@ from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
 from ally.exception import DevelError, InputError, Ref
+from ally.support.api.util_service import isModelId
 from collections import Callable
 import logging
 
@@ -111,9 +111,11 @@ class InvokingHandler(HandlerProcessor):
         for inp in invoker.inputs:
             assert isinstance(inp, Input), 'Invalid input %s' % inp
             
+            isOption = isinstance(inp.type, TypeProperty) and isinstance(inp.type.parent, TypeOption)
+            
             if inp.name in arguments: value = arguments[inp.name]
             elif inp.type in arguments: value = arguments[inp.type]
-            elif isinstance(inp.type, TypeOptionProperty):
+            elif isOption:
                 if inp.hasDefault: keyargs[inp.name] = inp.default
                 continue
             elif inp.hasDefault:
@@ -122,7 +124,7 @@ class InvokingHandler(HandlerProcessor):
             else:
                 raise DevelError('No value for mandatory input \'%s\', at:%s' % (inp.name, invoker.location))
             
-            if isinstance(inp.type, TypeOptionProperty): keyargs[inp.name] = value
+            if isOption: keyargs[inp.name] = value
             else: args.append(value)
         
         try:
@@ -213,8 +215,7 @@ class InvokingHandler(HandlerProcessor):
         assert isinstance(response, Response), 'Invalid response %s' % response
         assert invoker.output.isValid(value), 'Invalid return value \'%s\' for invoker %s' % (value, invoker)
 
-        if isinstance(invoker.output, TypeModelProperty) and \
-        invoker.output.container.propertyId == invoker.output.property:
+        if isModelId(invoker.output):
             if value is not None:
                 response.obj = value
             else:

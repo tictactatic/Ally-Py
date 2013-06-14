@@ -9,7 +9,7 @@ Created on May 29, 2013
 Provides the web name for the path.
 '''
 
-from ally.api.operator.container import Call
+from ally.api.type import Call
 from ally.container.ioc import injected
 from ally.design.processor.attribute import requires, defines, definesIf
 from ally.design.processor.context import Context

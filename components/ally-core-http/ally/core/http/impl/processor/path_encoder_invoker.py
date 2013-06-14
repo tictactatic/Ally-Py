@@ -9,7 +9,7 @@ Created on Mar 6, 2013
 Provides the path encoder that can handle invokers.
 '''
 
-from ally.api.operator.type import TypeModelProperty
+from ally.api.operator.type import TypeProperty
 from ally.container.ioc import injected
 from ally.core.http.spec.server import IEncoderPathInvoker
 from ally.core.spec.resources import Converter
@@ -60,8 +60,8 @@ class Element(Context):
     @rtype: string
     The element name.
     ''')
-    property = requires(TypeModelProperty, doc='''
-    @rtype: TypeModelProperty
+    property = requires(TypeProperty, doc='''
+    @rtype: TypeProperty
     The property represented by the element.
     ''')
 
@@ -71,6 +71,8 @@ class Request(Context):
     '''
     # ---------------------------------------------------------------- Optional
     extension = optional(str)
+    # ---------------------------------------------------------------- Required
+    converterPath = requires(Converter)
 
 class Response(Context):
     '''
@@ -83,8 +85,6 @@ class Response(Context):
     ''')
     # ---------------------------------------------------------------- Optional
     encoderPath = optional(IEncoderPath)
-    # ---------------------------------------------------------------- Required
-    converter = requires(Converter)
 
 # --------------------------------------------------------------------
 
@@ -126,7 +126,7 @@ class InvokerPathEncoderHandler(HandlerProcessor):
         if Request.extension in request: extension = request.extension
         else: extension = None
         
-        response.encoderPathInvoker = EncoderPathInvoker(self, response.converter, response.encoderPath, extension)
+        response.encoderPathInvoker = EncoderPathInvoker(self, request.converterPath, response.encoderPath, extension)
 
 # --------------------------------------------------------------------
 
@@ -172,14 +172,14 @@ class EncoderPathInvoker(IEncoderPathInvoker):
         for el in invoker.path:
             assert isinstance(el, Element), 'Invalid element %s' % el
             if el.property:
-                assert isinstance(el.property, TypeModelProperty), 'Invalid element property %s' % el.property
+                assert isinstance(el.property, TypeProperty), 'Invalid element property %s' % el.property
                 assert isinstance(values, dict), 'Invalid values %s' % values
                 
                 value = values.get(el.property)
                 if value is None:
                     # We try to see if there is a model object for property
                     value = values.get(el.property.parent)
-                    if value is not None: value = getattr(value, el.property.property)
+                    if value is not None: value = getattr(value, el.property.name)
                 
                 assert value is not None, 'No value could be found for %s' % el.property
                 if not isinstance(value, str): value = self.converter.asString(value, el.property)

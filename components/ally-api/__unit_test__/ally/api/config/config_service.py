@@ -16,9 +16,11 @@ if True:
 
 # --------------------------------------------------------------------
 
-from .config_models import Entity, APIModel
+try: from __unit_test__.ally.api.config.config_models import Entity, APIModel
+except ImportError: from .config_models import Entity, APIModel
 from ally.api.config import service, call, GET
-from ally.api.type import Integer, Number, String
+from ally.api.operator.type import TypeCall
+from ally.api.type import Integer, Number, String, typeFor
 import unittest
 
 # --------------------------------------------------------------------
@@ -76,6 +78,9 @@ class TestConfigure(unittest.TestCase):
         self.assertTrue(s.intToStr(23) == '23')
         self.assertTrue(s.intToStr(11) == '11')
         self.assertTrue(s.doNothing(11) == None)
+        
+        self.assertIsInstance(typeFor(IService.multipy), TypeCall)
+        self.assertRaises(TypeError, IService.multipy)
 
     def testFailedServiceCalls(self):
         class ServiceImpl(IService):
@@ -87,7 +92,7 @@ class TestConfigure(unittest.TestCase):
 
             def intToStr(self, x):
                 return str(x)
-
+        
         self.assertRaises(TypeError, ServiceImpl)
 
 # --------------------------------------------------------------------

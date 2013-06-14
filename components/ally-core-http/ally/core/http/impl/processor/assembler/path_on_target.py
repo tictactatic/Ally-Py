@@ -78,7 +78,7 @@ class PathTargetHandler(HandlerProcessor):
                     else:
                         for el in reversed(invoker.path):
                             if el.name:
-                                el.name = '%s%s' % (el.name, invoker.target.container.name)
+                                el.name = '%s%s' % (el.name, invoker.target.name)
                                 break
                     continue
                 
@@ -86,5 +86,5 @@ class PathTargetHandler(HandlerProcessor):
             assert isinstance(invoker.target, TypeModel), 'Invalid target %s' % invoker.target
             
             if invoker.path is None: invoker.path = []
-            invoker.path.append(Element(name=invoker.target.container.name, model=invoker.target))
+            invoker.path.append(Element(name=invoker.target.name, model=invoker.target))
             

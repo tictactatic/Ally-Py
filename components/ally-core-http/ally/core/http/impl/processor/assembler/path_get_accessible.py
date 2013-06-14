@@ -10,12 +10,13 @@ Finds all get invokers that can be directly accessed without the need of extra i
 directly related to a node.
 '''
 
+from ally.api.operator.extract import inheritedTypesFrom
+from ally.api.operator.type import TypeModel
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
 from ally.http.spec.server import HTTP_GET
-from collections import deque, OrderedDict
-from ally.support.util import firstOf
+from collections import deque
 
 # --------------------------------------------------------------------
 
@@ -31,7 +32,11 @@ class Invoker(Context):
     The invoker context.
     '''
     # ---------------------------------------------------------------- Required
+    node = requires(Context)
     path = requires(list)
+    target = requires(TypeModel)
+    isCollection = requires(bool)
+    isModel = requires(bool)
 
 class Node(Context):
     '''
@@ -41,10 +46,11 @@ class Node(Context):
     byName = requires(dict)
     byType = requires(dict)
     invokers = requires(dict)
+    invokersGet = requires(dict)
     # ---------------------------------------------------------------- Defined
-    invokersAccessible = defines(OrderedDict, doc='''
-    @rtype: dictionary{string: Context}
-    The dictionary of invokers that are accessible for this node indexed by a unique generated invoker name.
+    invokersAccessible = defines(list, doc='''
+    @rtype: list[tuple(string, Context)]
+    The list of invokers tuples that are accessible for this node, the first entry in tuple is a generated invoker name.
     ''')
     
 # --------------------------------------------------------------------
@@ -70,16 +76,61 @@ class PathGetAccesibleHandler(HandlerProcessor):
         stack = deque()
         for current in register.nodes:
             assert isinstance(current, Node), 'Invalid node %s' % current
-            if not current.byName: continue
             
-            accessible = []
-            stack.extend(current.byName.items())
+            self.pushAvailable('', current, stack)
+            if not stack: continue
+            
+            if current.invokersAccessible is None: current.invokersAccessible = []
             while stack:
                 name, node = stack.popleft()
+                assert isinstance(node, Node)
                 if node.invokers and HTTP_GET in node.invokers:
-                    accessible.append((name, node.invokers[HTTP_GET]))
-                if node.byName: stack.extend((''.join((name, cname)), cnode) for cname, cnode in node.byName.items())
-            accessible.sort(key=firstOf)
-            if current.invokersAccessible is None: current.invokersAccessible = OrderedDict()
-            current.invokersAccessible.update(accessible)
-        # TODO: Gabriel: add also the invokers that have compatible input types
+                    current.invokersAccessible.append((name, node.invokers[HTTP_GET]))
+                
+                self.pushAvailable(name, node, stack)
+
+    # ----------------------------------------------------------------
+    
+    def pushAvailable(self, name, node, stack):
+        '''
+        Pushes the available nodes to the provided stack.
+        '''
+        assert isinstance(name, str), 'Invalid name %s' % name
+        assert isinstance(node, Node), 'Invalid node %s' % node
+        assert isinstance(stack, deque), 'Invalid stack %s' % stack
+        
+        if node.byName: stack.extend((''.join((name, cname)), cnode) for cname, cnode in node.byName.items())
+        
+        if node.invokers and node.invokersGet and HTTP_GET in node.invokers:
+            invoker = node.invokers[HTTP_GET]
+            assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
+        
+            if not invoker.isCollection and invoker.isModel and invoker.target:
+                assert isinstance(invoker.target, TypeModel), 'Invalid target %s' % invoker.target
+                
+                self.pushAvailableForProperties(name, node, invoker.target, stack)
+                    
+                for parent in inheritedTypesFrom(invoker.target.clazz, TypeModel):
+                    assert isinstance(parent, TypeModel), 'Invalid parent %s' % parent
+                    if not parent.propertyId: continue
+                    nodeParent = node.invokersGet.get(parent.propertyId)
+                    if nodeParent: self.pushAvailableForProperties(name, nodeParent, parent, stack)
+    
+    def pushAvailableForProperties(self, name, node, model, stack):
+        '''
+        Pushes the available nodes based on paths found by properties.
+        '''
+        assert isinstance(name, str), 'Invalid name %s' % name
+        assert isinstance(node, Node), 'Invalid node %s' % node
+        assert isinstance(model, TypeModel), 'Invalid model %s' % model
+        assert isinstance(stack, deque), 'Invalid stack %s' % stack
+        
+        for prop in model.properties.values():
+            invokerByProp = node.invokersGet.get(prop)
+            if not invokerByProp: continue
+            assert isinstance(invokerByProp, Invoker), 'Invalid invoker %s' % invokerByProp
+            if not invokerByProp.node or invokerByProp.node == node: continue
+            assert isinstance(invokerByProp.node, Node), 'Invalid node %s' % invokerByProp.node
+            if not invokerByProp.node.byName: continue
+            stack.extend((''.join((name, cname)), cnode) for cname, cnode in invokerByProp.node.byName.items())
+            

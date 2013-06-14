@@ -9,15 +9,15 @@ Created on Mar 11, 2013
 Provides the properties of model encoder.
 '''
 
-from ally.api.operator.type import TypeModelProperty, TypeModel
+from ally.api.operator.type import TypeModel, TypePropertyContainer
 from ally.container.ioc import injected
-from ally.core.spec.transform.encoder import IEncoder
+from ally.core.spec.transform.encdec import IEncoder
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines
+from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain, Processing
 from ally.design.processor.handler import HandlerBranching
-from ally.design.processor.branch import Branch
 
 # --------------------------------------------------------------------
 
@@ -62,14 +62,13 @@ class PropertyOfModelEncode(HandlerBranching):
         
         if create.encoder is not None: return 
         # There is already an encoder, nothing to do.
-        if not isinstance(create.objType, TypeModelProperty) or not isinstance(create.objType.type, TypeModel): return
-        # The type is not for a model property, nothing to do, just move along
-            
-        model = create.objType.type
+        if not isinstance(create.objType, TypePropertyContainer): return
+        assert isinstance(create.objType, TypePropertyContainer)
+        model = create.objType.container
+        if not isinstance(model, TypeModel): return  # The type is not for a model property, nothing to do, just move along
+        assert isinstance(model, TypeModel)
+        if not model.propertyId: return  # No property id to process.
         
         assert isinstance(create.name, str), 'Invalid property name %s' % create.name
-        assert isinstance(model, TypeModel)
-        assert model.hasId(), 'Model type %s, has no id' % model
-
-        create.objType = model.propertyTypeId()
+        create.objType = model.propertyId
         chain.branch(propertyModelProcessing)

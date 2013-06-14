@@ -18,7 +18,6 @@ if True:
 
 from ally.api.config import model, query
 from ally.api.criteria import AsOrdered, AsLikeOrdered
-from ally.api.operator.container import Model
 from ally.api.operator.descriptor import Reference
 from ally.api.operator.type import TypeModel
 from ally.api.type import typeFor
@@ -30,16 +29,13 @@ import unittest
 class Entity(object):
 
     Id = str
-
     X = float
 
 @model
 class APIModel(Entity):
 
     Y = str
-
     Entity = Entity
-
     EntitySecond = Entity
 
 @model
@@ -53,9 +49,7 @@ class ExtendModel(APIModel):
 class TestQuery:
 
     date = AsOrdered
-
     name = AsLikeOrdered
-
     age = AsOrdered
 
     def __init__(self): pass #Just to have proper type hinting for criteria
@@ -69,10 +63,8 @@ class TestConfigure(unittest.TestCase):
 
         modelType = typeFor(APIModel)
         self.assertTrue(isinstance(modelType, TypeModel))
-        m = modelType.container
-        assert isinstance(m, Model)
 
-        self.assertTrue(len(m.properties) == 5)
+        self.assertTrue(len(modelType.properties) == 5)
         self.assertTrue(APIModel.X not in a)
         self.assertTrue(a.X == None)
         a.X = None

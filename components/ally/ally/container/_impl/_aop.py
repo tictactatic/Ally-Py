@@ -137,10 +137,12 @@ class AOPModules(AOP):
                 assert value == path, 'Invalid value %s should be the same as path \'%s\'' % (value, path)
         super().__init__(paths)
 
-    def load(self):
+    def load(self, mandatory=True):
         '''
         Loads all the modules from this AOP.
         
+        @param mandatory: boolean
+            The loaded modules are mandatory, if an error occurs the exception should be propagated.
         @return: self
             The same instance for chaining.
         '''
@@ -153,19 +155,22 @@ class AOPModules(AOP):
             if path not in sys.modules:
                 try: __import__(path)
                 except:
-                    log.warning('Cannot import module %r' % path, exc_info=True)
+                    if mandatory: raise
+                    log.info('Cannot import module %r' % path, exc_info=True)
                     broken.add(path)
         self._paths = {path:sys.modules[path] for path in self._paths if path not in broken}
         return self
 
-    def classes(self):
+    def classes(self, mandatory=True):
         '''
         Provides all the classes from the container module.
         
+        @param mandatory: boolean
+            The loaded modules are mandatory, if an error occurs the exception should be propagated.
         @return: AOPClasses
             The loaded module AOP classes.
         '''
-        self.load()
+        self.load(mandatory)
         classes = {}
         for path, module in self._paths.items():
             for clazz in module.__dict__.values():

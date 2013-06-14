@@ -36,12 +36,14 @@ def modulesIn(*paths):
         else: raise AOPError('Cannot use path %s' % path)
     return AOPModules(modules)
 
-def classesIn(*paths):
+def classesIn(*paths, mandatory=True):
     '''
     Provides all the classes that are found in the provided pattern paths.
     
     @param paths: arguments[string|module]
         The pattern paths to load classes from.
+    @param mandatory: boolean
+        The loaded classes are mandatory, if an error occurs the exception should be propagated.
     @return: AOPClasses
         The found classes.
     '''
@@ -56,4 +58,4 @@ def classesIn(*paths):
             modules[path.__name__] = path.__name__
             filter.append('%s.**' % path.__name__)
         else: raise AOPError('Cannot use path %s' % path)
-    return AOPModules(modules).classes().filter(*filter)
+    return AOPModules(modules).classes(mandatory).filter(*filter)

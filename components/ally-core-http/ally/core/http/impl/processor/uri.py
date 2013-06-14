@@ -53,7 +53,7 @@ class Request(Context):
     The node corresponding to the request.
     ''')
     pathValues = definesIf(dict, doc='''
-    @rtype: dictionary{TypeModelProperty: object}
+    @rtype: dictionary{TypeProperty: object}
     A dictionary containing the path values indexed by the node properties.
     ''')
     extension = defines(str, doc='''
@@ -67,7 +67,7 @@ class Request(Context):
     # ---------------------------------------------------------------- Required
     scheme = requires(str)
     uri = requires(str)
-    converter = requires(Converter)
+    converterPath = requires(Converter)
 
 class ResponseContent(Context):
     '''
@@ -103,7 +103,7 @@ class URIHandler(HandlerProcessor):
         
         if response.isSuccess is False: return  # Skip in case the response is in error
         assert isinstance(request.uri, str), 'Invalid request URI %s' % request.uri
-        assert isinstance(request.converter, Converter), 'Invalid request converter %s' % request.converter
+        assert isinstance(request.converterPath, Converter), 'Invalid request converter %s' % request.converterPath
         
         paths = request.uri.split('/')
         i = paths[-1].rfind('.') if len(paths) > 0 else -1
@@ -125,9 +125,9 @@ class URIHandler(HandlerProcessor):
             if node.byName:
                 assert isinstance(node.byName, dict), 'Invalid by name %s' % node.byName
                 node = node.byName.get(path)
-            else:
+            elif node.byType:
                 assert isinstance(node.byType, dict) and node.byType, 'Invalid node by type %s' % node.byType
-                try: value, typeValue = valueOfAny(request.converter, path, node.byType)
+                try: value, typeValue = valueOfAny(request.converterPath, path, node.byType)
                 except ValueError:
                     assert log.debug('Invalid value \'%s\' for: %s', path, ','.join(str(typ) for typ in node.byType)) or True
                     node = None
@@ -141,6 +141,7 @@ class URIHandler(HandlerProcessor):
                         assert isinstance(node.properties, set), 'Invalid properties types %s' % node.properties
                         if request.pathValues is None: request.pathValues = {}
                         for propType in node.properties: request.pathValues[propType] = value
+            else: node = None
 
             if node is None: break
                 

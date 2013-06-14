@@ -11,15 +11,15 @@ Provides the invoker encoder.
 
 from ally.api.type import Type
 from ally.container.ioc import injected
-from ally.core.spec.transform.encoder import IEncoder
+from ally.core.spec.transform.encdec import IEncoder
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Processing
 from ally.design.processor.handler import HandlerBranching
+from ally.support.api.util_service import isModelId
 import logging
-from ally.api.operator.type import TypeModelProperty
 
 # --------------------------------------------------------------------
 
@@ -99,9 +99,7 @@ class EncodingHandler(HandlerBranching):
                     # TODO: Gabriel: This is a temporary fix to get the same rendering as before until we refactor the plugins
                     # to return only ids.
                     invoker.hideProperties = True
-                elif isinstance(invoker.output, TypeModelProperty):
-                    assert isinstance(invoker.output, TypeModelProperty)
-                    if invoker.output.isId(): invoker.hideProperties = True
+                elif isModelId(invoker.output): invoker.hideProperties = True
             
             arg = encodeProcessing.executeWithAll(create=encodeProcessing.ctx.create(objType=invoker.output),
                                                   node=invoker.node, invoker=invoker, **keyargs)

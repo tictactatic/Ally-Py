@@ -9,12 +9,12 @@ Created on May 17, 2013
 Provides the invokers created based on services.
 '''
 
-from ally.api.operator.container import Service, Call
 from ally.api.operator.type import TypeService
-from ally.api.type import typeFor, Type
+from ally.api.type import typeFor, Type, Call
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
+from ally.support.api.util_service import iterateCalls
 from ally.support.util_sys import locationStack
 from collections import Iterable, Callable
 
@@ -87,9 +87,8 @@ class InvokerServiceHandler(HandlerProcessor):
         for implementation in register.services:
             service = typeFor(implementation)
             assert isinstance(service, TypeService), 'Invalid service implementation %s' % implementation
-            assert isinstance(service.service, Service), 'Invalid service %s' % service.service
-    
-            for call in service.service.calls.values():
+            
+            for call in iterateCalls(service):
                 assert isinstance(call, Call), 'Invalid call %s' % call
                 
                 invoker = Invoker()

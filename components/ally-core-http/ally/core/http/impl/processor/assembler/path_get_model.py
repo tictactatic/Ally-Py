@@ -9,7 +9,7 @@ Created on May 31, 2013
 Finds all get model invokers accessible from a node.
 '''
 
-from ally.api.operator.type import TypeModelProperty, TypeModel
+from ally.api.operator.type import TypeProperty, TypeModel
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
@@ -47,7 +47,7 @@ class Element(Context):
     The element context.
     '''
     # ---------------------------------------------------------------- Required
-    property = requires(TypeModelProperty)
+    property = requires(TypeProperty)
     
 class Node(Context):
     '''
@@ -55,7 +55,7 @@ class Node(Context):
     '''
     # ---------------------------------------------------------------- Defined
     invokersGet = defines(dict, doc='''
-    @rtype: dictionary{TypeModelProperty: Context}
+    @rtype: dictionary{TypeProperty: Context}
     The invokers contexts that can be used to get a model by a property model indexed by the property model that makes
     the invoker accessible based on the current node.
     ''')
@@ -111,7 +111,7 @@ class PathGetModelHandler(HandlerProcessor):
                         for el in reversed(invoker.path):
                             assert isinstance(el, Element), 'Invalid element %s' % el
                             if not el.property: continue
-                            assert isinstance(el.property, TypeModelProperty), 'Invalid element property %s' % el.property
+                            assert isinstance(el.property, TypeProperty), 'Invalid element property %s' % el.property
                             if el.property.parent == invoker.target: current.invokersGet[el.property] = invoker
                             break
                         stack.extend((node, current.invokersGet) for node in cnode.byType.values())
@@ -120,9 +120,9 @@ class PathGetModelHandler(HandlerProcessor):
             assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
             if not invoker.target: continue
             assert isinstance(invoker.target, TypeModel), 'Invalid target %s' % invoker.target
-            if not invoker.target.hasId(): continue  # No property id for path
+            if not invoker.target.propertyId: continue  # No property id for path
             if not invoker.node: continue
             assert isinstance(invoker.node, Node), 'Invalid node %s' % invoker.node
             if not invoker.node.invokersGet: continue
             
-            invoker.invokerGet = invoker.node.invokersGet.get(invoker.target.propertyTypeId())
+            invoker.invokerGet = invoker.node.invokersGet.get(invoker.target.propertyId)

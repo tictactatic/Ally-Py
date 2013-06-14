@@ -19,8 +19,7 @@ from ally.core.impl.processor.invoking import InvokingHandler
 from ally.core.impl.processor.parsing import ParsingHandler
 from ally.core.impl.processor.render_encoder import RenderEncoderHandler
 from ally.core.impl.processor.rendering import RenderingHandler
-from ally.core.impl.processor.text_conversion import ConverterRequestHandler, \
-    ConverterResponseHandler
+from ally.core.impl.processor.conversion_content import ConverterContentHandler
 from ally.core.spec.resources import Converter
 from ally.design.processor.handler import Handler
 
@@ -57,14 +56,8 @@ def rendering() -> Handler:
     return b
 
 @ioc.entity
-def converterRequest() -> Handler:
-    b = ConverterRequestHandler()
-    b.converter = converter()
-    return b
-
-@ioc.entity
-def converterResponse() -> Handler:
-    b = ConverterResponseHandler()
+def converterContent() -> Handler:
+    b = ConverterContentHandler()
     b.converter = converter()
     return b
 

@@ -11,9 +11,12 @@ Provides the JSON encoder processor handler.
 
 from .base import RenderBaseHandler, Content
 from ally.container.ioc import injected
+from ally.core.spec.resources import Converter
 from ally.core.spec.transform.index import ACTION_STREAM, ACTION_DISCARD, \
     NAME_BLOCK, ACTION_INJECT, Index, ACTION_NAME
 from ally.core.spec.transform.render import IRender
+from ally.design.processor.attribute import requires
+from ally.design.processor.context import Context
 from ally.indexing.spec.model import Block, Action
 from ally.indexing.spec.perform import skip, feed, feedValue, feedName, \
     feedIndexed, feedContent, push, setFlag, remFlag, setFlagIfBefore, feedKey, pop, \
@@ -239,6 +242,15 @@ def createJSONBlockForContent(name, *actions, injectAttributes=None, captureAttr
 
 # --------------------------------------------------------------------
 
+class Request(Context):
+    '''
+    The request context.
+    '''
+    # ---------------------------------------------------------------- Requires
+    converterContent = requires(Converter)
+
+# --------------------------------------------------------------------
+
 @injected
 class RenderJSONHandler(RenderBaseHandler):
     '''
@@ -251,13 +263,44 @@ class RenderJSONHandler(RenderBaseHandler):
 
     def __init__(self):
         assert isinstance(self.encodingError, str), 'Invalid string %s' % self.encodingError
-        super().__init__()
+        super().__init__(request=Request)
+        
+    def process(self, chain, request:Context, **keyargs):
+        if super().process(chain, **keyargs):
+            assert isinstance(request, Request), 'Invalid request %s' % request
+            request.converterContent = ConverterJSON(request.converterContent)
 
     def renderFactory(self, content):
         '''
         @see: RenderBaseHandler.renderFactory
         '''
         return RenderJSON(self.encodingError, content)
+
+# --------------------------------------------------------------------
+
+class ConverterJSON(Converter):
+    '''
+    JSON specific content converter.
+    '''
+    __slots__ = ('wrapped',)
+    
+    def __init__(self, wrapped):
+        assert isinstance(wrapped, Converter), 'Invalid wrapped converter %s' % wrapped
+        self.wrapped = wrapped
+    
+    def asString(self, value, type):
+        '''
+        @see: Converter.asString
+        '''
+        # If the value is integer float or boolean then no conversion will occur.
+        if type.isOf(int) or type.isOf(float) or type.isOf(bool): return value
+        return self.wrapped.asString(value, type)
+    
+    def asValue(self, value, type):
+        '''
+        @see: Converter.asValue
+        '''
+        return self.wrapped.asValue(value, type)
 
 # --------------------------------------------------------------------
 
@@ -302,17 +345,18 @@ class RenderJSON(IRender):
             Index the object with the provided index.
         '''
         assert isinstance(name, str), 'Invalid name %s' % name
-        assert isinstance(value, (str, list, dict)), 'Invalid value %s' % value
         assert self._stack and self._stack[0][0] == OF_OBJECT, 'No object for property'
         if indexBlock is None and not self._block: indexBlock = NAME_BLOCK
         
         self.begin(name, OF_PROPERTY, indexBlock=indexBlock)
-        if isinstance(value, list): value = '[%s]' % ','.join(encode_basestring(item) for item in value)
+        if isinstance(value, list):
+            value = '[%s]' % ','.join(encode(item) for item in value)
         elif isinstance(value, dict):
-            value = ','.join('%s:%s' % (encode_basestring(key), encode_basestring(item)) for key, item in value.items())
+            value = ','.join('%s:%s' % (encode(key), encode(item)) for key, item in value.items())
             value = '{%s}' % value
         else:
-            value = encode_basestring(value)
+            value = encode(value)
+            
         self._out.write(value)
         self.end()
 
@@ -422,10 +466,11 @@ class RenderJSON(IRender):
 
                 iname = indexAttributesCapture.get(nameAttr)
                 if iname:
-                    index(PSIND_ATTR_CAPTURE % iname, offset=1)  # offset +1 for the comma
-                    self._out.write(encode_basestring(valueAttr))
-                    index(PEIND_ATTR_CAPTURE % iname, offset= -1)  # offset -1 for the comma
-                else: self._out.write(encode_basestring(valueAttr))
+                    offset = 1 if isinstance(valueAttr, str) else 0
+                    index(PSIND_ATTR_CAPTURE % iname, offset=offset)  # offset +1 for the comma
+                    self._out.write(encode(valueAttr))
+                    index(PEIND_ATTR_CAPTURE % iname, offset= -offset)  # offset -1 for the comma
+                else: self._out.write(encode(valueAttr))
         if index: index(EIND_ATTRS)
         
         if of == OF_COLLECTION:
@@ -460,3 +505,15 @@ class RenderJSON(IRender):
             assert isinstance(name, str), 'Invalid name %s' % name
             index.values[name] = offset
 
+# --------------------------------------------------------------------
+
+def encode(value):
+    '''
+    Encodes the value as a JSON value.
+    '''
+    if isinstance(value, str): return encode_basestring(value)
+    if value is True: return 'true'
+    if value is False: return 'false'
+    if isinstance(value, float): return repr(value)
+    assert isinstance(value, int), 'Invalid value %s' % value
+    return str(value)

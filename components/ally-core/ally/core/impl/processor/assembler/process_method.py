@@ -10,7 +10,7 @@ Provides the processing on callers based on methods.
 '''
 
 from ally.api.config import GET, INSERT, UPDATE, DELETE
-from ally.api.operator.type import TypeModelProperty, TypeModel
+from ally.api.operator.type import TypeProperty, TypeModel
 from ally.api.type import Iter, Type
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
@@ -106,8 +106,8 @@ class ProcessMethodHandler(HandlerProcessor):
         else:
             output = invoker.output
             
-        if isinstance(output, TypeModelProperty):
-            assert isinstance(output, TypeModelProperty)
+        if isinstance(output, TypeProperty):
+            assert isinstance(output, TypeProperty)
             output = output.parent
         else: invoker.isModel = True
 
@@ -124,8 +124,8 @@ class ProcessMethodHandler(HandlerProcessor):
         assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
 
         output = invoker.output
-        if isinstance(output, TypeModelProperty):
-            assert isinstance(output, TypeModelProperty)
+        if isinstance(output, TypeProperty):
+            assert isinstance(output, TypeProperty)
             output = output.parent
 
         if isinstance(output, TypeModel):
@@ -145,8 +145,7 @@ class ProcessMethodHandler(HandlerProcessor):
             log.error('Cannot use because there are to many models %s to insert, at:%s',
                      ', '.join(str(model) for model in models), invoker.location)
             return False
-        elif models:
-            invoker.target = models[0]
+        elif models: invoker.target = models[0]
         return True
     
     def processDELETE(self, invoker):

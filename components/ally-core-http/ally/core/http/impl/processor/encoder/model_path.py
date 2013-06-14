@@ -13,7 +13,7 @@ from ally.container.ioc import injected
 from ally.core.http.spec.server import IEncoderPathInvoker
 from ally.core.http.spec.transform.index import ACTION_REFERENCE, \
     NAME_BLOCK_REST
-from ally.core.spec.transform.encoder import ISpecifier, IEncoder
+from ally.core.spec.transform.encdec import ISpecifier, IEncoder
 from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor

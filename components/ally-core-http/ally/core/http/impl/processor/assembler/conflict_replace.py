@@ -9,9 +9,8 @@ Created on Jun 6, 2013
 Provides the node invokers conflicts resolving based on replace for call hint.
 '''
 
-from ally.api.operator.container import Call
 from ally.api.operator.type import TypeService
-from ally.api.type import typeFor
+from ally.api.type import typeFor, Call
 from ally.container.ioc import injected
 from ally.design.processor.attribute import requires, definesIf
 from ally.design.processor.context import Context

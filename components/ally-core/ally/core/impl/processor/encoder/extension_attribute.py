@@ -9,10 +9,10 @@ Created on Mar 8, 2013
 Provides the extension encoder.
 '''
 
-from ally.api.operator.type import TypeExtension
+from ally.api.operator.type import TypeExtension, TypeProperty
 from ally.api.type import typeFor, Iter
 from ally.container.ioc import injected
-from ally.core.spec.transform.encoder import IEncoder, ISpecifier
+from ally.core.spec.transform.encdec import IEncoder, ISpecifier
 from ally.core.spec.transform.render import IRender
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines, optional
@@ -105,18 +105,19 @@ class AttributesExtension(ISpecifier):
         '''
         @see: ISpecifier.populate
         '''
-        typeExt = typeFor(obj)
-        if not typeExt or not isinstance(typeExt, TypeExtension): return  # Is not an extension object, nothing to do
-        assert isinstance(typeExt, TypeExtension)
+        ext = typeFor(obj)
+        if not ext or not isinstance(ext, TypeExtension): return  # Is not an extension object, nothing to do
+        assert isinstance(ext, TypeExtension)
         
-        if typeExt not in self.propertiesByType:
-            properties = self.propertiesByType[typeExt] = []
-            for propType in typeExt.propertyTypes():
-                arg = self.processing.execute(create=self.processing.ctx.create(objType=propType, name=propType.property))
+        if ext not in self.propertiesByType:
+            properties = self.propertiesByType[ext] = []
+            for name, prop in ext.properties.items():
+                assert isinstance(prop, TypeProperty), 'Invalid property %s' % prop
+                arg = self.processing.execute(create=self.processing.ctx.create(objType=prop, name=name))
                 assert isinstance(arg.create, CreateProperty), 'Invalid create property %s' % arg.create
-                if arg.create.encoder is None: raise DevelError('Cannot encode %s' % propType)
-                properties.append((propType.property, arg.create.encoder))
-        else: properties = self.propertiesByType[typeExt]
+                if arg.create.encoder is None: raise DevelError('Cannot encode %s' % prop)
+                properties.append((name, arg.create.encoder))
+        else: properties = self.propertiesByType[ext]
         
         attributes = specifications.get('attributes')
         if attributes is None: attributes = specifications['attributes'] = {}
@@ -125,7 +126,7 @@ class AttributesExtension(ISpecifier):
             assert isinstance(encoder, IEncoder), 'Invalid property encoder %s' % encoder
             objValue = getattr(obj, name)
             if objValue is None: continue
-            encoder.render(objValue, render, support)
+            encoder.encode(objValue, render, support)
 
 class RenderAttributes(IRender):
     '''
@@ -148,7 +149,6 @@ class RenderAttributes(IRender):
         @see: IRender.property
         '''
         assert isinstance(name, str), 'Invalid name %s' % name
-        assert isinstance(value, str), 'Invalid value %s' % value
         
         self.attributes[name] = value
 

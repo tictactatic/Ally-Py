@@ -10,27 +10,28 @@ Provides the configurations for the processors used in handling the request.
 '''
 
 from ..ally_core.parsing_rendering import assemblyParsing
-from ..ally_core.processor import invoking, default_charset, rendering, createDecoder, content, renderEncoder, \
-    converterRequest, converterResponse, \
+from ..ally_core.processor import converter, invoking, default_charset, \
+    rendering, createDecoder, content, renderEncoder, converterContent, \
     blockIndexing
 from ..ally_core.resources import injectorAssembly
-from ..ally_http.processor import encoderPath, contentLengthDecode, \
-    contentLengthEncode, methodOverride, allowEncode, contentTypeRequestDecode, \
-    contentTypeResponseEncode, methodOverrideAllow
+from ..ally_http.processor import acceptRequestDecode, encoderPath, \
+    contentLengthDecode, contentLengthEncode, methodOverride, allowEncode, \
+    contentTypeRequestDecode, contentTypeResponseEncode, methodOverrideAllow
 from ally.container import ioc
 from ally.core.http.impl.processor.content_index import \
     ContentIndexEncodeHandler
+from ally.core.http.impl.processor.conversion_path import ConverterPathHandler
 from ally.core.http.impl.processor.explain_error import ExplainErrorHandler
 from ally.core.http.impl.processor.headers.content_disposition import \
     ContentDispositionDecodeHandler
 from ally.core.http.impl.processor.internal_error import \
     InternalDevelErrorHandler
 from ally.core.http.impl.processor.method_invoker import MethodInvokerHandler
-#TODO: from ally.core.http.impl.processor.parameter import ParameterHandler
 from ally.core.http.impl.processor.parsing_multipart import \
     ParsingMultiPartHandler
-from ally.core.http.impl.processor.path_encoder_invoker import InvokerPathEncoderHandler
-#TODO: from ally.core.http.impl.processor.redirect import RedirectHandler
+from ally.core.http.impl.processor.path_encoder_invoker import \
+    InvokerPathEncoderHandler
+from ally.core.http.impl.processor.scheme import SchemeHandler
 from ally.core.http.impl.processor.uri import URIHandler
 from ally.core.http.spec.codes import CODE_TO_STATUS, CODE_TO_TEXT
 from ally.design.processor.assembly import Assembly
@@ -38,8 +39,8 @@ from ally.design.processor.handler import Handler
 from ally.http.impl.processor.header_parameter import HeaderParameterHandler
 from ally.http.impl.processor.method_override import METHOD_OVERRIDE
 from ally.http.impl.processor.status import StatusHandler
-from ..ally_http.processor import acceptRequestDecode
-from ally.core.http.impl.processor.scheme import SchemeHandler
+#TODO: from ally.core.http.impl.processor.parameter import ParameterHandler
+#TODO: from ally.core.http.impl.processor.redirect import RedirectHandler
 
 # --------------------------------------------------------------------
 # Creating the processors used in handling the request
@@ -120,6 +121,12 @@ def contentIndexEncode() -> Handler:
 # --------------------------------------------------------------------
 
 @ioc.entity
+def converterPath()  -> Handler:
+    b = ConverterPathHandler()
+    b.converter = converter()
+    return b
+
+@ioc.entity
 def uri() -> Handler: return URIHandler()
 
 @ioc.entity
@@ -195,10 +202,10 @@ def updateHeadersCustom():
 
 @ioc.before(assemblyResources)
 def updateAssemblyResources():
-    assemblyResources().add(internalDevelError(), injectorAssembly(), converterRequest(), uri(), methodInvoker(),
-                            contentTypeRequestDecode(), contentLengthDecode(), acceptRequestDecode(), rendering(),
-                            #parsingMultiPart(),
-                            content(), scheme(), invoking(), converterResponse(), encoderPath(),
+    assemblyResources().add(internalDevelError(), injectorAssembly(), converterPath(), uri(), methodInvoker(),
+                            contentTypeRequestDecode(), contentLengthDecode(), acceptRequestDecode(), converterContent(), 
+                            rendering(), #parsingMultiPart(),
+                            content(), scheme(), invoking(), encoderPath(),
                             encoderPathInvoker(), renderEncoder(), status(), explainError(), contentIndexEncode(),
                             contentTypeResponseEncode(), contentLengthEncode(), allowEncode()
                             )

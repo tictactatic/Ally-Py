@@ -9,7 +9,7 @@ Created on May 30, 2013
 Provides the paths adjustments for update invokers.
 '''
 
-from ally.api.operator.type import TypeModel, TypeModelProperty
+from ally.api.operator.type import TypeModel, TypeProperty
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
@@ -54,7 +54,7 @@ class ElementUpdate(Context):
     '''
     # ---------------------------------------------------------------- Defined
     name = defines(str)
-    property = defines(TypeModelProperty)
+    property = defines(TypeProperty)
     # ---------------------------------------------------------------- Required
     model = requires(TypeModel)
     
@@ -87,7 +87,7 @@ class PathUpdateHandler(HandlerProcessor):
             if invoker.methodHTTP != HTTP_PUT: continue
             if not invoker.target: continue
             assert isinstance(invoker.target, TypeModel), 'Invalid target %s' % invoker.target
-            if not invoker.target.hasId(): continue
+            if not invoker.target.propertyId: continue
             
             if invoker.path is None: invoker.path = []
             for el in invoker.path:
@@ -99,8 +99,8 @@ class PathUpdateHandler(HandlerProcessor):
                     del register.invokers[k]
                     break
             else:
-                invoker.path.append(Element(name=invoker.target.container.name, model=invoker.target))
-                invoker.path.append(Element(property=invoker.target.propertyTypeId()))
+                invoker.path.append(Element(name=invoker.target.name, model=invoker.target))
+                invoker.path.append(Element(property=invoker.target.propertyId))
                 invoker.prepare = partial(self.prepare, invoker, invoker.prepare)
                 
     # ----------------------------------------------------------------
@@ -112,14 +112,13 @@ class PathUpdateHandler(HandlerProcessor):
         assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
         assert isinstance(invoker.target, TypeModel), 'Invalid target %s' % invoker.target
         assert isinstance(arguments, dict), 'Invalid arguments %s' % arguments
-        propertyId = invoker.target.propertyTypeId()
-        assert isinstance(propertyId, TypeModelProperty)
+        assert isinstance(invoker.target.propertyId, TypeProperty)
         
-        modelObj, idObj = arguments[invoker.target], arguments[propertyId]
+        modelObj, idObj = arguments[invoker.target], arguments[invoker.target.propertyId]
         
-        val = getattr(modelObj, propertyId.property)
-        if val is None: setattr(modelObj, propertyId.property, idObj)
+        val = getattr(modelObj, invoker.target.propertyId.name)
+        if val is None: setattr(modelObj, invoker.target.propertyId.name, idObj)
         elif val != idObj:
-            raise DevelError('Cannot set value %s for \'%s\', expected value %s' % (val, propertyId.property, idObj))
+            raise DevelError('Cannot set value %s for \'%s\', expected value %s' % (val, invoker.target.propertyId.name, idObj))
        
         if wrapped: wrapped(arguments)

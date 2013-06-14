@@ -9,19 +9,20 @@ Created on Mar 18, 2013
 Provides the accessible paths for a model.
 '''
 
+from ally.api.operator.type import TypeModel
 from ally.container.ioc import injected
 from ally.core.http.spec.server import IEncoderPathInvoker
 from ally.core.http.spec.transform.index import NAME_BLOCK_REST, \
     ACTION_REFERENCE
-from ally.core.spec.transform.encoder import IEncoder
+from ally.core.spec.transform.encdec import IEncoder
 from ally.core.spec.transform.render import IRender
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
-from collections import OrderedDict
-from ally.api.operator.type import TypeModel
-import logging
+from ally.support.util import firstOf
 from ally.support.util_sys import locationStack
+from collections import OrderedDict
+import logging
 
 # --------------------------------------------------------------------
 
@@ -34,7 +35,7 @@ class Node(Context):
     The node context.
     '''
     # ---------------------------------------------------------------- Required
-    invokersAccessible = requires(OrderedDict)
+    invokersAccessible = requires(list)
     
 class Invoker(Context):
     '''
@@ -91,15 +92,21 @@ class AccessiblePathEncode(HandlerProcessor):
         if create.encoder is not None: return  # There is already an encoder, nothing to do.
         assert isinstance(invoker.target, TypeModel), 'Invalid target %s' % invoker.target
         
-        nameTarget = invoker.target.container.name
-        accessible = OrderedDict(('%s%s' % (nameTarget, name), invoker) for name, invoker in node.invokersAccessible.items())
-        create.encoder = EncoderAccessiblePath(self.nameRef, accessible)
-        
-        for name in invoker.target.container.properties:
-            if name.startswith(nameTarget):
-                log.warn('Illegal property name \'%s\', is not allowed to start with the model name, at:%s',
-                         name, locationStack(invoker.target.clazz))
+        accessible = []
+        for name, ainvoker in node.invokersAccessible:
+            assert isinstance(ainvoker, Invoker), 'Invalid invoker %s' % ainvoker
+            corrupted = False
+            for pname in ainvoker.target.properties:
+                if pname.startswith(ainvoker.target.name):
+                    log.error('Illegal property name \'%s\', is not allowed to start with the model name, at:%s',
+                              pname, locationStack(ainvoker.target.clazz))
+                    corrupted = True
+            if corrupted: continue
 
+            accessible.append(('%s%s' % (invoker.target.name, name), ainvoker))
+        accessible.sort(key=firstOf)
+        create.encoder = EncoderAccessiblePath(self.nameRef, OrderedDict(accessible))
+        
 # --------------------------------------------------------------------
 
 class EncoderAccessiblePath(IEncoder):
@@ -117,11 +124,11 @@ class EncoderAccessiblePath(IEncoder):
         self.nameRef = nameRef
         self.accessible = accessible
     
-    def render(self, obj, render, support):
+    def encode(self, obj, target, support):
         '''
-        @see: IEncoder.render
+        @see: IEncoder.encode
         '''
-        assert isinstance(render, IRender), 'Invalid render %s' % render
+        assert isinstance(target, IRender), 'Invalid target %s' % target
         assert isinstance(support, Support), 'Invalid support %s' % support
         assert isinstance(support.encoderPathInvoker, IEncoderPathInvoker), \
         'Invalid encoder path %s' % support.encoderPathInvoker
@@ -129,4 +136,4 @@ class EncoderAccessiblePath(IEncoder):
         indexes = dict(indexBlock=NAME_BLOCK_REST, indexAttributesCapture={self.nameRef: ACTION_REFERENCE})
         for name, invoker in self.accessible.items():
             path = support.encoderPathInvoker.encode(invoker, support.pathValues)
-            render.beginObject(name, attributes={self.nameRef: path}, **indexes).end()
+            target.beginObject(name, attributes={self.nameRef: path}, **indexes).end()

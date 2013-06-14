@@ -70,15 +70,15 @@ class RenderBaseHandler(HandlerProcessor):
     # The dictionary{string:string} containing as a key the content types specific for this encoder and as a value
     # the content type to set on the response, if None will use the key for the content type response.
 
-    def __init__(self):
+    def __init__(self, response=Response, responseCnt=ResponseContent, **contexts):
         assert isinstance(self.contentTypes, dict), 'Invalid content types %s' % self.contentTypes
-        super().__init__()
+        super().__init__(response=response, responseCnt=responseCnt, **contexts)
 
-    def process(self, chain, response:Response, responseCnt:ResponseContent, **keyargs):
+    def process(self, chain, response:Context, responseCnt:Context, **keyargs):
         '''
         @see: HandlerProcessor.process
         
-        Create the renderer factory
+        Create the renderer factory, returns True if the render factory has been succesfulyy assigned for this renderer.
         '''
         assert isinstance(chain, Chain), 'Invalid processors chain %s' % chain
         assert isinstance(response, Response), 'Invalid response %s' % response
@@ -95,6 +95,7 @@ class RenderBaseHandler(HandlerProcessor):
 
             response.renderFactory = self.renderFactory
             chain.cancel()  # We need to stop the chain if we have been able to provide the encoding
+            return True
 
     # ----------------------------------------------------------------
 

@@ -44,7 +44,7 @@ def bindToEntities(*classes, binders=None, module=None):
         registry = callerLocals()
         assert '__name__' in registry, 'The bind to entities call needs to be made directly from the setup module'
         group = registry['__name__']
-    register(SetupEntityProxy(group, classesFrom(classes), binders), registry)
+    register(SetupEntityProxy(group, classesFrom(classes, mandatory=False), binders), registry)
 
 def intercept(*references, handlers=None):
     '''

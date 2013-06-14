@@ -87,8 +87,8 @@ class PathDomainHandler(HandlerProcessor):
                 if not el.model: continue
                 assert isinstance(el.model, TypeModel), 'Invalid model %s' % el.model
                 
-                if self.hintName in el.model.container.hints:
-                    domain = el.model.container.hints[self.hintName]
+                if self.hintName in el.model.hints:
+                    domain = el.model.hints[self.hintName]
                     assert isinstance(domain, str) and domain, 'Invalid domain \'%s\' at:%s' % (domain, invoker.location)
                     for name in reversed(domain.split('/')):
                         if name: invoker.path.insert(0, Element(name=name))

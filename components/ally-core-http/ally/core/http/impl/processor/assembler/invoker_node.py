@@ -9,7 +9,7 @@ Created on May 29, 2013
 Provides the node based on invokers.
 '''
 
-from ally.api.operator.type import TypeProperty, TypeModel, TypeModelProperty
+from ally.api.operator.type import TypeProperty
 from ally.container.ioc import injected
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
@@ -58,8 +58,7 @@ class Element(Context):
     '''
     # ---------------------------------------------------------------- Required
     name = requires(str)
-    model = requires(TypeModel)
-    property = requires(TypeModelProperty)
+    property = requires(TypeProperty)
     
 class NodeInvoker(Context):
     '''
@@ -75,7 +74,7 @@ class NodeInvoker(Context):
     The child nodes indexed by type.
     ''')
     properties = defines(set, doc='''
-    @rtype: set(TypeModelProperty)
+    @rtype: set(TypeProperty)
     The properties types that will are associated with the node value.
     ''')
     invokers = defines(dict, doc='''
@@ -128,20 +127,17 @@ class InvokerNodeHandler(HandlerProcessor):
                 for el in invoker.path:
                     assert isinstance(el, Element), 'Invalid element %s' % el
                     if el.property:
-                        typ = el.property
-                        while isinstance(typ, TypeProperty):
-                            assert isinstance(typ, TypeProperty)
-                            typ = typ.type
+                        assert isinstance(el.property, TypeProperty)
                             
                         if node.byName:
                             log.error('Cannot use because the node already has names (%s) and cannot add type \'%s\', at:%s',
-                                     ', '.join(str(typ) for typ in node.byName), typ, invoker.location)
+                                     ', '.join(str(typ) for typ in node.byName), el.property.type, invoker.location)
                             k -= 1
                             del register.invokers[k]
                             valid = False
                             break
                         
-                        if not typ.isPrimitive:
+                        if not el.property.type.isPrimitive:
                             log.error('Cannot use because the %s is not a primitive, at:%s', el.property, invoker.location)
                             k -= 1
                             del register.invokers[k]
@@ -149,9 +145,9 @@ class InvokerNodeHandler(HandlerProcessor):
                             break
                         
                         if node.byType is None: node.byType = {}
-                        cnode = node.byType.get(typ)
+                        cnode = node.byType.get(el.property.type)
                         if cnode is None:
-                            cnode = node.byType[typ] = Node()
+                            cnode = node.byType[el.property.type] = Node()
                             register.nodes.append(cnode)
                         if cnode.properties is None: cnode.properties = set()
                         cnode.properties.add(el.property)

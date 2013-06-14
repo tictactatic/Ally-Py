@@ -10,11 +10,11 @@ Provides binding listener function to handle API operators validation.
 '''
 
 from ..api.config import INSERT, UPDATE
-from ..api.operator.container import Call
-from ..api.operator.type import TypeModel, TypeModelProperty, TypeService
-from ..api.type import typeFor
+from ..api.operator.type import TypeModel, TypeService, TypeProperty
+from ..api.type import typeFor, Call
 from ..exception import InputError, Ref
 from ..internationalization import _
+from ..support.api.util_service import iterateCalls
 from .impl.binder import bindListener, callListeners, registerProxyBinder, \
     bindBeforeListener, indexBefore, INDEX_DEFAULT, BindableSupport
 from ally.api.type import Input
@@ -76,7 +76,7 @@ def validateProperty(refProp, validator, key=(EVENT_PROP_INSERT, EVENT_PROP_UPDA
     @see: bindListener
     Binds a validation listener on the property that will be triggered for the provided event keys.
     
-    @param refProp: TypeSupport|TypeModelProperty
+    @param refProp: TypeSupport|TypeProperty
         The property reference to get the property to bind to.
     @param validator: Callable|tuple(Callable)
         The validator(s) to use. 
@@ -86,9 +86,9 @@ def validateProperty(refProp, validator, key=(EVENT_PROP_INSERT, EVENT_PROP_UPDA
         The index at which to position the validation.
     '''
     typ = typeFor(refProp)
-    assert isinstance(typ, TypeModelProperty), 'No model property available for %s' % refProp
+    assert isinstance(typ, TypeProperty), 'No property available for %s' % refProp
     key = key if isinstance(key, (list, tuple)) else [key]
-    key = [k % typ.property for k in key]
+    key = [k % typ.name for k in key]
     bindListener(typ.parent.clazz, key, validator, index)
 
 def validateAutoId(refProp):
@@ -97,7 +97,7 @@ def validateAutoId(refProp):
      - the property will not accept any external value when inserting.
      - the property has to have a valid value when updating.
     
-    @param refProp: TypeSupport|TypeModelProperty
+    @param refProp: TypeSupport|TypeProperty
         The property reference to get the property to bind to.
     '''
     validateProperty(refProp, onPropertyUnwanted, EVENT_PROP_INSERT, INDEX_PROP_AUTO_ID)
@@ -109,7 +109,7 @@ def validateRequired(refProp):
      - the property has to have a valid value when inserting.
      - if the property has a value when updating it has to be valid, if there is no value than no action is taken.
     
-    @param refProp: TypeSupport|TypeModelProperty
+    @param refProp: TypeSupport|TypeProperty
         The property reference to get the property to bind to.
     '''
     validateProperty(refProp, (onPropertyRequired, onPropertyNone), EVENT_PROP_INSERT, INDEX_PROP_REQUIRED)
@@ -120,7 +120,7 @@ def validateMaxLength(refProp, length):
     Binds a maximum length validation on the property. The maximum length validation consists of:
      - if the property has a value when inserting or updating it has to be less then the specified length.
     
-    @param refProp: TypeSupport|TypeModelProperty
+    @param refProp: TypeSupport|TypeProperty
         The property reference to get the property to bind to.
     @param length: integer
         The maximum length allowed for the property value.
@@ -133,7 +133,7 @@ def validateManaged(prop, key=(EVENT_PROP_INSERT, EVENT_PROP_UPDATE)):
     Binds a managed validation on the property. The managed validation consists of:
      - the property is not allowed to have any value when inserting or updating.
     
-    @param refProp: TypeSupport|TypeModelProperty
+    @param refProp: TypeSupport|TypeProperty
         The property reference to get the property to bind to.
     '''
     validateProperty(prop, onPropertyUnwanted, key, INDEX_PROP_MANAGED)
@@ -155,7 +155,7 @@ def bindValidations(proxy, mappings=None):
     assert isinstance(proxy, typ.clazz), 'Invalid proxy %s for service %s' % (proxy, typ.clazz)
     registerProxyBinder(proxy)
 
-    for call in typ.service.calls.values():
+    for call in iterateCalls(typ):
         assert isinstance(call, Call)
         if call.method in (INSERT, UPDATE):
             positions = {}
@@ -262,7 +262,7 @@ def onPropertyMaxLength(length, prop, obj, errors):
     if getattr(obj.__class__, prop) in obj:
         val = getattr(obj, prop)
         if isinstance(val, Sized) and len(val) > length:
-            errors.append(Ref(_('Maximum length allowed is %(maximum)i but got length %(provided)i') %
+            errors.append(Ref(_('Maximum length allowed is %(maximum)i but got length %(provided)i') % 
                               {'maximum':length, 'provided':len(val)}, ref=getattr(obj.__class__, prop)))
             return False
 
@@ -294,11 +294,11 @@ def onCallValidateModel(onInsert, positions, args, keyargs):
         assert typ.isValid(obj), 'Invalid object %s for %s' % (obj, typ)
         if onInsert:
             if callListeners(typ.clazz, EVENT_MODEL_INSERT, obj, errors):
-                for prop in typ.container.properties:
-                    callListeners(typ.clazz, EVENT_PROP_INSERT % prop, prop, obj, errors)
+                for name in typ.properties:
+                    callListeners(typ.clazz, EVENT_PROP_INSERT % name, name, obj, errors)
         else:
             if callListeners(typ.clazz, EVENT_MODEL_UPDATE, obj, errors):
-                for prop in typ.container.properties:
-                    callListeners(typ.clazz, EVENT_PROP_UPDATE % prop, prop, obj, errors)
+                for name in typ.properties:
+                    callListeners(typ.clazz, EVENT_PROP_UPDATE % name, name, obj, errors)
 
     if errors: raise InputError(*errors)

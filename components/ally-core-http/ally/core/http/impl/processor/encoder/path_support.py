@@ -9,9 +9,9 @@ Created on Mar 15, 2013
 Provides the path support.
 '''
 
-from ally.api.operator.type import TypeModel, TypeModelProperty
+from ally.api.operator.type import TypeModel, TypeProperty
 from ally.container.ioc import injected
-from ally.core.spec.transform.encoder import IEncoder
+from ally.core.spec.transform.encdec import IEncoder
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
@@ -56,7 +56,7 @@ class PathUpdaterSupportEncode(HandlerProcessor):
         
         if create.encoder is None: return 
         # There is no encoder to provide path update for.
-        if not isinstance(create.objType, (TypeModel, TypeModelProperty)): return 
+        if not isinstance(create.objType, (TypeModel, TypeProperty)): return 
         # The type is not for a path updater, nothing to do, just move along
         
         create.encoder = EncoderPathUpdater(create.encoder, create.objType)
@@ -73,17 +73,17 @@ class EncoderPathUpdater(IEncoder):
         Construct the path updater.
         '''
         assert isinstance(encoder, IEncoder), 'Invalid property encoder %s' % encoder
-        assert isinstance(objType, (TypeModel, TypeModelProperty)), 'Invalid object type %s' % objType
+        assert isinstance(objType, (TypeModel, TypeProperty)), 'Invalid object type %s' % objType
         
         self.encoder = encoder
         self.objType = objType
         
-    def render(self, obj, render, support):
+    def encode(self, obj, target, support):
         '''
-        @see: IEncoder.render
+        @see: IEncoder.encode
         '''
         assert isinstance(support, Support), 'Invalid support %s' % support
         if support.pathValues is None: support.pathValues = {}
         support.pathValues[self.objType] = obj
         
-        self.encoder.render(obj, render, support)
+        self.encoder.encode(obj, target, support)
