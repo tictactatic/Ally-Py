@@ -4,11 +4,13 @@
 
 /* default button */
 @btnDefaultColor : #ddd;
+@btnDefaultColorDark : #919191;
 @btnDefaultBackground1 : #f6f6f6;
 @btnDefaultBackground2 : #e5e5e5;
 @btnDefaultHoverBackground1 : #f9f9f9;
 @btnDefaultHoverBackground2 : #dddddd;
 @btnDefaultBorder : #cecece;
+@btnDefaultBorderDark : #7d7d7d;
 @btnDefaultInsetShadowColor : rgba(255,255,255,1);
 
 
@@ -303,10 +305,22 @@
   outline: 0;
 }
 
-
-.btn {
-
+.btn.active {
+  background-color: @btnDefaultColorDark;
+  background-color: @btnDefaultColorDark e("\9");
+  border-color: @btnDefaultBorderDark;
+  outline: 0;
+  color: #fff;
+  text-shadow:0 -1px #575757;
+  &:active, &:hover {
+    background-color: @btnDefaultColorDark !important;
+    background-color: @btnDefaultColorDark e("\9") !important;
+    border-color: @btnDefaultBorderDark !important;
+    color: #fff !important;
+    text-shadow:0 -1px #575757 !important;
+  }
 }
+
 // Cross-browser Jank
 // --------------------------------------------------
 

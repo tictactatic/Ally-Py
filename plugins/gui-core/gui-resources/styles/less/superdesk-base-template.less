@@ -264,12 +264,36 @@ body {
 	font-size:16px;
 }
 
-
+.tab-background-container {
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom:0;
+	
+	.tab-content {
+		display: block;
+		position: absolute;
+		top:45px; //content-topnav is 45px high
+		left:20px; right: 0px; bottom:0px;
+		padding-right: 20px;
+		width: auto !important;
+		overflow-y: auto;
+		overflow-x: hidden;
+		padding-bottom: 20px;  
+	}
+}
 
 .article-list .main-content-container {
 	padding: @main-content-padding;
 	padding-top: @subnav-height + @subnav-level2 + @main-content-padding;
 }
+
+
+.users .tab-background-container {
+	top: @subnav-height+@topspace;
+}
+
+
 
 
 

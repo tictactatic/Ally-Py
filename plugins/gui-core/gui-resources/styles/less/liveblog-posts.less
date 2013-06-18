@@ -359,7 +359,7 @@
 			}
 		}
 	}
-	&.smspost {
+	&.smspost, &.commentpost {
 		.attributes {
 			display: none;
 		}
@@ -378,6 +378,11 @@
 					border-color:#c0c0c0 !important;
 				}
 			}
+		}
+	}
+	&.commentpost {
+		.post-info {
+			padding-left: 0px;
 		}
 	}
 	&.googlelink, &.googlenews, &.twitter, &.facebook  {
@@ -590,6 +595,25 @@ overrides
 		.result-content {
 			overflow: hidden;
 		}
+		.video-container {     
+		    position: relative;     
+		    padding-bottom: 56.25%;     
+		    padding-top: 30px; 
+		    height: 0; 
+		    overflow: hidden; } 
+
+		.video-container iframe {     
+		    position: absolute;     
+		    top: 0;     
+		    left: 0;     
+		    width: 100%;    
+		    height: 100%; 
+		}
+	}
+	&.commentpost {
+		.post-info {
+			padding-left: 60px;
+		}
 	}
 	&.twitter, &.facebook {
 		.result-content {
@@ -649,7 +673,7 @@ overrides
 				padding-left: 20px;
 			}
 		}
-		&.internal, &.smspost {
+		&.internal, &.smspost, &.commentpost {
 			padding: 8px 8px 8px 17px !important;
 			.result-content {
 				padding-left: 60px;
@@ -660,7 +684,11 @@ overrides
 				}
 			}
 		}
-
+		&.commentpost { 
+			.result-content {
+				padding-left: 0px;
+			}
+		}
 		&.googlenews {
 			.result-content {
 				figure {
@@ -895,7 +923,7 @@ overrides
 }
 
 
-.collabs, .sms-list {
+.collabs, .sms-list, .comments-list {
 	li {
 		background: #FFFFFF;
 	    border: 1px solid #fff;
@@ -909,6 +937,9 @@ overrides
 	    	border-top-width:1px;
 	    }
 	}
+}
+.comments-list {
+	top:0 !important;
 }
 
 .ui-draggable-dragging {
@@ -955,7 +986,7 @@ overrides
 				vertical-align: top;
 			}
 		}
-        &.internal, &.smspost {
+        &.internal, &.smspost , &.commentpost {
         	padding: 8px 8px 8px 17px !important;
         	min-width: 300px;
         	.result-content-full {
@@ -1068,7 +1099,7 @@ overrides
 
 			}
 		}
-		&.smspost {
+		&.smspost, &.commentpost {
 
 			.attributes {
 				display: none;
@@ -1087,6 +1118,14 @@ overrides
 						border-color:#c0c0c0 !important;
 					}
 				}
+			}
+		}
+		&.commentpost {
+			.post-info {
+				padding-left: 0;
+			}
+			.result-content-full {
+				padding-left: 0;
 			}
 		}
         &.googlelink, &.googlenews, &.twitter, &.facebook {
@@ -1681,7 +1720,7 @@ overrides
 	z-index: 2;
 }
 
-.sms-results-holder {
+.sms-results-holder, .comments-results-holder {
 	position: absolute;
 	top: 150px !important;
 	bottom: 30px;
@@ -1692,7 +1731,10 @@ overrides
 	overflow: hidden;
 	overflow-y: auto;
 }
-
+.comments-results-holder {
+	top: 100px !important;
+	margin-top: 0 !important;
+}
 .ads-header {
 	h4 {
 		margin:6px 0 5px 0;
