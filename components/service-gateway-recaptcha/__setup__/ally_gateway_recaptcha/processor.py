@@ -47,7 +47,7 @@ def recaptcha_service_uri() -> str:
 @ioc.config
 def recaptcha_private_key() -> str:
     ''' The reCAPTCHA private key'''
-    return '6Ld6XOISAAAAAG10g88X_x5J0AJUGWZWK1HDvtsC'
+    return '6Le3_OISAAAAABsPP6Rz7o96xc_6KK5OClxV2BUf'
 
 # --------------------------------------------------------------------
 # Creating the processors used in handling the request
