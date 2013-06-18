@@ -24,6 +24,7 @@ from ally.http.spec.server import HTTP, RequestHTTP, RequestContentHTTP, \
 from ally.support.util_io import IInputStream
 from collections import Iterable
 from io import BytesIO
+from urllib.parse import quote_plus
 
 # --------------------------------------------------------------------
 
@@ -169,10 +170,11 @@ class GatewayCaptchaValidationHandler(HandlerBranchingProceed):
         request.uri = self.uriVerify
         request.parameters = []
         
-        message = self.message % dict(key=self.privateKey, clientIP=clientIP, challenge=challenge, resolve=resolve)
+        message = self.message % dict(key=quote_plus(self.privateKey, safe=''), clientIP=quote_plus(clientIP, safe=''), challenge=quote_plus(challenge, safe=''), resolve=quote_plus(resolve, safe=''))
         message = message.encode(encoding='ascii')
         requestCnt.source = (message,)
         request.headers['Content-Length'] = str(len(message))
+        request.headers['Content-type'] = 'application/x-www-form-urlencoded'
         # TODO: It should be like after integration with refactored: requestCnt.length = len(requestCnt.source)
         
         chain = Chain(processing)
