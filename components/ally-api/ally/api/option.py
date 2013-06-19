@@ -57,6 +57,6 @@ class SliceAndTotal(Slice):
             Flag indicating that the total count for the slice should be provided.
         '''
         assert isinstance(withTotal, bool), 'Invalid with total flag %s' % withTotal
-        super().__init__(**slice)
+        Slice.__init__(self, **slice)
 
         self.withTotal = withTotal

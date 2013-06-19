@@ -50,7 +50,7 @@ class InternalErrorHandler(Handler):
     Implementation for a processor that provides the handling of internal errors.
     '''
 
-    errorHeaders = {'Content-Type':'text'}
+    errorHeaders = {'Content-Type':'text;charset=UTF-8'}
     # The headers that will be placed on the response.
 
     def __init__(self, response=Response, responseCnt=ResponseContent, **contexts):
@@ -87,7 +87,7 @@ class InternalErrorHandler(Handler):
                 traceback.print_exc(file=error)
                 INTERNAL_ERROR.set(response)
                 response.headers = dict(self.errorHeaders)
-                responseCnt.source = convertToBytes(self.errorResponse(error), 'utf-8', 'backslashreplace')
+                responseCnt.source = convertToBytes(self.errorResponse(error), 'UTF-8', 'backslashreplace')
             else:
                 content.seek(0)
                 responseCnt.source = content
@@ -107,7 +107,7 @@ class InternalErrorHandler(Handler):
         traceback.print_exception(*error.excInfo, file=ferror)
         INTERNAL_ERROR.set(response)
         response.headers = dict(self.errorHeaders)
-        responseCnt.source = convertToBytes(self.errorResponse(ferror), 'utf-8', 'backslashreplace')
+        responseCnt.source = convertToBytes(self.errorResponse(ferror), 'UTF-8', 'backslashreplace')
 
     def errorResponse(self, error):
         '''

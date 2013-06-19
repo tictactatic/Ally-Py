@@ -13,7 +13,7 @@ from ..ally_core.parsing_rendering import assemblyParsing, updateAssemblyParsing
 from ally.container import ioc
 from ally.core.http.impl.processor.parser.formdata import ParseFormDataHandler
 from ally.core.http.impl.url_encoded import parseStr
-from ally.core.impl.processor.parser.text import ParseTextHandler
+#from ally.core.impl.processor.parser.text import ParseTextHandler
 from ally.design.processor.handler import Handler
 import codecs
 

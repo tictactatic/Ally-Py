@@ -10,10 +10,9 @@ Provides the setups for the parsing/rendering processors.
 '''
 
 from ally.container import ioc
-from ally.core.impl.processor.parser.text import ParseTextHandler
-from ally.core.impl.processor.parser.xml import ParseXMLHandler
+# from ally.core.impl.processor.parser.text import ParseTextHandler
+# from ally.core.impl.processor.parser.xml import ParseXMLHandler
 from ally.core.impl.processor.render.json import RenderJSONHandler, BLOCKS_JSON
-from ally.core.impl.processor.render.text import RenderTextHandler
 from ally.core.impl.processor.render.xml import RenderXMLHandler, BLOCKS_XML
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.handler import Handler
@@ -133,34 +132,3 @@ def updateAssemblyParsing():
 def updateAssemblyRendering():
     assemblyRendering().add(renderJSON())
     assemblyRendering().add(renderXML())
-    
-try: import yaml
-except ImportError: log.info('No YAML library available, no yaml available for output or input')
-else:
-    
-    @ioc.entity
-    def renderYAML() -> Handler:
-        def rendererYAML(obj, charSet, out): yaml.dump(obj, out, default_flow_style=False)
-    
-        b = RenderTextHandler(); yield b
-        b.contentTypes = content_types_yaml()
-        b.rendererTextObject = rendererYAML
-
-    @ioc.entity
-    def parseYAML() -> Handler:
-        def parserYAML(content, charSet): return yaml.load(codecs.getreader(charSet)(content))
-    
-        b = ParseTextHandler(); yield b
-        b.contentTypes = set(content_types_yaml())
-        b.parser = parserYAML
-        b.parserName = 'yaml'
- 
-    # ----------------------------------------------------------------
-       
-    @ioc.after(updateAssemblyParsing)
-    def updateAssemblyParsingWithYAML():
-        assemblyParsing().add(parseYAML())
-    
-    @ioc.after(updateAssemblyRendering)
-    def updateAssemblyRenderingWithYAML():
-        assemblyRendering().add(renderYAML())

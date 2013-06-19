@@ -338,7 +338,7 @@ def processWithProperties(clazz, container):
     assert isclass(clazz), 'Invalid class %s' % clazz
     assert isinstance(container, TypeContainer), 'Invalid container %s' % container
     
-    if not isinstance(clazz, Container):
+    if not issubclass(clazz, Container):
         attributes = dict(clazz.__dict__)
         attributes.pop('__dict__', None)  # Removing __dict__ since is a reference to the old class dictionary.
         attributes.pop('__weakref__', None)

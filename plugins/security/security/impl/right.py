@@ -21,6 +21,7 @@ from sql_alchemy.impl.entity import EntityGetServiceAlchemy, \
     EntityCRUDServiceAlchemy, EntitySupportAlchemy
 from sqlalchemy.orm.exc import NoResultFound
 from ally.internationalization import _
+from ally.api.option import SliceAndTotal
 
 # --------------------------------------------------------------------
 
@@ -47,13 +48,15 @@ class RightServiceAlchemy(EntityGetServiceAlchemy, EntityCRUDServiceAlchemy, IRi
         try: return sql.one()
         except NoResultFound: raise InputError(Ref(_('Invalid names for right'), ref=Right.Name))
         
-    def getAll(self, typeId=None, offset=None, limit=None, detailed=False, q=None):
+    def getAll(self, typeId=None, q=None, **options):
         '''
         @see: IRightService.getAll
         '''
+        # TODO: Gabriel: do proper implementation also check buildQuery for sql is not working properly
+        opt = SliceAndTotal(**options)
         if typeId: filter = RightMapped.Type == typeId
         else: filter = None
-        if detailed:
-            entities, total = self._getAllWithCount(filter, q, offset, limit)
-            return IterPart(entities, total, offset, limit)
-        return self._getAll(filter, q, offset, limit)
+        if opt.withTotal:
+            entities, total = self._getAllWithCount(filter, q, opt.offset, opt.limit)
+            return IterPart(entities, total, opt.offset, opt.limit)
+        return self._getAll(filter, q, opt.offset, opt.limit)

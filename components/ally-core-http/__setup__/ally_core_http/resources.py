@@ -10,12 +10,15 @@ Provides the configurations for the resources.
 '''
 
 from ..ally_core.resources import encoding, processMethod, \
-    updateAssemblyAssembler, assemblyAssembler
+    updateAssemblyAssembler, assemblyAssembler, validateSolved
+from .decode import assemblyDecodeParameters
 from ally.container import ioc
 from ally.core.http.impl.processor.assembler.conflict_replace import \
     ConflictReplaceHandler
 from ally.core.http.impl.processor.assembler.conflict_resolve import \
     ConflictResolveHandler
+from ally.core.http.impl.processor.assembler.decoding_parameters import \
+    DecodingParametersHandler
 from ally.core.http.impl.processor.assembler.invoker_node import \
     InvokerNodeHandler
 from ally.core.http.impl.processor.assembler.invoker_resources import \
@@ -42,6 +45,12 @@ from ally.design.processor.handler import Handler
 
 # --------------------------------------------------------------------
 
+@ioc.entity
+def decodingParameters() -> Handler:
+    b = DecodingParametersHandler()
+    b.decodeAssembly = assemblyDecodeParameters()
+    return b
+    
 @ioc.entity
 def methodHTTP() -> Handler: return MethodHTTPHandler()
 
@@ -91,4 +100,6 @@ def updateAssemblyAssemblerForHTTPCore():
     assemblyAssembler().add(methodHTTP(), pathInput(), pathUpdate(), pathTarget(),
                             pathDomain(), pathWebName(), invokerResources(), invokerNode(), conflictReplace(),
                             conflictResolve(), pathSlash(), pathGetModel(), pathGetAccesible(), after=processMethod())
+
+    assemblyAssembler().add(decodingParameters(), before=validateSolved())
     assemblyAssembler().add(assemblerScheme(), after=encoding())

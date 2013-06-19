@@ -14,7 +14,6 @@ from ally.api.operator.type import TypeOption, TypeProperty
 from ally.api.type import Input, Call
 from ally.core.spec.codes import INPUT_ERROR, INSERT_ERROR, INSERT_SUCCESS, \
     UPDATE_SUCCESS, UPDATE_ERROR, DELETE_SUCCESS, DELETE_ERROR, Coded
-from ally.core.spec.transform.render import Object, List, Value
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
@@ -54,7 +53,6 @@ class Response(Coded):
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    errorDetails = defines(Object)
     obj = defines(object, doc='''
     @rtype: object
     The response object.

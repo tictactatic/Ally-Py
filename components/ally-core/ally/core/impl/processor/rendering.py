@@ -17,7 +17,6 @@ from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain, Processing, CONSUMED
 from ally.design.processor.handler import HandlerBranching
-from ally.exception import DevelError
 import codecs
 import itertools
 
@@ -36,7 +35,7 @@ class Response(Coded):
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    text = defines(str)
+    errorMessage = defines(str)
 
 class ResponseContent(Context):
     '''
@@ -108,7 +107,7 @@ class RenderingHandler(HandlerBranching):
             if chain.branch(rendering).execute(CONSUMED):
                 if response.isSuccess is not False:
                     ENCODING_UNKNOWN.set(response)
-                    response.text = 'Content type \'%s\' not supported for rendering' % responseCnt.type
+                    response.errorMessage = 'Content type \'%s\' not supported for rendering' % responseCnt.type
             else: resolved = True
 
         if not resolved:
@@ -120,5 +119,6 @@ class RenderingHandler(HandlerBranching):
                 responseCnt.type = contentType
                 if not chain.branch(rendering).execute(CONSUMED): break
             else:
-                raise DevelError('There is no renderer available, this is more likely a setup issues since the '
-                                 'default content types should have resolved the renderer')
+                ENCODING_UNKNOWN.set(response)
+                response.errorMessage = 'There is no renderer available, this is more likely a setup issues since the '\
+                'default content types should have resolved the renderer'

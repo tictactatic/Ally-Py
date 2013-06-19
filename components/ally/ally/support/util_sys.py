@@ -10,13 +10,13 @@ Provides utility functions for handling system packages/modules/classes.
 '''
 
 from collections import deque
-from inspect import isclass, ismodule, stack, isfunction, getsourcelines, \
-    getsourcefile, ismethod
+from inspect import isclass, ismodule, stack, getsourcelines, getsourcefile
 from os.path import dirname, relpath
 from pkgutil import iter_modules, get_importer, iter_importers, \
     iter_importer_modules
 import re
 import sys
+from functools import update_wrapper
 
 # --------------------------------------------------------------------
 
@@ -83,6 +83,16 @@ def exceptionModuleName(e):
         return m.__name__
     return None
 
+def updateWrapper(wrapper, wrapped):
+    '''
+    Updates a wrapper function just like @see: update_wrapper from functools, but additionaly provides the location
+    stack tracking for the wrapped function.
+    '''
+    location = locationStack(wrapper)
+    update_wrapper(wrapper, wrapped)
+    try: wrapper.__wrapped_location__ = '%s%s' % (location, wrapped.__wrapped_location__)
+    except AttributeError: wrapper.__wrapped_location__ = '%s%s' % (location, locationStack(wrapped))
+
 def locationStack(located):
     '''
     Provides a stack message for the provided located element, the stack will look as being part of a exception. This is 
@@ -99,6 +109,7 @@ def locationStack(located):
         except IOError: return '\n  Generated class "%s.%s"' % (located.__module__, located.__name__)
         return '\n  File "%s", line %i' % (getsourcefile(located), line)
     else:
+        if hasattr(located, '__wrapped_location__'): return located.__wrapped_location__
         assert hasattr(located, '__code__') and hasattr(located, '__name__'), 'Invalid function or class %s' % located
         return '\n  File "%s", line %i, in %s' % (located.__code__.co_filename, located.__code__.co_firstlineno,
                                                   located.__name__)

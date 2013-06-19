@@ -103,7 +103,7 @@ class PathInputHandler(HandlerProcessor):
             for inp in invoker.inputs:
                 assert isinstance(inp, Input), 'Invalid input %s' % inp
                 
-                if isinstance(inp.type, TypeProperty):
+                if isinstance(inp.type, TypeProperty) and isinstance(inp.type.parent, TypeModel):
                     if inp.type in properties:
                         log.error('Cannot use because the %s should appear at most once, try using an alias '
                                   'on one of the annotations, at:%s', inp.type, invoker.location)

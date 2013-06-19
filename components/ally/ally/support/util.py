@@ -9,8 +9,8 @@ Created on Jun 9, 2011
 Provides implementations that provide general behavior or functionality.
 '''
 
-from collections import Iterable, Iterator, namedtuple
-from inspect import isclass, isfunction
+from collections import Iterable, Iterator, namedtuple, deque
+from inspect import isclass
 from weakref import WeakKeyDictionary
 
 # --------------------------------------------------------------------
@@ -191,6 +191,23 @@ def firstOf(coll):
     coll = iter(coll)
     return next(coll)
 
+def firstCheck(iterator):
+    '''
+    Checks the first element from the provided iterator. It will return a tuple containing as the first value a boolean
+    with False if the element is not the first element in the provided iterator and True if is the first one. On the last
+    position of the tuple it will return the actual value provided by the iterator.
+    
+    @param iterator: Iterator(object)
+        The iterator to wrap for the first element check.
+    @return: Iterator(tuple(boolean, object))
+        A tuple containing as the first value a boolean with False if the element is not the first element in the
+        provided iterator and True if is the first one
+    '''
+    first = True
+    for item in iterator:
+        yield first, item
+        first = False
+            
 def lastCheck(iterator):
     '''
     Checks the last element from the provided iterator. It will return a tuple containing as the first value a boolean
@@ -244,3 +261,135 @@ def firstLastCheck(iterator):
             stop = True
             yield isFirst, True, item
         isFirst = False
+
+# --------------------------------------------------------------------
+
+class TextTable:
+    '''
+    Provides the text table rendering.
+    '''
+    
+    def __init__(self, *headers):
+        '''
+        Construct the text table.
+        
+        @param headers: arguments[string]
+            The headers of the table.
+        '''
+        assert headers, 'At least one header is required'
+        
+        self._headers = headers
+        self._sizes = []
+        self._rows = []
+        self._processing = deque()
+        
+        for header in headers:
+            assert isinstance(header, str), 'Invalid header %s' % header
+            self._sizes.append(len(header) + 2)
+            
+    def add(self, *row):
+        '''
+        Adds a new row to the table.
+        
+        @param row: arguments[string]
+            The row items.
+        '''
+        assert row, 'At least one row item is required'
+        
+        isFirst = True
+        self._processing.append(row)
+        while self._processing:
+            row = self._processing.popleft()
+            if len(row) == 1:
+                item = row[0]
+                assert isinstance(item, str), 'Invalid item %s' % item
+                
+                if isFirst:
+                    lines = item.split('\n')
+                    if len(lines) > 1:
+                        self._processing.extend((line,) for line in lines)
+                        continue
+                    
+                litem, total = self._len(item), sum(self._sizes)
+                if litem > total:
+                    gain = int(litem / len(self._sizes))
+                    for k in range(len(self._sizes)): self._sizes[k] += gain
+                    self._sizes[-1] += litem - (len(self._sizes) * gain)
+                
+            else:
+                if isFirst:
+                    extended = [list(row)]
+                    for k, item in enumerate(row):
+                        assert isinstance(item, str), 'Invalid item %s' % item 
+                        lines = item.split('\n')
+                        if len(lines) > 1:
+                            for j, line in enumerate(lines):
+                                while len(extended) <= j: extended.append([''] * len(self._sizes))
+                                extended[j][k] = line
+                    if len(extended) > 1:
+                        self._processing.extend(extended)
+                        continue
+
+                for k, item in enumerate(row):
+                    assert isinstance(item, str), 'Invalid item %s' % item
+                
+                    self._sizes[k] = max(self._sizes[k], self._len(item))
+                
+            self._rows.append((bool(self._processing), row))
+            isFirst = False
+            
+    def render(self, out):
+        '''
+        Renders the table into the provided output.
+        '''
+        self._line(out)
+        out.write('\n')
+        self._row(out, (('{: ^%s}' % (self._sizes[k] - 1)).format(header) for k, header in enumerate(self._headers)))
+        out.write('\n')
+        self._line(out, line='=')
+        out.write('\n')
+        for hasNext, row in self._rows:
+            if len(row) == 1: self._item(out, row[0])
+            else: self._row(out, row)
+            out.write('\n')
+            if not hasNext:
+                self._line(out)
+                out.write('\n')
+        
+    # ----------------------------------------------------------------
+    
+    def _len(self, item):
+        '''
+        Provides the item length.
+        '''
+        return max(len(line) for line in item.split('\n')) + 2
+    
+    def _line(self, out, line='-', intersetion='+'):
+        '''
+        Renders a line.
+        '''
+        for size in self._sizes:
+            out.write(intersetion)
+            out.write(line * size)
+        out.write(intersetion)
+        
+    def _row(self, out, row, vertical='|', ident=' '):
+        '''
+        Renders the row values.
+        '''
+        out.write(vertical)
+        for k, item in enumerate(row):
+            out.write(ident)
+            out.write(item)
+            out.write(ident * (self._sizes[k] - len(item) - 1))
+            out.write(vertical)
+    
+    def _item(self, out, item, vertical='|', ident=' '):
+        '''
+        Renders the row values.
+        '''
+        out.write(vertical)
+        out.write(ident)
+        out.write(item)
+        out.write(ident * (sum(self._sizes) - len(item) - 2 + len(self._sizes)))
+        out.write(vertical)

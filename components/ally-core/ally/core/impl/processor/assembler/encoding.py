@@ -70,7 +70,7 @@ class Create(Context):
 @injected
 class EncodingHandler(HandlerBranching):
     '''
-    Implementation for a handler that provides the creation of encoders for response objects.
+    Implementation for a handler that provides the creation of encoders for invokers.
     '''
     
     encodeAssembly = Assembly
@@ -85,7 +85,7 @@ class EncodingHandler(HandlerBranching):
         '''
         @see: HandlerBranching.process
         
-        Process the encoder rendering.
+        Populate the encoder.
         '''
         assert isinstance(encodeProcessing, Processing), 'Invalid processing %s' % encodeProcessing
         assert isinstance(register, Register), 'Invalid register %s' % register

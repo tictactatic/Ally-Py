@@ -12,9 +12,9 @@ Provides the JSON encoder processor handler.
 from .base import RenderBaseHandler, Content
 from ally.container.ioc import injected
 from ally.core.spec.resources import Converter
+from ally.core.spec.transform.encdec import IRender
 from ally.core.spec.transform.index import ACTION_STREAM, ACTION_DISCARD, \
     NAME_BLOCK, ACTION_INJECT, Index, ACTION_NAME
-from ally.core.spec.transform.render import IRender
 from ally.design.processor.attribute import requires
 from ally.design.processor.context import Context
 from ally.indexing.spec.model import Block, Action

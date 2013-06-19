@@ -39,8 +39,8 @@ from ally.design.processor.handler import Handler
 from ally.http.impl.processor.header_parameter import HeaderParameterHandler
 from ally.http.impl.processor.method_override import METHOD_OVERRIDE
 from ally.http.impl.processor.status import StatusHandler
-#TODO: from ally.core.http.impl.processor.parameter import ParameterHandler
-#TODO: from ally.core.http.impl.processor.redirect import RedirectHandler
+from ally.core.http.impl.processor.parameter import ParameterHandler
+# TODO: from ally.core.http.impl.processor.redirect import RedirectHandler
 
 # --------------------------------------------------------------------
 # Creating the processors used in handling the request
@@ -121,7 +121,7 @@ def contentIndexEncode() -> Handler:
 # --------------------------------------------------------------------
 
 @ioc.entity
-def converterPath()  -> Handler:
+def converterPath() -> Handler:
     b = ConverterPathHandler()
     b.converter = converter()
     return b
@@ -203,9 +203,9 @@ def updateHeadersCustom():
 @ioc.before(assemblyResources)
 def updateAssemblyResources():
     assemblyResources().add(internalDevelError(), injectorAssembly(), converterPath(), uri(), methodInvoker(),
-                            contentTypeRequestDecode(), contentLengthDecode(), acceptRequestDecode(), converterContent(), 
-                            rendering(), #parsingMultiPart(),
-                            content(), scheme(), invoking(), encoderPath(),
+                            contentTypeRequestDecode(), contentLengthDecode(), acceptRequestDecode(), converterContent(),
+                            rendering(),  # parsingMultiPart(),
+                            content(), parameter(), scheme(), invoking(), encoderPath(),
                             encoderPathInvoker(), renderEncoder(), status(), explainError(), contentIndexEncode(),
                             contentTypeResponseEncode(), contentLengthEncode(), allowEncode()
                             )
@@ -215,7 +215,6 @@ def updateAssemblyResources():
 #        redirect(),
 #        
 #        createDecoder(),
-#        parameter(), 
     
     if allow_method_override():
         assemblyResources().add(methodOverride(), before=methodInvoker())

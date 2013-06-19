@@ -47,6 +47,19 @@ def namesFor(container):
     assert isinstance(ctype, TypeContainer), 'Invalid query %s' % ctype
     return iter(ctype.properties)
 
+def nameFor(property):
+    '''
+    Provides the property name.
+    
+    @param property: TypeProperty container
+        The property to provide the name for.
+    @return: string
+        The name of the property.
+    '''
+    ptyp = typeFor(property)
+    assert isinstance(ptyp, TypeProperty), 'Invalid property %s' % property
+    return ptyp.name
+
 def nameForModel(model):
     '''
     Provides the properties names for the provided model object or class.
@@ -88,6 +101,53 @@ def isModelId(obj):
     if not isinstance(prop.parent, TypeModel): return False
     assert isinstance(prop.parent, TypeModel)
     return prop.parent.propertyId == prop
+
+def isCompatible(theProperty, withProperty):
+    '''
+    Checks if the provided property type is compatible with the provided type.
+    
+    @param theProperty: TypeProperty container
+        The property type to check if compatible with the type.
+    @param withProperty: TypeProperty container
+        The type to check.
+    @return: boolean
+        True if the property type is compatible with the provided type.
+    '''
+    typ, wtyp = typeFor(theProperty), typeFor(withProperty)
+    if not isinstance(typ, TypeProperty): return False
+    assert isinstance(typ, TypeProperty)
+    if not isinstance(typ.parent, TypeContainer): return False
+    assert isinstance(typ.parent, TypeContainer)
+    if not isinstance(wtyp, TypeProperty): return False
+    assert isinstance(wtyp, TypeProperty)
+    if not isinstance(wtyp.parent, TypeContainer): return False
+    assert isinstance(wtyp.parent, TypeContainer)
+    if not typ.name == wtyp.name: return False
+    if not issubclass(wtyp.parent.clazz, typ.parent.clazz): return False
+    
+    return True
+
+def isAvailableIn(container, name, type):
+    '''
+    Checks if the container has a property for the provided name that is compatible with the type.
+    
+    @param container: TypeContainer container
+        The property type to check if compatible with the type.
+    @param name: string
+        The name of the property to check.
+    @param type: Type container
+        The type to check.
+    @return: boolean
+        True if the property type is available in container.
+    '''
+    ctyp = typeFor(container)
+    assert isinstance(ctyp, TypeContainer), 'Invalid container %s' % container
+    prop = ctyp.properties.get(name)
+    if prop:
+        assert isinstance(prop, TypeProperty), 'Invalid property %s' % prop
+        return prop.isOf(type)
+    
+    return False
 
 # --------------------------------------------------------------------
 

@@ -13,8 +13,7 @@ from ally.api.operator.type import TypeProperty
 from ally.api.type import Iter, Type, Dict
 from ally.container.ioc import injected
 from ally.core.spec.resources import Converter
-from ally.core.spec.transform.encdec import IEncoder
-from ally.core.spec.transform.render import IRender
+from ally.core.spec.transform.encdec import IEncoder, IRender
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor

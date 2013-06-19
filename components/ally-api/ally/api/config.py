@@ -387,7 +387,7 @@ def option(*args):
         
         option = TypeOption(clazz)
     
-        for name, typ in extractProperties(clazz, TypeExtension).items():
+        for name, typ in extractProperties(clazz, TypeOption).items():
             if not match(RULE_OPTION_PROPERTY[0], name): raise Exception(RULE_OPTION_PROPERTY[1] % name)
             if not typ.isPrimitive:
                 raise Exception('Invalid type %s for property \'%s\', only primitives are allowed' % (typ, name))

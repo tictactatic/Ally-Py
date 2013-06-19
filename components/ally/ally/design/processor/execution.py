@@ -14,6 +14,7 @@ from collections import Iterable, deque
 import itertools
 import logging
 import sys
+from ally.support.util_sys import locationStack
 
 # --------------------------------------------------------------------
 
@@ -203,11 +204,14 @@ class Execution:
             call = self._calls.popleft()
             assert log.debug('Processing %s', call) or True
             try: call(self, **self.arg.__dict__)
-            except:
+            except Exception as e:
                 self._status = EXCEPTION
                 if self._handleError():
                     log.exception('Exception occurred while processing the execution')
                     return True
+                if isinstance(e, TypeError):
+                    raise TypeError('A problem occurred while invoking with arguments %s, at:%s' % 
+                                    (', '.join(self.arg.__dict__), locationStack(call)))
                 raise
             assert log.debug('Processing finalized \'%s\'', call) or True
             

@@ -16,12 +16,11 @@ from .resolvers import merge, solve
 from .spec import AssemblyError, IProcessor, IFinalizer, ContextMetaClass, \
     ProcessorError, IReport
 from .structure import restructureData, restructureResolvers
-from ally.support.util_sys import locationStack
+from ally.design.processor.spec import IResolver
+from ally.support.util_sys import locationStack, updateWrapper
 from collections import Iterable
-from functools import update_wrapper
 from inspect import ismethod, isfunction, getfullargspec
 import itertools
-from ally.design.processor.spec import IResolver
 
 # --------------------------------------------------------------------
 
@@ -187,7 +186,7 @@ class Brancher(Contextual):
             processings.append(processing)
         
         def wrapper(*args, **keyargs): self.call(*itertools.chain(args, processings), **keyargs)
-        update_wrapper(wrapper, self.call)
+        updateWrapper(wrapper, self.call)
         calls.append(wrapper)
         
     # ----------------------------------------------------------------

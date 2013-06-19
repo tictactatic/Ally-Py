@@ -13,6 +13,7 @@ from .domain_security import modelSecurity
 from .right_type import RightType
 from ally.api.config import query, service, call
 from ally.api.criteria import AsLikeOrdered
+from ally.api.option import SliceAndTotal # @UnusedImport
 from ally.api.type import Iter
 from ally.support.api.entity import Entity, QEntity, IEntityGetService, \
     IEntityCRUDService
@@ -46,8 +47,7 @@ class IRightService(IEntityGetService, IEntityCRUDService):
     '''
     
     @call
-    def getAll(self, typeId:RightType=None, offset:int=None, limit:int=None, detailed:bool=True, \
-               q:QRight=None) -> Iter(Right):
+    def getAll(self, typeId:RightType=None, q:QRight=None, **options:SliceAndTotal) -> Iter(Right):
         '''
         Provides the rights searched by the provided query.
         '''

@@ -11,6 +11,8 @@ Provides the configurations for the resources.
 
 from .encode import assemblyEncode
 from ally.container import ioc
+from ally.core.impl.processor.assembler.decoding_definitions import \
+    DecodingDefinitionsHandler
 from ally.core.impl.processor.assembler.encoding import EncodingHandler
 from ally.core.impl.processor.assembler.injector_assembly import \
     InjectorAssemblyHandler
@@ -95,6 +97,9 @@ def validateSolved() -> Handler: return ValidateSolvedHandler()
 @ioc.entity
 def validateHints() -> Handler: return ValidateHintsHandler()
 
+@ioc.entity
+def decodingDefinitions() -> Handler: return DecodingDefinitionsHandler()
+
 # --------------------------------------------------------------------
 
 @ioc.entity
@@ -109,7 +114,7 @@ def assemblyAssembler() -> Assembly:
 @ioc.before(assemblyAssembler)
 def updateAssemblyAssembler():
     assemblyAssembler().add(invokerService(), processMethod(), optionSlice(), encoding(), assemblerContent(),
-                            validateSolved(), validateHints())
+                            validateSolved(), validateHints(), decodingDefinitions())
 
 # --------------------------------------------------------------------
 
