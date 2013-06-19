@@ -25,6 +25,7 @@ requirejs.config
 		'concat': config.cjs('concat'),		
 		'newgizmo': config.cjs('newgizmo'),
         'backbone': config.cjs('backbone'),
+        'codebird': config.cjs('codebird'),
         'moment': config.cjs('moment'),
         'router': config.cjs('router'),
         'vendor': config.cjs('vendor'),
@@ -36,6 +37,10 @@ requirejs.config
             deps: ['vendor/underscore', 'jquery'],
             exports: 'Backbone'
         },
+		'vendor/codebird-js/codebird': {
+			deps: ['vendor/codebird-js/sha1'],
+			exports: 'Codebird'
+		},
         'angular': {exports: 'angular'},
         'angular-resource': {deps: ['angular']}
     }
