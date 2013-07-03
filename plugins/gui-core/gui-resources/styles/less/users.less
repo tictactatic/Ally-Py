@@ -122,6 +122,13 @@
 }
 
 
+.small-user-avatar {
+  float: left;
+  margin-right: 20px;
+  margin-bottom: 10px;
+  .generic-user-avatar(82px);
+}
+
 
 
 /* USER SCREEEn - DETAIL PANE */
@@ -144,6 +151,24 @@
   &.open {
     left:0; 
   }
+
+  ::-webkit-scrollbar {
+      border-left: 9px solid #fff;
+      border-right: 1px solid #fff;
+      width: 13px;
+      background: #fff;
+      &:hover {
+        background: #e8e8e8;
+      }
+    }
+    ::-webkit-scrollbar-thumb {
+      border-left: 8px solid #fff;
+      background: #bbb;
+      &:hover {
+        background: #787878;
+      }
+    }
+
 
   /* button to close user-detail pane */
   .close {
@@ -231,12 +256,6 @@
       h5 {
         font-size: 14px;
       }
-      .small-user-avatar {
-        float: left;
-        margin-right: 20px;
-        margin-bottom: 10px;
-        .generic-user-avatar(82px);
-      }
       .user-roles {
         margin: 5px 0;
         li {
@@ -257,15 +276,70 @@
   .info-item {
     width: 100%;
     font-size: 13px;
-    color:#484848;
+    color:#383838;
     height: 20px;
     line-height: 20px;
     margin-bottom: 3px;
-    span {
-      color: #949494;
+    .info-label {
+      color: #a0a0a0;
       min-width: 50px;
       margin-right: 10px;
       display: inline-block;
+    }
+    a {
+      color: #3097b5;
+    }
+    .info-value {
+      display: inline-block;
+    }
+    &.password {
+      .info-value {
+      -webkit-text-security: disc;
+        .info-editable {
+          -webkit-text-security: disc;
+        }
+      }
+    }
+    .info-editable {
+      &:hover {
+        border-bottom: 1px dotted #3097b5;
+        margin-bottom: -1px;
+      }
+      &:focus {
+        border-bottom: 1px dotted #3097b5;
+        margin-bottom: -1px;
+        outline: none;
+      }
+      a {
+        display: inline-block;
+        &:hover {
+          text-decoration: none;
+        }
+        &:focus {
+          text-decoration: none;
+          outline: none;
+          border-bottom: 1px dotted #3097b5;
+          margin-bottom: -1px;
+        }
+      }
+      &p{
+         &:hover {
+          margin-bottom: 9px;
+         }
+      }
+    }
+    .privacy-switch-checkbox {
+      display: none;
+      &.sf-checked {
+        display: inline-block !important;
+      }
+      float: right;
+      margin-top: 5px;
+    }
+    &:hover {
+      .privacy-switch-checkbox {
+        display: inline-block;
+      }
     }
   }
   .stats-box {
@@ -378,14 +452,39 @@
   }
 }
 
-
+.details-section {
+  border-top: 1px solid #d6d7d9;
+  padding-top: 20px;
+  margin-top: 35px;
+  margin-bottom: 10px;
+  position: relative;
+  .details-section-header {
+    font-size: 16px;
+    line-height: 22px;
+    color: #4f4f4f;
+    margin-top: -32px;
+    background: #fff;
+    padding: 0 10px 0 0;
+    float: left;
+  }
+  .details-section-menu {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+  }
+  .info-item {
+    .info-label {
+      min-width: 100px;
+    }
+  }
+}
 
 /*specific set for user profile page*/
 .user-profile {
   header {
     position: absolute;
     left:20px;
-    top:20px;
+    top:15px;
     right: 20px;
     height: 30px;
   }
@@ -393,15 +492,200 @@
     position: absolute;
     left:20px;
     right: 20px;
-    top:60px;
-    bottom:0px;
+    top:55px;
+    bottom: 20px;
+    overflow: auto;
     .tab-pane {
       padding: 0;
     }
   }
 }
 
+.user-profile-edit {
+   .details-info {
+    position: absolute;
+    top:120px;
+    .details-section {
+      .details-section();
+      border-top: 0;
+      padding-top: 0;
+      position: relative;
+      .details-section-header {
+        margin: 0;
+        float: none;
+        padding-bottom: 10px;
+      }
+      &:first-child {
+        margin-top: 0;
+      }
+    }
+    .info-item {
+      .box-sizing(border-box);
+      height: auto;
+      line-height: 24px;
+      border-top: 1px dotted #ddd;
+      padding: 5px 2px; 
+      &:last-child {
+        border-bottom: 1px dotted #ddd;
+      }
+    }
+  }
+}
+.user-permissions {
+  header {
+    position: relative;
+    figure {
+      float: left;
+      overflow: hidden;
+      margin-right: 10px;
+      img {
+        width: 30px;
+        height: 30px;
+      }
+    }
+    h2 {
+      font-size: 16px;
+      line-height: 18px;
+    }
+    h5 {
+      font-weight: normal;
+    }
+    button {
+      position: absolute;
+      top: 0;
+      right: 0;
+    }
+  }
+  .details-section {
+    border: 0;
+    position: absolute;
+    top: 80px;
+    bottom: 0;
+    overflow: auto;
+    right: 20px;
+    left: 20px;
+    bottom: 0;
+    margin: 0;
+    padding-top: 32px;
+  }
+  .user-permission-tab {
+    width: 130px;
+    position: absolute;
+    top: 30px;
+    bottom: 10px;
+    left: 0;
+    border-right: 1px solid #ddd;
+    .nav-tabs {
+      float: none;
+      margin-right: 0;
+      margin-right: -1px;
+      li {
+        a {
+          color: #3097b5;
+          margin-bottom: 0px;
+          .border-radius(0px); 
+          border:0;
+          background: #fafafa;
+          border-top: 1px solid #ddd;
+          border-right: 1px solid #ddd;
+          &:last-child {
+            border-bottom: 1px solid #ddd;
+          }
+          &:hover {
+            border-top: 1px solid #ddd;
+          }
+        }
+        &.active {
+          a {
+            background: #fff;
+            border-right: 1px solid #fff;
+             &:hover {
+              border-left: 0;
+            }
+          }
+        }
+      }
+    }
+  }
+  .user-permission-content {
+    position: absolute;
+    left: 130px;
+    right: 0;
+    padding: 0;
+    top: 30px;
+    bottom: 10px;
+    .tab-pane {
+      padding: 5px 0 10px 20px;
+    } 
+  }
+}
+
+
+.settings-module {
+  margin-bottom: 20px;
+  .settings-module-header {
+    i {
+      margin-right: 5px;
+    }
+    &:hover {
+        cursor: pointer;
+    }
+    .toggle-module-close {
+      display: none;
+    }
+    .toggle-module-open {
+      display: inline-block;
+    }
+    .settings-module-title {
+      font-size: 13px;
+      color: #000;
+    }
+  }
+  .settings-module-content {
+    margin-top: 10px;
+    margin-left: 25px;
+    display: none;
+    .settings-checklist {
+      list-style-type: none;
+      margin:0; padding: 0;
+      li {
+        margin-bottom: 6px;
+        line-height: 20px;
+        padding: 2px 0;
+        color: #747474;
+        span {
+          vertical-align: middle;
+          margin-right: 10px;
+          
+        }
+        &.active-bg {
+          color: #000;
+          background: none !important;
+        }
+      }
+    }
+  }
+  &.settings-module-open {
+    .settings-module-header {
+      .toggle-module-close {
+        display: inline-block;
+      }
+      .toggle-module-open {
+        display: none;
+      }
+      .settings-module-title {
+        font-weight: bold;
+      }
+    }
+    .settings-module-content {
+      display: inline-block;
+    }
+  }
+}
+
+
 /* used as tabs for user profile switch between private and public view*/
+/*
 .mini-tabs {
   border: 0;
   margin: -10px 0 0 -10px;
@@ -423,3 +707,4 @@
     }
   }
 }
+*/
