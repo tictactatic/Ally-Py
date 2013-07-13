@@ -94,12 +94,15 @@ class AccessiblePathEncode(HandlerProcessor):
         accessible = []
         for name, ainvoker in node.invokersAccessible:
             assert isinstance(ainvoker, Invoker), 'Invalid invoker %s' % ainvoker
+            
             corrupted = False
             for pname in ainvoker.target.properties:
                 if pname.startswith(ainvoker.target.name):
                     log.error('Illegal property name \'%s\', is not allowed to start with the model name, at:%s',
                               pname, locationStack(ainvoker.target.clazz))
                     corrupted = True
+                    break
+                
             if corrupted: continue
 
             accessible.append(('%s%s' % (invoker.target.name, name), ainvoker))

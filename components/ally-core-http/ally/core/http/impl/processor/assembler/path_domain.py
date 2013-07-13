@@ -13,7 +13,13 @@ from ally.api.operator.type import TypeModel
 from ally.container.ioc import injected
 from ally.design.processor.attribute import requires, defines, definesIf
 from ally.design.processor.context import Context
+from ally.design.processor.execution import Chain
 from ally.design.processor.handler import HandlerProcessor
+import logging
+
+# --------------------------------------------------------------------
+
+log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
@@ -25,6 +31,7 @@ class Register(Context):
     hintsModel = definesIf(dict)
     # ---------------------------------------------------------------- Required
     invokers = requires(list)
+    exclude = requires(set)
     
 class Invoker(Context):
     '''
@@ -33,6 +40,7 @@ class Invoker(Context):
     # ---------------------------------------------------------------- Defined
     path = defines(list)
     # ---------------------------------------------------------------- Required
+    id = requires(str)
     location = requires(str)
     
 class ElementDomain(Context):
@@ -68,8 +76,10 @@ class PathDomainHandler(HandlerProcessor):
         
         Provides the domain based on elements models.
         '''
+        assert isinstance(chain, Chain), 'Invalid chain %s' % chain
         assert isinstance(register, Register), 'Invalid register %s' % register
         assert issubclass(Element, ElementDomain), 'Invalid path element %s' % Element
+        assert isinstance(register.exclude, set), 'Invalid exclude set %s' % register.exclude
         
         if Register.hintsModel in register:
             if register.hintsModel is None: register.hintsModel = {}
@@ -89,7 +99,13 @@ class PathDomainHandler(HandlerProcessor):
                 
                 if self.hintName in el.model.hints:
                     domain = el.model.hints[self.hintName]
-                    assert isinstance(domain, str) and domain, 'Invalid domain \'%s\' at:%s' % (domain, invoker.location)
-                    for name in reversed(domain.split('/')):
-                        if name: invoker.path.insert(0, Element(name=name))
+                    if not isinstance(domain, str) or not domain:
+                        log.error('Cannot use invoker because the model %s domain \'%s\' is invalid, at:%s',
+                                  el.model, domain, invoker.location)
+                        register.exclude.add(invoker.id)
+                        chain.cancel()
+                    else:
+                        assert isinstance(domain, str)
+                        for name in reversed(domain.split('/')):
+                            if name: invoker.path.insert(0, Element(name=name))
                 break

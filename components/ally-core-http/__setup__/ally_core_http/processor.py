@@ -11,8 +11,8 @@ Provides the configurations for the processors used in handling the request.
 
 from ..ally_core.parsing_rendering import assemblyParsing
 from ..ally_core.processor import converter, invoking, default_charset, \
-    rendering, createDecoder, content, renderEncoder, converterContent, \
-    blockIndexing
+    rendering, content, renderEncoder, converterContent, \
+    blockIndexing, parsing
 from ..ally_core.resources import injectorAssembly
 from ..ally_http.processor import acceptRequestDecode, encoderPath, \
     contentLengthDecode, contentLengthEncode, methodOverride, allowEncode, \
@@ -24,8 +24,6 @@ from ally.core.http.impl.processor.conversion_path import ConverterPathHandler
 from ally.core.http.impl.processor.explain_error import ExplainErrorHandler
 from ally.core.http.impl.processor.headers.content_disposition import \
     ContentDispositionDecodeHandler
-from ally.core.http.impl.processor.internal_error import \
-    InternalDevelErrorHandler
 from ally.core.http.impl.processor.method_invoker import MethodInvokerHandler
 from ally.core.http.impl.processor.parsing_multipart import \
     ParsingMultiPartHandler
@@ -40,6 +38,8 @@ from ally.http.impl.processor.header_parameter import HeaderParameterHandler
 from ally.http.impl.processor.method_override import METHOD_OVERRIDE
 from ally.http.impl.processor.status import StatusHandler
 from ally.core.http.impl.processor.parameter import ParameterHandler
+from ..ally_http.processor import internalError
+from ..ally_core.decode import describers
 # TODO: from ally.core.http.impl.processor.redirect import RedirectHandler
 
 # --------------------------------------------------------------------
@@ -93,9 +93,6 @@ def parametersAsHeaders() -> list:
 
 # --------------------------------------------------------------------
 # Header decoders
-
-@ioc.entity
-def internalDevelError() -> Handler: return InternalDevelErrorHandler()
 
 @ioc.entity
 def headerParameter() -> Handler:
@@ -169,7 +166,10 @@ def status() -> Handler:
     return b
 
 @ioc.entity
-def explainError(): return ExplainErrorHandler()
+def explainError() -> Handler:
+    b = ExplainErrorHandler()
+    b.describers = describers()
+    return b
 
 # --------------------------------------------------------------------
 
@@ -200,11 +200,14 @@ def assemblyBlocks() -> Assembly:
 def updateHeadersCustom():
     if allow_method_override(): headersCustom().add(METHOD_OVERRIDE.name)
 
+de facut basic parsing text pentru JSON, si dupa aia multi part parsing,
+pentru care faci un assembler care pune pe invoker flag daca ia content au ba, si de asemenea verifica daca
+contentul este numai unul
 @ioc.before(assemblyResources)
 def updateAssemblyResources():
-    assemblyResources().add(internalDevelError(), injectorAssembly(), converterPath(), uri(), methodInvoker(),
+    assemblyResources().add(internalError(), injectorAssembly(), converterPath(), uri(), methodInvoker(),
                             contentTypeRequestDecode(), contentLengthDecode(), acceptRequestDecode(), converterContent(),
-                            rendering(),  # parsingMultiPart(),
+                            rendering(), parsing(), # parsingMultiPart(),
                             content(), parameter(), scheme(), invoking(), encoderPath(),
                             encoderPathInvoker(), renderEncoder(), status(), explainError(), contentIndexEncode(),
                             contentTypeResponseEncode(), contentLengthEncode(), allowEncode()
@@ -219,7 +222,7 @@ def updateAssemblyResources():
     if allow_method_override():
         assemblyResources().add(methodOverride(), before=methodInvoker())
         assemblyResources().add(methodOverrideAllow(), after=methodInvoker())
-    if read_from_params(): assemblyResources().add(headerParameter(), after=internalDevelError())
+    if read_from_params(): assemblyResources().add(headerParameter(), after=internalError())
 
 @ioc.before(assemblyMultiPartPopulate)
 def updateAssemblyMultiPartPopulate():

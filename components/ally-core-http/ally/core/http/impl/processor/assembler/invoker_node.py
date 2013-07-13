@@ -13,6 +13,7 @@ from ally.api.operator.type import TypeProperty
 from ally.container.ioc import injected
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
+from ally.design.processor.execution import Chain
 from ally.design.processor.handler import HandlerProcessor
 import logging
 
@@ -37,6 +38,7 @@ class Register(Context):
     ''')
     # ---------------------------------------------------------------- Required
     invokers = requires(list)
+    exclude = requires(set)
     
 class Invoker(Context):
     '''
@@ -48,6 +50,7 @@ class Invoker(Context):
     The invoker node.
     ''')
     # ---------------------------------------------------------------- Required
+    id = requires(str)
     methodHTTP = requires(str)
     path = requires(list)
     location = requires(str)
@@ -103,20 +106,19 @@ class InvokerNodeHandler(HandlerProcessor):
         
         Provides the path based on elements.
         '''
+        assert isinstance(chain, Chain), 'Invalid chain %s' % chain
         assert isinstance(register, Register), 'Invalid register %s' % register
+        assert isinstance(register.exclude, set), 'Invalid exclude set %s' % register.exclude
         assert issubclass(Node, NodeInvoker), 'Invalid node class %s' % Node
         
         if not register.invokers: return  # No invokers to process
-        assert isinstance(register.invokers, list), 'Invalid invokers %s' % register.invokers
         
         if register.nodes is None: register.nodes = []
         if register.root is None:
             register.root = Node()
             register.nodes.append(register.root)
-        k = 0
-        while k < len(register.invokers):
-            invoker = register.invokers[k]
-            k += 1
+            
+        for invoker in register.invokers:
             assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
             assert isinstance(invoker.methodHTTP, str), 'Invalid HTTP method name %s' % invoker.methodHTTP
             node = register.root
@@ -132,15 +134,11 @@ class InvokerNodeHandler(HandlerProcessor):
                         if node.byName:
                             log.error('Cannot use because the node already has names (%s) and cannot add type \'%s\', at:%s',
                                      ', '.join(str(typ) for typ in node.byName), el.property.type, invoker.location)
-                            k -= 1
-                            del register.invokers[k]
                             valid = False
                             break
                         
                         if not el.property.type.isPrimitive:
                             log.error('Cannot use because the %s is not a primitive, at:%s', el.property, invoker.location)
-                            k -= 1
-                            del register.invokers[k]
                             valid = False
                             break
                         
@@ -157,8 +155,6 @@ class InvokerNodeHandler(HandlerProcessor):
                         if node.byType:
                             log.error('Cannot use because the node already has types (%s) and cannot add name \'%s\', at:%s',
                                      ', '.join(str(typ) for typ in node.byType), el.name, invoker.location)
-                            k -= 1
-                            del register.invokers[k]
                             valid = False
                             break
                         
@@ -170,7 +166,10 @@ class InvokerNodeHandler(HandlerProcessor):
                         
                     node = cnode
             
-            if not valid: continue
+            if not valid:
+                register.exclude.add(invoker.id)
+                chain.cancel()
+                continue
             
             if node.invokers is None: node.invokers = {invoker.methodHTTP: invoker}
             elif node.conflicts and invoker.methodHTTP in node.conflicts: node.conflicts[invoker.methodHTTP].append(invoker)

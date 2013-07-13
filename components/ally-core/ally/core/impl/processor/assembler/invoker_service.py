@@ -31,12 +31,17 @@ class Register(Context):
     ''')
     # ---------------------------------------------------------------- Required
     services = requires(Iterable)
+    exclude = requires(set)
     
 class InvokerCall(Context):
     '''
     The invoker context.
     '''
     # ---------------------------------------------------------------- Defined
+    id = defines(str, doc='''
+    @rtype: string
+    The unique id of the invoker.
+    ''')
     invoke = defines(Callable, doc='''
     @rtype: Callable
     The invoke used for handling the request.
@@ -91,8 +96,12 @@ class InvokerServiceHandler(HandlerProcessor):
             for call in iterateCalls(service):
                 assert isinstance(call, Call), 'Invalid call %s' % call
                 
+                invokerId = '%s.%s.%s' % (service.clazz.__module__, service.clazz.__name__, call.name)
+                if invokerId in register.exclude: continue
+                
                 invoker = Invoker()
                 assert isinstance(invoker, InvokerCall), 'Invalid invoker %s' % invoker
+                invoker.id = invokerId
                 invoker.invoke = getattr(implementation, call.name)
                 invoker.service = service
                 invoker.call = call

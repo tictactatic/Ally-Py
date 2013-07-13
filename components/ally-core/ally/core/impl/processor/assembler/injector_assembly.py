@@ -13,14 +13,14 @@ from ally.container.ioc import injected
 from ally.design.processor.assembly import Assembly, log
 from ally.design.processor.attribute import defines
 from ally.design.processor.context import Context, create
-from ally.design.processor.execution import Processing, Chain
+from ally.design.processor.execution import Processing, Chain, CONSUMED
 from ally.design.processor.handler import Handler
 from ally.design.processor.report import ReportUnused
 from ally.design.processor.resolvers import resolversFor, solve, checkIf, \
     reportFor, merge
 from ally.design.processor.spec import IProcessor, LIST_UNAVAILABLE, \
     AssemblyError, IResolver, LIST_UNUSED, LIST_CLASSES, IFinalizer
-from collections import Iterable
+from collections import Iterable, Callable
 
 # --------------------------------------------------------------------
 
@@ -29,9 +29,18 @@ class Register(Context):
     The register context.
     '''
     # ---------------------------------------------------------------- Defined
+    suggest = defines(Callable, doc='''
+    @rtype: callable(*args)
+    The suggest logger to be used for registration.
+    ''')
     services = defines(Iterable, doc='''
     @rtype: Iterable(class)
     The classes that implement service APIs.
+    ''')
+    exclude = defines(set, doc='''
+    @rtype: set(object)
+    The invoker identifiers that dictate the invokers to be excluded from the process. This is set gets updated whenever
+    there is a problem invoker and in the case the chain is no fully consumed another try is made with this exclusion set.
     ''')
 
 # --------------------------------------------------------------------
@@ -133,8 +142,17 @@ class InjectorAssemblyHandler(Handler, IProcessor, IFinalizer):
             del self.calls
             del self.report
         
-        self.assembled = self.processing.executeWithAll(register=self.processing.ctx.register(services=iter(services)))
+        exclude = set()
+        while True:
+            suggestions = []
+            chain = Chain(self.processing, True, register=self.processing.ctx.register(services=iter(services),
+                                                exclude=exclude, suggest=lambda *args: suggestions.append(args)))
+            if chain.execute(CONSUMED): break
+        self.assembled = chain.arg
         
+        if suggestions:
+            log.warn('Available suggestions:\n%s', '\n'.join(suggest[0] % suggest[1:] for suggest in suggestions))
+            
 # --------------------------------------------------------------------
 
 class ResolverWrapper(IResolver):

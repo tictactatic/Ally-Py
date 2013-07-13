@@ -75,14 +75,14 @@ class RenderingHandler(HandlerBranching):
         assert isinstance(self.charSetDefault, str), 'Invalid default character set %s' % self.charSetDefault
         super().__init__(Branch(self.renderingAssembly).included())
 
-    def process(self, chain, rendering, request:Request, response:Response, responseCnt:ResponseContent, **keyargs):
+    def process(self, chain, processing, request:Request, response:Response, responseCnt:ResponseContent, **keyargs):
         '''
         @see: HandlerBranching.process
         
         Create the render for the response object.
         '''
         assert isinstance(chain, Chain), 'Invalid chain %s' % chain
-        assert isinstance(rendering, Processing), 'Invalid processing %s' % rendering
+        assert isinstance(processing, Processing), 'Invalid processing %s' % processing
         assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(response, Response), 'Invalid response %s' % response
         assert isinstance(responseCnt, ResponseContent), 'Invalid response content %s' % responseCnt
@@ -104,7 +104,7 @@ class RenderingHandler(HandlerBranching):
 
         resolved = False
         if responseCnt.type:
-            if chain.branch(rendering).execute(CONSUMED):
+            if chain.branch(processing).execute(CONSUMED):
                 if response.isSuccess is not False:
                     ENCODING_UNKNOWN.set(response)
                     response.errorMessage = 'Content type \'%s\' not supported for rendering' % responseCnt.type
@@ -117,7 +117,7 @@ class RenderingHandler(HandlerBranching):
             else: contentTypes = self.contentTypeDefaults
             for contentType in contentTypes:
                 responseCnt.type = contentType
-                if not chain.branch(rendering).execute(CONSUMED): break
+                if not chain.branch(processing).execute(CONSUMED): break
             else:
                 ENCODING_UNKNOWN.set(response)
                 response.errorMessage = 'There is no renderer available, this is more likely a setup issues since the '\

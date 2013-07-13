@@ -116,6 +116,7 @@ def model(*args, id=None, name=None, **hints):
                 id = typ.propertyId.name
                 log.info('Inherited id \'%s\'from %s, at:%s', id, typ, locationStack(clazz))
             model.hints.update(hitem for hitem in typ.hints.items() if hitem[0] not in model.hints)
+        model.hints.update(hints)
         
         for name, typ in extractProperties(clazz, TypeModel).items():
             if not match(RULE_MODEL_PROPERTY[0], name): raise Exception(RULE_MODEL_PROPERTY[1] % name)

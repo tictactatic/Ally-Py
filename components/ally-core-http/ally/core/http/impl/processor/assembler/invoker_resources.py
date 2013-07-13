@@ -28,6 +28,8 @@ class Register(Context):
     '''
     # ---------------------------------------------------------------- Defined
     invokers = defines(list)
+    # ---------------------------------------------------------------- Required
+    exclude = requires(set)
 
 class Node(Context):
     '''
@@ -41,6 +43,7 @@ class InvokerResources(Context):
     The invoker context.
     '''
     # ---------------------------------------------------------------- Defined
+    id = defines(str)
     methodHTTP = defines(str)
     path = defines(list)
     encoder = defines(IEncoder, doc='''
@@ -83,11 +86,14 @@ class InvokerResourcesHandler(HandlerProcessor):
         '''
         assert isinstance(register, Register), 'Invalid register %s' % register
         assert issubclass(Invoker, InvokerResources), 'Invalid invoker class %s' % Invoker
+        
+        if self.nameResources in register.exclude: return
         if register.invokers is None: register.invokers = []
         
         invoker = Invoker()
         register.invokers.append(invoker)
         assert isinstance(invoker, InvokerResources), 'Invalid invoker %s' % invoker
+        invoker.id = self.nameResources
         invoker.methodHTTP = HTTP_GET
         invoker.path = []
         invoker.encoder = EncoderResources(self.nameResources, self.nameRef, invoker)

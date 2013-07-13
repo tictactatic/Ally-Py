@@ -12,7 +12,9 @@ Provides the validation for solved inputs.
 from ally.api.type import Input
 from ally.design.processor.attribute import requires
 from ally.design.processor.context import Context
+from ally.design.processor.execution import Chain
 from ally.design.processor.handler import HandlerProcessor
+from collections import Callable
 import logging
 
 # --------------------------------------------------------------------
@@ -26,13 +28,16 @@ class Register(Context):
     The register context.
     '''
     # ---------------------------------------------------------------- Required
+    suggest = requires(Callable)
     invokers = requires(list)
+    exclude = requires(set)
     
 class Invoker(Context):
     '''
     The invoker context.
     '''
     # ---------------------------------------------------------------- Required
+    id = requires(str)
     inputs = requires(tuple)
     solved = requires(set)
     location = requires(str)
@@ -53,14 +58,12 @@ class ValidateSolvedHandler(HandlerProcessor):
         
         Process the solved inputs.
         '''
+        assert isinstance(chain, Chain), 'Invalid chain %s' % chain
         assert isinstance(register, Register), 'Invalid register %s' % register
         if not register.invokers: return  # No invokers to process.
         
-        assert isinstance(register.invokers, list), 'Invalid invokers %s' % register.invokers
-        k, reported = 0, set()
-        while k < len(register.invokers):
-            invoker = register.invokers[k]
-            k += 1
+        reported = set()
+        for invoker in register.invokers:
             assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
             if not invoker.inputs: continue
             
@@ -78,10 +81,12 @@ class ValidateSolvedHandler(HandlerProcessor):
                 if invoker.location not in reported:
                     log.error('Cannot use because of unsolved inputs %s, at:%s', ', '.join(unsolved), invoker.location)
                     reported.add(invoker.location)
-                k -= 1
-                del register.invokers[k]
+                assert isinstance(register.exclude, set), 'Invalid exclude set %s' % register.exclude
+                register.exclude.add(invoker.id)
+                chain.cancel()
                 
             elif unsolved and invoker.location not in reported:
-                log.warn('Unsolved inputs %s, at:%s', ', '.join(unsolved), invoker.location)
+                assert callable(register.suggest), 'Invalid suggest %s' % register.suggest
+                register.suggest('Unsolved inputs %s, at:%s', ', '.join(unsolved), invoker.location)
                 reported.add(invoker.location)
             

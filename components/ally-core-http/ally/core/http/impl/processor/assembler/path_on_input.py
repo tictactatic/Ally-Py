@@ -13,6 +13,7 @@ from ally.api.operator.type import TypeProperty, TypeModel
 from ally.api.type import Input
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context, pushIn, cloneCollection
+from ally.design.processor.execution import Chain
 from ally.design.processor.handler import HandlerProcessor
 import itertools
 import logging
@@ -34,6 +35,7 @@ class Register(Context):
     ''')
     # ---------------------------------------------------------------- Required
     invokers = requires(list)
+    exclude = requires(set)
     
 class InvokerOnInput(Context):
     '''
@@ -49,6 +51,7 @@ class InvokerOnInput(Context):
     The path elements.
     ''')
     # ---------------------------------------------------------------- Required
+    id = requires(str)
     inputs = requires(tuple)
     target = requires(TypeModel)
     location = requires(str)
@@ -84,18 +87,18 @@ class PathInputHandler(HandlerProcessor):
         
         Provides the paths based on property id inputs.
         '''
+        assert isinstance(chain, Chain), 'Invalid chain %s' % chain
         assert isinstance(register, Register), 'Invalid register %s' % register
         assert issubclass(Invoker, InvokerOnInput), 'Invalid invoker %s' % Invoker
         assert issubclass(Element, ElementInput), 'Invalid element %s' % Element
+        assert isinstance(register.exclude, set), 'Invalid exclude set %s' % register.exclude
         if not register.invokers: return  # No invoker to process
         
         assert isinstance(register.invokers, list), 'Invalid invokers %s' % register.invokers
 
         if register.relations is None: register.relations = {}
-        ninvokers, k = [], 0
-        while k < len(register.invokers):
-            invoker = register.invokers[k]
-            k += 1
+        ninvokers = []
+        for invoker in register.invokers:
             assert isinstance(invoker, InvokerOnInput), 'Invalid invoker %s' % invoker
             
             if invoker.solved is None: invoker.solved = set()
@@ -107,8 +110,8 @@ class PathInputHandler(HandlerProcessor):
                     if inp.type in properties:
                         log.error('Cannot use because the %s should appear at most once, try using an alias '
                                   'on one of the annotations, at:%s', inp.type, invoker.location)
-                        k -= 1
-                        del register.invokers[k]
+                        register.exclude.add(invoker.id)
+                        chain.cancel()
                         break
                     properties.add(inp.type)
                     invoker.solved.add(inp.name)
@@ -123,7 +126,11 @@ class PathInputHandler(HandlerProcessor):
                 if optional:
                     combinations = (itertools.combinations(optional, i) for i in range(1, len(optional) + 1))
                     for extra in itertools.chain(*combinations):
+                        invokerId = '%s(%s)' % (invoker.id, ','.join(inp.name for inp in extra))
+                        if invokerId in register.exclude: continue
+                
                         ninvoker = pushIn(Invoker(), invoker, interceptor=cloneCollection)
+                        ninvoker.id = invokerId
                         elementsFor.append((ninvoker, itertools.chain(mandatory, extra)))
                         ninvokers.append(ninvoker)
                         

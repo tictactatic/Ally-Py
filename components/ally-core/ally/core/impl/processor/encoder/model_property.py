@@ -15,12 +15,17 @@ from ally.core.spec.transform.encdec import IEncoder, EncoderWithSpecifiers, \
     IRender
 from ally.core.spec.transform.index import NAME_BLOCK
 from ally.design.processor.assembly import Assembly
-from ally.design.processor.attribute import requires, defines, optional
+from ally.design.processor.attribute import requires, defines, optional, \
+    definesIf
 from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context
-from ally.design.processor.execution import Processing
+from ally.design.processor.execution import Processing, Chain
 from ally.design.processor.handler import HandlerBranching
-from ally.exception import DevelError
+import logging
+
+# --------------------------------------------------------------------
+
+log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
     
@@ -40,6 +45,7 @@ class Create(Context):
     @rtype: IEncoder
     The encoder for the model.
     ''')
+    isCorrupted = definesIf(bool)
     # ---------------------------------------------------------------- Optional
     name = optional(str)
     specifiers = optional(list)
@@ -78,13 +84,14 @@ class ModelPropertyEncode(HandlerBranching):
         'Invalid property encode assembly %s' % self.propertyEncodeAssembly
         super().__init__(Branch(self.propertyEncodeAssembly).included().using(create=CreateProperty))
         
-    def process(self, chain, propertyProcessing, invoker:Invoker, create:Create, **keyargs):
+    def process(self, chain, processing, invoker:Invoker, create:Create, **keyargs):
         '''
         @see: HandlerBranching.process
         
         Create the model property encoder.
         '''
-        assert isinstance(propertyProcessing, Processing), 'Invalid processing %s' % propertyProcessing
+        assert isinstance(chain, Chain), 'Invalid chain %s' % chain
+        assert isinstance(processing, Processing), 'Invalid processing %s' % processing
         assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
         assert isinstance(create, Create), 'Invalid create %s' % create
         
@@ -104,9 +111,12 @@ class ModelPropertyEncode(HandlerBranching):
         else: specifiers = ()
         
         if not invoker.hideProperties:
-            arg = propertyProcessing.execute(create=propertyProcessing.ctx.create(objType=prop, name=prop.name), **keyargs)
+            arg = processing.executeWithAll(create=processing.ctx.create(objType=prop, name=prop.name), **keyargs)
             assert isinstance(arg.create, CreateProperty), 'Invalid create property %s' % arg.create
-            if arg.create.encoder is None: raise DevelError('Cannot encode %s' % prop)
+            if arg.create.encoder is None:
+                if Create.isCorrupted in create: create.isCorrupted = True
+                log.error('Cannot encode %s', prop)
+                return chain.cancel()
             encoder = arg.create.encoder
         else: encoder = None
         

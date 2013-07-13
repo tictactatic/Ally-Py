@@ -18,11 +18,6 @@ from ally.design.processor.handler import HandlerProcessor
 from ally.support.api.util_service import isCompatible, isAvailableIn
 from collections import Callable
 from functools import partial
-import logging
-
-# --------------------------------------------------------------------
-
-log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
@@ -31,6 +26,7 @@ class Register(Context):
     The register context.
     '''
     # ---------------------------------------------------------------- Required
+    suggest = requires(Callable)
     invokers = requires(list)
     
 class Invoker(Context):
@@ -39,20 +35,10 @@ class Invoker(Context):
     '''
     # ---------------------------------------------------------------- Defined
     prepare = defines(Callable)
-    definitions = defines(dict, doc='''
-    @rtype: dictionary{frozenset: Context}
-    Definitions indexed based on a frozenset containing representative data for definition.
-    ''')
     # ---------------------------------------------------------------- Required
     inputs = requires(tuple)
+    definitions = requires(list)
     location = requires(str)
-
-class DefinitionSlice(Context):
-    '''
-    The definition context.
-    '''
-    # ---------------------------------------------------------------- Defined
-    description = defines(list)
 
 # --------------------------------------------------------------------
 
@@ -81,14 +67,13 @@ class OptionSliceHandler(HandlerProcessor):
         self.typeLimit = typeFor(Slice.limit)
         self.typeTotal = typeFor(SliceAndTotal.withTotal)
         
-    def process(self, chain, register:Register, Definition:DefinitionSlice, **keyargs):
+    def process(self, chain, register:Register, **keyargs):
         '''
         @see: HandlerProcessor.process
         
         Process the slicing options values.
         '''
         assert isinstance(register, Register), 'Invalid register %s' % register
-        assert issubclass(Definition, DefinitionSlice), 'Invalid definition class %s' % Definition
         if not register.invokers: return  # No invokers to process
         
         for invoker in register.invokers:
@@ -106,39 +91,16 @@ class OptionSliceHandler(HandlerProcessor):
                         compatible[inp.name] = inp
                     continue
                 
-                descs = None
-                if isCompatible(Slice.offset, inp.type):
-                    if descs is None: descs = []
-                    descs.append('indicates the start offset in a collection from where to retrieve')
-                elif isCompatible(Slice.limit, inp.type):
-                    hasLimit = True
-                    if descs is None: descs = []
-                    descs.append('indicates the number of entities to be retrieved from a collection')
-                    if self.defaultLimit is not None:
-                        descs.append('if no value is provided it defaults to %s' % self.defaultLimit)
-                    if self.maximumLimit is not None: descs.append('the maximum value is %s' % self.maximumLimit)
-                elif isCompatible(SliceAndTotal.withTotal, inp.type):
-                    hasTotal = True
-                    if descs is None: descs = []
-                    descs.append('indicates that the total count of the collection has to be provided')
-                    if self.defaultWithTotal is not None:
-                        descs.append('if no value is provided it defaults to %s' % self.defaultWithTotal)
-                        
-                if descs:
-                    if invoker.definitions is None: invoker.definitions = {}
-                    key = frozenset((inp,))
-                    definition = invoker.definitions.get(key)
-                    if definition is None: definition = invoker.definitions[key] = Definition()
-                    assert isinstance(definition, DefinitionSlice), 'Invalid definition %s' % definition
-                    if definition.description is None: definition.description = descs
-                    else: definition.description.extend(descs)
+                if isCompatible(Slice.limit, inp.type): hasLimit = True
+                elif isCompatible(SliceAndTotal.withTotal, inp.type): hasTotal = True
                         
             if hasLimit or hasTotal: invoker.prepare = partial(self.prepare, hasLimit, hasTotal, invoker.prepare)
             elif compatible:
                 if self.typeTotal.name in compatible: clazz = SliceAndTotal
                 else: clazz = Slice
-                log.warn('Instead of inputs \'%s\' you could use %s.%s, at:%s', ', '.join(sorted(compatible)),
-                         clazz.__module__, clazz.__name__, invoker.location)
+                assert callable(register.suggest), 'Invalid suggest %s' % register.suggest
+                register.suggest('Instead of inputs \'%s\' you could use %s.%s, at:%s', ', '.join(sorted(compatible)),
+                                 clazz.__module__, clazz.__name__, invoker.location)
     
     # ----------------------------------------------------------------
     

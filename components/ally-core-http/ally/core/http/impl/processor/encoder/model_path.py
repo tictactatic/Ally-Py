@@ -74,9 +74,10 @@ class ModelPathAttributeEncode(HandlerProcessor):
         assert isinstance(create, Create), 'Invalid create %s' % create
         
         if not invoker.invokerGet: return  # No get model invokers available
+        assert isinstance(invoker.invokerGet, Invoker), 'Invalid invoker %s' % invoker.invokerGet
         if Create.encoder in create and create.encoder is not None: return 
         # There is already an encoder, nothing to do.
-        
+       
         if create.specifiers is None: create.specifiers = []
         create.specifiers.append(AttributeModelPath(self.nameRef, invoker.invokerGet))
 

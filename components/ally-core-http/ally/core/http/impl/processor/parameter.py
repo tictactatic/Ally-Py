@@ -11,17 +11,13 @@ Provides the parameters handler.
 
 from ally.container.ioc import injected
 from ally.core.http.spec.codes import PARAMETER_ILLEGAL
-from ally.core.spec.transform.encdec import IDecoder
+from ally.core.http.spec.transform.encdec import CATEGORY_PARAMETER
+from ally.core.spec.resources import Converter
+from ally.core.spec.transform.encdec import IDecoder, Category
 from ally.design.processor.attribute import requires, defines
-from ally.design.processor.context import Context, pushIn, cloneCollection
-from ally.design.processor.handler import HandlerComposite
-from ally.design.processor.processor import Joiner
+from ally.design.processor.context import Context
+from ally.design.processor.handler import HandlerProcessor
 from ally.http.spec.codes import CodedHTTP
-import logging
-
-# --------------------------------------------------------------------
-
-log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
@@ -30,8 +26,15 @@ class Invoker(Context):
     The invoker context.
     '''
     # ---------------------------------------------------------------- Required
-    decoderParameters = requires(IDecoder)
-    definitionParameters = requires(Context)
+    decoder = requires(IDecoder)
+    definitions = requires(list)
+
+class Definition(Context):
+    '''
+    The definition context.
+    '''
+    # ---------------------------------------------------------------- Required
+    category = requires(Category)
     
 class Request(Context):
     '''
@@ -41,36 +44,46 @@ class Request(Context):
     parameters = requires(list)
     invoker = requires(Context)
     arguments = requires(dict)
+    converterPath = requires(Converter)
 
 class Response(CodedHTTP):
     '''
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    errorMessage = defines(str)
-    errorDefinition = defines(Context)
+    errorMessages = defines(list)
+    errorDefinitions = defines(list)
 
 class SupportDecoding(Context):
     '''
     The decoder support context.
     '''
+    # ---------------------------------------------------------------- Defined
+    category = defines(object, doc='''
+    @rtype: object
+    The category of the ongoing decoding.
+    ''')
+    converter = defines(Converter, doc='''
+    @rtype: Converter
+    The converter to be used for decoding.
+    ''')
     # ---------------------------------------------------------------- Required
     failures = requires(list)
 
 # --------------------------------------------------------------------
 
 @injected
-class ParameterHandler(HandlerComposite):
+class ParameterHandler(HandlerProcessor):
     '''
     Implementation for a processor that provides the transformation of parameters into arguments.
     '''
 
     def __init__(self):
-        super().__init__(Joiner(Support=('response', 'request')), Invoker=Invoker)
+        super().__init__(Invoker=Invoker, Definition=Definition)
 
     def process(self, chain, request:Request, response:Response, Support:SupportDecoding, **keyargs):
         '''
-        @see: HandlerComposite.process
+        @see: HandlerProcessor.process
         
         Process the parameters into arguments.
         '''
@@ -84,24 +97,30 @@ class ParameterHandler(HandlerComposite):
         if request.parameters:
             illegal = set()
             
-            decoder = request.invoker.decoderParameters
+            decoder = request.invoker.decoder
             if not decoder: illegal.update(name for name, value in request.parameters)
             else:
                 assert isinstance(decoder, IDecoder), 'Invalid decoder %s' % decoder
                 
                 if request.arguments is None: request.arguments = {}
-                support = pushIn(Support(), response, request, interceptor=cloneCollection)
+                support = Support(category=CATEGORY_PARAMETER, converter=request.converterPath)
                 assert isinstance(support, SupportDecoding), 'Invalid support %s' % support
+                
                 for name, value in request.parameters:
                     if not decoder.decode(name, value, request.arguments, support): illegal.add(name)
                     
             if illegal or support.failures:
                 PARAMETER_ILLEGAL.set(response)
+                if response.errorMessages is None: response.errorMessages = []
                 
-                message = []
-                if illegal: message.append('Unknown parameters: %s' % ', '.join(sorted(illegal)))
-                if support.failures: message.extend(support.failures)
-                
-                response.errorMessage = '\n'.join(message)
-                response.errorDefinition = request.invoker.definitionParameters
-                return
+                if illegal: response.errorMessages.append('Unknown parameters: %s' % ', '.join(sorted(illegal)))
+                if support.failures: response.errorMessages.extend(support.failures)
+                if request.invoker.definitions:
+                    definitions = []
+                    for defin in request.invoker.definitions:
+                        assert isinstance(defin, Definition), 'Invalid definition %s' % defin
+                        if CATEGORY_PARAMETER.isValid(defin.category): definitions.append(defin)
+                else: definitions = None
+
+                if not definitions: response.errorMessages.append('\nNo parameters are available')
+                else: response.errorDefinitions = definitions

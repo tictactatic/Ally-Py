@@ -13,6 +13,7 @@ from .assembly import Container
 from .context import Context
 from .processor import Composite, Contextual, Brancher, Renamer
 from .spec import ContextMetaClass, IProcessor, ProcessorError
+from ally.design.processor.spec import IResolver
 from ally.support.util_sys import locationStack
 import abc
 
@@ -151,7 +152,7 @@ def push(processor, contexts):
     
     @param processor: Contextual
         The processor to push the context in.
-    @param contexts: dictionary{string: ContextMetaClass}
+    @param contexts: dictionary{string: ContextMetaClass|IResolver}
         The context classes to push.
     @return: Contextual
         The same processor.
@@ -160,7 +161,7 @@ def push(processor, contexts):
     assert isinstance(contexts, dict), 'Invalid contexts %s' % contexts
     for name, context in contexts.items():
         assert isinstance(name, str), 'Invalid name %s' % name
-        assert isinstance(context, ContextMetaClass), 'Invalid context class %s' % context
+        assert isinstance(context, (ContextMetaClass, IResolver)), 'Invalid context class %s' % context
         if name in processor.contexts and processor.contexts[name] is not Context:
             raise ProcessorError('There is already a context for name \'%s\ in:%s' % (name, locationStack(processor.function)))
         processor.contexts[name] = context

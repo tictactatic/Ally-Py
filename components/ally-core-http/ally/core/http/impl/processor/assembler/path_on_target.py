@@ -13,12 +13,7 @@ from ally.api.operator.type import TypeModel
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
-import logging
 from ally.http.spec.server import HTTP_POST, HTTP_GET
-
-# --------------------------------------------------------------------
-
-log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
@@ -70,6 +65,7 @@ class PathTargetHandler(HandlerProcessor):
 
         for invoker in register.invokers:
             assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
+            
             if invoker.methodHTTP == HTTP_GET:
                 if not invoker.isCollection:
                     for el in invoker.path:

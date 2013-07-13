@@ -216,7 +216,7 @@ def asData(context, *classes):
 
     return data
 
-def pushIn(dest, *srcs, interceptor=None):
+def pushIn(dest, *srcs, interceptor=None, exclude=()):
     '''
     Pushes in the destination context data from the source context(s).
     
@@ -227,14 +227,18 @@ def pushIn(dest, *srcs, interceptor=None):
         for an attribute then the second one is checked and so on.
     @param interceptor: callable(object) -> object|None
         An interceptor callable to be called before setting the value on the destination.
+    @param exclude: tuple(string)|list[string]|set(string)
+        The attributes to be excluded from the push.
     @return: object
         The destination context after copy.
     '''
     assert isinstance(dest, Object), 'Invalid destination context %s' % dest
     assert srcs, 'At least one source is required'
     assert interceptor is None or callable(interceptor), 'Invalid interceptor %s' % interceptor
+    assert isinstance(exclude, (tuple, list, set)), 'Invalid exclude %s' % exclude
         
     for name in dest.__attributes__:
+        if exclude and name in exclude: continue
         for src in srcs:
             attribute = src.__attributes__.get(name)
             if attribute and attribute in src:

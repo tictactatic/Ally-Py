@@ -10,14 +10,15 @@ Provides the setups for the parsing/rendering processors.
 '''
 
 from ally.container import ioc
-# from ally.core.impl.processor.parser.text import ParseTextHandler
-# from ally.core.impl.processor.parser.xml import ParseXMLHandler
+from ally.core.impl.processor.parser.xml import ParseXMLHandler
 from ally.core.impl.processor.render.json import RenderJSONHandler, BLOCKS_JSON
 from ally.core.impl.processor.render.xml import RenderXMLHandler, BLOCKS_XML
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.handler import Handler
 import codecs
 import logging
+from ally.core.spec.transform.encdec import SEPARATOR_CONTENT
+# from ally.core.impl.processor.parser.text import ParseTextHandler
 
 # --------------------------------------------------------------------
 
@@ -88,6 +89,7 @@ def parseJSON() -> Handler:
 def parseXML() -> Handler:
     b = ParseXMLHandler(); yield b
     b.contentTypes = set(content_types_xml())
+    b.separator = SEPARATOR_CONTENT
 
 # --------------------------------------------------------------------
 # Create the renders
@@ -125,7 +127,7 @@ def updateBlocksDefinitions():
 
 @ioc.before(assemblyParsing)
 def updateAssemblyParsing():
-    assemblyParsing().add(parseJSON())
+    #TODO: Gabriel: assemblyParsing().add(parseJSON())
     assemblyParsing().add(parseXML())
 
 @ioc.before(assemblyRendering)

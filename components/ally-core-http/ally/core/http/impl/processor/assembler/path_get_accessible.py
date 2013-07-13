@@ -101,20 +101,22 @@ class PathGetAccesibleHandler(HandlerProcessor):
         
         if node.byName: stack.extend((''.join((name, cname)), cnode) for cname, cnode in node.byName.items())
         
-        if node.invokers and node.invokersGet and HTTP_GET in node.invokers:
-            invoker = node.invokers[HTTP_GET]
-            assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
+        if not node.invokers or not node.invokersGet: return
         
-            if not invoker.isCollection and invoker.isModel and invoker.target:
-                assert isinstance(invoker.target, TypeModel), 'Invalid target %s' % invoker.target
+        invoker = node.invokers.get(HTTP_GET)
+        if not invoker: return
+        assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
+    
+        if not invoker.isCollection and invoker.isModel and invoker.target:
+            assert isinstance(invoker.target, TypeModel), 'Invalid target %s' % invoker.target
+            
+            self.pushAvailableForProperties(name, node, invoker.target, stack)
                 
-                self.pushAvailableForProperties(name, node, invoker.target, stack)
-                    
-                for parent in inheritedTypesFrom(invoker.target.clazz, TypeModel):
-                    assert isinstance(parent, TypeModel), 'Invalid parent %s' % parent
-                    if not parent.propertyId: continue
-                    nodeParent = node.invokersGet.get(parent.propertyId)
-                    if nodeParent: self.pushAvailableForProperties(name, nodeParent, parent, stack)
+            for parent in inheritedTypesFrom(invoker.target.clazz, TypeModel):
+                assert isinstance(parent, TypeModel), 'Invalid parent %s' % parent
+                if not parent.propertyId: continue
+                nodeParent = node.invokersGet.get(parent.propertyId)
+                if nodeParent: self.pushAvailableForProperties(name, nodeParent, parent, stack)
     
     def pushAvailableForProperties(self, name, node, model, stack):
         '''

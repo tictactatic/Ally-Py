@@ -12,6 +12,7 @@ Provides the node invokers conflicts resolving or error reporting.
 from ally.container.ioc import injected
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
+from ally.design.processor.execution import Chain
 from ally.design.processor.handler import HandlerProcessor
 import logging
 
@@ -26,8 +27,8 @@ class Register(Context):
     The register context.
     '''
     # ---------------------------------------------------------------- Required
+    exclude = requires(set)
     nodes = requires(list)
-    invokers = requires(list)
     hintsCall = requires(dict)
 
 class Node(Context):
@@ -44,6 +45,7 @@ class Invoker(Context):
     The invoker context.
     '''
     # ---------------------------------------------------------------- Required
+    id = requires(str)
     location = requires(str)
     
 # --------------------------------------------------------------------
@@ -63,10 +65,11 @@ class ConflictResolveHandler(HandlerProcessor):
         
         Provides the conflict resolving.
         '''
+        assert isinstance(chain, Chain), 'Invalid chain %s' % chain
         assert isinstance(register, Register), 'Invalid register %s' % register
+        assert isinstance(register.exclude, set), 'Invalid exclude set %s' % register.exclude
         
         if not register.nodes: return
-        assert isinstance(register.invokers, list), 'Invalid invokers %s' % register.invokers
         
         present, reported = False, set() 
         for node in register.nodes:
@@ -82,7 +85,9 @@ class ConflictResolveHandler(HandlerProcessor):
                     for invoker in invokers:
                         assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
                         locations.append(invoker.location)
-                        register.invokers.remove(invoker)
+                        register.exclude.add(invoker.id)
+                    chain.cancel()
+                    
                     if reported.isdisjoint(locations):
                         log.error('Cannot use invokers because they have the same web address, at:%s', ''.join(locations))
                         reported.update(locations)
@@ -95,4 +100,4 @@ class ConflictResolveHandler(HandlerProcessor):
             available = []
             for hname in sorted(register.hintsCall):
                 available.append('\t%s: %s' % (hname, register.hintsCall[hname]))
-            log.warn('In order to make the invokers available please use one of the call hints:\n%s', '\n'.join(available))
+            log.error('In order to make the invokers available please use one of the call hints:\n%s', '\n'.join(available))

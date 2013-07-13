@@ -9,10 +9,11 @@ Created on Nov 24, 2011
 Provides the configurations for the resources.
 '''
 
+from .decode import assemblyDecode, describers, updateDescribersForContent
 from .encode import assemblyEncode
+from ally.api.option import Slice, SliceAndTotal
 from ally.container import ioc
-from ally.core.impl.processor.assembler.decoding_definitions import \
-    DecodingDefinitionsHandler
+from ally.core.impl.processor.assembler.decoding import DecodingHandler
 from ally.core.impl.processor.assembler.encoding import EncodingHandler
 from ally.core.impl.processor.assembler.injector_assembly import \
     InjectorAssemblyHandler
@@ -26,8 +27,10 @@ from ally.core.impl.processor.assembler.validate_hints import \
 from ally.core.impl.processor.assembler.validate_solved import \
     ValidateSolvedHandler
 from ally.core.impl.processor.content import AssemblerContentHandler
+from ally.core.spec.transform.describer import VerifyType
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.handler import Handler
+from ally.support.api.util_service import isCompatible
 import logging
 
 # --------------------------------------------------------------------
@@ -83,6 +86,12 @@ def optionSlice() -> Handler:
     return b
 
 @ioc.entity
+def decoding() -> Handler:
+    b = DecodingHandler()
+    b.decodeAssembly = assemblyDecode()
+    return b
+
+@ioc.entity
 def encoding() -> Handler:
     b = EncodingHandler()
     b.encodeAssembly = assemblyEncode()
@@ -97,9 +106,6 @@ def validateSolved() -> Handler: return ValidateSolvedHandler()
 @ioc.entity
 def validateHints() -> Handler: return ValidateHintsHandler()
 
-@ioc.entity
-def decodingDefinitions() -> Handler: return DecodingDefinitionsHandler()
-
 # --------------------------------------------------------------------
 
 @ioc.entity
@@ -113,8 +119,20 @@ def assemblyAssembler() -> Assembly:
 
 @ioc.before(assemblyAssembler)
 def updateAssemblyAssembler():
-    assemblyAssembler().add(invokerService(), processMethod(), optionSlice(), encoding(), assemblerContent(),
-                            validateSolved(), validateHints(), decodingDefinitions())
+    assemblyAssembler().add(invokerService(), processMethod(), decoding(), encoding(), optionSlice(), assemblerContent(),
+                            validateSolved(), validateHints())
+    
+@ioc.after(updateDescribersForContent)
+def updateDescribersForHandlers():
+    if slice_limit_default() is not None:
+        describers().append((VerifyType(Slice.limit, check=isCompatible),
+                             'if no value is provided it defaults to %s' % slice_limit_default()))
+    if slice_limit_maximum() is not None:
+        describers().append((VerifyType(Slice.limit, check=isCompatible),
+                             'the maximum value is %s' % slice_limit_maximum()))
+    if slice_with_total() is not None:
+        describers().append((VerifyType(SliceAndTotal.withTotal, check=isCompatible),
+                             'if no value is provided it defaults to %s' % slice_with_total()))
 
 # --------------------------------------------------------------------
 

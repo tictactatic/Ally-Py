@@ -66,7 +66,7 @@ def optional(*types, doc=None):
     @param doc: string|None
         The documentation associated with the attribute.
     '''
-    return Attribute(Specification(OPTIONAL, types, doc))
+    return Attribute(Specification(OPTIONAL, types, doc=doc))
 
 def requires(*types, doc=None):
     '''
@@ -80,6 +80,18 @@ def requires(*types, doc=None):
     '''
     return Attribute(Specification(REQUIRED, types, doc=doc))
 
+def attribute(*types, doc=None):
+    '''
+    Construct a simple attribute for the context that will be used by the processor that define it and is also available
+    as a defined attribute.
+    
+    @param types: arguments[class]
+        The types of the defined attribute.
+    @param doc: string|None
+        The documentation associated with the attribute.
+    '''
+    return Attribute(Specification(DEFINED | USED, types, doc=doc))
+
 # --------------------------------------------------------------------
 
 DEFINED = 1 << 1
@@ -88,6 +100,8 @@ REQUIRED = 1 << 2
 # Status flag for required attributes.
 OPTIONAL = 1 << 3
 # Status flag for optional attributes.
+USED = 1 << 4
+# Status flag for attributes that should be considered always used.
 
 # --------------------------------------------------------------------
 
@@ -95,9 +109,9 @@ class Specification:
     '''
     Provides attribute specifications.
     '''
-    __slots__ = ('status', 'types', 'doc', 'defined', 'usedIn')
+    __slots__ = ('status', 'types', 'definedIn', 'doc', 'defined', 'usedIn')
     
-    def __init__(self, status, types, doc=None, defined=None):
+    def __init__(self, status, types, definedIn=None, doc=None, defined=None):
         '''
         Construct the attribute specification.
         
@@ -105,6 +119,8 @@ class Specification:
             The status of the attribute specification.
         @param types: Iterable(class)
             The type(s) for the attribute specification.
+        @param definedIn: class|None
+            The class that defines the specification, this is just in case the specification was created based on a definer.
         @param doc: string|None
             The documentation associated with the attribute specification.
         @param defined: Iterable(class)|None
@@ -113,6 +129,7 @@ class Specification:
         assert isinstance(status, int), 'Invalid status %s' % status
         types = tuple(reduce(types))
         assert types, 'At least a type is required'
+        assert definedIn is None or isclass(definedIn), 'Invalid defined in %s' % definedIn
         
         if defined is None:
             if status & DEFINED: defined = types
@@ -121,6 +138,7 @@ class Specification:
         
         self.status = status
         self.types = types
+        self.definedIn = definedIn
         self.doc = doc
         self.defined = frozenset(defined)
         
@@ -225,26 +243,29 @@ class Resolver(IResolver):
                 assert isinstance(spec, Specification), 'Invalid specification %s' % spec
                 if spec.status == REQUIRED: attributes[name] = None
                 
+        try: flags.remove(LIST_CLASSES)
+        except KeyError: listClasses = False
+        else: listClasses = True
+                
         try: flags.remove(LIST_UNUSED)
         except KeyError: pass
         else:
             listed = True
             for name, spec in self.specifications.items():
                 assert isinstance(spec, Specification), 'Invalid specification %s' % spec
-                if not spec.status & OPTIONAL:
-                    if len(spec.usedIn) <= 1:
-                        attributes[name] = None
-                    else:
-                        for status in spec.usedIn.values():
-                            if not status & DEFINED: break
-                        else: attributes[name] = None
+                if spec.status & USED: continue
+                if spec.status & OPTIONAL: continue
+                for status in spec.usedIn.values():
+                    if not status & DEFINED:
+                        if spec.definedIn is not None: attributes[name] = (spec.definedIn,) if listClasses else None
+                        break
+                else: attributes[name] = spec.usedIn.keys() if listClasses else None
+            listClasses = False
                 
         if not listed:
             for name in self.specifications: attributes[name] = None
             
-        try: flags.remove(LIST_CLASSES)
-        except KeyError: pass
-        else:
+        if listClasses:
             for name in attributes: attributes[name] = self.specifications[name].usedIn.keys()
         
         assert not flags, 'Unknown flags: %s' % ', '.join(flags)
@@ -306,10 +327,12 @@ class Resolver(IResolver):
             
         elif mergeSpec.status & DEFINED:
             status = DEFINED
+            if mergeSpec.status & USED: status |= USED
             if withSpec.status & DEFINED: 
                 types = set(mergeSpec.types)
                 types.update(withSpec.types)
                 # In case both definitions are optional we need to relate that to the merged attribute
+                if withSpec.status & USED: status |= USED
                 if mergeSpec.status & OPTIONAL and withSpec.status & OPTIONAL: status |= OPTIONAL
             else:
                 types = set(withSpec.types)
@@ -360,7 +383,8 @@ class Resolver(IResolver):
             ownSpec = specifications.get(name)
             if ownSpec is None: specifications[name] = spec
             else:
-                try: specifications[name] = self.mergeSpecification(ownSpec, spec)
+                assert isinstance(spec, Specification), 'Invalid specification %s' % spec
+                try: specifications[name] = self.mergeSpecification(ownSpec, spec, definedIn=spec.definedIn)
                 except AttrError:
                     raise AttrError('Cannot merge attribute \'%s\', from:%s\n, with:%s' % 
                                     (name, ''.join(locationStack(clazz) for clazz in ownSpec.usedIn),
@@ -387,8 +411,14 @@ class Resolver(IResolver):
             assert isinstance(spec, Specification), 'Invalid specification %s' % spec
             ownSpec = specifications.get(name)
             if ownSpec is None: specifications[name] = spec
-            elif ownSpec.status & DEFINED: specifications[name] = self.mergeSpecification(ownSpec, spec)
-            else: specifications[name] = self.mergeSpecification(spec, ownSpec)
+            elif ownSpec.status & DEFINED:
+                assert isinstance(ownSpec, Specification), 'Invalid specification %s' % ownSpec
+                specifications[name] = self.mergeSpecification(ownSpec, spec, definedIn=spec.definedIn)
+            else:
+                if spec.definedIn is not None and ownSpec.definedIn is not None:
+                    specifications[name] = self.mergeSpecification(spec, ownSpec, definedIn=ownSpec.definedIn)
+                else:
+                    specifications[name] = self.mergeSpecification(spec, ownSpec)
         
         return specifications
     
@@ -476,6 +506,8 @@ class Attribute(IAttribute):
             assert isinstance(name, str), 'Invalid name %s' % name
             self.clazz, self.name = clazz, name
             self.specification.usedIn[clazz] = self.specification.status
+            if self.specification.definedIn is None and self.specification.status == DEFINED:
+                self.specification.definedIn = clazz
         elif not issubclass(clazz, self.clazz) or self.name != name:
             raise AttrError('%s\n, is already placed in:%s as attribute %s' % (self, locationStack(self.clazz), self.name))
         
@@ -616,7 +648,7 @@ def reduce(types):
         k, solved = 0, False
         while k < len(reduced):
             rclazz = reduced[k]
-            k += 1
+            
             if rclazz == clazz:
                 solved = True
                 break
@@ -626,6 +658,9 @@ def reduce(types):
             elif issubclass(rclazz, clazz):
                 solved = True
                 break
+            
+            k += 1
+            
         if not solved: reduced.append(clazz)
     return set(reduced)
 

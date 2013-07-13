@@ -32,16 +32,14 @@ class ParseXMLHandler(ParseBaseHandler):
 
         self.parser = make_parser()
 
-    def parse(self, decoder, data, source, charSet):
+    def parse(self, decoder, source, charSet):
         '''
         @see: ParseBaseHandler.parse
         '''
-        assert callable(decoder), 'Invalid decoder %s' % decoder
-        assert isinstance(data, dict), 'Invalid data %s' % data
         assert isinstance(source, IInputStream), 'Invalid stream %s' % source
         assert isinstance(charSet, str), 'Invalid character set %s' % charSet
-
-        parse = Parse(self.parser, decoder, data)
+        
+        parse = Parse(self.parser, decoder, self.separator)
         self.parser.setContentHandler(parse)
         inpsrc = InputSource()
         inpsrc.setByteStream(source)
@@ -49,55 +47,52 @@ class ParseXMLHandler(ParseBaseHandler):
         try: self.parser.parse(source)
         except SAXParseException as e:
             assert isinstance(e, SAXParseException)
-            return 'Bad XML content at line %s and column %s' % (e.getLineNumber(), e.getColumnNumber())
-        except ParseError as e:
-            assert isinstance(e, ParseError)
-            return str(e)
+            parse.report('Bad XML content at line %s and column %s' % (e.getLineNumber(), e.getColumnNumber()))
+        return parse.errors
 
 # --------------------------------------------------------------------
-
-class ParseError(Exception):
-    '''
-    Error raised whenever there is a XML parsing problem.
-    '''
 
 class Parse(ContentHandler):
     '''
     Content handler used for parsing the xml content.
     '''
-    __slots__ = ('parser', 'decoder', 'data', 'path', 'content', 'error')
+    __slots__ = ('parser', 'decoder', 'path', 'content', 'error')
 
-    def __init__(self, parser, decoder, data):
+    def __init__(self, parser, decoder, separator):
         '''
         Construct the parser.
         
         @param parser: object
             The XML parser.
-        @param decoder: Callable
+        @param decoder: callable(path, content) -> list[string]|None
             The decoder used in the parsing process.
-        @param data: dictionary{string, object}
-            The data used for the decoder.
+        @param separator: string
+            The separator to be used for path.
         '''
         assert parser is not None, 'A parser is required'
         assert callable(decoder), 'Invalid decoder %s' % decoder
-        assert isinstance(data, dict), 'Invalid data %s' % data
-
+        assert isinstance(separator, str), 'Invalid separator %s' % separator
+        
         self.parser = parser
         self.decoder = decoder
-        self.data = data
-        self.path = deque()
+        self.separator = separator
+        
+        self.path = []
         self.content = deque()
-        self.contains = deque((False,))
-        self.error = None
+        self.contains = deque()
+        self.errors = None
+        
+        self.contains.append(False)
 
     def startElement(self, name, attributes):
         '''
         @see: ContentHandler.startElement
         '''
-        if attributes: raise ParseError('No attributes accepted for \'%s\' at line %s and column %s' %
-                                    ('/'.join(self.path), self.parser.getLineNumber(), self.parser.getColumnNumber()))
+        if attributes:
+            self.report('No attributes accepted for \'%s\' at line %s and column %s' % 
+                        ('/'.join(self.path), self.parser.getLineNumber(), self.parser.getColumnNumber()))
         self.path.append(name)
-        self.content.appendleft(deque())
+        self.content.appendleft([])
         self.contains[0] = True
         self.contains.appendleft(False)
 
@@ -111,21 +106,34 @@ class Parse(ContentHandler):
         '''
         @see: ContentHandler.endElement
         '''
-        if not self.path: raise ParseError('Unexpected end element \'%s\' at line %s and column %s' %
-                                           (name, self.parser.getLineNumber(), self.parser.getColumnNumber()))
-        path = deque(self.path)
-        if name != self.path[-1]: raise ParseError('Expected end element \'%s\' at line %s and column %s, got \'%s\'' %
-                                           (self.path[-1], self.parser.getLineNumber(), self.parser.getColumnNumber(), name))
+        if not self.path:
+            self.report('Unexpected end element \'%s\' at line %s and column %s' % 
+                        (name, self.parser.getLineNumber(), self.parser.getColumnNumber()))
+            return
+        
+        if name != self.path[-1]:
+            self.report('Expected end element \'%s\' at line %s and column %s, got \'%s\'' % 
+                        (self.path[-1], self.parser.getLineNumber(), self.parser.getColumnNumber(), name))
 
         contains = self.contains.popleft()
         if contains:
             content = ''.join(self.content.popleft()).strip()
             if content:
-                raise ParseError('Invalid value \'%s\' for element \'%s\' at line %s and column %s' %
-                                 (content, name, self.parser.getLineNumber(), self.parser.getColumnNumber()))
+                self.report('Invalid value \'%s\' for element \'%s\' at line %s and column %s' % 
+                            (content, name, self.parser.getLineNumber(), self.parser.getColumnNumber()))
         else:
             content = '\n'.join(self.content.popleft())
-            if self.decoder(path=path, value=content, **self.data): self.path.pop()
+            if self.decoder(self.separator.join(self.path), content): self.path.pop()
             else:
-                raise ParseError('Invalid path \'%s\' at line %s and column %s' %
-                                 ('/'.join(self.path), self.parser.getLineNumber(), self.parser.getColumnNumber()))
+                self.report('Invalid path \'%s\' at line %s and column %s' % 
+                            ('/'.join(self.path), self.parser.getLineNumber(), self.parser.getColumnNumber()))
+
+    # ----------------------------------------------------------------
+    
+    def report(self, error):
+        '''
+        Report an error.
+        '''
+        assert isinstance(error, str), 'Invalid error %s' % error
+        if self.errors is None: self.errors = []
+        self.errors.append(error)

@@ -10,16 +10,14 @@ Provides the text base parser processor handler.
 '''
 
 from ally.container.ioc import injected
-from ally.core.spec.codes import CONTENT_BAD, CONTENT_ILLEGAL, CONTENT_MISSING, \
-    Coded
-from ally.core.spec.transform.render import Value, List, Object
+from ally.core.spec.codes import CONTENT_BAD, CONTENT_MISSING, Coded
+from ally.core.spec.resources import Converter
+from ally.core.spec.transform.encdec import IDecoder, CATEGORY_CONTENT, Category
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain
 from ally.design.processor.handler import HandlerProcessor
-from ally.exception import InputError, Ref
 from ally.support.util_io import IInputStream, IClosable
-from collections import Callable, deque
 import abc
 import logging
 
@@ -29,14 +27,30 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
+class Invoker(Context):
+    '''
+    The invoker context.
+    '''
+    # ---------------------------------------------------------------- Required
+    decoder = requires(IDecoder)
+    definitions = requires(list)
+
+class Definition(Context):
+    '''
+    The definition context.
+    '''
+    # ---------------------------------------------------------------- Required
+    category = requires(Category)
+    
 class Request(Context):
     '''
     The request context.
     '''
     # ---------------------------------------------------------------- Required
-    decoder = requires(Callable)
-    decoderData = requires(dict)
-
+    invoker = requires(Context)
+    arguments = requires(dict)
+    converterContent = requires(Converter)
+    
 class RequestContent(Context):
     '''
     The request content context.
@@ -51,8 +65,24 @@ class Response(Coded):
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    errorMessage = defines(str)
-    errorDetails = defines(Object)
+    errorMessages = defines(list)
+    errorDefinitions = defines(list)
+
+class SupportDecoding(Context):
+    '''
+    The decoder support context.
+    '''
+    # ---------------------------------------------------------------- Defined
+    category = defines(object, doc='''
+    @rtype: object
+    The category of the ongoing decoding.
+    ''')
+    converter = defines(Converter, doc='''
+    @rtype: Converter
+    The converter to be used for decoding.
+    ''')
+    # ---------------------------------------------------------------- Required
+    failures = requires(list)
 
 # --------------------------------------------------------------------
 
@@ -63,13 +93,17 @@ class ParseBaseHandler(HandlerProcessor):
     '''
 
     contentTypes = set
-    # The set(string) containing as the content types specific for this parser. 
+    # The set(string) containing as the content types specific for this parser.
+    separator = str
+    # The separator to be used for path.
 
     def __init__(self):
         assert isinstance(self.contentTypes, set), 'Invalid content types %s' % self.contentTypes
-        super().__init__()
+        assert isinstance(self.separator, str), 'Invalid separator %s' % self.separator
+        super().__init__(Invoker=Invoker, Definition=Definition)
 
-    def process(self, chain, request:Request, requestCnt:RequestContent, response:Response, **keyargs):
+    def process(self, chain, request:Request, requestCnt:RequestContent, response:Response,
+                Support:SupportDecoding, **keyargs):
         '''
         @see: HandlerProcessor.process
         
@@ -80,85 +114,56 @@ class ParseBaseHandler(HandlerProcessor):
         assert isinstance(requestCnt, RequestContent), 'Invalid request content %s' % requestCnt
         assert isinstance(response, Response), 'Invalid response %s' % response
         
-
-        # Check if the response is for this encoder
+        # Check if the response is for this parser
         if requestCnt.type in self.contentTypes:
             if requestCnt.source is None: CONTENT_MISSING.set(response)
             else:
-                assert callable(request.decoder), 'Invalid request decoder %s' % request.decoder
-                assert isinstance(request.decoderData, dict), 'Invalid request decoder data %s' % request.decoderData
+                assert isinstance(request.invoker, Invoker), 'Invalid request invoker %s' % request.invoker
+                decoder = request.invoker.decoder
+                assert isinstance(decoder, IDecoder), 'Invalid decoder %s' % decoder
                 assert isinstance(requestCnt.source, IInputStream), 'Invalid request content stream %s' % requestCnt.source
                 assert isinstance(requestCnt.charSet, str), 'Invalid request content character set %s' % requestCnt.charSet
     
-                try:
-                    error = self.parse(request.decoder, request.decoderData, requestCnt.source, requestCnt.charSet)
-                    if error:
-                        CONTENT_BAD.set(response)
-                        response.errorMessage = error
-                except InputError as e:
-                    CONTENT_ILLEGAL.set(response)
-                    response.errorDetails = self.processInputError(e)
-                finally:
-                    if isinstance(requestCnt.source, IClosable): requestCnt.source.close()
+                support = Support(category=CATEGORY_CONTENT, converter=request.converterContent)
+                assert isinstance(support, SupportDecoding), 'Invalid support %s' % support
+    
+                if request.arguments is None: request.arguments = {}
+                errors = self.parse(lambda path, obj: decoder.decode(path, obj, request.arguments, support),
+                                    requestCnt.source, requestCnt.charSet)
+                if errors is not None or support.failures:
+                    CONTENT_BAD.set(response)
+                    if response.errorMessages is None: response.errorMessages = []
+                    if errors is not None: response.errorMessages.extend(errors)
+                    if support.failures: response.errorMessages.extend(support.failures)
+                    
+                    if request.invoker.definitions:
+                        definitions = []
+                        for defin in request.invoker.definitions:
+                            assert isinstance(defin, Definition), 'Invalid definition %s' % defin
+                            if CATEGORY_CONTENT.isValid(defin.category): definitions.append(defin)
+                    else: definitions = None
+                    if not definitions: response.errorMessages.append('\nNo content is required')
+                    else: response.errorDefinitions = definitions
+                
+                if isinstance(requestCnt.source, IClosable): requestCnt.source.close()
             chain.cancel()  # We need to stop the chain if we have been able to provide the parsing
         else:
             assert log.debug('The content type \'%s\' is not for this %s parser', requestCnt.type, self) or True
 
-    def processInputError(self, e):
-        '''
-        Process the input error into an error object.
-        
-        @return: Object
-            The object containing the details of the input error.
-        '''
-        assert isinstance(e, InputError), 'Invalid input error %s' % e
-
-        messages, names, models, properties = deque(), deque(), {}, {}
-        for msg in e.message:
-            assert isinstance(msg, Ref)
-            if not msg.model:
-                messages.append(Value('message', msg.message))
-            elif not msg.property:
-                messagesModel = models.get(msg.model)
-                if not messagesModel: messagesModel = models[msg.model] = deque()
-                messagesModel.append(Value('message', msg.message))
-                if msg.model not in names: names.append(msg.model)
-            else:
-                propertiesModel = properties.get(msg.model)
-                if not propertiesModel: propertiesModel = properties[msg.model] = deque()
-                propertiesModel.append(Value(msg.property, msg.message))
-                if msg.model not in names: names.append(msg.model)
-
-        errors = deque()
-        if messages: errors.append(List('error', *messages))
-        for name in names:
-            messagesModel, propertiesModel = models.get(name), properties.get(name)
-
-            props = deque()
-            if messagesModel: props.append(List('error', *messagesModel))
-            if propertiesModel: props.extend(propertiesModel)
-
-            errors.append(Object(name, *props))
-
-        return Object('model', *errors)
-
     # ----------------------------------------------------------------
 
     @abc.abstractclassmethod
-    def parse(self, decoder, data, source, charSet):
+    def parse(self, decoder, source, charSet):
         '''
         Parse the input stream using the decoder.
         
-        @param decoder: callable
+        @param decoder: callable(path, content) -> list[string]|None
             The decoder to be used by the parsing.
-        @param data: dictionary{string, object}
-            The data used for the decoder.
         @param source: IInputStream
             The byte input stream containing the content to be parsed.
         @param charSet: string
             The character set for the input source stream.
-        @return: string|None
-            If a problem occurred while parsing and decoding it will return a detailed error message, if the parsing is
+        @return: Iterable[string]|None
+            If a problem occurred while parsing and decoding it will return a detailed error messages, if the parsing is
             successful a None value will be returned.
         '''
-

@@ -13,6 +13,7 @@ from ally.api import config
 from ally.container.ioc import injected
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
+from ally.design.processor.execution import Chain
 from ally.design.processor.handler import HandlerProcessor
 from ally.http.spec import server
 import logging
@@ -29,6 +30,7 @@ class Register(Context):
     '''
     # ---------------------------------------------------------------- Required
     invokers = requires(list)
+    exclude = requires(set)
     
 class Invoker(Context):
     '''
@@ -40,6 +42,7 @@ class Invoker(Context):
     The HTTP method name.
     ''')
     # ---------------------------------------------------------------- Required
+    id = requires(str)
     method = requires(int)
     location = requires(str)
     
@@ -69,21 +72,20 @@ class MethodHTTPHandler(HandlerProcessor):
         
         Provides the HTTP method name.
         '''
+        assert isinstance(chain, Chain), 'Invalid chain %s' % chain
         assert isinstance(register, Register), 'Invalid register %s' % register
+        assert isinstance(register.exclude, set), 'Invalid exclude set %s' % register.exclude
         
         if not register.invokers: return  # No invokers to process
         assert isinstance(register.invokers, list), 'Invalid invokers %s' % register.invokers
 
-        k = 0
-        while k < len(register.invokers):
-            invoker = register.invokers[k]
-            k += 1
+        for invoker in register.invokers:
             assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
             
             invoker.methodHTTP = self.mappings.get(invoker.method)
             if invoker.methodHTTP is None:
                 log.error('Cannot use because the method \'%s\' is not a valid HTTP method, at:%s',
                           invoker.method, invoker.location)
-                k -= 1
-                del register.invokers[k]
+                register.exclude.add(invoker.id)
+                chain.cancel()
                 continue

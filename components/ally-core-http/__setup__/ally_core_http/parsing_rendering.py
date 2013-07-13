@@ -46,6 +46,6 @@ def parseFormData() -> Handler:
 # --------------------------------------------------------------------
     
 @ioc.before(updateAssemblyParsing)
-def updateAssemblyParsingFormData():
-    assemblyParsing().add(parseFormData())
-    assemblyParsing().add(parseURLEncoded())
+def updateAssemblyParsingFormData(): pass
+    #TODO: Gabriel: assemblyParsing().add(parseFormData())
+    #TODO: Gabriel: assemblyParsing().add(parseURLEncoded())

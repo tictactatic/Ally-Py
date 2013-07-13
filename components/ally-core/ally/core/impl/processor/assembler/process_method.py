@@ -16,6 +16,7 @@ from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
 import logging
+from ally.design.processor.execution import Chain
 
 # --------------------------------------------------------------------
 
@@ -29,6 +30,7 @@ class Register(Context):
     '''
     # ---------------------------------------------------------------- Required
     invokers = requires(list)
+    exclude = requires(set)
     
 class Invoker(Context):
     '''
@@ -48,6 +50,7 @@ class Invoker(Context):
     If True it means that the invoker provides a full model, attention the model can be in a collection.
     ''')
     # ---------------------------------------------------------------- Required
+    id = requires(str)
     method = requires(int)
     inputs = requires(tuple)
     output = requires(Type)
@@ -69,16 +72,14 @@ class ProcessMethodHandler(HandlerProcessor):
         
         Process the invokers based on method.
         '''
+        assert isinstance(chain, Chain), 'Invalid chain %s' % chain
         assert isinstance(register, Register), 'Invalid register %s' % register
         if not register.invokers: return  # No invokers to process.
         
-        assert isinstance(register.invokers, list), 'Invalid invokers %s' % register.invokers
-        k = 0
-        while k < len(register.invokers):
-            invoker = register.invokers[k]
-            k += 1
+        for invoker in register.invokers:
             assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
             
+            keep = False
             if invoker.method == GET: keep = self.processGET(invoker)
             elif invoker.method == INSERT: keep = self.processINSERT(invoker)
             elif invoker.method == UPDATE: keep = self.processUPDATE(invoker)
@@ -86,10 +87,11 @@ class ProcessMethodHandler(HandlerProcessor):
             else:
                 log.error('Cannot use because the method %s is not known, at:%s', invoker.method, invoker.location)
                 keep = False
-            
+                
             if not keep:
-                k -= 1
-                del register.invokers[k]
+                assert isinstance(register.exclude, set), 'Invalid exclude set %s' % register.exclude
+                register.exclude.add(invoker.id)
+                chain.cancel()
 
     # ----------------------------------------------------------------
     

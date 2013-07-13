@@ -12,6 +12,7 @@ Provides the paths adjustments for update invokers.
 from ally.api.operator.type import TypeModel, TypeProperty
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
+from ally.design.processor.execution import Chain
 from ally.design.processor.handler import HandlerProcessor
 from ally.exception import DevelError
 from ally.http.spec.server import HTTP_PUT
@@ -31,6 +32,7 @@ class Register(Context):
     '''
     # ---------------------------------------------------------------- Required
     invokers = requires(list)
+    exclude = requires(set)
     
 class Invoker(Context):
     '''
@@ -44,6 +46,7 @@ class Invoker(Context):
     arguments.
     ''')
     # ---------------------------------------------------------------- Required
+    id = requires(str)
     methodHTTP = requires(str)
     target = requires(TypeModel)
     location = requires(str)
@@ -74,16 +77,14 @@ class PathUpdateHandler(HandlerProcessor):
         
         Provides the paths adjustments based on target models.
         '''
+        assert isinstance(chain, Chain), 'Invalid chain %s' % chain
         assert isinstance(register, Register), 'Invalid register %s' % register
         assert issubclass(Element, ElementUpdate), 'Invalid element %s' % Element
         assert isinstance(register.invokers, list), 'Invalid invokers %s' % register.invokers
+        assert isinstance(register.exclude, set), 'Invalid exclude set %s' % register.exclude
 
-        k = 0
-        while k < len(register.invokers):
-            invoker = register.invokers[k]
-            k += 1
+        for invoker in register.invokers:
             assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
-            
             if invoker.methodHTTP != HTTP_PUT: continue
             if not invoker.target: continue
             assert isinstance(invoker.target, TypeModel), 'Invalid target %s' % invoker.target
@@ -95,8 +96,8 @@ class PathUpdateHandler(HandlerProcessor):
                 if el.model == invoker.target:
                     log.error('Cannot use for update because the %s is already present as input, at:%s',
                               invoker.target, invoker.location)
-                    k -= 1
-                    del register.invokers[k]
+                    register.exclude.add(invoker.id)
+                    chain.cancel()
                     break
             else:
                 invoker.path.append(Element(name=invoker.target.name, model=invoker.target))

@@ -119,7 +119,7 @@ def resolversFor(contexts):
         The resolvers for the contexts.
     '''
     resolvers = {}
-    assert isinstance(contexts, dict), 'Invalid resolvers %s' % resolvers
+    assert isinstance(contexts, dict), 'Invalid contexts %s' % contexts
     for name, context in contexts.items():
         assert isinstance(name, str), 'Invalid context name %s' % name
         if isinstance(context, IResolver):
@@ -155,7 +155,7 @@ def merge(resolvers, other, joined=True):
         if resolver is None:
             if joined: resolvers[name] = resolverOther
         else:
-            assert isinstance(resolver, IResolver), 'Invalid resolver %s' % resolver 
+            assert isinstance(resolver, IResolver), 'Invalid resolver %s' % resolver
             if isNameForClass(name):
                 # In case the context name is targeting a class then we better solve the attributes since the order 
                 # is not relevant.

@@ -14,12 +14,11 @@ from .parsing_rendering import assemblyRendering, assemblyParsing, \
 from ally.container import ioc
 from ally.core.impl.processor.block_indexing import BlockIndexingHandler
 from ally.core.impl.processor.content import ContentHandler
-# TODO: from ally.core.impl.processor.decoder import CreateDecoderHandler
+from ally.core.impl.processor.conversion_content import ConverterContentHandler
 from ally.core.impl.processor.invoking import InvokingHandler
 from ally.core.impl.processor.parsing import ParsingHandler
 from ally.core.impl.processor.render_encoder import RenderEncoderHandler
 from ally.core.impl.processor.rendering import RenderingHandler
-from ally.core.impl.processor.conversion_content import ConverterContentHandler
 from ally.core.spec.resources import Converter
 from ally.design.processor.handler import Handler
 
@@ -60,9 +59,6 @@ def converterContent() -> Handler:
     b = ConverterContentHandler()
     b.converter = converter()
     return b
-
-@ioc.entity
-def createDecoder() -> Handler: return CreateDecoderHandler()
 
 @ioc.entity
 def parsing() -> Handler:

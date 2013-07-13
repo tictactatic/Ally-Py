@@ -124,6 +124,28 @@ class Processing:
         chain = Chain(self, True, **keyargs)
         chain.execute()
         return chain.arg
+    
+    def wingIn(self, chain, reuse=False, **keyargs):
+        '''
+        Wings this processor into the provided chain.
+        @see: Chain.wing
+        
+        @param chain: Chain
+            The chain to wing in.
+        @param reuse: boolean
+            Flag indicating that the winged in chain should reuse the arguments from the winging chain that are not provided
+            as key arguments.
+        @param keyargs: key arguments
+            The key arguments that will be processed by the winged chain.
+        @return: Chain
+            The winged chain.
+        '''
+        assert isinstance(chain, Chain), 'Invalid chain %s' % chain
+        assert isinstance(reuse, bool), 'Invalid reuse flag %s' % reuse
+        if reuse:
+            for name, value in chain.keyargs:
+                if name not in keyargs: keyargs[name] = value
+        return chain.wing(Chain(self, False, **keyargs))
 
 # --------------------------------------------------------------------
 
@@ -293,6 +315,23 @@ class Chain(Execution):
         
         if keyargs: self.process(**keyargs)
     
+    def wing(self, chain):
+        '''
+        Adds a wing chain to be processed in this chain and automatically the chain will execute the wing as being part
+        of this chain.
+        !!! Attention if multiple wings are added in one go, then the last wing added will be the first executed.
+        
+        @param chain: Chain
+            The chain to wing.
+        @return: Chain
+            The same wing chain.
+        '''
+        assert isinstance(chain, Chain), 'Invalid chain %s' % chain
+        assert self._status == 0, 'Execution cannot wing'
+        assert chain._status == 0, 'Execution cannot wing to %s' % chain
+        self._calls.appendleft(chain)
+        return chain
+    
     def branch(self, processing):
         '''
         Create a branching chain that uses the same arguments as this chain and automatically the chain will execute the
@@ -340,9 +379,9 @@ class Chain(Execution):
         '''
         Cancels the execution of this chain.
         '''
-        assert self._status == 0, 'Execution already done'
-        self._calls.clear()
-        self._status = CANCELED
+        if self._status == 0:
+            self._calls.clear()
+            self._status = CANCELED
         
     def onError(self, processing):
         '''

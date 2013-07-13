@@ -13,7 +13,9 @@ from ally.api.type import Call
 from ally.container.ioc import injected
 from ally.design.processor.attribute import requires, defines, definesIf
 from ally.design.processor.context import Context
+from ally.design.processor.execution import Chain
 from ally.design.processor.handler import HandlerProcessor
+from collections import Callable
 import logging
 import re
 
@@ -30,7 +32,9 @@ class Register(Context):
     # ---------------------------------------------------------------- Defined
     hintsCall = definesIf(dict)
     # ---------------------------------------------------------------- Required
+    suggest = requires(Callable)
     invokers = requires(list)
+    exclude = requires(set)
     
 class Invoker(Context):
     '''
@@ -39,6 +43,7 @@ class Invoker(Context):
     # ---------------------------------------------------------------- Defined
     path = defines(list)
     # ---------------------------------------------------------------- Required
+    id = requires(str)
     call = requires(Call)
     location = requires(str)
     
@@ -74,7 +79,9 @@ class PathWebNameHandler(HandlerProcessor):
         
         Provides the domain based on elements models.
         '''
+        assert isinstance(chain, Chain), 'Invalid chain %s' % chain
         assert isinstance(register, Register), 'Invalid register %s' % register
+        assert isinstance(register.exclude, set), 'Invalid exclude set %s' % register.exclude
         
         if Register.hintsCall in register:
             if register.hintsCall is None: register.hintsCall = {}
@@ -89,11 +96,19 @@ class PathWebNameHandler(HandlerProcessor):
             
             if self.hintName in invoker.call.hints:
                 webName = invoker.call.hints[self.hintName]
-                assert isinstance(webName, str) and re.match('\w+$', webName), \
-                'Invalid web name \'%s\' can only contain alpha numeric characters at:%s' % (webName, invoker.location)
+                if not isinstance(webName, str) or not re.match('\w+$', webName):
+                    log.error('Cannot use because invalid web name \'%s\', can only contain alpha numeric characters at:%s',
+                              webName, invoker.location)
+                    register.exclude.add(invoker.id)
+                    chain.cancel()
+                    break
+                
                 for el in reversed(invoker.path):
                     assert isinstance(el, Element), 'Invalid element %s' % el
                     if el.name:
                         el.name = '%s%s' % (webName, el.name)
                         break
-                else: log.warn('Could not process the web name at:%s', invoker.location)
+                else:
+                    assert callable(register.suggest), 'Invalid suggest %s' % register.suggest
+                    register.suggest('Could not process the web name at:%s', invoker.location)
+                    

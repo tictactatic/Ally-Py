@@ -9,6 +9,8 @@ Created on Mar 8, 2013
 Provides encoder decoder specifications. 
 '''
 
+from ally.design.processor.attribute import defines
+from ally.design.processor.context import Context
 import abc
 
 # --------------------------------------------------------------------
@@ -153,7 +155,74 @@ class IDevise(metaclass=abc.ABCMeta):
         @param support: object
             Support context object containing additional data.
         '''
-      
+        
+# --------------------------------------------------------------------
+
+class Category:
+    '''
+    Provides the category specification.
+    '''
+    
+    def __init__(self, *info, optional=None):
+        '''
+        Construct the category of decoders.
+        
+        @param info: arguments[string]
+            The info associated with the category.
+        @param optional: boolean|None
+            The default optional flag for this category, if None it means that there is no category default.
+        '''
+        if __debug__:
+            for entry in info: assert isinstance(entry, str), 'Invalid info %s' % info
+        assert optional is None or isinstance(optional, bool), 'Invalid default optional %s' % optional
+        
+        self.info = info
+        self.optional = optional
+        
+    def isValid(self, category):
+        '''
+        Checks if the provided category object is valid for this category.
+        
+        @param category: object
+            The category object to verify.
+        @return: boolean
+            True if the category is valid for this category.
+        '''
+        return self == category
+    
+    def populate(self, categorized):
+        '''
+        Populate the provided categorized context.
+        
+        @param categorized: Context
+            The categorized context to be populated with data based on this category.
+        '''
+        assert isinstance(categorized, Categorized), 'Invalid categorized object %s' % categorized
+        categorized.category = self
+        if categorized.isOptional is None and self.optional is not None: categorized.isOptional = self.optional
+
+class Categorized(Context):
+    '''
+    Context for coded. 
+    '''
+    # ---------------------------------------------------------------- Defined
+    category = defines(Category, doc='''
+    @rtype: Category
+    The definition category.
+    ''')
+    isOptional = defines(bool, doc='''
+    @rtype: boolean
+    If True the definition value is optional.
+    ''')
+
+CATEGORY_CONTENT = Category('The content properties')
+# The constant that defines the content decoding category.
+
+SEPARATOR_CONTENT = '/'
+# The separator for content.
+
+# --------------------------------------------------------------------
+
 # --------------------------------------------------------------------
 
 class EncoderWithSpecifiers(IEncoder):
@@ -214,39 +283,7 @@ class DecoderDelegate(IDecoder):
         '''
         @see: IDecoder.decode
         '''
-        assert isinstance(path, str), 'Invalid path %s' % path
-        
         for decoder in self.decoders:
             assert isinstance(decoder, IDecoder), 'Invalid decoder %s' % decoder
             if decoder.decode(path, obj, target, support): return True
     
-class DeviseDict(IDevise):
-    '''
-    Implementation for @see: IDevise that handles the value for a target dictionary based on a predefined key.
-    '''
-    __slots__ = ('key',)
-    
-    def __init__(self, key):
-        '''
-        Construct the dictionary devise.
-        
-        @param key: object
-            The key to be used on the target dictionary.
-        '''
-        self.key = key
-        
-    def get(self, target):
-        '''
-        @see: IDevise.get
-        
-        Provides None if the key is not presssent.
-        '''
-        assert isinstance(target, dict), 'Invalid target %s' % target
-        return target.get(self.key)
-    
-    def set(self, target, value, support):
-        '''
-        @see: IDevise.set
-        '''
-        assert isinstance(target, dict), 'Invalid target %s' % target
-        target[self.key] = value

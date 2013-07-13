@@ -20,7 +20,11 @@ from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Processing
 from ally.design.processor.handler import HandlerBranching
-from ally.exception import DevelError
+import logging
+
+# --------------------------------------------------------------------
+
+log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
     
@@ -68,13 +72,13 @@ class ExtensionAttributeEncode(HandlerBranching):
         'Invalid property encode assembly %s' % self.propertyEncodeAssembly
         super().__init__(Branch(self.propertyEncodeAssembly).using(create=CreateProperty))
         
-    def process(self, chain, propertyProcessing, create:Create, **keyargs):
+    def process(self, chain, processing, create:Create, **keyargs):
         '''
         @see: HandlerBranching.process
         
         Create the extension attributes.
         '''
-        assert isinstance(propertyProcessing, Processing), 'Invalid processing %s' % propertyProcessing
+        assert isinstance(processing, Processing), 'Invalid processing %s' % processing
         assert isinstance(create, Create), 'Invalid create %s' % create
         
         if Create.encoder in create and create.encoder is not None: return 
@@ -83,7 +87,7 @@ class ExtensionAttributeEncode(HandlerBranching):
         # The type is not for a collection so no extension, nothing to do, just move along
         
         if create.specifiers is None: create.specifiers = []
-        create.specifiers.append(AttributesExtension(propertyProcessing))
+        create.specifiers.append(AttributesExtension(processing))
 
 # --------------------------------------------------------------------
 
@@ -115,8 +119,8 @@ class AttributesExtension(ISpecifier):
                 assert isinstance(prop, TypeProperty), 'Invalid property %s' % prop
                 arg = self.processing.execute(create=self.processing.ctx.create(objType=prop, name=name))
                 assert isinstance(arg.create, CreateProperty), 'Invalid create property %s' % arg.create
-                if arg.create.encoder is None: raise DevelError('Cannot encode %s' % prop)
-                properties.append((name, arg.create.encoder))
+                if arg.create.encoder is None: log.error('Cannot encode %s of %s', prop, ext)
+                else: properties.append((name, arg.create.encoder))
         else: properties = self.propertiesByType[ext]
         
         attributes = specifications.get('attributes')

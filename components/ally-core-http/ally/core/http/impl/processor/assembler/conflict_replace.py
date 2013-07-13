@@ -14,6 +14,7 @@ from ally.api.type import typeFor, Call
 from ally.container.ioc import injected
 from ally.design.processor.attribute import requires, definesIf
 from ally.design.processor.context import Context
+from ally.design.processor.execution import Chain
 from ally.design.processor.handler import HandlerProcessor
 import logging
 
@@ -30,8 +31,8 @@ class Register(Context):
     # ---------------------------------------------------------------- Defined
     hintsCall = definesIf(dict)
     # ---------------------------------------------------------------- Required
+    exclude = requires(set)
     nodes = requires(list)
-    invokers = requires(list)
 
 class Node(Context):
     '''
@@ -45,6 +46,7 @@ class Invoker(Context):
     The invoker context.
     '''
     # ---------------------------------------------------------------- Required
+    id = requires(str)
     service = requires(TypeService)
     call = requires(Call)
     location = requires(str)
@@ -75,14 +77,15 @@ class ConflictReplaceHandler(HandlerProcessor):
         
         Provides the conflict resolving.
         '''
+        assert isinstance(chain, Chain), 'Invalid chain %s' % chain
         assert isinstance(register, Register), 'Invalid register %s' % register
+        assert isinstance(register.exclude, set), 'Invalid exclude set %s' % register.exclude
 
         if Register.hintsCall in register:
             if register.hintsCall is None: register.hintsCall = {}
             register.hintsCall[self.hintName] = self.hintDescription
             
         if not register.nodes: return
-        assert isinstance(register.invokers, list), 'Invalid invokers %s' % register.invokers
         
         reported = set()
         for node in register.nodes:
@@ -110,17 +113,22 @@ class ConflictReplaceHandler(HandlerProcessor):
                         locations.append(invoker.location)
                         for clazz in replaces:
                             service = typeFor(clazz)
+                            if not isinstance(service, TypeService):
+                                log.error('Cannot use invoker because the replace hints are invalid, at:%s, '
+                                          'it should be:\n%s', invoker.location, self.hintDescription)
+                                register.exclude.add(invoker.id)
+                                chain.cancel()
+                                break
                             assert isinstance(service, TypeService), 'Invalid service class %s' % clazz
                             byService.pop(service, None)
-                            
+                    
                     if not byService:
                         if reported.isdisjoint(locations):
                             log.error('Cannot use invokers because the replace hints are circular among them, at:%s',
                                       ''.join(locations))
                             reported.update(locations)
-                        for invoker, replaces in solving:
-                            register.invokers.remove(invoker)
-                            invokers.remove(invoker)
+                        register.exclude.update(invoker.id for invoker, replaces in solving)
+                        chain.cancel()
                     else:
                         for invoker, replaces in solving: invokers.remove(invoker)
                         invokers.extend(byService.values())

@@ -50,14 +50,14 @@ class PropertyOfModelEncode(HandlerBranching):
         'Invalid model encode assembly %s' % self.propertyModelEncodeAssembly
         super().__init__(Branch(self.propertyModelEncodeAssembly).included())
         
-    def process(self, chain, propertyModelProcessing, create:Create, **keyargs):
+    def process(self, chain, processing, create:Create, **keyargs):
         '''
         @see: HandlerBranching.process
         
         Create the property of model encoder.
         '''
         assert isinstance(chain, Chain), 'Invalid chain %s' % chain
-        assert isinstance(propertyModelProcessing, Processing), 'Invalid processing %s' % propertyModelProcessing
+        assert isinstance(processing, Processing), 'Invalid processing %s' % processing
         assert isinstance(create, Create), 'Invalid create %s' % create
         
         if create.encoder is not None: return 
@@ -71,4 +71,4 @@ class PropertyOfModelEncode(HandlerBranching):
         
         assert isinstance(create.name, str), 'Invalid property name %s' % create.name
         create.objType = model.propertyId
-        chain.branch(propertyModelProcessing)
+        chain.branch(processing)

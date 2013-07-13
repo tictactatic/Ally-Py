@@ -1,7 +1,7 @@
 '''
 Created on Jun 19, 2013
 
-@package: ally core http
+@package: ally core
 @copyright: 2011 Sourcefabric o.p.s.
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
@@ -10,108 +10,114 @@ Provides the queries ascending and descending order criteria decoding.
 '''
 
 from ally.api.criteria import AsOrdered
-from ally.api.operator.type import TypeQuery, TypeProperty, TypeCriteria, \
-    TypeModel, TypeContainer
+from ally.api.operator.type import TypeProperty
 from ally.api.type import Type, List, typeFor
 from ally.container.ioc import injected
-from ally.core.spec.transform.encdec import IDevise, IDecoder
+from ally.core.spec.transform.encdec import IDevise
+from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines
+from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessor
+from ally.design.processor.execution import Processing
+from ally.design.processor.handler import HandlerBranching
 from ally.support.api.util_service import isCompatible
-from ally.support.util import firstOf
-from inspect import getdoc
-from timeit import itertools
 
 # --------------------------------------------------------------------
 
-class Invoker(Context):
-    '''
-    The invoker context.
-    '''
-    # ---------------------------------------------------------------- Defined
-    definitions = defines(dict)
-
-class DefinitionOrder(Context):
+class Definition(Context):
     '''
     The definition context.
     '''
     # ---------------------------------------------------------------- Defined
-    name = defines(str)
     enumeration = defines(list, doc='''
     @rtype: list[string]
     The enumeration values that are allowed for order.
     ''')
-    description = defines(list)
+    # ---------------------------------------------------------------- Required
+    solicitation = requires(Context)
 
 class Create(Context):
     '''
     The create decoder context.
     '''
-    # ---------------------------------------------------------------- Required
-    solicitaions = requires(list)
-    definition = requires(Context)
-                   
-class SolicitaionOrder(Context):
-    '''
-    The decoder solicitaion context.
-    '''
     # ---------------------------------------------------------------- Defined
-    path = defines(object)
-    objType = defines(Type)
-    key = defines(frozenset)
-    definition = defines(Context)
+    decoders = defines(list)
+    definitions = defines(list)
     # ---------------------------------------------------------------- Required
-    pathRoot = requires(object)
-    devise = requires(IDevise)
-    property = requires(TypeProperty)
-
+    solicitations = requires(list)
+    
 class Support(Context):
     '''
     The decoder support context.
     '''
     # ---------------------------------------------------------------- Defined
     failures = defines(list)
+
+class CreateOrder(Context):
+    '''
+    The create order decoder context.
+    '''
+    # ---------------------------------------------------------------- Defined
+    solicitations = defines(list)
+    # ---------------------------------------------------------------- Required
+    decoders = requires(list)
+    definitions = requires(list)
+
+class SolicitationOrder(Context):
+    '''
+    The decoder solicitation context.
+    '''
+    # ---------------------------------------------------------------- Defined
+    path = defines(str)
+    objType = defines(Type)
+    # ---------------------------------------------------------------- Required
+    pathRoot = requires(str)
+    devise = requires(IDevise)
+    property = requires(TypeProperty)
     
 # --------------------------------------------------------------------
 
 @injected
-class OrderDecode(HandlerProcessor):
+class OrderDecode(HandlerBranching):
     '''
     Implementation for a handler that provides the query order criterias decoding.
     '''
     
+    orderAssembly = Assembly
+    # The order decode processors to be used for decoding.
     nameAsc = 'asc'
     # The name used for the ascending list of names.
     nameDesc = 'desc'
     # The name used for the descending list of names.
     
     def __init__(self):
+        assert isinstance(self.orderAssembly, Assembly), 'Invalid order assembly %s' % self.orderAssembly
         assert isinstance(self.nameAsc, str), 'Invalid name for ascending %s' % self.nameAsc
         assert isinstance(self.nameDesc, str), 'Invalid name for descending %s' % self.nameDesc
-        super().__init__(Support=Support)
+        super().__init__(Branch(self.orderAssembly).using(create=CreateOrder).included(),
+                         Definition=Definition, Support=Support)
         
-    def process(self, chain, invoker:Invoker, Definition:DefinitionOrder, create:Create,
-                Solicitaion:SolicitaionOrder, **keyargs):
+    def process(self, chain, processing, create:Create, Solicitation:SolicitationOrder, **keyargs):
         '''
-        @see: HandlerProcessor.process
+        @see: HandlerBranching.process
         
         Create the order decode.
         '''
-        assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
+        assert isinstance(processing, Processing), 'Invalid processing %s' % processing
         assert isinstance(create, Create), 'Invalid create %s' % create
-        assert issubclass(Definition, DefinitionOrder), 'Invalid definition class %s' % Definition
-        assert issubclass(Solicitaion, SolicitaionOrder), 'Invalid solicitaion class %s' % Solicitaion
+        assert issubclass(Solicitation, SolicitationOrder), 'Invalid solicitation class %s' % Solicitation
         
-        if not create.solicitaions: return 
-        # There is not solicitaion to process.
+        if not create.solicitations: return 
+        # There is not solicitation to process.
+        
+        keyargs.update(Solicitation=Solicitation)
         
         k, ascending, priority = 0, {}, {}
-        while k < len(create.solicitaions):
-            sol = create.solicitaions[k]
+        while k < len(create.solicitations):
+            sol = create.solicitations[k]
             k += 1
             
-            assert isinstance(sol, Solicitaion), 'Invalid solicitation %s' % sol
+            assert isinstance(sol, SolicitationOrder), 'Invalid solicitation %s' % sol
             if not sol.pathRoot or not sol.property: continue
             
             if isCompatible(AsOrdered.ascending, sol.property):
@@ -124,42 +130,35 @@ class OrderDecode(HandlerProcessor):
             # Is not an ordered criteria.
             
             k -= 1
-            del create.solicitaions[k]
+            del create.solicitations[k]
             
         if ascending:
-            sola, sold = Solicitaion(), Solicitaion()
-            assert isinstance(sola, SolicitaionOrder), 'Invalid solicitation %s' % sola
-            assert isinstance(sold, SolicitaionOrder), 'Invalid solicitation %s' % sold
-            create.solicitaions.append(sola)
-            create.solicitaions.append(sold)
+            sola, sold = Solicitation(), Solicitation()
+            assert isinstance(sola, SolicitationOrder), 'Invalid solicitation %s' % sola
+            assert isinstance(sold, SolicitationOrder), 'Invalid solicitation %s' % sold
             
             sola.devise = DeviseOrder(self.nameAsc, True, ascending, priority)
-            sola.key = frozenset((self.nameAsc,))
             sola.path = self.nameAsc
             
             sold.devise = DeviseOrder(self.nameDesc, False, ascending, priority)
-            sold.key = frozenset((self.nameDesc,))
             sold.path = self.nameDesc
             
             sola.objType = sold.objType = typeFor(List(str))
-            sola.definition = sold.definition = create.definition
             
-            if invoker.definitions is None: invoker.definitions = {}
-            defa, defd = Definition(), Definition()
-            assert isinstance(defa, DefinitionOrder), 'Invalid definition %s' % defa
-            assert isinstance(defd, DefinitionOrder), 'Invalid definition %s' % defd
+            arg = processing.execute(create=processing.ctx.create(solicitations=[sola, sold]), **keyargs)
+            assert isinstance(arg.create, CreateOrder), 'Invalid create %s' % arg.create
             
-            defa.name = self.nameAsc
-            defa.description = ['provide the names that you want to order by ascending',
-                                'the order in which the names are provided establishes the order priority']
-            invoker.definitions[sola.key] = defa
-            
-            defd.name = self.nameDesc
-            defd.description = ['provide the names that you want to order by descending',
-                                'the order in which the names are provided establishes the order priority']
-            invoker.definitions[sold.key] = defd
-            
-            defa.enumeration = defd.enumeration = sorted(ascending.keys())
+            if arg.create.decoders:
+                if create.decoders is None: create.decoders = arg.create.decoders
+                else: create.decoders.extend(arg.create.decoders)
+            if arg.create.definitions:
+                enumeration = sorted(ascending.keys())
+                for defin in arg.create.definitions:
+                    assert isinstance(defin, Definition), 'Invalid definition %s' % defin
+                    if defin.solicitation in (sola, sold): defin.enumeration = enumeration
+                        
+                if create.definitions is None: create.definitions = arg.create.definitions
+                else: create.definitions.extend(arg.create.definitions)
 
 # --------------------------------------------------------------------
 

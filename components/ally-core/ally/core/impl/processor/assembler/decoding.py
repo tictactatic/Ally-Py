@@ -1,17 +1,17 @@
 '''
 Created on Jun 16, 2013
 
-@package: ally core http
+@package: ally core
 @copyright: 2011 Sourcefabric o.p.s.
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
 
-Provides the invoker parameter decoder.
+Provides the invoker decoder.
 '''
 
 from ally.api.type import Input, Type
 from ally.container.ioc import injected
-from ally.core.spec.transform.encdec import IDecoder, IDevise, DeviseDict, \
+from ally.core.spec.transform.encdec import IDecoder, IDevise, \
     DecoderDelegate
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines
@@ -34,13 +34,13 @@ class Invoker(Context):
     The invoker context.
     '''
     # ---------------------------------------------------------------- Defined
-    decoderParameters = defines(IDecoder, doc='''
+    decoder = defines(IDecoder, doc='''
     @rtype: IDecoder
-    The parameters decoder.
+    The decoder.
     ''')
-    definitionParameters = defines(Context, doc='''
-    @rtype: Context
-    The parameters definitions.
+    definitions = defines(list, doc='''
+    @rtype: list[Context}
+    Definitions containing representative data for invoker.
     ''')
     solved = defines(set, doc='''
     @rtype: set(string)
@@ -49,43 +49,34 @@ class Invoker(Context):
     # ---------------------------------------------------------------- Required
     inputs = requires(tuple)
 
-class DefinitionParameters(Context):
-    '''
-    The definition context.
-    '''
-    # ---------------------------------------------------------------- Defined
-    isOptional = defines(bool, doc='''
-    @rtype: boolean
-    If True the definition value is optional.
-    ''')
-    description = defines(list, doc='''
-    @rtype: list[string]
-    The definition description, each entry is a paragraph line.
-    ''')
-
 class Create(Context):
     '''
     The create decoder context.
     '''
     # ---------------------------------------------------------------- Defined
-    solicitaions = defines(list, doc='''
+    solicitations = defines(list, doc='''
     @rtype: list[Context]
     The solicitations for creating decoders.
     ''')
-    definition = defines(Context, doc='''
-    @rtype: Context
-    The root definition of the create.
-    ''')
     # ---------------------------------------------------------------- Required
     decoders = requires(list)
+    definitions = requires(list)
     
-class SolicitaionParameters(Context):
+class SolicitationDecoder(Context):
     '''
-    The decoder solicitaion context.
+    The decoder solicitation context.
     '''
     # ---------------------------------------------------------------- Defined
-    path = defines(object, doc='''
-    @rtype: object
+    invoker = defines(Context, doc='''
+    @rtype: Context
+    The invoker that the solicitation is based on.
+    ''')
+    input = defines(Input, doc='''
+    @rtype: Input
+    The input that the solicitation is based on.
+    ''')
+    path = defines(str, doc='''
+    @rtype: string
     The path of the create element.
     ''')
     devise = defines(IDevise, doc='''
@@ -96,21 +87,13 @@ class SolicitaionParameters(Context):
     @rtype: Type
     The object type to be decoded.
     ''')
-    key = defines(frozenset, doc='''
-    @rtype: frozenset
-    The frozenset that defines the create key, mainly used for definition.
-    ''')
-    definition = defines(Context, doc='''
-    @rtype: Context
-    The definition parent for solicitaion.
-    ''')
     
 # --------------------------------------------------------------------
 
 @injected
-class DecodingParametersHandler(HandlerBranching):
+class DecodingHandler(HandlerBranching):
     '''
-    Implementation for a handler that provides the creation of parameters decoders for invokers.
+    Implementation for a handler that provides the creation of decoders for invokers.
     '''
     
     decodeAssembly = Assembly
@@ -121,8 +104,7 @@ class DecodingParametersHandler(HandlerBranching):
         super().__init__(Branch(self.decodeAssembly).using(create=Create).
                          included(('invoker', 'Invoker'), ('node', 'Node')).included(), Invoker=Invoker)
 
-    def process(self, chain, processing, register:Register, Definition:DefinitionParameters,
-                Solicitaion:SolicitaionParameters, **keyargs):
+    def process(self, chain, processing, register:Register, Solicitation:SolicitationDecoder, **keyargs):
         '''
         @see: HandlerBranching.process
         
@@ -130,52 +112,80 @@ class DecodingParametersHandler(HandlerBranching):
         '''
         assert isinstance(processing, Processing), 'Invalid processing %s' % processing
         assert isinstance(register, Register), 'Invalid register %s' % register
-        assert issubclass(Definition, DefinitionParameters), 'Invalid definition class %s' % Definition
-        assert issubclass(Solicitaion, SolicitaionParameters), 'Invalid solicitaion class %s' % Solicitaion
+        assert issubclass(Solicitation, SolicitationDecoder), 'Invalid solicitation class %s' % Solicitation
         if not register.invokers: return  # No invokers to process.
         
-        keyargs.update(Definition=Definition, Solicitaion=Solicitaion)
+        keyargs.update(Solicitation=Solicitation)
         for invoker in register.invokers:
             assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
             
-            definition = invoker.definitionParameters = Definition(isOptional=True, description=[])
-            assert isinstance(definition, DefinitionParameters), 'Invalid definition %s' % definition
-            desc = 'No parameters are available for this URL'
             if invoker.inputs:
                 create = processing.ctx.create()
                 assert isinstance(create, Create), 'Invalid create %s' % create
-                create.definition = definition
-
+                
                 solved = set()
                 for inp in invoker.inputs:
                     assert isinstance(inp, Input), 'Invalid input %s' % inp
                     
                     if invoker.solved and inp.name in invoker.solved: continue  # Already solved
-                    solved.add(inp.name)
+                    solved.add(inp)
                     
-                    sol = Solicitaion()
-                    assert isinstance(sol, SolicitaionParameters), 'Invalid solicitaion %s' % sol
-                    if create.solicitaions is None: create.solicitaions = []
-                    create.solicitaions.append(sol)
+                    sol = Solicitation()
+                    assert isinstance(sol, SolicitationDecoder), 'Invalid solicitation %s' % sol
+                    if create.solicitations is None: create.solicitations = []
+                    create.solicitations.append(sol)
                     
+                    sol.invoker = invoker
+                    sol.input = inp
                     sol.path = inp.name
-                    sol.devise = DeviseDict(inp.name)
+                    sol.devise = DeviseDecoding(inp.name)
                     sol.objType = inp.type
-                    sol.key = frozenset((inp,))
-                    sol.definition = definition
                 
                 arg = processing.executeWithAll(create=create, node=invoker.node, invoker=invoker, **keyargs)
                 assert isinstance(arg.create, Create), 'Invalid create %s' % arg.create
                 if arg.create.decoders:
-                    invoker.decoderParameters = DecoderDelegate(arg.create.decoders)
+                    invoker.decoder = DecoderDelegate(arg.create.decoders)
                     
                     if invoker.solved is None: invoker.solved = set()
-                    if arg.create.solicitaions:
-                        for sol in arg.create.solicitaions:
-                            assert isinstance(sol, SolicitaionParameters), 'Invalid solicitaion %s' % sol
-                            solved.discard(sol.path)
-                    invoker.solved.update(solved)
-                    
-                    desc = 'The available parameters of this URL'
+                    if arg.create.solicitations:
+                        for sol in arg.create.solicitations:
+                            assert isinstance(sol, SolicitationDecoder), 'Invalid solicitation %s' % sol
+                            solved.discard(sol.input)
+                    invoker.solved.update(inp.name for inp in solved)
+                
+                if arg.create.definitions:
+                    if invoker.definitions is None: invoker.definitions = arg.create.definitions
+                    else: invoker.definitions.extend(invoker.definitions)
 
-            definition.description.append(desc)
+# --------------------------------------------------------------------
+
+class DeviseDecoding(IDevise):
+    '''
+    Implementation for @see: IDevise that handles the value for a target dictionary based on a predefined key.
+    '''
+    __slots__ = ('key',)
+    
+    def __init__(self, key):
+        '''
+        Construct the dictionary devise.
+        
+        @param key: object
+            The key to be used on the target dictionary.
+        '''
+        self.key = key
+        
+    def get(self, target):
+        '''
+        @see: IDevise.get
+        
+        Provides None if the key is not presssent.
+        '''
+        assert isinstance(target, dict), 'Invalid target %s' % target
+        return target.get(self.key)
+    
+    def set(self, target, value, support):
+        '''
+        @see: IDevise.set
+        '''
+        assert isinstance(target, dict), 'Invalid target %s' % target
+        target[self.key] = value
