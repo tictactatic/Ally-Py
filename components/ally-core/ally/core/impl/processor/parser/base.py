@@ -12,7 +12,7 @@ Provides the text base parser processor handler.
 from ally.container.ioc import injected
 from ally.core.spec.codes import CONTENT_BAD, CONTENT_MISSING, Coded
 from ally.core.spec.resources import Converter
-from ally.core.spec.transform.encdec import IDecoder, CATEGORY_CONTENT, Category
+from ally.core.spec.transform.encdec import IDecoder, CATEGORY_CONTENT
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain
@@ -33,14 +33,6 @@ class Invoker(Context):
     '''
     # ---------------------------------------------------------------- Required
     decoder = requires(IDecoder)
-    definitions = requires(list)
-
-class Definition(Context):
-    '''
-    The definition context.
-    '''
-    # ---------------------------------------------------------------- Required
-    category = requires(Category)
     
 class Request(Context):
     '''
@@ -66,7 +58,6 @@ class Response(Coded):
     '''
     # ---------------------------------------------------------------- Defined
     errorMessages = defines(list)
-    errorDefinitions = defines(list)
 
 class SupportDecoding(Context):
     '''
@@ -100,7 +91,7 @@ class ParseBaseHandler(HandlerProcessor):
     def __init__(self):
         assert isinstance(self.contentTypes, set), 'Invalid content types %s' % self.contentTypes
         assert isinstance(self.separator, str), 'Invalid separator %s' % self.separator
-        super().__init__(Invoker=Invoker, Definition=Definition)
+        super().__init__(Invoker=Invoker)
 
     def process(self, chain, request:Request, requestCnt:RequestContent, response:Response,
                 Support:SupportDecoding, **keyargs):
@@ -136,15 +127,6 @@ class ParseBaseHandler(HandlerProcessor):
                     if errors is not None: response.errorMessages.extend(errors)
                     if support.failures: response.errorMessages.extend(support.failures)
                     
-                    if request.invoker.definitions:
-                        definitions = []
-                        for defin in request.invoker.definitions:
-                            assert isinstance(defin, Definition), 'Invalid definition %s' % defin
-                            if CATEGORY_CONTENT.isValid(defin.category): definitions.append(defin)
-                    else: definitions = None
-                    if not definitions: response.errorMessages.append('\nNo content is required')
-                    else: response.errorDefinitions = definitions
-                
                 if isinstance(requestCnt.source, IClosable): requestCnt.source.close()
             chain.cancel()  # We need to stop the chain if we have been able to provide the parsing
         else:

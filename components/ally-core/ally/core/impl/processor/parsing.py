@@ -11,7 +11,7 @@ Provides the parsing chain processors.
 
 from ally.container.ioc import injected
 from ally.core.spec.codes import ENCODING_UNKNOWN, Coded
-from ally.core.spec.transform.encdec import IDecoder
+from ally.core.spec.transform.encdec import CATEGORY_CONTENT
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.branch import Branch
@@ -28,7 +28,8 @@ class Invoker(Context):
     The invoker context.
     '''
     # ---------------------------------------------------------------- Required
-    decoder = requires(IDecoder)
+    categoriesDecoded = requires(set)
+    definitions = requires(list)
     
 class Request(Context):
     '''
@@ -76,9 +77,10 @@ class ParsingHandler(HandlerBranching):
     def __init__(self, *branches):
         assert isinstance(self.parsingAssembly, Assembly), 'Invalid parsers assembly %s' % self.parsingAssembly
         assert isinstance(self.charSetDefault, str), 'Invalid default character set %s' % self.charSetDefault
-        super().__init__(*itertools.chain(branches, (Branch(self.parsingAssembly).included(),)), Invoker=Invoker)
+        super().__init__(*itertools.chain(branches, (Branch(self.parsingAssembly).included(),)),
+                         Invoker=Invoker, requestCnt=RequestContent)
 
-    def process(self, chain, processing, request:Request, requestCnt:RequestContent, response:Response, **keyargs):
+    def process(self, chain, processing, request:Request, response:Response, **keyargs):
         '''
         @see: HandlerBranching.process
         
@@ -90,8 +92,11 @@ class ParsingHandler(HandlerBranching):
         assert isinstance(response, Response), 'Invalid response %s' % response
 
         if response.isSuccess is False: return  # Skip in case the response is in error
+        if not request.invoker: return
+        assert isinstance(request.invoker, Invoker), 'Invalid invoker %s' % request.invoker
+        if not request.invoker.categoriesDecoded or not CATEGORY_CONTENT in request.invoker.categoriesDecoded: return
 
-        if self.processParsing(chain, processing, request=request, requestCnt=requestCnt, response=response, **keyargs):
+        if self.processParsing(chain, processing, request=request, response=response, **keyargs):
             # We process the chain without the request content anymore
             chain.arg.requestCnt = None
 
@@ -104,7 +109,6 @@ class ParsingHandler(HandlerBranching):
         '''
         assert isinstance(chain, Chain), 'Invalid chain %s' % chain
         assert isinstance(processing, Processing), 'Invalid processing %s' % processing
-        assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(requestCnt, RequestContent), 'Invalid request content %s' % requestCnt
         assert isinstance(response, Response), 'Invalid response %s' % response
         assert isinstance(responseCnt, ResponseContent), 'Invalid response content %s' % responseCnt

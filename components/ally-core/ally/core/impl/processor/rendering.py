@@ -35,7 +35,7 @@ class Response(Coded):
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    errorMessage = defines(str)
+    errorMessages = defines(list)
 
 class ResponseContent(Context):
     '''
@@ -107,7 +107,8 @@ class RenderingHandler(HandlerBranching):
             if chain.branch(processing).execute(CONSUMED):
                 if response.isSuccess is not False:
                     ENCODING_UNKNOWN.set(response)
-                    response.errorMessage = 'Content type \'%s\' not supported for rendering' % responseCnt.type
+                    if response.errorMessages is None: response.errorMessages = []
+                    response.errorMessages.append('Content type \'%s\' not supported for rendering' % responseCnt.type)
             else: resolved = True
 
         if not resolved:
@@ -120,5 +121,7 @@ class RenderingHandler(HandlerBranching):
                 if not chain.branch(processing).execute(CONSUMED): break
             else:
                 ENCODING_UNKNOWN.set(response)
-                response.errorMessage = 'There is no renderer available, this is more likely a setup issues since the '\
-                'default content types should have resolved the renderer'
+                if response.errorMessages is None: response.errorMessages = []
+                response.errorMessages.append('There is no renderer available')
+                response.errorMessages.append('This is more likely a setup issues since the '\
+                'default content types should have resolved the renderer')

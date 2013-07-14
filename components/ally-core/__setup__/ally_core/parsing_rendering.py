@@ -35,7 +35,7 @@ def content_types_json() -> dict:
     '''
     return {
             'text/json':None,
-            'application/json':None,
+            'application/json':'text/json',
             'json':'text/json',
             None:'text/json'
             }
@@ -49,20 +49,8 @@ def content_types_xml() -> dict:
     return {
             'text/xml':None,
             'text/plain':'text/xml',
-            'application/xml':None,
+            'application/xml':'text/xml',
             'xml':'text/xml'
-            }
-
-@ioc.config
-def content_types_yaml() -> dict:
-    '''
-    The YAML content types, a map that contains as a key the recognized mime type and as a value the normalize mime type,
-    if none then the same key mimie type will be used for response.
-    '''
-    return {
-            'text/yaml':None,
-            'application/yaml':None,
-            'yaml':'text/yaml',
             }
 
 # --------------------------------------------------------------------
@@ -127,7 +115,7 @@ def updateBlocksDefinitions():
 
 @ioc.before(assemblyParsing)
 def updateAssemblyParsing():
-    #TODO: Gabriel: assemblyParsing().add(parseJSON())
+    # TODO: Gabriel: assemblyParsing().add(parseJSON())
     assemblyParsing().add(parseXML())
 
 @ioc.before(assemblyRendering)

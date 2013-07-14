@@ -15,6 +15,7 @@ from ally.container.ioc import injected
 from ally.core.spec.codes import CONTENT_EXPECTED, Coded
 from ally.design.processor.attribute import requires, optional, defines
 from ally.design.processor.context import Context, asData
+from ally.design.processor.execution import Chain
 from ally.design.processor.handler import HandlerProcessor
 from ally.support.util_io import IInputStream
 from collections import Callable
@@ -32,7 +33,7 @@ class Invoker(Context):
     '''
     # ---------------------------------------------------------------- Required
     hasContent = requires(bool)
-    
+        
 class Request(Context):
     '''
     The request context.
@@ -66,6 +67,7 @@ class RegisterAssembler(Context):
     '''
     # ---------------------------------------------------------------- Required
     invokers = requires(list)
+    exclude = requires(set)
     
 class InvokerAssembler(Context):
     '''
@@ -78,7 +80,9 @@ class InvokerAssembler(Context):
     ''')
     solved = defines(set)
     # ---------------------------------------------------------------- Required
+    id = requires(str)
     inputs = requires(tuple)
+    location = requires(str)
     
 # --------------------------------------------------------------------
 
@@ -133,21 +137,30 @@ class AssemblerContentHandler(HandlerProcessor):
         
         Populate the content flag if required.
         '''
+        assert isinstance(chain, Chain), 'Invalid chain %s' % chain
         assert isinstance(register, RegisterAssembler), 'Invalid register %s' % register
         if not register.invokers: return  # No invokers to process.
-        
         
         for invoker in register.invokers:
             assert isinstance(invoker, InvokerAssembler), 'Invalid invoker %s' % invoker
             if not invoker.inputs: continue
             
+            inpContent, toMany = None, False
             for inp in invoker.inputs:
                 assert isinstance(inp, Input), 'Invalid input %s' % inp
                 if inp.type == self.contentType:
-                    if invoker.solved is None: invoker.solved = set()
-                    invoker.solved.add(inp.name)
-                    invoker.hasContent = True
-                    break
+                    if inpContent is not None: toMany = True
+                    inpContent = inp
+            
+            if toMany:
+                log.error('Cannot use because there are to many \'Content\' inputs, only a maximum of one is allowed, at:%s',
+                          invoker.location)
+                register.exclude.add(invoker.id)
+                chain.cancel()
+            elif inpContent:
+                if invoker.solved is None: invoker.solved = set()
+                invoker.solved.add(inpContent.name)
+                invoker.hasContent = True
 
 # --------------------------------------------------------------------
 

@@ -6,16 +6,17 @@ Created on Jul 12, 2013
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
 
-Provides triggers for definition descriptions.
+Provides verifiers for definitions.
 '''
+
 from ally.api.operator.type import TypeProperty, TypeModel
 from ally.api.type import typeFor, Input, Type
+from ally.core.spec.transform.encdec import Category
 from ally.design.processor.attribute import requires
 from ally.design.processor.context import Context
 from ally.design.processor.resolvers import merge
 from ally.support.api.util_service import isCompatible
 import abc
-from ally.core.spec.transform.encdec import Category
 
 # --------------------------------------------------------------------
 
@@ -33,14 +34,12 @@ class IVerifier(metaclass=abc.ABCMeta):
         '''
     
     @abc.abstractmethod
-    def isValid(self, definition, info):
+    def isValid(self, definition):
         '''
         Checks if the provided definition is valid for the trigger.
         
         @param definition: Context
             The definition to check.
-        @param info: set(string)
-            The available information keys for constructing the description.
         @return: boolean
             True if the definition is checked by the trigger, False otherwise.
         '''
@@ -51,6 +50,13 @@ class VerifyInfo(IVerifier):
     '''
     Implementation for a @see: IVerifier that validates for a series of provided keys.
     '''
+    
+    class Definition(Context):
+        '''
+        The definition context.
+        '''
+        # ---------------------------------------------------------------- Required
+        info = requires(dict)
     
     def __init__(self, *info):
         '''
@@ -63,15 +69,22 @@ class VerifyInfo(IVerifier):
         if __debug__:
             for key in info: assert isinstance(key, str), 'Invalid info key %s' % key
         
-        self.info = info
+        self.info = set(info)
         
-    def isValid(self, definition, info):
+    def prepare(self, resolvers):
+        '''
+        @see: IVerifier.prepare
+        '''
+        merge(resolvers, dict(Definition=VerifyInfo.Definition))
+        
+    def isValid(self, definition):
         '''
         @see: IVerifier.isValid
         '''
-        assert isinstance(info, set), 'Invalid info %s' % info
+        assert isinstance(definition, VerifyInfo.Definition), 'Invalid definition %s' % definition
         
-        return info.issuperset(self.info)
+        if not definition.info: return False
+        return self.info.issubset(definition.info)
     
 class VerifyCategory(IVerifier):
     '''
@@ -102,7 +115,7 @@ class VerifyCategory(IVerifier):
         '''
         merge(resolvers, dict(Definition=VerifyCategory.Definition))
         
-    def isValid(self, definition, info):
+    def isValid(self, definition):
         '''
         @see: IVerifier.isValid
         '''
@@ -145,15 +158,15 @@ class VerifyName(VerifyInfo, VerifyCategory):
         if self.info: VerifyInfo.prepare(self, resolvers)
         if self.category: VerifyCategory.prepare(self, resolvers)
         
-    def isValid(self, definition, info):
+    def isValid(self, definition):
         '''
         @see: IVerifier.isValid
         '''
         assert isinstance(definition, VerifyName.Definition), 'Invalid definition %s' % definition
         if self.name != definition.name: return False
         
-        if self.info and not VerifyInfo.isValid(self, definition, info): return False
-        if self.category and not VerifyCategory.isValid(self, definition, info): return False
+        if self.info and not VerifyInfo.isValid(self, definition): return False
+        if self.category and not VerifyCategory.isValid(self, definition): return False
         return True
     
 class VerifyType(VerifyInfo):
@@ -201,7 +214,7 @@ class VerifyType(VerifyInfo):
         merge(resolvers, dict(Definition=VerifyType.Definition, Solicitation=VerifyType.Solicitation))
         if self.info: VerifyInfo.prepare(self, resolvers)
         
-    def isValid(self, definition, info):
+    def isValid(self, definition):
         '''
         @see: IVerifier.isValid
         '''
@@ -214,7 +227,7 @@ class VerifyType(VerifyInfo):
         assert isinstance(inp, Input), 'Invalid input %s' % inp
         if not self.check(self.type, inp.type): return False
         
-        if self.info and not VerifyInfo.isValid(self, definition, info): return False
+        if self.info and not VerifyInfo.isValid(self, definition): return False
         return True
     
 class VerifyProperty(VerifyInfo):
@@ -251,7 +264,7 @@ class VerifyProperty(VerifyInfo):
         merge(resolvers, dict(Definition=VerifyType.Definition, Solicitation=VerifyProperty.Solicitation))
         if self.info: VerifyInfo.prepare(self, resolvers)
         
-    def isValid(self, definition, info):
+    def isValid(self, definition):
         '''
         @see: IVerifier.isValid
         '''
@@ -261,7 +274,7 @@ class VerifyProperty(VerifyInfo):
         'Invalid solicitation %s' % definition.solicitation
         if not isCompatible(self.type, definition.solicitation.property): return False
         
-        if self.info and not VerifyInfo.isValid(self, definition, info): return False
+        if self.info and not VerifyInfo.isValid(self, definition): return False
         return True
     
 class VerifyModelId(VerifyInfo):
@@ -287,7 +300,7 @@ class VerifyModelId(VerifyInfo):
         merge(resolvers, dict(Solicitation=VerifyProperty.Solicitation))
         if self.info: VerifyInfo.prepare(self, resolvers)
         
-    def isValid(self, definition, info):
+    def isValid(self, definition):
         '''
         @see: IVerifier.isValid
         '''
@@ -303,5 +316,5 @@ class VerifyModelId(VerifyInfo):
         
         if prop.parent.propertyId != prop: return False
         
-        if self.info and not VerifyInfo.isValid(self, definition, info): return False
+        if self.info and not VerifyInfo.isValid(self, definition): return False
         return True

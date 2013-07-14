@@ -13,7 +13,7 @@ from ally.container.ioc import injected
 from ally.core.http.spec.codes import PARAMETER_ILLEGAL
 from ally.core.http.spec.transform.encdec import CATEGORY_PARAMETER
 from ally.core.spec.resources import Converter
-from ally.core.spec.transform.encdec import IDecoder, Category
+from ally.core.spec.transform.encdec import IDecoder
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
@@ -27,14 +27,8 @@ class Invoker(Context):
     '''
     # ---------------------------------------------------------------- Required
     decoder = requires(IDecoder)
+    categoriesDecoded = requires(set)
     definitions = requires(list)
-
-class Definition(Context):
-    '''
-    The definition context.
-    '''
-    # ---------------------------------------------------------------- Required
-    category = requires(Category)
     
 class Request(Context):
     '''
@@ -52,7 +46,6 @@ class Response(CodedHTTP):
     '''
     # ---------------------------------------------------------------- Defined
     errorMessages = defines(list)
-    errorDefinitions = defines(list)
 
 class SupportDecoding(Context):
     '''
@@ -79,7 +72,7 @@ class ParameterHandler(HandlerProcessor):
     '''
 
     def __init__(self):
-        super().__init__(Invoker=Invoker, Definition=Definition)
+        super().__init__(Invoker=Invoker)
 
     def process(self, chain, request:Request, response:Response, Support:SupportDecoding, **keyargs):
         '''
@@ -115,12 +108,7 @@ class ParameterHandler(HandlerProcessor):
                 
                 if illegal: response.errorMessages.append('Unknown parameters: %s' % ', '.join(sorted(illegal)))
                 if support.failures: response.errorMessages.extend(support.failures)
-                if request.invoker.definitions:
-                    definitions = []
-                    for defin in request.invoker.definitions:
-                        assert isinstance(defin, Definition), 'Invalid definition %s' % defin
-                        if CATEGORY_PARAMETER.isValid(defin.category): definitions.append(defin)
-                else: definitions = None
-
-                if not definitions: response.errorMessages.append('\nNo parameters are available')
-                else: response.errorDefinitions = definitions
+                
+                if not request.invoker.categoriesDecoded or CATEGORY_PARAMETER not in request.invoker.categoriesDecoded:
+                    response.errorMessages.append('\nNo parameters are available')
+                

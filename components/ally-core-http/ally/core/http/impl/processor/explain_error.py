@@ -11,7 +11,7 @@ Provides support for explaining the errors in the content of the request.
 
 from ally.api.type import Type
 from ally.container.ioc import injected
-from ally.core.spec.transform.describer import IVerifier
+from ally.core.impl.verifier import IVerifier
 from ally.core.spec.transform.encdec import Category
 from ally.design.processor.attribute import requires, optional, defines
 from ally.design.processor.context import Context
@@ -28,31 +28,14 @@ import logging
 log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
-
-class Invoker(Context):
-    '''
-    The invoker context.
-    '''
-    # ---------------------------------------------------------------- Optional
-    info = optional(dict)
-
-class Solicitation(Context):
-    '''
-    The decoder solicitation context.
-    '''
-    # ---------------------------------------------------------------- Optional
-    info = optional(dict)
-    solicitation = optional(Context)
-    invoker = optional(Context)
   
 class Definition(Context):
     '''
     The definition context.
     '''
     # ---------------------------------------------------------------- Optional
-    info = optional(dict)
-    solicitation = optional(Context)
     enumeration = optional(list)
+    info = optional(dict)
     # ---------------------------------------------------------------- Required
     name = requires(str)
     category = requires(Category)
@@ -110,7 +93,7 @@ class ExplainErrorHandler(HandlerProcessor):
         assert isinstance(self.charSet, str), 'Invalid character set encoding %s' % self.charSet
         assert isinstance(self.type, str), 'Invalid content type %s' % self.type
         
-        resolvers = resolversFor(dict(Invoker=Invoker, Solicitation=Solicitation, Definition=Definition))
+        resolvers = resolversFor(dict(Definition=Definition))
         for verifier, *descriptions in self.describers:
             assert isinstance(verifier, IVerifier), 'Invalid verifier %s' % verifier
             if __debug__:
@@ -129,56 +112,49 @@ class ExplainErrorHandler(HandlerProcessor):
         assert isinstance(response, Response), 'Invalid response %s' % response
         assert isinstance(responseCnt, ResponseContent), 'Invalid response content %s' % responseCnt
 
-        if response.isSuccess is False:
-            responseCnt.source = BytesIO()
-            out = getwriter(self.charSet)(responseCnt.source)
-            w = out.write
+        if response.isSuccess is not False: return  # Not in error.
+        
+        responseCnt.source = BytesIO()
+        out = getwriter(self.charSet)(responseCnt.source)
+        w = out.write
+        
+        w('Status: %s' % response.status)
+        if response.text:
+            w(' %s' % response.text)
+            if response.code: w(' | %s' % response.code)
+        elif response.code: w(' %s' % response.code)
+        w('\n')
             
-            w('Status: %s' % response.status)
-            if response.text:
-                w(' %s' % response.text)
-                if response.code: w(' | %s' % response.code)
-            elif response.code: w(' %s' % response.code)
+        if Response.errorMessages in response and response.errorMessages:
+            w('%s\n' % '\n'.join(response.errorMessages))
+        
+        if Response.errorDefinitions in response and response.errorDefinitions:
             w('\n')
+            table, header = TextTable('Name', 'Type', 'Optional', 'Description'), None
+            for defin in response.errorDefinitions:
+                assert isinstance(defin, Definition), 'Invalid definition %s' % defin
+
+                if Definition.enumeration in defin and defin.enumeration:
+                    represent = '\n'.join('- %s' % enum for enum in defin.enumeration)
+                elif defin.type: represent = str(defin.type)
+                else: represent = ''
                 
-            if Response.errorMessages in response and response.errorMessages:
-                w('%s\n' % '\n'.join(response.errorMessages))
-            
-            if Response.errorDefinitions in response and response.errorDefinitions:
-                w('\n')
-                table, header = None, None
-                for defin in response.errorDefinitions:
-                    assert isinstance(defin, Definition), 'Invalid definition %s' % defin
-
-                    if Definition.enumeration in defin and defin.enumeration:
-                        represent = '\n'.join('- %s' % enum for enum in defin.enumeration)
-                    elif defin.type: represent = str(defin.type)
-                    else: represent = ''
-                    
-                    if header:
-                        if defin.category != header.category:
-                            table.render(out)
-                            table = None
-
-                    if table is None:
-                        if defin.category:
-                            assert isinstance(defin.category, Category), 'Invalid category %s' % defin.category
-                            if defin.category.info:
-                                w('\n'.join(defin.category.info))
-                                w('\n')
-                            
-                        table = TextTable('Name', 'Type', 'Optional', 'Description')
-                        header = defin
-                    
-                    table.add(defin.name, represent, '*' if defin.isOptional else '', self.descriptionFor(defin))
-                    
-                if table: table.render(out)
-            
-            responseCnt.length = responseCnt.source.tell()
-            responseCnt.source.seek(0)
-            
-            responseCnt.charSet = self.charSet
-            responseCnt.type = self.type
+                if header and defin.category != header.category: header = None
+                if header is None:
+                    if defin.category:
+                        assert isinstance(defin.category, Category), 'Invalid category %s' % defin.category
+                        if defin.category.info: table.add('\n'.join(defin.category.info))
+                    header = defin
+                
+                table.add(defin.name, represent, '*' if defin.isOptional else '', self.descriptionFor(defin))
+                
+            table.render(out)
+        
+        responseCnt.length = responseCnt.source.tell()
+        responseCnt.source.seek(0)
+        
+        responseCnt.charSet = self.charSet
+        responseCnt.type = self.type
 
     # ----------------------------------------------------------------
     
@@ -188,24 +164,10 @@ class ExplainErrorHandler(HandlerProcessor):
         '''
         assert isinstance(definition, Definition), 'Invalid definition %s' % definition
         
-        info = {}
-        if Definition.info in definition and definition.info: info.update(definition.info)
-        if Definition.solicitation in definition and definition.solicitation:
-            solicitation = definition.solicitation
-            assert isinstance(solicitation, Solicitation), 'Invalid solicitation %s' % solicitation
-            
-            while solicitation:
-                if Solicitation.info in solicitation and solicitation.info: info.update(solicitation.info)
-                if Solicitation.invoker in solicitation and solicitation.invoker:
-                    if Invoker.info in solicitation.invoker:
-                        assert isinstance(solicitation.invoker, Invoker), 'Invalid invoker %s' % solicitation.invoker
-                        if solicitation.invoker.info: info.update(solicitation.invoker.info)
-                        
-                if Solicitation.solicitation in solicitation: solicitation = solicitation.solicitation
-                else: solicitation = None
+        if Definition.info in definition and definition.info: info = dict(definition.info)
+        else: info = {}
         
-        keys = set(info.keys())
-        for key in keys:
+        for key in set(info.keys()):
             value = info.get(key)
             if isinstance(value, (list, tuple)): info[key] = ', '.join(value)
 
@@ -214,7 +176,7 @@ class ExplainErrorHandler(HandlerProcessor):
             assert isinstance(verifier, IVerifier), 'Invalid verifier %s' % verifier
             for description in descriptions:
                 assert isinstance(description, str), 'Invalid description %s' % description
-                if verifier.isValid(definition, keys): compiled.append(description % info)
+                if verifier.isValid(definition): compiled.append(description % info)
         
         return '\n'.join(compiled)
         

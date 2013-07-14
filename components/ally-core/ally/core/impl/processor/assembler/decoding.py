@@ -11,8 +11,8 @@ Provides the invoker decoder.
 
 from ally.api.type import Input, Type
 from ally.container.ioc import injected
-from ally.core.spec.transform.encdec import IDecoder, IDevise, \
-    DecoderDelegate
+from ally.core.impl.encdec import DecoderDelegate
+from ally.core.spec.transform.encdec import IDecoder, IDevise
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.branch import Branch

@@ -123,10 +123,10 @@ class Parse(ContentHandler):
                             (content, name, self.parser.getLineNumber(), self.parser.getColumnNumber()))
         else:
             content = '\n'.join(self.content.popleft())
-            if self.decoder(self.separator.join(self.path), content): self.path.pop()
-            else:
+            if not self.decoder(self.separator.join(self.path), content): 
                 self.report('Invalid path \'%s\' at line %s and column %s' % 
                             ('/'.join(self.path), self.parser.getLineNumber(), self.parser.getColumnNumber()))
+            self.path.pop()
 
     # ----------------------------------------------------------------
     

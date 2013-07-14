@@ -12,8 +12,8 @@ Provides the collection encoder.
 from ally.api.operator.type import TypeModel, TypeProperty
 from ally.api.type import Iter
 from ally.container.ioc import injected
-from ally.core.spec.transform.encdec import IEncoder, EncoderWithSpecifiers
-from ally.core.spec.transform.encdec import IRender
+from ally.core.impl.encdec import EncoderWithSpecifiers
+from ally.core.spec.transform.encdec import IEncoder, IRender
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.branch import Branch

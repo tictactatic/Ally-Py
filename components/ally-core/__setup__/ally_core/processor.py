@@ -9,12 +9,14 @@ Created on Nov 24, 2011
 Provides the configurations for the processors used in handling the request.
 '''
 
+from .definition import definitionError
 from .parsing_rendering import assemblyRendering, assemblyParsing, \
     blocksDefinitions
 from ally.container import ioc
 from ally.core.impl.processor.block_indexing import BlockIndexingHandler
 from ally.core.impl.processor.content import ContentHandler
 from ally.core.impl.processor.conversion_content import ConverterContentHandler
+from ally.core.impl.processor.error_definition import ErrorDefinitionHandler
 from ally.core.impl.processor.invoking import InvokingHandler
 from ally.core.impl.processor.parsing import ParsingHandler
 from ally.core.impl.processor.render_encoder import RenderEncoderHandler
@@ -75,6 +77,12 @@ def invoking() -> Handler: return InvokingHandler()
 
 @ioc.entity
 def renderEncoder() -> Handler: return RenderEncoderHandler()
+
+@ioc.entity
+def errorDefinition() -> Handler:
+    b = ErrorDefinitionHandler()
+    b.errors = definitionError()
+    return b
 
 # --------------------------------------------------------------------
 

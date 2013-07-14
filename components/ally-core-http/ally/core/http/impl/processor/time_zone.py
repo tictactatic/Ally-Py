@@ -14,11 +14,11 @@ from ally.core.http.spec.codes import TIME_ZONE_ERROR
 from ally.core.spec.resources import Converter
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.handler import HandlerProcessor
+from ally.http.spec.codes import CodedHTTP
 from ally.http.spec.headers import HeadersRequire, HeaderRaw
 from datetime import datetime, date, tzinfo
-from pytz import timezone, common_timezones
+from pytz import timezone
 from pytz.exceptions import UnknownTimeZoneError
-from ally.http.spec.codes import CodedHTTP
 
 # --------------------------------------------------------------------
 
@@ -26,12 +26,29 @@ TIME_ZONE = HeaderRaw('X-TimeZone')
 # The custom time zone header.
 CONTENT_TIME_ZONE = HeaderRaw('X-Content-TimeZone')
 # The custom content time zone header.
+        
+# --------------------------------------------------------------------
+    
+class Request(HeadersRequire):
+    '''
+    The request converter context.
+    '''
+    # ---------------------------------------------------------------- Required
+    converterContent = requires(Converter)
+
+class Response(CodedHTTP):
+    '''
+    The response context.
+    '''
+    # ---------------------------------------------------------------- Defined
+    errorMessages = defines(list)
 
 # --------------------------------------------------------------------
 
-class TimeZoneConfigurations:
+@injected
+class TimeZoneConverterHandler(HandlerProcessor):
     '''
-    Provides general time zone configurations.
+    Implementation for a processor that provides the time zone converter handler.
     '''
 
     baseTimeZone = 'UTC'
@@ -42,104 +59,41 @@ class TimeZoneConfigurations:
     def __init__(self):
         assert isinstance(self.baseTimeZone, str), 'Invalid base time zone %s' % self.baseTimeZone
         assert isinstance(self.defaultTimeZone, str), 'Invalid default time zone %s' % self.defaultTimeZone
+        super().__init__()
 
         self.baseTZ = timezone(self.baseTimeZone)
         self.defaultTZ = timezone(self.defaultTimeZone)
-        
-# --------------------------------------------------------------------
 
-class Response(CodedHTTP):
-    '''
-    The response context.
-    '''
-    # ---------------------------------------------------------------- Defined
-    errorMessage = defines(str)
-    errorDetails = defines(Object)
-    
-class RequestConverter(HeadersRequire):
-    '''
-    The request converter context.
-    '''
-    # ---------------------------------------------------------------- Required
-    converter = requires(Converter)
-
-class ResponseConverter(Response):
-    '''
-    The response converter context.
-    '''
-    # ---------------------------------------------------------------- Required
-    converter = requires(Converter)
-
-# --------------------------------------------------------------------
-
-@injected
-class TimeZoneConverterRequestHandler(HandlerProcessor, TimeZoneConfigurations):
-    '''
-    Implementation for a processor that provides the time zone request converter handler.
-    '''
-
-    def __init__(self):
-        TimeZoneConfigurations.__init__(self)
-        HandlerProcessor.__init__(self)
-
-    def process(self, chain, request:RequestConverter, response:Response, **keyargs):
+    def process(self, chain, request:Request, response:Response, **keyargs):
         '''
         @see: HandlerProcessor.process
         
         Provides the time zone support for the request converter.
         '''
-        assert isinstance(request, RequestConverter), 'Invalid request %s' % request
+        assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(response, Response), 'Invalid response %s' % response
         
-        timeZone = TIME_ZONE.fetch(request)
-        if timeZone:
-            try: timeZone = timezone(timeZone)
+        timeZoneStr = TIME_ZONE.fetch(request)
+        if timeZoneStr:
+            try: timeZoneStr = timezone(timeZoneStr)
             except UnknownTimeZoneError:
                 TIME_ZONE_ERROR.set(response)
-                response.errorMessage = 'Invalid content time zone \'%s\'' % timeZone
-
-                samples = (Object('timezone', attributes={'name', name}) for name in common_timezones)
-                response.errorDetails = Object('timezone', List('sample', *samples))
+                if response.errorMessages is None: response.errorMessages = []
+                response.errorMessages.append('Unknown time zone \'%s\'' % timeZoneStr)
                 return
-
-        if timeZone:
-            request.converter = ConverterTimeZone(request.converter, self.baseTZ, timeZone)
-        else:
-            request.converter = ConverterTimeZone(request.converter, self.baseTZ, self.defaultTZ)
-
-@injected
-class TimeZoneConverterResponseHandler(HandlerProcessor, TimeZoneConfigurations):
-    '''
-    Implementation for a processor that provides the time zone response converter handler.
-    '''
-
-    def __init__(self):
-        TimeZoneConfigurations.__init__(self)
-        HandlerProcessor.__init__(self)
-
-    def process(self, chain, request:HeadersRequire, response:ResponseConverter, **keyargs):
-        '''
-        @see: HandlerProcessor.process
-        
-        Provides the time zone support for the response converter.
-        '''
-        assert isinstance(response, ResponseConverter), 'Invalid response %s' % response
-
-        timeZone = CONTENT_TIME_ZONE.fetch(request)
-        if timeZone:
-            try: timeZone = timezone(timeZone)
+        else: timeZoneStr = self.defaultTZ
+            
+        timeZoneVal = CONTENT_TIME_ZONE.fetch(request)
+        if timeZoneVal:
+            try: timeZoneVal = timezone(timeZoneVal)
             except UnknownTimeZoneError:
                 TIME_ZONE_ERROR.set(response)
-                response.errorMessage = 'Invalid time zone \'%s\'' % timeZone
-
-                samples = (Object('timezone', attributes={'name', name}) for name in common_timezones)
-                response.errorDetails = Object('timezone', List('sample', *samples))
+                if response.errorMessages is None: response.errorMessages = []
+                response.errorMessages.append('Unknown content time zone \'%s\'' % timeZoneVal)
                 return
+        else: timeZoneVal = self.defaultTZ
 
-        if timeZone:
-            response.converter = ConverterTimeZone(response.converter, self.baseTZ, timeZone)
-        else:
-            response.converter = ConverterTimeZone(response.converter, self.baseTZ, self.defaultTZ)
+        request.converterContent = ConverterTimeZone(request.converterContent, self.baseTZ, timeZoneStr, timeZoneVal)
             
 # --------------------------------------------------------------------
 
@@ -147,9 +101,9 @@ class ConverterTimeZone(Converter):
     '''
     Provides the converter time zone support.
     '''
-    __slots__ = ('converter', 'baseTimeZone', 'timeZone')
+    __slots__ = ('converter', 'baseTimeZone', 'timeZoneStr', 'timeZoneVal')
 
-    def __init__(self, converter, baseTimeZone, timeZone):
+    def __init__(self, converter, baseTimeZone, timeZoneStr, timeZoneVal):
         '''
         Construct the GMT converter.
         
@@ -157,16 +111,20 @@ class ConverterTimeZone(Converter):
             The wrapped converter.
         @param baseTimeZone: tzinfo
             The time zone of the dates to be converted.
-        @param timeZone: tzinfo|None
-            The time zone to convert to.
+        @param timeZoneStr: tzinfo
+            The time zone to convert to string values.
+        @param timeZoneVal: tzinfo
+            The time zone to convert the string values.
         '''
         assert isinstance(converter, Converter), 'Invalid converter %s' % converter
         assert isinstance(baseTimeZone, tzinfo), 'Invalid base time zone %s' % baseTimeZone
-        assert isinstance(timeZone, tzinfo), 'Invalid time zone %s' % timeZone
+        assert isinstance(timeZoneStr, tzinfo), 'Invalid time zone %s' % timeZoneStr
+        assert isinstance(timeZoneVal, tzinfo), 'Invalid time zone %s' % timeZoneVal
 
         self.converter = converter
         self.baseTimeZone = baseTimeZone
-        self.timeZone = timeZone
+        self.timeZoneStr = timeZoneStr
+        self.timeZoneVal = timeZoneVal
 
     def asValue(self, strValue, objType):
         '''
@@ -175,7 +133,7 @@ class ConverterTimeZone(Converter):
         objValue = self.converter.asValue(strValue, objType)
         if isinstance(objValue, (date, datetime)):
             objValue = self.baseTimeZone.localize(objValue)
-            objValue = objValue.astimezone(self.timeZone)
+            objValue = objValue.astimezone(self.timeZoneVal)
             objValue = objValue.replace(tzinfo=None)
             # We need to set the time zone to None since the None TX date time generated by SQL alchemy can not be compared
             # with the date times with TZ.
@@ -187,5 +145,5 @@ class ConverterTimeZone(Converter):
         '''
         if isinstance(objValue, (date, datetime)):
             objValue = self.baseTimeZone.localize(objValue)
-            objValue = objValue.astimezone(self.timeZone)
+            objValue = objValue.astimezone(self.timeZoneStr)
         return self.converter.asString(objValue, objType)

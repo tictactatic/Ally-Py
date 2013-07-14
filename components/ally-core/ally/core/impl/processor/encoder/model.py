@@ -13,8 +13,8 @@ from ally.api.operator.type import TypeModel, TypeProperty
 from ally.api.type import Iter, Boolean, Integer, Number, String, Time, Date, \
     DateTime, typeFor
 from ally.container.ioc import injected
-from ally.core.spec.transform.encdec import IEncoder, EncoderWithSpecifiers, \
-    IRender
+from ally.core.impl.encdec import EncoderWithSpecifiers
+from ally.core.spec.transform.encdec import IEncoder, IRender
 from ally.core.spec.transform.index import NAME_BLOCK
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines, optional, \

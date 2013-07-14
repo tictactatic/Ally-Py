@@ -21,11 +21,6 @@ from ally.support.util import firstOf
 
 # --------------------------------------------------------------------
 
-INFO_CRITERIA_MAIN = 'criteria_main'
-# The index for main criteria info.
-
-# --------------------------------------------------------------------
-
 class Invoker(Context):
     '''
     The invoker context.
@@ -76,9 +71,12 @@ class QueryDecode(HandlerProcessor):
     
     separator = str
     # The separator to be used for path.
+    infoCriteriaMain = str
+    # The info name to use for taking the main criteria. 
     
     def __init__(self):
         assert isinstance(self.separator, str), 'Invalid separator %s' % self.separator
+        assert isinstance(self.infoCriteriaMain, str), 'Invalid info criteria main %s' % self.infoCriteriaMain
         super().__init__()
         
     def process(self, chain, invoker:Invoker, create:Create, Solicitation:SolicitationQuery, **keyargs):
@@ -143,7 +141,7 @@ class QueryDecode(HandlerProcessor):
                     msol.devise = DeviseCriteria(sol.devise, cprop, *cprop.type.main.values())
                     msol.objType = firstOf(cprop.type.main.values()).type
                     msol.pathRoot = cpath
-                    msol.info = {INFO_CRITERIA_MAIN: [pathByName[name] for name in cprop.type.main if name in pathByName]}
+                    msol.info = {self.infoCriteriaMain: [pathByName[name] for name in cprop.type.main if name in pathByName]}
                     
         if solicitations: create.solicitations.extend(solicitations)
 

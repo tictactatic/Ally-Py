@@ -222,7 +222,7 @@ def pushIn(dest, *srcs, interceptor=None, exclude=()):
     
     @param dest: object
         The destination context object to get the data from.
-    @param srcs: arguments[object]
+    @param srcs: arguments[Context|dictionary{string: object}]
         Sources to copy data from, attention the order is important since if the first context has no value
         for an attribute then the second one is checked and so on.
     @param interceptor: callable(object) -> object|None
@@ -239,10 +239,16 @@ def pushIn(dest, *srcs, interceptor=None, exclude=()):
         
     for name in dest.__attributes__:
         if exclude and name in exclude: continue
+        found = False
         for src in srcs:
-            attribute = src.__attributes__.get(name)
-            if attribute and attribute in src:
-                value = getattr(src, name)
+            if isinstance(src, Context):
+                attribute = src.__attributes__.get(name)
+                if attribute and attribute in src: found, value = True, getattr(src, name)
+            else:
+                assert isinstance(src, dict), 'Invalid source %s' % src
+                if name in src: found, value = True, src[name]
+            
+            if found:
                 if interceptor is not None: value = interceptor(value)
                 setattr(dest, name, value)
                 break

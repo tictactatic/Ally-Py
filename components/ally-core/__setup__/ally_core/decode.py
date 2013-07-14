@@ -14,7 +14,6 @@ from ally.core.impl.processor.decoder.categorize import CategorizeHandler
 from ally.core.impl.processor.decoder.model import ModelDecode
 from ally.core.impl.processor.decoder.primitive import PrimitiveDecode
 from ally.core.impl.processor.decoder.primitive_list import PrimitiveListDecode
-from ally.core.spec.transform.describer import VerifyModelId
 from ally.core.spec.transform.encdec import CATEGORY_CONTENT, SEPARATOR_CONTENT
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.handler import Handler
@@ -36,11 +35,6 @@ def assemblyDecodeContent() -> Assembly:
     return Assembly('Decode content')
 
 # --------------------------------------------------------------------
-
-@ioc.entity
-def describers():
-    ''' The describers used for definitions'''
-    return []
 
 @ioc.entity
 def categoryContent() -> Handler:
@@ -70,10 +64,3 @@ def updateAssemblyDecodeContent():
 @ioc.before(assemblyDecode)
 def updateAssemblyDecodeForContent():
     assemblyDecode().add(categoryContent())
-
-@ioc.before(describers)
-def updateDescribersForContent():
-    describers().extend([
-                         (VerifyModelId(),
-                         'represents the model id')
-                         ])

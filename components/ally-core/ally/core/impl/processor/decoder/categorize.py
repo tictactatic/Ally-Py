@@ -10,8 +10,8 @@ Provides the categorization of decoders.
 '''
 
 from ally.container.ioc import injected
-from ally.core.spec.transform.encdec import DecoderDelegate, Categorized, \
-    Category
+from ally.core.impl.encdec import DecoderDelegate
+from ally.core.spec.transform.encdec import Categorized, Category
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.branch import Branch
@@ -21,6 +21,16 @@ from ally.design.processor.handler import HandlerBranching
 
 # --------------------------------------------------------------------
 
+class Invoker(Context):
+    '''
+    The invoker context.
+    '''
+    # ---------------------------------------------------------------- Defined
+    categoriesDecoded = defines(set, doc='''
+    @rtype: set(Category)
+    A set of the categories that have decoding available for the invoker.
+    ''')
+    
 class Create(Context):
     '''
     The create decoder context.
@@ -30,7 +40,7 @@ class Create(Context):
     definitions = defines(list)
     # ---------------------------------------------------------------- Required
     solicitations = requires(list)
-    
+
 class Support(Context):
     '''
     The decoder support context.
@@ -71,20 +81,24 @@ class CategorizeHandler(HandlerBranching):
         super().__init__(Branch(self.categoryAssembly).using(create=CreateCategorize).included(),
                          Definition=Categorized, Support=Support)
 
-    def process(self, chain, processing, create:Create, **keyargs):
+    def process(self, chain, processing, invoker:Invoker, create:Create, **keyargs):
         '''
         @see: HandlerBranching.process
         
         Create the categories the decoder.
         '''
         assert isinstance(processing, Processing), 'Invalid processing %s' % processing
+        assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
         assert isinstance(create, Create), 'Invalid create %s' % create
         
+        keyargs.update(invoker=invoker)
         arg = processing.executeWithAll(create=processing.ctx.create(category=self.category,
                                                                      solicitations=create.solicitations), **keyargs)
         assert isinstance(arg.create, CreateCategorize), 'Invalid create %s' % arg.create
         
         if arg.create.decoders:
+            if invoker.categoriesDecoded is None: invoker.categoriesDecoded = set()
+            invoker.categoriesDecoded.add(self.category) 
             if create.decoders is None: create.decoders = []
             create.decoders.append(DecoderCategorise(arg.create.decoders, self.category))
         if arg.create.definitions:
