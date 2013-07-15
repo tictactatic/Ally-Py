@@ -1,2 +1,2 @@
-For install instructions please read:
-https://wiki.sourcefabric.org/x/KYOg
+Clone the Ally-Py repository:
+git clone https://github.com/sourcefabric/Ally-Py.git
