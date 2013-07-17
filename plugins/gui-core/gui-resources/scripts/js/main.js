@@ -29,7 +29,8 @@ requirejs.config
         'router': config.cjs('router'),
         'vendor': config.cjs('vendor'),
         'angular': 'http://ajax.googleapis.com/ajax/libs/angularjs/1.0.7/angular',
-        'angular-resource': 'http://code.angularjs.org/1.0.7/angular-resource'
+        'angular-resource': 'http://code.angularjs.org/1.0.7/angular-resource',
+        'facebook-connect': 'https://connect.facebook.net/en_US/all'
 	},
     shim: {
         'vendor/backbone': {
