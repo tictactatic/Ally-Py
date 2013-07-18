@@ -9,14 +9,10 @@ Created on Nov 24, 2011
 Provides the configurations for the resources.
 '''
 
-from .decode import assemblyDecode
 from .definition import definitions
 from .encode import assemblyEncode
 from ally.container import ioc
-from ally.core.impl.processor.assembler.decoding import DecodingHandler
 from ally.core.impl.processor.assembler.definition import DefinitionHandler
-from ally.core.impl.processor.assembler.definition_pupulate import \
-    DefinitionPopulateHandler
 from ally.core.impl.processor.assembler.encoding import EncodingHandler
 from ally.core.impl.processor.assembler.injector_assembly import \
     InjectorAssemblyHandler
@@ -86,12 +82,6 @@ def optionSlice() -> Handler:
     return b
 
 @ioc.entity
-def decoding() -> Handler:
-    b = DecodingHandler()
-    b.decodeAssembly = assemblyDecode()
-    return b
-
-@ioc.entity
 def encoding() -> Handler:
     b = EncodingHandler()
     b.encodeAssembly = assemblyEncode()
@@ -107,13 +97,10 @@ def validateSolved() -> Handler: return ValidateSolvedHandler()
 def validateHints() -> Handler: return ValidateHintsHandler()
 
 @ioc.entity
-def definitionPopulate() -> Handler:
-    b = DefinitionPopulateHandler()
+def definition() -> Handler:
+    b = DefinitionHandler()
     b.definitions = definitions()
     return b
-
-@ioc.entity
-def definition() -> Handler: return DefinitionHandler()
 
 # --------------------------------------------------------------------
 
@@ -128,8 +115,8 @@ def assemblyAssembler() -> Assembly:
 
 @ioc.before(assemblyAssembler)
 def updateAssemblyAssembler():
-    assemblyAssembler().add(invokerService(), processMethod(), decoding(), encoding(), optionSlice(), assemblerContent(),
-                            validateSolved(), validateHints(), definitionPopulate(), definition())
+    assemblyAssembler().add(invokerService(), processMethod(), encoding(), optionSlice(), assemblerContent(),
+                            validateSolved(), validateHints(), definition())
 
 # --------------------------------------------------------------------
 

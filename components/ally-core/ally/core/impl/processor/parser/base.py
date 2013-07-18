@@ -10,9 +10,10 @@ Provides the text base parser processor handler.
 '''
 
 from ally.container.ioc import injected
-from ally.core.spec.codes import CONTENT_BAD, CONTENT_MISSING, Coded
+from ally.core.impl.processor.base import ErrorResponse, addError
+from ally.core.spec.codes import CONTENT_BAD, CONTENT_MISSING
 from ally.core.spec.resources import Converter
-from ally.core.spec.transform.encdec import IDecoder, CATEGORY_CONTENT
+from ally.core.spec.transform.encdec import IDecoder
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain
@@ -52,13 +53,6 @@ class RequestContent(Context):
     charSet = requires(str)
     source = requires(IInputStream)
 
-class Response(Coded):
-    '''
-    The response context.
-    '''
-    # ---------------------------------------------------------------- Defined
-    errorMessages = defines(list)
-
 class SupportDecoding(Context):
     '''
     The decoder support context.
@@ -93,7 +87,7 @@ class ParseBaseHandler(HandlerProcessor):
         assert isinstance(self.separator, str), 'Invalid separator %s' % self.separator
         super().__init__(Invoker=Invoker)
 
-    def process(self, chain, request:Request, requestCnt:RequestContent, response:Response,
+    def process(self, chain, request:Request, requestCnt:RequestContent, response:ErrorResponse,
                 Support:SupportDecoding, **keyargs):
         '''
         @see: HandlerProcessor.process
@@ -103,7 +97,6 @@ class ParseBaseHandler(HandlerProcessor):
         assert isinstance(chain, Chain), 'Invalid processors chain %s' % chain
         assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(requestCnt, RequestContent), 'Invalid request content %s' % requestCnt
-        assert isinstance(response, Response), 'Invalid response %s' % response
         
         # Check if the response is for this parser
         if requestCnt.type in self.contentTypes:
@@ -123,9 +116,8 @@ class ParseBaseHandler(HandlerProcessor):
                                     requestCnt.source, requestCnt.charSet)
                 if errors is not None or support.failures:
                     CONTENT_BAD.set(response)
-                    if response.errorMessages is None: response.errorMessages = []
-                    if errors is not None: response.errorMessages.extend(errors)
-                    if support.failures: response.errorMessages.extend(support.failures)
+                    if errors is not None: addError(response, errors)
+                    if support.failures: addError(response, support.failures)
                     
                 if isinstance(requestCnt.source, IClosable): requestCnt.source.close()
             chain.cancel()  # We need to stop the chain if we have been able to provide the parsing

@@ -22,6 +22,8 @@ def resolverFor(clazz):
     
     @param clazz: ContextMetaClass
         The context class to get the resolver for.
+    @return: IResolver
+        The resolver for the context class.
     '''
     assert isinstance(clazz, ContextMetaClass), 'Invalid context class %s' % clazz
     theClass = None

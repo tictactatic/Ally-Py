@@ -32,7 +32,7 @@ class Create(Context):
     ''')    
     # ---------------------------------------------------------------- Required
     name = requires(str)
-    objType = requires(object)
+    objType = requires(Type)
 
 class Support(Context):
     '''

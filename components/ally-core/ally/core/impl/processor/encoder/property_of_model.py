@@ -10,6 +10,7 @@ Provides the properties of model encoder.
 '''
 
 from ally.api.operator.type import TypeModel, TypePropertyContainer
+from ally.api.type import Type
 from ally.container.ioc import injected
 from ally.core.spec.transform.encdec import IEncoder
 from ally.design.processor.assembly import Assembly
@@ -32,7 +33,7 @@ class Create(Context):
     ''')
     # ---------------------------------------------------------------- Required
     name = requires(str)
-    objType = requires(object)
+    objType = requires(Type)
 
 # --------------------------------------------------------------------
 

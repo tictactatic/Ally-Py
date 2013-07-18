@@ -71,6 +71,7 @@ CONTENT_ILLEGAL = Code('Illegal content', False) #TODO: Gabriel: check if is req
 CONTENT_MISSING = Code('Content missing', False)
 CONTENT_EXPECTED = Code('Content stream expected', False)
 
+DECODING_FAILED = Code('Decoding failed', False)
 INPUT_ERROR = Code('Input error', False)
 
 DELETE_ERROR = Code('Cannot delete', False)

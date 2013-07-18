@@ -10,28 +10,56 @@ Provides the definitions setups.
 '''
 
 from ally.container import ioc
-from ally.core.impl.verifier import IVerifier
+from ally.core.spec.definition import IVerifier
+
+# --------------------------------------------------------------------
+
+INFO_LIST_ITEM = 'list_item'
+# The index for list item info.
 
 # --------------------------------------------------------------------
 
 @ioc.entity
-def definitions():
-    ''' The general definitions data'''
-    return []
-
-@ioc.entity
-def definitionError():
-    ''' The dictionary containing the error code to definition verifier list'''
+def categories():
+    ''' The categories descriptions, contains dictionary{string: list[string]}'''
     return {}
 
 @ioc.entity
-def definitionDescribers():
-    ''' The describers used for definitions'''
+def definitions():
+    ''' The general definitions data, contains dictionary{string: object}'''
+    return []
+
+@ioc.entity
+def errors():
+    ''' The list containing the error code to definition verifier list, contains tuple(string, IVerifier, tuple(string)|None)'''
+    return []
+
+@ioc.entity
+def descriptions():
+    ''' The descriptions used for definitions, contains tuple(IVerifier, list[string], dictionary{string: object})'''
     return []
 
 # --------------------------------------------------------------------
 
-def addDefinition(**data):
+def category(category, *descriptions):
+    '''
+    Adds a new category description(s).
+    !Attention, this is only available for setup functions!
+    
+    @param category: string
+        The category to add the description for.
+    @param descriptions: arguments[string]
+        The description(s) to add for the category.
+    '''
+    assert isinstance(category, str), 'Invalid category %s' % category
+    assert descriptions, 'At least one description is required'
+    if __debug__:
+        for desc in descriptions: assert isinstance(desc, str), 'Invalid description %s' % desc
+    descs = categories().get(category)
+    if descs is None: descs = categories()[category] = []
+    descs.extend(descriptions)
+
+def defin(**data):
     '''
     Adds a new definition data.
     !Attention, this is only available for setup functions!
@@ -41,38 +69,42 @@ def addDefinition(**data):
     '''
     definitions().append(data)
 
-def addError(code, *verifiers):
+def error(code, verifier, *messages):
     '''
     Adds definition error verifiers.
     !Attention, this is only available for setup functions!
     
     @param code: string
         The error code to map the verifiers to.
-    @param verifiers: arguments[IVerifier]
-        The verifiers for the error definitions.
+    @param verifier: IVerifier
+        The verifier for the error definitions.
+    @param messages: arguments[string]
+        The error(s) messages for the error definitions, all provided verifiers need to check in order to associate
+        the definition with the error.
     '''
     assert isinstance(code, str), 'Invalid code %s' % code
-    assert verifiers, 'At least one verifier is required'
+    assert isinstance(verifier, IVerifier), 'Invalid verifier %s' % verifier
+    assert messages, 'At least one message is required'
     if __debug__:
-        for verifier in verifiers: assert isinstance(verifier, IVerifier), 'Invalid verifier %s' % verifier
+        for message in messages: assert isinstance(message, str), 'Invalid message %s' % message
         
-    present = definitionError().get(code)
-    if present is None: present = definitionError()[code] = []
-    present.extend(verifiers)
+    errors().append((code, verifier, messages))
 
-def addDescriber(verifier, *messages):
+def desc(verifier, *messages, **data):
     '''
-    Adds a new definition describer.
+    Adds a new definition description.
     !Attention, this is only available for setup functions!
     
-    @param verifier: IVerifier
-        The verifier to be used for associating the messages.
-    @param messages: arguments[string]
-        The message(s) for the verifier.
+    @param items: arguments[IVerifier|string]
+        The definition(s) verifier(s) that are used to associate the description with a definition,
+        or description message(s) to be displayed, all provided verifiers need to check in order to associate
+        the description message.
+    @param data: key arguments
+        Data used for the place holders in the messages.
     '''
     assert isinstance(verifier, IVerifier), 'Invalid verifier %s' % verifier
     assert messages, 'At least one message is required'
     if __debug__:
         for message in messages: assert isinstance(message, str), 'Invalid message %s' % message
         
-    definitionDescribers().append((verifier,) + messages)
+    descriptions().append((verifier, messages, data))

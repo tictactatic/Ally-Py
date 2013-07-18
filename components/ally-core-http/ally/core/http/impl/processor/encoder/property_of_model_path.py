@@ -11,6 +11,7 @@ Provides the paths for properties of model.
 
 from ally.api.operator.type import TypeModel, TypeProperty, \
     TypePropertyContainer
+from ally.api.type import Type
 from ally.container.ioc import injected
 from ally.core.http.spec.server import IEncoderPathInvoker
 from ally.core.http.spec.transform.index import NAME_BLOCK_REST, \
@@ -41,7 +42,7 @@ class Create(Context):
     # ---------------------------------------------------------------- Optional
     encoder = optional(IEncoder)
     # ---------------------------------------------------------------- Required
-    objType = requires(object)
+    objType = requires(Type)
     
 class Support(Context):
     '''

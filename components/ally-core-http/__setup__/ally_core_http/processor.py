@@ -22,7 +22,7 @@ from ally.container import ioc
 from ally.core.http.impl.processor.content_index import \
     ContentIndexEncodeHandler
 from ally.core.http.impl.processor.conversion_path import ConverterPathHandler
-from ally.core.http.impl.processor.explain_error import ExplainErrorHandler
+from ally.core.http.impl.processor.error_explain import ErrorExplainHandler
 from ally.core.http.impl.processor.headers.content_disposition import \
     ContentDispositionDecodeHandler
 from ally.core.http.impl.processor.method_invoker import MethodInvokerHandler
@@ -39,7 +39,7 @@ from ally.design.processor.handler import Handler
 from ally.http.impl.processor.header_parameter import HeaderParameterHandler
 from ally.http.impl.processor.method_override import METHOD_OVERRIDE
 from ally.http.impl.processor.status import StatusHandler
-from ..ally_core.definition import definitionDescribers
+from ..ally_core.definition import descriptions
 # TODO: from ally.core.http.impl.processor.redirect import RedirectHandler
 
 # --------------------------------------------------------------------
@@ -166,9 +166,9 @@ def status() -> Handler:
     return b
 
 @ioc.entity
-def explainError() -> Handler:
-    b = ExplainErrorHandler()
-    b.describers = definitionDescribers()
+def errorExplain() -> Handler:
+    b = ErrorExplainHandler()
+    b.descriptions = descriptions()
     return b
 
 # --------------------------------------------------------------------
@@ -204,9 +204,9 @@ def updateHeadersCustom():
 def updateAssemblyResources():
     assemblyResources().add(internalError(), injectorAssembly(), converterPath(), uri(), methodInvoker(),
                             contentTypeRequestDecode(), contentLengthDecode(), acceptRequestDecode(), converterContent(),
-                            rendering(), parsing(),  # parsingMultiPart(),
+                            rendering(), #parsing(),  # parsingMultiPart(),
                             content(), parameter(), scheme(), invoking(), encoderPath(),
-                            encoderPathInvoker(), renderEncoder(), status(), errorDefinition(), explainError(),
+                            encoderPathInvoker(), renderEncoder(), status(), errorDefinition(), errorExplain(),
                             contentIndexEncode(), contentTypeResponseEncode(), contentLengthEncode(), allowEncode()
                             )
     

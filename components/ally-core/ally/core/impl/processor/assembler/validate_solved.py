@@ -9,10 +9,9 @@ Created on Jun 5, 2013
 Provides the validation for solved inputs.
 '''
 
+from .base import excludeFrom, InvokerExcluded, RegisterExcluding
 from ally.api.type import Input
 from ally.design.processor.attribute import requires
-from ally.design.processor.context import Context
-from ally.design.processor.execution import Chain
 from ally.design.processor.handler import HandlerProcessor
 from collections import Callable
 import logging
@@ -23,24 +22,20 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
-class Register(Context):
+class Register(RegisterExcluding):
     '''
     The register context.
     '''
     # ---------------------------------------------------------------- Required
     suggest = requires(Callable)
-    invokers = requires(list)
-    exclude = requires(set)
     
-class Invoker(Context):
+class Invoker(InvokerExcluded):
     '''
     The invoker context.
     '''
     # ---------------------------------------------------------------- Required
-    id = requires(str)
     inputs = requires(tuple)
     solved = requires(set)
-    location = requires(str)
     
 # --------------------------------------------------------------------
 
@@ -58,7 +53,6 @@ class ValidateSolvedHandler(HandlerProcessor):
         
         Process the solved inputs.
         '''
-        assert isinstance(chain, Chain), 'Invalid chain %s' % chain
         assert isinstance(register, Register), 'Invalid register %s' % register
         if not register.invokers: return  # No invokers to process.
         
@@ -82,8 +76,7 @@ class ValidateSolvedHandler(HandlerProcessor):
                     log.error('Cannot use because of unsolved inputs %s, at:%s', ', '.join(unsolved), invoker.location)
                     reported.add(invoker.location)
                 assert isinstance(register.exclude, set), 'Invalid exclude set %s' % register.exclude
-                register.exclude.add(invoker.id)
-                chain.cancel()
+                excludeFrom(chain, invoker)
                 
             elif unsolved and invoker.location not in reported:
                 assert callable(register.suggest), 'Invalid suggest %s' % register.suggest

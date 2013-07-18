@@ -9,30 +9,21 @@ Created on May 28, 2013
 Provides the processing on callers based on methods.
 '''
 
+from .base import excludeFrom, InvokerExcluded, RegisterExcluding
 from ally.api.config import GET, INSERT, UPDATE, DELETE
 from ally.api.operator.type import TypeProperty, TypeModel
 from ally.api.type import Iter, Type
 from ally.design.processor.attribute import requires, defines
-from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
 import logging
-from ally.design.processor.execution import Chain
 
 # --------------------------------------------------------------------
 
 log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
-
-class Register(Context):
-    '''
-    The register context.
-    '''
-    # ---------------------------------------------------------------- Required
-    invokers = requires(list)
-    exclude = requires(set)
     
-class Invoker(Context):
+class Invoker(InvokerExcluded):
     '''
     The invoker context.
     '''
@@ -50,11 +41,9 @@ class Invoker(Context):
     If True it means that the invoker provides a full model, attention the model can be in a collection.
     ''')
     # ---------------------------------------------------------------- Required
-    id = requires(str)
     method = requires(int)
     inputs = requires(tuple)
     output = requires(Type)
-    location = requires(str)
     
 # --------------------------------------------------------------------
 
@@ -66,15 +55,14 @@ class ProcessMethodHandler(HandlerProcessor):
     def __init__(self):
         super().__init__(Invoker=Invoker)
 
-    def process(self, chain, register:Register, **keyargs):
+    def process(self, chain, register:RegisterExcluding, **keyargs):
         '''
         @see: HandlerProcessor.process
         
         Process the invokers based on method.
         '''
-        assert isinstance(chain, Chain), 'Invalid chain %s' % chain
-        assert isinstance(register, Register), 'Invalid register %s' % register
-        if not register.invokers: return  # No invokers to process.
+        assert isinstance(register, RegisterExcluding), 'Invalid register %s' % register
+        if not register.invokers: return
         
         for invoker in register.invokers:
             assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
@@ -88,10 +76,7 @@ class ProcessMethodHandler(HandlerProcessor):
                 log.error('Cannot use because the method %s is not known, at:%s', invoker.method, invoker.location)
                 keep = False
                 
-            if not keep:
-                assert isinstance(register.exclude, set), 'Invalid exclude set %s' % register.exclude
-                register.exclude.add(invoker.id)
-                chain.cancel()
+            if not keep: excludeFrom(chain, invoker)
 
     # ----------------------------------------------------------------
     

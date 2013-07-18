@@ -9,6 +9,8 @@ Created on Mar 7, 2013
 Provides the model encoder.
 '''
 
+from .base import RequestEncoderNamed, RequestEncoder, DefineEncoder, \
+    encoderSpecifiers, encoderName, encoderCourrupt
 from ally.api.operator.type import TypeModel, TypeProperty
 from ally.api.type import Iter, Boolean, Integer, Number, String, Time, Date, \
     DateTime, typeFor
@@ -17,11 +19,10 @@ from ally.core.impl.encdec import EncoderWithSpecifiers
 from ally.core.spec.transform.encdec import IEncoder, IRender
 from ally.core.spec.transform.index import NAME_BLOCK
 from ally.design.processor.assembly import Assembly
-from ally.design.processor.attribute import requires, defines, optional, \
-    definesIf
+from ally.design.processor.attribute import requires
 from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context
-from ally.design.processor.execution import Processing, Chain
+from ally.design.processor.execution import Processing
 from ally.design.processor.handler import HandlerBranching
 import logging
 
@@ -37,50 +38,6 @@ class Invoker(Context):
     '''
     # ---------------------------------------------------------------- Required
     hideProperties = requires(bool)
-
-class Create(Context):
-    '''
-    The create encoder context.
-    '''
-    # ---------------------------------------------------------------- Defined
-    encoder = defines(IEncoder, doc='''
-    @rtype: IEncoder
-    The encoder for the model.
-    ''')
-    isCorrupted = definesIf(bool)
-    # ---------------------------------------------------------------- Optional
-    name = optional(str)
-    specifiers = optional(list)
-    # ---------------------------------------------------------------- Required
-    objType = requires(object)
-    
-class CreateProperty(Context):
-    '''
-    The create property encoder context.
-    '''
-    # ---------------------------------------------------------------- Defined
-    name = defines(str, doc='''
-    @rtype: string
-    The name used to render the property with.
-    ''')
-    objType = defines(object, doc='''
-    @rtype: object
-    The property type.
-    ''')
-    # ---------------------------------------------------------------- Required
-    encoder = requires(IEncoder)
-    
-class CreateModelExtra(Context):
-    '''
-    The create extra model encoder context.
-    '''
-    # ---------------------------------------------------------------- Defined
-    objType = definesIf(object, doc='''
-    @rtype: object
-    The model type.
-    ''')
-    # ---------------------------------------------------------------- Optional
-    encoder = optional(IEncoder)
     
 # --------------------------------------------------------------------
 
@@ -103,21 +60,20 @@ class ModelEncode(HandlerBranching):
         assert isinstance(self.modelExtraEncodeAssembly, Assembly), \
         'Invalid model extra encode assembly %s' % self.modelExtraEncodeAssembly
         assert isinstance(self.typeOrders, list), 'Invalid type orders %s' % self.typeOrders
-        super().__init__(Branch(self.propertyEncodeAssembly).included().using(create=CreateProperty),
-                         Branch(self.modelExtraEncodeAssembly).included().using(create=CreateModelExtra))
+        super().__init__(Branch(self.propertyEncodeAssembly).included().using(create=RequestEncoderNamed),
+                         Branch(self.modelExtraEncodeAssembly).included().using(create=RequestEncoder))
         
         self.typeOrders = [typeFor(typ) for typ in self.typeOrders]
         
-    def process(self, chain, processing, modelExtraProcessing, invoker:Invoker, create:Create, **keyargs):
+    def process(self, chain, processing, modelExtraProcessing, invoker:Invoker, create:DefineEncoder, **keyargs):
         '''
         @see: HandlerBranching.process
         
         Create the model encoder.
         '''
-        assert isinstance(chain, Chain), 'Invalid chain %s' % chain
         assert isinstance(processing, Processing), 'Invalid processing %s' % processing
         assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
-        assert isinstance(create, Create), 'Invalid create %s' % create
+        assert isinstance(create, DefineEncoder), 'Invalid create %s' % create
         
         if create.encoder is not None: return 
         # There is already an encoder, nothing to do.
@@ -125,32 +81,26 @@ class ModelEncode(HandlerBranching):
         # The type is not for a model, nothing to do, just move along
         assert isinstance(create.objType, TypeModel)
         
-        if Create.name in create and create.name: name = create.name
-        else: name = create.objType.name
-        if Create.specifiers in create: specifiers = create.specifiers or ()
-        else: specifiers = ()
-        
-        properties, extra = [], None
+        extra, properties = None, []
         if not invoker.hideProperties:
             for prop in self.sortedTypes(create.objType):
                 assert isinstance(prop, TypeProperty), 'Invalid property type %s' % prop
                 arg = processing.executeWithAll(create=processing.ctx.create(objType=prop, name=prop.name),
                                                 invoker=invoker, **keyargs)
-                assert isinstance(arg.create, CreateProperty), 'Invalid create property %s' % arg.create
+                assert isinstance(arg.create, RequestEncoderNamed), 'Invalid create property %s' % arg.create
                 if arg.create.encoder is None:
-                    if Create.isCorrupted in create: create.isCorrupted = True
                     log.error('Cannot encode %s', prop)
-                    return chain.cancel()
+                    return encoderCourrupt(chain)
                 properties.append((prop.name, arg.create.encoder))
         
             if modelExtraProcessing:
                 assert isinstance(modelExtraProcessing, Processing), 'Invalid processing %s' % modelExtraProcessing
                 arg = modelExtraProcessing.execute(create=modelExtraProcessing.ctx.create(objType=create.objType),
                                                    invoker=invoker, **keyargs)
-                assert isinstance(arg.create, CreateModelExtra), 'Invalid create model extra %s' % arg.create
-                if CreateModelExtra.encoder in arg.create: extra = arg.create.encoder
+                assert isinstance(arg.create, RequestEncoder), 'Invalid create model extra %s' % arg.create
+                extra = arg.create.encoder
             
-        create.encoder = EncoderModel(name, properties, extra, specifiers)
+        create.encoder = EncoderModel(encoderName(create, create.objType.name), properties, extra, encoderSpecifiers(create))
 
     # --------------------------------------------------------------------
     

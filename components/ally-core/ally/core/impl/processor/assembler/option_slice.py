@@ -26,8 +26,8 @@ class Register(Context):
     The register context.
     '''
     # ---------------------------------------------------------------- Required
-    suggest = requires(Callable)
     invokers = requires(list)
+    suggest = requires(Callable)
     
 class Invoker(Context):
     '''
@@ -74,7 +74,7 @@ class OptionSliceHandler(HandlerProcessor):
         Process the slicing options values.
         '''
         assert isinstance(register, Register), 'Invalid register %s' % register
-        if not register.invokers: return  # No invokers to process
+        if not register.invokers: return
         
         for invoker in register.invokers:
             assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker

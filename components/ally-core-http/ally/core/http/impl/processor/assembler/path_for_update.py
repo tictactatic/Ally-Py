@@ -10,9 +10,10 @@ Provides the paths adjustments for update invokers.
 '''
 
 from ally.api.operator.type import TypeModel, TypeProperty
+from ally.core.impl.processor.assembler.base import excludeFrom, InvokerExcluded, \
+    RegisterExcluding
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
-from ally.design.processor.execution import Chain
 from ally.design.processor.handler import HandlerProcessor
 from ally.exception import DevelError
 from ally.http.spec.server import HTTP_PUT
@@ -26,15 +27,7 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
-class Register(Context):
-    '''
-    The register context.
-    '''
-    # ---------------------------------------------------------------- Required
-    invokers = requires(list)
-    exclude = requires(set)
-    
-class Invoker(Context):
+class Invoker(InvokerExcluded):
     '''
     The invoker context.
     '''
@@ -46,10 +39,8 @@ class Invoker(Context):
     arguments.
     ''')
     # ---------------------------------------------------------------- Required
-    id = requires(str)
     methodHTTP = requires(str)
     target = requires(TypeModel)
-    location = requires(str)
     
 class ElementUpdate(Context):
     '''
@@ -71,17 +62,15 @@ class PathUpdateHandler(HandlerProcessor):
     def __init__(self):
         super().__init__(Invoker=Invoker)
 
-    def process(self, chain, register:Register, Element:ElementUpdate, **keyargs):
+    def process(self, chain, register:RegisterExcluding, Element:ElementUpdate, **keyargs):
         '''
         @see: HandlerProcessor.process
         
         Provides the paths adjustments based on target models.
         '''
-        assert isinstance(chain, Chain), 'Invalid chain %s' % chain
-        assert isinstance(register, Register), 'Invalid register %s' % register
+        assert isinstance(register, RegisterExcluding), 'Invalid register %s' % register
         assert issubclass(Element, ElementUpdate), 'Invalid element %s' % Element
-        assert isinstance(register.invokers, list), 'Invalid invokers %s' % register.invokers
-        assert isinstance(register.exclude, set), 'Invalid exclude set %s' % register.exclude
+        if not register.invokers: return
 
         for invoker in register.invokers:
             assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
@@ -96,8 +85,7 @@ class PathUpdateHandler(HandlerProcessor):
                 if el.model == invoker.target:
                     log.error('Cannot use for update because the %s is already present as input, at:%s',
                               invoker.target, invoker.location)
-                    register.exclude.add(invoker.id)
-                    chain.cancel()
+                    excludeFrom(chain, invoker)
                     break
             else:
                 invoker.path.append(Element(name=invoker.target.name, model=invoker.target))

@@ -21,6 +21,7 @@ from ally.support.util_sys import locationStack, updateWrapper
 from collections import Iterable
 from inspect import ismethod, isfunction, getfullargspec
 import itertools
+from ally.design.processor.resolvers import resolverFor
 
 # --------------------------------------------------------------------
 
@@ -43,9 +44,9 @@ class Processor(IProcessor):
         assert isinstance(contexts, dict), 'Invalid contexts %s' % contexts
         assert callable(call), 'Invalid call %s' % call
         if __debug__:
-            for key, clazz in contexts.items():
+            for key, context in contexts.items():
                 assert isinstance(key, str), 'Invalid context name %s' % key
-                assert isinstance(clazz, ContextMetaClass), 'Invalid context class %s for %s' % (clazz, key)
+                assert isinstance(context, (ContextMetaClass, IResolver)), 'Invalid context %s for %s' % (context, key)
 
         self.contexts = contexts
         self.call = call
@@ -92,14 +93,25 @@ class Contextual(Processor):
         contexts = {}
         for name in arguments:
             assert isinstance(name, str), 'Invalid argument name %s' % name
-            clazz = annotations.get(name)
-            if clazz is None:
+            annot = annotations.get(name)
+            if annot is None:
                 raise ProcessorError('Context class required for argument %s, at:%s' % (name, locationStack(self.function)))
-            if clazz is Context: continue
-            if not isinstance(clazz, ContextMetaClass):
-                raise ProcessorError('Not a context class %s for argument %s, at:%s' % 
-                                     (clazz, name, locationStack(self.function)))
-            contexts[name] = clazz
+            if not isinstance(annot, tuple): annot = (annot,)
+            if not annot:
+                raise ProcessorError('At least one context class is required for argument %s, at:%s' % 
+                                     (name, locationStack(self.function)))
+            
+            context = None
+            for clazz in annot:
+                if clazz is Context: continue
+                if not isinstance(clazz, ContextMetaClass):
+                    raise ProcessorError('Not a context class %s for argument %s, at:%s' % 
+                                         (clazz, name, locationStack(self.function)))
+                if context is None: context = clazz
+                else:
+                    if not isinstance(context, IResolver): context = resolverFor(context)
+                    context = context.solve(resolverFor(clazz))
+            if context is not None: contexts[name] = context
         
         super().__init__(contexts, function)
     
@@ -303,28 +315,29 @@ class Renamer(IProcessor):
         if not isinstance(other, self.__class__): return False
         return self.processor == other.processor and self.mapping == other.mapping
 
-class Joiner(IProcessor):
+class Structure(IProcessor):
     '''
-    Implementation for @see: IProcessor that joins into a context other contexts.
+    Implementation for @see: IProcessor that structure into a context other context(s).
     '''
     __slots__ = ('mapping',)
     
     def __init__(self, **mapping):
         '''
-        Construct the processor that joins the contexts.
+        Construct the processor that structures the contexts.
         
         @param mapping: key arguments of string or tuple(string)
             The join mapping, as a key is considered the target context and as a value is expected either the name
             of another context or tuple of contexts to be pushed in the target context, attention the order is crucial
             since if two or more contexts define the same attribute only the first one will be considered.
         '''
+        self.mapping = {}
         for target, names in mapping.items():
             if isinstance(names, str): names = (names,)
             assert isinstance(names, tuple), 'Invalid mapping names %s for %s' % (names, target)
+            assert len(names), 'At least one name is required'
             for name in names: assert isinstance(name, str), 'Invalid mapping name %s for %s' % (name, target)
             assert target not in names, 'Target %s cannot be in names %s' % (target, names)
-        
-        self.mapping = mapping
+            self.mapping[target] = names
 
     def register(self, sources, current, extensions, calls, report):
         '''

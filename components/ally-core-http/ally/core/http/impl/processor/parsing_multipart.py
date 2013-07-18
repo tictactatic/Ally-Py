@@ -14,7 +14,7 @@ from ally.container.ioc import injected
 from ally.core.http.spec.codes import MUTLIPART_NO_BOUNDARY
 from ally.core.http.spec.headers import CONTENT_TYPE_ATTR_BOUNDARY
 from ally.core.impl.processor.parsing import ParsingHandler, Request, \
-    RequestContent, Response
+    RequestContent
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.branch import Branch
@@ -27,6 +27,7 @@ from io import BytesIO
 import codecs
 import logging
 import re
+from ally.core.http.impl.processor.base import ErrorResponseHTTP
 
 # --------------------------------------------------------------------
 
@@ -62,13 +63,6 @@ class RequestContentMultiPart(RequestContent):
     @rtype: RequestContentMultiPart
     The reference to the previous content, this will be available only after the fetch method has been used.
     ''')
-
-class ResponseMultiPart(Response):
-    '''
-    The response context.
-    '''
-    # ---------------------------------------------------------------- Defined
-    status = defines(int)
     
 # --------------------------------------------------------------------
 
@@ -125,7 +119,7 @@ class ParsingMultiPartHandler(ParsingHandler, DataMultiPart):
         self._reMultipart = re.compile(self.regexMultipart)
 
     def process(self, chain, populate, parsing, request:Request, requestCnt:RequestContentMultiPart,
-                response:ResponseMultiPart, **keyargs):
+                response:ErrorResponseHTTP, **keyargs):
         '''
         @see: ParsingHandler.process
         
@@ -136,7 +130,6 @@ class ParsingMultiPartHandler(ParsingHandler, DataMultiPart):
         assert isinstance(parsing, Processing), 'Invalid processing %s' % parsing
         assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(requestCnt, RequestContentMultiPart), 'Invalid request content %s' % requestCnt
-        assert isinstance(response, ResponseMultiPart), 'Invalid response %s' % response
 
         if response.isSuccess is False: return  # Skip in case the response is in error
 

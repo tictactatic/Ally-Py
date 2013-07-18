@@ -9,6 +9,7 @@ Created on Mar 8, 2013
 Provides the paths for a model.
 '''
 
+from ally.api.type import Type
 from ally.container.ioc import injected
 from ally.core.http.spec.server import IEncoderPathInvoker
 from ally.core.http.spec.transform.index import ACTION_REFERENCE, \
@@ -39,7 +40,7 @@ class Create(Context):
     # ---------------------------------------------------------------- Optional
     encoder = optional(IEncoder)
     # ---------------------------------------------------------------- Required
-    objType = requires(object)
+    objType = requires(Type)
     
 class Support(Context):
     '''

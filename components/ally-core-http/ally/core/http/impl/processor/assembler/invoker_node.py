@@ -11,9 +11,10 @@ Provides the node based on invokers.
 
 from ally.api.operator.type import TypeProperty
 from ally.container.ioc import injected
+from ally.core.impl.processor.assembler.base import excludeFrom, \
+    RegisterExcluding, InvokerExcluded
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
-from ally.design.processor.execution import Chain
 from ally.design.processor.handler import HandlerProcessor
 import logging
 
@@ -23,7 +24,7 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
-class Register(Context):
+class Register(RegisterExcluding):
     '''
     The register context.
     '''
@@ -36,11 +37,8 @@ class Register(Context):
     @rtype: list[Context]
     The list of nodes that are found in root.
     ''')
-    # ---------------------------------------------------------------- Required
-    invokers = requires(list)
-    exclude = requires(set)
     
-class Invoker(Context):
+class Invoker(InvokerExcluded):
     '''
     The invoker context.
     '''
@@ -50,10 +48,8 @@ class Invoker(Context):
     The invoker node.
     ''')
     # ---------------------------------------------------------------- Required
-    id = requires(str)
     methodHTTP = requires(str)
     path = requires(list)
-    location = requires(str)
 
 class Element(Context):
     '''
@@ -106,7 +102,6 @@ class InvokerNodeHandler(HandlerProcessor):
         
         Provides the path based on elements.
         '''
-        assert isinstance(chain, Chain), 'Invalid chain %s' % chain
         assert isinstance(register, Register), 'Invalid register %s' % register
         assert isinstance(register.exclude, set), 'Invalid exclude set %s' % register.exclude
         assert issubclass(Node, NodeInvoker), 'Invalid node class %s' % Node
@@ -167,8 +162,7 @@ class InvokerNodeHandler(HandlerProcessor):
                     node = cnode
             
             if not valid:
-                register.exclude.add(invoker.id)
-                chain.cancel()
+                excludeFrom(chain, invoker)
                 continue
             
             if node.invokers is None: node.invokers = {invoker.methodHTTP: invoker}

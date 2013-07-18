@@ -9,13 +9,13 @@ Created on Mar 8, 2013
 Provides the extension encoder.
 '''
 
+from .base import RequestEncoderNamed
 from ally.api.operator.type import TypeExtension, TypeProperty
 from ally.api.type import typeFor, Iter
 from ally.container.ioc import injected
-from ally.core.spec.transform.encdec import IEncoder, ISpecifier
-from ally.core.spec.transform.encdec import IRender
+from ally.core.spec.transform.encdec import IEncoder, ISpecifier, IRender
 from ally.design.processor.assembly import Assembly
-from ally.design.processor.attribute import requires, defines, optional
+from ally.design.processor.attribute import defines, optional
 from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Processing
@@ -40,22 +40,6 @@ class Create(Context):
     # ---------------------------------------------------------------- Optional
     encoder = optional(IEncoder)
     
-class CreateProperty(Context):
-    '''
-    The create property encoder context.
-    '''
-    # ---------------------------------------------------------------- Defined
-    name = defines(str, doc='''
-    @rtype: string
-    The name used to render the property with.
-    ''')
-    objType = defines(object, doc='''
-    @rtype: object
-    The type of the property.
-    ''')
-    # ---------------------------------------------------------------- Required
-    encoder = requires(IEncoder)
-    
 # --------------------------------------------------------------------
 
 @injected
@@ -70,7 +54,7 @@ class ExtensionAttributeEncode(HandlerBranching):
     def __init__(self):
         assert isinstance(self.propertyEncodeAssembly, Assembly), \
         'Invalid property encode assembly %s' % self.propertyEncodeAssembly
-        super().__init__(Branch(self.propertyEncodeAssembly).using(create=CreateProperty))
+        super().__init__(Branch(self.propertyEncodeAssembly).using(create=RequestEncoderNamed))
         
     def process(self, chain, processing, create:Create, **keyargs):
         '''
@@ -118,7 +102,7 @@ class AttributesExtension(ISpecifier):
             for name, prop in ext.properties.items():
                 assert isinstance(prop, TypeProperty), 'Invalid property %s' % prop
                 arg = self.processing.execute(create=self.processing.ctx.create(objType=prop, name=name))
-                assert isinstance(arg.create, CreateProperty), 'Invalid create property %s' % arg.create
+                assert isinstance(arg.create, RequestEncoderNamed), 'Invalid create property %s' % arg.create
                 if arg.create.encoder is None: log.error('Cannot encode %s of %s', prop, ext)
                 else: properties.append((name, arg.create.encoder))
         else: properties = self.propertiesByType[ext]

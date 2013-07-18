@@ -10,7 +10,7 @@ Provides the reference types encoding.
 '''
 
 from ally.api.operator.type import TypeProperty
-from ally.api.type import TypeReference
+from ally.api.type import TypeReference, Type
 from ally.container.ioc import injected
 from ally.core.http.spec.transform.index import NAME_BLOCK_CLOB, \
     ACTION_REFERENCE
@@ -33,7 +33,7 @@ class Create(Context):
     ''')
     # ---------------------------------------------------------------- Required
     name = requires(str)
-    objType = requires(object)
+    objType = requires(Type)
 
 class Support(Context):
     '''

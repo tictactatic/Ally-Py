@@ -13,7 +13,7 @@ from .domain_security import modelSecurity
 from .right_type import RightType
 from ally.api.config import query, service, call
 from ally.api.criteria import AsLikeOrdered
-from ally.api.option import SliceAndTotal # @UnusedImport
+from ally.api.option import SliceAndTotal  # @UnusedImport
 from ally.api.type import Iter
 from ally.support.api.entity import Entity, QEntity, IEntityGetService, \
     IEntityCRUDService

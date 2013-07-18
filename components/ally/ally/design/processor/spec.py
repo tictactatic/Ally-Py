@@ -119,9 +119,9 @@ class IResolver(metaclass=abc.ABCMeta):
         
 class IAttribute(metaclass=abc.ABCMeta):
     '''
-    The attribute specification.
+    The attribute specification, all valid attributes located in a class need to define the: '__name__', '__objclass__'.
     '''
-    __slots__ = ()
+    __slots__ = ('__name__', '__objclass__')
     
     @abc.abstractmethod
     def resolver(self):

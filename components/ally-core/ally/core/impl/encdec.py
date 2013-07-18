@@ -9,7 +9,7 @@ Created on Jul 14, 2013
 Provides basic implementations for encoder decoder specifications. 
 '''
 
-from ally.core.spec.transform.encdec import IEncoder, ISpecifier, IDecoder
+from ally.core.spec.transform.encdec import IEncoder, ISpecifier
    
 # --------------------------------------------------------------------
 
@@ -50,28 +50,3 @@ class EncoderWithSpecifiers(IEncoder):
                 assert isinstance(specifier, ISpecifier), 'Invalid specifier %s' % specifier
                 specifier.populate(obj, specifications, support)
         return specifications
-
-class DecoderDelegate(IDecoder):
-    '''
-    Implementation for a @see: IDecoder that delegates to other decoders unitl one is succesful in decoding.
-    '''
-    
-    def __init__(self, decoders):
-        '''
-        Construct the delegate decoder.
-        '''
-        assert isinstance(decoders, list), 'Invalid decoders %s' % decoders
-        assert decoders, 'At leas on decoder is required'
-        if __debug__:
-            for decoder in decoders: assert isinstance(decoder, IDecoder), 'Invalid decoder %s' % decoder
-        
-        self.decoders = decoders
-        
-    def decode(self, path, obj, target, support):
-        '''
-        @see: IDecoder.decode
-        '''
-        for decoder in self.decoders:
-            assert isinstance(decoder, IDecoder), 'Invalid decoder %s' % decoder
-            if decoder.decode(path, obj, target, support): return True
-    

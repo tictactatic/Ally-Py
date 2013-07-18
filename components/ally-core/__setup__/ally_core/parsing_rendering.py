@@ -17,7 +17,6 @@ from ally.design.processor.assembly import Assembly
 from ally.design.processor.handler import Handler
 import codecs
 import logging
-from ally.core.spec.transform.encdec import SEPARATOR_CONTENT
 # from ally.core.impl.processor.parser.text import ParseTextHandler
 
 # --------------------------------------------------------------------
@@ -52,16 +51,21 @@ def content_types_xml() -> dict:
             'application/xml':'text/xml',
             'xml':'text/xml'
             }
+    
+# --------------------------------------------------------------------
+
+@ioc.entity
+def contentTypes() -> set:
+    '''
+    Contains all the active content types.
+    '''
+    types = set(content_types_json())
+    types.update(content_types_xml())
+    types.discard(None)
+    return types
 
 # --------------------------------------------------------------------
 # Creating the parsers
-
-@ioc.entity
-def assemblyParsing() -> Assembly:
-    '''
-    The assembly containing the request parsers.
-    '''
-    return Assembly('Parsing request content')
 
 @ioc.entity
 def parseJSON() -> Handler:
@@ -83,13 +87,6 @@ def parseXML() -> Handler:
 # Create the renders
 
 @ioc.entity
-def assemblyRendering() -> Assembly:
-    '''
-    The assembly containing the response renders.
-    '''
-    return Assembly('Renderer response')
-
-@ioc.entity
 def blocksDefinitions() -> dict:
     '''
     The indexing blocks definitions.
@@ -108,6 +105,22 @@ def renderXML() -> Handler:
 
 # --------------------------------------------------------------------
 
+@ioc.entity
+def assemblyParsing() -> Assembly:
+    '''
+    The assembly containing the request parsers.
+    '''
+    return Assembly('Parsing request content')
+
+@ioc.entity
+def assemblyRendering() -> Assembly:
+    '''
+    The assembly containing the response renders.
+    '''
+    return Assembly('Renderer response')
+
+# --------------------------------------------------------------------
+
 @ioc.before(blocksDefinitions)
 def updateBlocksDefinitions():
     blocksDefinitions().update(BLOCKS_XML)
@@ -116,7 +129,8 @@ def updateBlocksDefinitions():
 @ioc.before(assemblyParsing)
 def updateAssemblyParsing():
     # TODO: Gabriel: assemblyParsing().add(parseJSON())
-    assemblyParsing().add(parseXML())
+    # assemblyParsing().add(parseXML())
+    pass
 
 @ioc.before(assemblyRendering)
 def updateAssemblyRendering():

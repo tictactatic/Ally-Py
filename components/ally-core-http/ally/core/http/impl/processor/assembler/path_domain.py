@@ -11,9 +11,10 @@ Provides the domain for the path.
 
 from ally.api.operator.type import TypeModel
 from ally.container.ioc import injected
+from ally.core.impl.processor.assembler.base import excludeFrom, \
+    RegisterExcluding, InvokerExcluded
 from ally.design.processor.attribute import requires, defines, definesIf
 from ally.design.processor.context import Context
-from ally.design.processor.execution import Chain
 from ally.design.processor.handler import HandlerProcessor
 import logging
 
@@ -23,25 +24,19 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
-class Register(Context):
+class Register(RegisterExcluding):
     '''
     The register context.
     '''
     # ---------------------------------------------------------------- Defined
     hintsModel = definesIf(dict)
-    # ---------------------------------------------------------------- Required
-    invokers = requires(list)
-    exclude = requires(set)
     
-class Invoker(Context):
+class Invoker(InvokerExcluded):
     '''
     The invoker context.
     '''
     # ---------------------------------------------------------------- Defined
     path = defines(list)
-    # ---------------------------------------------------------------- Required
-    id = requires(str)
-    location = requires(str)
     
 class ElementDomain(Context):
     '''
@@ -76,16 +71,13 @@ class PathDomainHandler(HandlerProcessor):
         
         Provides the domain based on elements models.
         '''
-        assert isinstance(chain, Chain), 'Invalid chain %s' % chain
         assert isinstance(register, Register), 'Invalid register %s' % register
         assert issubclass(Element, ElementDomain), 'Invalid path element %s' % Element
-        assert isinstance(register.exclude, set), 'Invalid exclude set %s' % register.exclude
+        if not register.invokers: return
         
         if Register.hintsModel in register:
             if register.hintsModel is None: register.hintsModel = {}
             register.hintsModel[self.hintName] = self.hintDescription
-        
-        if not register.invokers: return
 
         for invoker in register.invokers:
             assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
@@ -102,8 +94,7 @@ class PathDomainHandler(HandlerProcessor):
                     if not isinstance(domain, str) or not domain:
                         log.error('Cannot use invoker because the model %s domain \'%s\' is invalid, at:%s',
                                   el.model, domain, invoker.location)
-                        register.exclude.add(invoker.id)
-                        chain.cancel()
+                        excludeFrom(chain, invoker)
                     else:
                         assert isinstance(domain, str)
                         for name in reversed(domain.split('/')):

@@ -12,9 +12,9 @@ Provides the node invokers conflicts resolving based on replace for call hint.
 from ally.api.operator.type import TypeService
 from ally.api.type import typeFor, Call
 from ally.container.ioc import injected
+from ally.core.impl.processor.assembler.base import InvokerExcluded, excludeFrom
 from ally.design.processor.attribute import requires, definesIf
 from ally.design.processor.context import Context
-from ally.design.processor.execution import Chain
 from ally.design.processor.handler import HandlerProcessor
 import logging
 
@@ -41,15 +41,13 @@ class Node(Context):
     # ---------------------------------------------------------------- Required
     conflicts = requires(dict)
 
-class Invoker(Context):
+class Invoker(InvokerExcluded):
     '''
     The invoker context.
     '''
     # ---------------------------------------------------------------- Required
-    id = requires(str)
     service = requires(TypeService)
     call = requires(Call)
-    location = requires(str)
     
 # --------------------------------------------------------------------
 
@@ -77,9 +75,7 @@ class ConflictReplaceHandler(HandlerProcessor):
         
         Provides the conflict resolving.
         '''
-        assert isinstance(chain, Chain), 'Invalid chain %s' % chain
         assert isinstance(register, Register), 'Invalid register %s' % register
-        assert isinstance(register.exclude, set), 'Invalid exclude set %s' % register.exclude
 
         if Register.hintsCall in register:
             if register.hintsCall is None: register.hintsCall = {}
@@ -116,8 +112,7 @@ class ConflictReplaceHandler(HandlerProcessor):
                             if not isinstance(service, TypeService):
                                 log.error('Cannot use invoker because the replace hints are invalid, at:%s, '
                                           'it should be:\n%s', invoker.location, self.hintDescription)
-                                register.exclude.add(invoker.id)
-                                chain.cancel()
+                                excludeFrom(chain, invoker)
                                 break
                             assert isinstance(service, TypeService), 'Invalid service class %s' % clazz
                             byService.pop(service, None)
@@ -127,8 +122,7 @@ class ConflictReplaceHandler(HandlerProcessor):
                             log.error('Cannot use invokers because the replace hints are circular among them, at:%s',
                                       ''.join(locations))
                             reported.update(locations)
-                        register.exclude.update(invoker.id for invoker, replaces in solving)
-                        chain.cancel()
+                        excludeFrom(chain, invoker)
                     else:
                         for invoker, replaces in solving: invokers.remove(invoker)
                         invokers.extend(byService.values())

@@ -9,7 +9,7 @@ Created on Nov 24, 2011
 Provides the configurations for the processors used in handling the request.
 '''
 
-from .definition import definitionError
+from .definition import errors
 from .parsing_rendering import assemblyRendering, assemblyParsing, \
     blocksDefinitions
 from ally.container import ioc
@@ -81,7 +81,7 @@ def renderEncoder() -> Handler: return RenderEncoderHandler()
 @ioc.entity
 def errorDefinition() -> Handler:
     b = ErrorDefinitionHandler()
-    b.errors = definitionError()
+    b.errors = errors()
     return b
 
 # --------------------------------------------------------------------

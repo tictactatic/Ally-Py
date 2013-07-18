@@ -24,6 +24,18 @@ from functools import partial
 from io import BytesIO
 from xml.sax.saxutils import XMLGenerator, quoteattr
 
+
+# --------------------------------------------------------------------
+
+NAME_LIST_ITEM = 'value'
+# The name to be used if required in oder to represent list values.
+NAME_DICT_ENTRY = 'entry'
+# The name to be used if required in oder to represent a dictionary item.
+NAME_DICT_KEY = 'key'
+# The name to be used if required in oder to represent a dictionary keys.
+NAME_DICT_VALUE = 'value'
+# The name to be used if required in oder to represent a dictionary values.
+
 # --------------------------------------------------------------------
 
 # The patterns to use in creating XML specific names.
@@ -246,21 +258,21 @@ class RenderXML(XMLGenerator, IRender):
         if isinstance(value, list):
             for item in value:
                 assert isinstance(item, str), 'Invalid list item %s' % item
-                self.startElement('value', immut())
+                self.startElement(NAME_LIST_ITEM, immut())
                 self.characters(item)
-                self.endElement('value')
+                self.endElement(NAME_LIST_ITEM)
         elif isinstance(value, dict):
             for key, item in value.items():
                 assert isinstance(key, str), 'Invalid dictionary key %s' % key
                 assert isinstance(item, str), 'Invalid dictionary value %s' % item
-                self.startElement('entry', immut())
-                self.startElement('key', immut())
+                self.startElement(NAME_DICT_ENTRY, immut())
+                self.startElement(NAME_DICT_KEY, immut())
                 self.characters(key)
-                self.endElement('key')
-                self.startElement('value', immut())
+                self.endElement(NAME_DICT_KEY)
+                self.startElement(NAME_DICT_VALUE, immut())
                 self.characters(item)
-                self.endElement('value')
-                self.endElement('entry')
+                self.endElement(NAME_DICT_VALUE)
+                self.endElement(NAME_DICT_ENTRY)
         else:
             self.characters(value)
         self.end()

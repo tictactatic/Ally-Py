@@ -9,18 +9,16 @@ Created on Jun 16, 2013
 Provides the setup for the decode processors.
 '''
 
-from ..ally_core.decode import assemblyDecode, primitiveDecode, \
-    updateAssemblyDecodeForContent
-from .definition_parameter import INFO_CRITERIA_MAIN
 from ally.container import ioc
-from ally.core.http.spec.transform.encdec import CATEGORY_PARAMETER, \
-    SEPARATOR_PARAMETERS
-from ally.core.impl.processor.decoder.categorize import CategorizeHandler
-from ally.core.impl.processor.decoder.option import OptionParameterDecode
-from ally.core.impl.processor.decoder.order import OrderDecode
-from ally.core.impl.processor.decoder.primitive_list_explode import \
-    PrimitiveListExplodeDecode
-from ally.core.impl.processor.decoder.query import QueryDecode
+from ally.core.http.impl.processor.decoder.parameter.explode import \
+    ExplodeDecode
+from ally.core.http.impl.processor.decoder.parameter.option import OptionDecode
+from ally.core.http.impl.processor.decoder.parameter.order import OrderDecode
+from ally.core.http.impl.processor.decoder.parameter.primitive import \
+    PrimitiveDecode
+from ally.core.http.impl.processor.decoder.parameter.query import QueryDecode
+from ally.core.impl.processor.decoder.decode_create import DecodeCreateHandler
+from ally.core.impl.processor.decoder.list_decode import ListDecode
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.handler import Handler
 
@@ -34,51 +32,58 @@ def assemblyDecodeParameters() -> Assembly:
     return Assembly('Decode parameters')
 
 @ioc.entity
-def assemblyDecodeOrder() -> Assembly:
+def assemblyDecodePrimitive() -> Assembly:
     '''
-    The assembly containing the decoders for query order parameters.
+    The assembly containing the decoders for primitives parameters.
     '''
-    return Assembly('Decode parameters order')
+    return Assembly('Decode parameters primitive')
+
+@ioc.entity
+def assemblyDecodeItem() -> Assembly:
+    '''
+    The assembly containing the decoders for item parameters.
+    '''
+    return Assembly('Decode parameters item')
 
 # --------------------------------------------------------------------
 
 @ioc.entity
-def categoryParameters() -> Handler:
-    b = CategorizeHandler()
-    b.categoryAssembly = assemblyDecodeParameters()
-    b.category = CATEGORY_PARAMETER
+def queryDecode() -> Handler: return QueryDecode()
+
+@ioc.entity
+def orderDecode() -> Handler: return OrderDecode()
+
+@ioc.entity
+def decodeCreatePrimitives() -> Handler:
+    b = DecodeCreateHandler()
+    b.decodeAssembly = assemblyDecodePrimitive()
     return b
 
 @ioc.entity
-def optionParameterDecode() -> Handler: return OptionParameterDecode()
+def optionDecode() -> Handler: return OptionDecode()
 
 @ioc.entity
-def queryDecode() -> Handler:
-    b = QueryDecode()
-    b.separator = SEPARATOR_PARAMETERS
-    b.infoCriteriaMain = INFO_CRITERIA_MAIN
+def listDecode() -> Handler:
+    b = ListDecode()
+    b.listAssembly = assemblyDecodeItem()
     return b
 
 @ioc.entity
-def orderDecode() -> Handler:
-    b = OrderDecode()
-    b.orderAssembly = assemblyDecodeOrder()
-    return b
+def decodePrimitive() -> Handler: return PrimitiveDecode()
 
 @ioc.entity
-def listExplodeDecode() -> Handler: return PrimitiveListExplodeDecode()
+def explodeDecode() -> Handler: return ExplodeDecode()
 
 # --------------------------------------------------------------------
 
-@ioc.before(assemblyDecodeOrder)
-def updateAssemblyDecodeOrder():
-    assemblyDecodeOrder().add(primitiveDecode(), listExplodeDecode())
+@ioc.before(assemblyDecodeItem)
+def updateAssemblyDecodeItem():
+    assemblyDecodeItem().add(decodePrimitive())
+    
+@ioc.before(assemblyDecodePrimitive)
+def updateAssemblyDecodePrimitive():
+    assemblyDecodePrimitive().add(optionDecode(), listDecode(), decodePrimitive(), explodeDecode())
     
 @ioc.before(assemblyDecodeParameters)
 def updateAssemblyDecodeParameters():
-    assemblyDecodeParameters().add(queryDecode(), orderDecode(), optionParameterDecode(), primitiveDecode(),
-                                   listExplodeDecode())
-    
-@ioc.before(updateAssemblyDecodeForContent)
-def updateAssemblyDecodeForParameters():
-    assemblyDecode().add(categoryParameters())
+    assemblyDecodeParameters().add(queryDecode(), orderDecode(), decodeCreatePrimitives())

@@ -9,20 +9,21 @@ Created on Jul 14, 2013
 Provides the content definitions.
 '''
 
-from .definition import addDescriber, definitionDescribers, definitionError, \
-    addError
-from ally.container import ioc
-from ally.core.impl.verifier import VerifyModelId, VerifyCategory
-from ally.core.spec.codes import CONTENT_BAD
-from ally.core.spec.transform.encdec import CATEGORY_CONTENT
-
-# --------------------------------------------------------------------
-
-@ioc.before(definitionError)
-def updateDefinitionErrorForContent():
-    addError(CONTENT_BAD.code, VerifyCategory(CATEGORY_CONTENT))
-    
-@ioc.before(definitionDescribers)
-def updateDescribersForContent():
-    addDescriber(VerifyModelId(), 'represents the model id')  # This is based on @see: modelDecode()
+#TODO: Gabriel: repair
+#from .definition import addDescriber, definitionDescribers, definitionError, \
+#    addError
+#from ally.container import ioc
+#from ally.core.impl.verifier import VerifyModelId, VerifyCategory
+#from ally.core.spec.codes import CONTENT_BAD
+#from ally.core.spec.transform.encdec import CATEGORY_CONTENT
+#
+## --------------------------------------------------------------------
+#
+#@ioc.before(definitionError)
+#def updateDefinitionErrorForContent():
+#    addError(CONTENT_BAD.code, VerifyCategory(CATEGORY_CONTENT))
+#    
+#@ioc.before(definitionDescribers)
+#def updateDescribersForContent():
+#    addDescriber(VerifyModelId(), 'represents the model id')  # This is based on @see: modelDecode()
 

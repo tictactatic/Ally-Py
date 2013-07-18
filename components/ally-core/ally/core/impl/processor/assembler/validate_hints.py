@@ -24,8 +24,8 @@ class Register(Context):
     The register context.
     '''
     # ---------------------------------------------------------------- Required
-    suggest = requires(Callable)
     invokers = requires(list)
+    suggest = requires(Callable)
     relations = requires(dict)
     hintsCall = requires(dict)
     hintsModel = requires(dict)

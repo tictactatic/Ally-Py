@@ -9,17 +9,18 @@ Created on Mar 18, 2013
 Provides the model property encoder.
 '''
 
+from .base import RequestEncoderNamed, DefineEncoder, encoderSpecifiers, encoderName, \
+    encoderCourrupt
 from ally.api.operator.type import TypeModel, TypeProperty
 from ally.container.ioc import injected
 from ally.core.impl.encdec import EncoderWithSpecifiers
 from ally.core.spec.transform.encdec import IEncoder, IRender
 from ally.core.spec.transform.index import NAME_BLOCK
 from ally.design.processor.assembly import Assembly
-from ally.design.processor.attribute import requires, defines, optional, \
-    definesIf
+from ally.design.processor.attribute import requires
 from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context
-from ally.design.processor.execution import Processing, Chain
+from ally.design.processor.execution import Processing
 from ally.design.processor.handler import HandlerBranching
 import logging
 
@@ -36,38 +37,6 @@ class Invoker(Context):
     # ---------------------------------------------------------------- Required
     hideProperties = requires(bool)
 
-class Create(Context):
-    '''
-    The create encoder context.
-    '''
-    # ---------------------------------------------------------------- Defined
-    encoder = defines(IEncoder, doc='''
-    @rtype: IEncoder
-    The encoder for the model.
-    ''')
-    isCorrupted = definesIf(bool)
-    # ---------------------------------------------------------------- Optional
-    name = optional(str)
-    specifiers = optional(list)
-    # ---------------------------------------------------------------- Required
-    objType = requires(object)
-
-class CreateProperty(Context):
-    '''
-    The create property encoder context.
-    '''
-    # ---------------------------------------------------------------- Defined
-    name = defines(str, doc='''
-    @rtype: string
-    The name used to render the property with.
-    ''')
-    objType = defines(object, doc='''
-    @rtype: object
-    The property type.
-    ''')
-    # ---------------------------------------------------------------- Required
-    encoder = requires(IEncoder)
-    
 # --------------------------------------------------------------------
 
 @injected
@@ -82,18 +51,17 @@ class ModelPropertyEncode(HandlerBranching):
     def __init__(self):
         assert isinstance(self.propertyEncodeAssembly, Assembly), \
         'Invalid property encode assembly %s' % self.propertyEncodeAssembly
-        super().__init__(Branch(self.propertyEncodeAssembly).included().using(create=CreateProperty))
+        super().__init__(Branch(self.propertyEncodeAssembly).included().using(create=RequestEncoderNamed))
         
-    def process(self, chain, processing, invoker:Invoker, create:Create, **keyargs):
+    def process(self, chain, processing, invoker:Invoker, create:DefineEncoder, **keyargs):
         '''
         @see: HandlerBranching.process
         
         Create the model property encoder.
         '''
-        assert isinstance(chain, Chain), 'Invalid chain %s' % chain
         assert isinstance(processing, Processing), 'Invalid processing %s' % processing
         assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
-        assert isinstance(create, Create), 'Invalid create %s' % create
+        assert isinstance(create, DefineEncoder), 'Invalid create %s' % create
         
         if create.encoder is not None: return 
         # There is already an encoder, nothing to do.
@@ -105,22 +73,16 @@ class ModelPropertyEncode(HandlerBranching):
         # The type is not for a model, nothing to do, just move along
         assert isinstance(prop.parent, TypeModel)
         
-        if Create.name in create and create.name: name = create.name
-        else: name = prop.parent.name
-        if Create.specifiers in create: specifiers = create.specifiers or ()
-        else: specifiers = ()
-        
         if not invoker.hideProperties:
             arg = processing.executeWithAll(create=processing.ctx.create(objType=prop, name=prop.name), **keyargs)
-            assert isinstance(arg.create, CreateProperty), 'Invalid create property %s' % arg.create
+            assert isinstance(arg.create, RequestEncoderNamed), 'Invalid create property %s' % arg.create
             if arg.create.encoder is None:
-                if Create.isCorrupted in create: create.isCorrupted = True
                 log.error('Cannot encode %s', prop)
-                return chain.cancel()
+                return encoderCourrupt(chain)
             encoder = arg.create.encoder
         else: encoder = None
         
-        create.encoder = EncoderModelProperty(name, encoder, specifiers)
+        create.encoder = EncoderModelProperty(encoderName(create, prop.parent.name), encoder, encoderSpecifiers(create))
         
 # --------------------------------------------------------------------
 

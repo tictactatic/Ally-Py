@@ -16,6 +16,7 @@ from ally.core.http.impl.url_encoded import parseStr
 #from ally.core.impl.processor.parser.text import ParseTextHandler
 from ally.design.processor.handler import Handler
 import codecs
+from ..ally_core.parsing_rendering import contentTypes
 
 # --------------------------------------------------------------------
 
@@ -44,7 +45,11 @@ def parseFormData() -> Handler:
     b.contentTypeUrlEncoded = next(iter(content_types_urlencoded()))
 
 # --------------------------------------------------------------------
-    
+
+@ioc.before(contentTypes)
+def updateContentTypesForURLEncoded():
+    contentTypes().update(content_types_urlencoded())
+   
 @ioc.before(updateAssemblyParsing)
 def updateAssemblyParsingFormData(): pass
     #TODO: Gabriel: assemblyParsing().add(parseFormData())

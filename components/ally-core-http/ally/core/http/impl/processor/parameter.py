@@ -10,14 +10,15 @@ Provides the parameters handler.
 '''
 
 from ally.container.ioc import injected
-from ally.core.http.spec.codes import PARAMETER_ILLEGAL
-from ally.core.http.spec.transform.encdec import CATEGORY_PARAMETER
-from ally.core.spec.resources import Converter
+from ally.core.http.impl.processor.base import ErrorResponseHTTP
+from ally.core.http.spec.codes import PARAMETER_ILLEGAL, PARAMETER_INVALID
+from ally.core.impl.processor.base import addError
 from ally.core.spec.transform.encdec import IDecoder
-from ally.design.processor.attribute import requires, defines
+from ally.design.processor.attribute import requires, optional
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessor
-from ally.http.spec.codes import CodedHTTP
+from ally.design.processor.handler import HandlerComposite
+from ally.design.processor.processor import Structure
+from ally.support.util_context import findFirst, pushIn, cloneCollection
 
 # --------------------------------------------------------------------
 
@@ -26,9 +27,17 @@ class Invoker(Context):
     The invoker context.
     '''
     # ---------------------------------------------------------------- Required
+    decodingParameters = requires(dict)
+
+class Definition(Context):
+    '''
+    The definition context.
+    '''
+    # ---------------------------------------------------------------- Optional
+    parent = optional(Context)
+    # ---------------------------------------------------------------- Required
+    name = requires(str)
     decoder = requires(IDecoder)
-    categoriesDecoded = requires(set)
-    definitions = requires(list)
     
 class Request(Context):
     '''
@@ -38,50 +47,32 @@ class Request(Context):
     parameters = requires(list)
     invoker = requires(Context)
     arguments = requires(dict)
-    converterPath = requires(Converter)
 
-class Response(CodedHTTP):
+class Support(Context):
     '''
-    The response context.
+    The support context.
     '''
-    # ---------------------------------------------------------------- Defined
-    errorMessages = defines(list)
-
-class SupportDecoding(Context):
-    '''
-    The decoder support context.
-    '''
-    # ---------------------------------------------------------------- Defined
-    category = defines(object, doc='''
-    @rtype: object
-    The category of the ongoing decoding.
-    ''')
-    converter = defines(Converter, doc='''
-    @rtype: Converter
-    The converter to be used for decoding.
-    ''')
     # ---------------------------------------------------------------- Required
     failures = requires(list)
-
+    
 # --------------------------------------------------------------------
 
 @injected
-class ParameterHandler(HandlerProcessor):
+class ParameterHandler(HandlerComposite):
     '''
     Implementation for a processor that provides the transformation of parameters into arguments.
     '''
 
     def __init__(self):
-        super().__init__(Invoker=Invoker)
+        super().__init__(Structure(SupportDecodeParameter='request'), Invoker=Invoker, Definition=Definition)
 
-    def process(self, chain, request:Request, response:Response, Support:SupportDecoding, **keyargs):
+    def process(self, chain, request:Request, response:ErrorResponseHTTP, SupportDecodeParameter:Support, **keyargs):
         '''
-        @see: HandlerProcessor.process
+        @see: HandlerComposite.process
         
         Process the parameters into arguments.
         '''
         assert isinstance(request, Request), 'Invalid request %s' % request
-        assert isinstance(response, Response), 'Invalid response %s' % response
         if response.isSuccess is False: return  # Skip in case the response is in error
 
         if not request.invoker: return  # No invoker available
@@ -90,25 +81,42 @@ class ParameterHandler(HandlerProcessor):
         if request.parameters:
             illegal = set()
             
-            decoder = request.invoker.decoder
-            if not decoder: illegal.update(name for name, value in request.parameters)
+            decodings = request.invoker.decodingParameters
+            if not decodings: illegal.update(name for name, value in request.parameters)
             else:
-                assert isinstance(decoder, IDecoder), 'Invalid decoder %s' % decoder
+                assert isinstance(decodings, dict), 'Invalid decodings %s' % decodings
                 
+                support = pushIn(SupportDecodeParameter(), request, interceptor=cloneCollection)
+                assert isinstance(support, Support), 'Invalid support %s' % support
                 if request.arguments is None: request.arguments = {}
-                support = Support(category=CATEGORY_PARAMETER, converter=request.converterPath)
-                assert isinstance(support, SupportDecoding), 'Invalid support %s' % support
-                
                 for name, value in request.parameters:
-                    if not decoder.decode(name, value, request.arguments, support): illegal.add(name)
+                    decoding = decodings.get(name)
+                    if decoding is None: illegal.add(name)
+                    else:
+                        assert isinstance(decoding, Definition), 'Invalid decoding %s' % decoding
+                        assert isinstance(decoding.decoder, IDecoder), 'Invalid decoder %s' % decoding.decoder
+                        decoding.decoder.decode(value, request.arguments, support)
+                
+                if support.failures:
+                    PARAMETER_INVALID.set(response)
                     
-            if illegal or support.failures:
+                    decodingByName, valuesByName = {}, {}
+                    for value, decoding in support.failures:
+                        name = findFirst(decoding, Definition.parent, Definition.name)
+                        if name:
+                            byName = decodingByName.get(name)
+                            if byName is None: byName = decodingByName[name] = []
+                            byName.append(decoding)
+                            
+                            byName = valuesByName.get(name)
+                            if byName is None: byName = valuesByName[name] = []
+                            byName.append(value)
+                    
+                    for name in sorted(valuesByName):
+                        addError(response, 'Invalid values %(values)s for \'%(name)s\'',
+                                 decodingByName[name], name=name, values=valuesByName[name])
+                    
+            if illegal:
                 PARAMETER_ILLEGAL.set(response)
-                if response.errorMessages is None: response.errorMessages = []
-                
-                if illegal: response.errorMessages.append('Unknown parameters: %s' % ', '.join(sorted(illegal)))
-                if support.failures: response.errorMessages.extend(support.failures)
-                
-                if not request.invoker.categoriesDecoded or CATEGORY_PARAMETER not in request.invoker.categoriesDecoded:
-                    response.errorMessages.append('\nNo parameters are available')
+                addError(response, 'Unknown parameters %(parameters)s', parameters=sorted(illegal))
                 

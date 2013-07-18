@@ -371,12 +371,11 @@ class Input:
     def __str__(self):
         st = []
         st.append(self.name)
-        st.append('=')
+        st.append(':')
         st.append(str(self.type))
         if self.hasDefault:
-            st.append('[')
+            st.append('=')
             st.append(str(self.default))
-            st.append(']')
         return ''.join(st)
 
 class Call:
@@ -420,8 +419,7 @@ class Call:
         self.hints = hints
 
     def __str__(self):
-        inputs = [''.join(('defaulted:' if inp.hasDefault else '', inp.name, '=', str(inp.type))) for inp in self.inputs]
-        return '%s(%s)->%s' % (self.name, ', '.join(inputs), self.output)
+        return '%s(%s)->%s' % (self.name, ', '.join(str(inp) for inp in self.inputs), self.output)
     
 # --------------------------------------------------------------------
 

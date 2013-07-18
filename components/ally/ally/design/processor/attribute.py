@@ -471,7 +471,7 @@ class Attribute(IAttribute):
     '''
     Base attribute implementation for a @see: IAttribute that manages a attributes by status.
     '''
-    __slots__ = ('specification', 'Resolver', 'clazz', 'name')
+    __slots__ = ('specification', 'Resolver', 'isPlaced')
 
     def __init__(self, specification, Resolver=Resolver):
         '''
@@ -488,8 +488,7 @@ class Attribute(IAttribute):
         self.specification = specification
         self.Resolver = Resolver
         
-        self.clazz = None
-        self.name = None
+        self.isPlaced = False
     
     def resolver(self):
         '''
@@ -501,27 +500,28 @@ class Attribute(IAttribute):
         '''
         @see: IAttribute.place
         '''
-        if self.clazz is None:
+        if not self.isPlaced:
             assert isinstance(clazz, ContextMetaClass), 'Invalid class %s' % clazz
             assert isinstance(name, str), 'Invalid name %s' % name
-            self.clazz, self.name = clazz, name
+            self.isPlaced, self.__objclass__, self.__name__ = True, clazz, name
             self.specification.usedIn[clazz] = self.specification.status
             if self.specification.definedIn is None and self.specification.status == DEFINED:
                 self.specification.definedIn = clazz
-        elif not issubclass(clazz, self.clazz) or self.name != name:
-            raise AttrError('%s\n, is already placed in:%s as attribute %s' % (self, locationStack(self.clazz), self.name))
+        elif not issubclass(clazz, self.__objclass__) or self.__name__ != name:
+            raise AttrError('%s\n, is already placed in:%s as attribute %s' % 
+                            (self, locationStack(self.__objclass__), self.__name__))
         
     def isValid(self, clazz):
         '''
         @see: IAttribute.isValid
         '''
-        if not self.clazz: return False
+        if not self.isPlaced: return False
         assert isclass(clazz), 'Invalid class %s' % clazz
         
         if not isinstance(clazz, ContextMetaClass): return False
         assert isinstance(clazz, ContextMetaClass)
         
-        other = clazz.__attributes__.get(self.name)
+        other = clazz.__attributes__.get(self.__name__)
         if other is None:
             if self.specification.status != REQUIRED: return True
             return False
@@ -539,13 +539,13 @@ class Attribute(IAttribute):
         '''
         @see: IAttribute.isIn
         '''
-        if not self.clazz: return False
+        if not self.isPlaced: return False
         assert isclass(clazz), 'Invalid class %s' % clazz
         
         if not isinstance(clazz, ContextMetaClass): return False
         assert isinstance(clazz, ContextMetaClass)
         
-        other = clazz.__attributes__.get(self.name)
+        other = clazz.__attributes__.get(self.__name__)
         if other is None: return False
         
         if not isinstance(other, Attribute): return False
@@ -564,7 +564,7 @@ class Attribute(IAttribute):
         Descriptor get.
         '''
         if obj is not None: raise TypeError('Operation not allowed')
-        assert self.clazz, 'Attribute %s, is not placed in a class' % self
+        assert self.isPlaced, 'Attribute %s, is not placed in a class' % self
         return self
 
     def __set__(self, obj, value):
@@ -575,8 +575,8 @@ class Attribute(IAttribute):
     
     def __str__(self):
         st = ''.join((self.__class__.__name__, '.', str(self.specification)))
-        if self.clazz:
-            return ''.join((st, ' in:', locationStack(self.clazz), ' as attribute ', self.name))
+        if self.isPlaced:
+            return ''.join((st, ' in:', locationStack(self.__objclass__), ' as attribute ', self.__name__))
         return ''.join((st, ' unplaced'))
 
 class AttributeObject(Attribute):
@@ -596,7 +596,7 @@ class AttributeObject(Attribute):
         '''
         @see: IAttribute.place
         '''
-        if self.clazz is None:
+        if not self.isPlaced:
             assert isinstance(clazz, ContextMetaClass), 'Invalid class %s' % clazz
             assert isinstance(name, str), 'Invalid name %s' % name
             
@@ -606,9 +606,10 @@ class AttributeObject(Attribute):
                 assert isinstance(self.descriptor, IGet), 'Invalid descriptor %s' % self.descriptor
                 assert isinstance(self.descriptor, ISet), 'Invalid descriptor %s' % self.descriptor
                 setattr(clazz, name, self)
-            self.clazz, self.name = clazz, name
-        elif not issubclass(clazz, self.clazz) or self.name != name:
-            raise AttrError('%s\n, is already placed in:%s as attribute %s' % (self, locationStack(self.clazz), self.name))
+            self.isPlaced, self.__objclass__, self.__name__ = True, clazz, name
+        elif not issubclass(clazz, self.__objclass__) or self.__name__ != name:
+            raise AttrError('%s\n, is already placed in:%s as attribute %s' % 
+                            (self, locationStack(self.__objclass__), self.__name__))
         
     # ----------------------------------------------------------------
     

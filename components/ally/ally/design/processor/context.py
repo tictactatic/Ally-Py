@@ -134,21 +134,12 @@ class Object(metaclass=ContextMetaClass):
         '''
         Assigned to the context as the __contains__ method.
         
-        @param attribute: tuple(string, IAttribute) or descriptor with '__name__' and '__objclass__'
+        @param attribute: IAttribute or descriptor with '__name__' and '__objclass__'
             The attribute to check if contained.
         '''
+        attribute = attributeOf(attribute)
         if attribute is None: return False
-        if not isinstance(attribute, IAttribute):
-            try: name, clazz = attribute.__name__, attribute.__objclass__
-            except AttributeError: return False
-                
-            if not isinstance(clazz, ContextMetaClass): return False
-            assert isinstance(clazz, ContextMetaClass)
-            attribute = clazz.__attributes__.get(name)
-            
-            if not isinstance(attribute, IAttribute): return False
-            assert isinstance(attribute, IAttribute)
-        
+        assert isinstance(attribute, IAttribute)
         return attribute.isIn(self.__class__)
     
     def __str__(self):
@@ -194,80 +185,22 @@ def create(resolvers, *flags):
 
     return contexts
 
-def asData(context, *classes):
+def attributeOf(descriptor):
     '''
-    Provides the data that is represented in the provided context classes.
+    Provides the @see: IAttribute for the provided descriptor or attribute.
     
-    @param context: object
-        The context object to get the data from.
-    @param classes: arguments[ContextMetaClass]
-        The context classes to construct the data based on.
+    @param descriptor: object
+        The descriptor to provide the attribute for.
+    @return: IAttribute|None
+        The attribute or None if the descriptor is invalid.
     '''
-    assert isinstance(context, Context), 'Invalid context %s' % context
-
-    common = set(context.__attributes__)
-    for clazz in classes:
-        assert isinstance(clazz, ContextMetaClass), 'Invalid context class %s' % clazz
-        common.intersection_update(clazz.__attributes__)
+    if descriptor is None: return
+    if isinstance(descriptor, IAttribute): return descriptor
+    try: name, clazz = descriptor.__name__, descriptor.__objclass__
+    except AttributeError: return
         
-    data = {}
-    for name in common:
-        if context.__attributes__[name] in context: data[name] = getattr(context, name)
-
-    return data
-
-def pushIn(dest, *srcs, interceptor=None, exclude=()):
-    '''
-    Pushes in the destination context data from the source context(s).
+    if not isinstance(clazz, ContextMetaClass): return
+    assert isinstance(clazz, ContextMetaClass)
+    attribute = clazz.__attributes__.get(name)
     
-    @param dest: object
-        The destination context object to get the data from.
-    @param srcs: arguments[Context|dictionary{string: object}]
-        Sources to copy data from, attention the order is important since if the first context has no value
-        for an attribute then the second one is checked and so on.
-    @param interceptor: callable(object) -> object|None
-        An interceptor callable to be called before setting the value on the destination.
-    @param exclude: tuple(string)|list[string]|set(string)
-        The attributes to be excluded from the push.
-    @return: object
-        The destination context after copy.
-    '''
-    assert isinstance(dest, Object), 'Invalid destination context %s' % dest
-    assert srcs, 'At least one source is required'
-    assert interceptor is None or callable(interceptor), 'Invalid interceptor %s' % interceptor
-    assert isinstance(exclude, (tuple, list, set)), 'Invalid exclude %s' % exclude
-        
-    for name in dest.__attributes__:
-        if exclude and name in exclude: continue
-        found = False
-        for src in srcs:
-            if isinstance(src, Context):
-                attribute = src.__attributes__.get(name)
-                if attribute and attribute in src: found, value = True, getattr(src, name)
-            else:
-                assert isinstance(src, dict), 'Invalid source %s' % src
-                if name in src: found, value = True, src[name]
-            
-            if found:
-                if interceptor is not None: value = interceptor(value)
-                setattr(dest, name, value)
-                break
-    
-    return dest
-
-def cloneCollection(value):
-    '''
-    Interceptor to be used on the 'pushIn' function that creates new collections with the same items.
-    The collections copied are: set, dict, list.
-    
-    @param value: object
-        The value to intercept.
-    @return: object
-        The clone collection if is the case or the same value.
-    '''
-    if value is None: return
-    clazz = value.__class__
-    if clazz == set: return set(value)
-    elif clazz == dict: return dict(value)
-    elif clazz == list: return list(value)
-    return value
+    if isinstance(attribute, IAttribute): return attribute

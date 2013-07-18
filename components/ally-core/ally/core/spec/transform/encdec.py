@@ -9,11 +9,11 @@ Created on Mar 8, 2013
 Provides encoder decoder specifications. 
 '''
 
-from ally.design.processor.attribute import defines
-from ally.design.processor.context import Context
 import abc
 
 # --------------------------------------------------------------------
+
+# TODO: Gabriel: unify encoder and decoder into one ITransfrom api
 
 class IEncoder(metaclass=abc.ABCMeta):
     '''
@@ -32,6 +32,26 @@ class IEncoder(metaclass=abc.ABCMeta):
         @param support: object
             Support context object containing additional data required for encoding.
         '''
+
+class IDecoder(metaclass=abc.ABCMeta):
+    '''
+    The decoder specification.
+    '''
+    
+    @abc.abstractmethod
+    def decode(self, value, target, support):
+        '''
+        Decode the value based into the provided target.
+        
+        @param value: object
+            The value to be placed on the path.
+        @param target: object
+            The target object to decode in.
+        @param support: object
+            Support context object containing additional data required for decoding.
+        '''
+
+# --------------------------------------------------------------------
 
 class ISpecifier(metaclass=abc.ABCMeta):
     '''
@@ -102,30 +122,6 @@ class IRender(metaclass=abc.ABCMeta):
         Called to signal that the current block (object or collection) has ended the rendering.
         '''
 
-# --------------------------------------------------------------------
-
-class IDecoder(metaclass=abc.ABCMeta):
-    '''
-    The decoder specification.
-    '''
-    
-    @abc.abstractmethod
-    def decode(self, path, obj, target, support):
-        '''
-        Decode the value based on the path in to the provided objects.
-        
-        @param path: object
-            The path describing where the value should be placed.
-        @param obj: object
-            The value to be placed on the path.
-        @param target: object
-            The target object to decode in.
-        @param support: object
-            Support context object containing additional data required for decoding.
-        @return: boolean|None
-            If True it means that the decoding has been performed on the provided data.
-        '''
-
 class IDevise(metaclass=abc.ABCMeta):
     '''
     The specification for the constructor of decoded objects.
@@ -144,7 +140,7 @@ class IDevise(metaclass=abc.ABCMeta):
         '''
         
     @abc.abstractclassmethod
-    def set(self, target, value, support):
+    def set(self, target, value):
         '''
         Set the constructed value into the provided target.
         
@@ -152,71 +148,4 @@ class IDevise(metaclass=abc.ABCMeta):
             The target to set the value to.
         @param value: object
             The value object to set to the target.
-        @param support: object
-            Support context object containing additional data.
         '''
-        
-# --------------------------------------------------------------------
-
-class Category:
-    '''
-    Provides the category specification.
-    '''
-    
-    def __init__(self, *info, optional=None):
-        '''
-        Construct the category of decoders.
-        
-        @param info: arguments[string]
-            The info associated with the category.
-        @param optional: boolean|None
-            The default optional flag for this category, if None it means that there is no category default.
-        '''
-        if __debug__:
-            for entry in info: assert isinstance(entry, str), 'Invalid info %s' % info
-        assert optional is None or isinstance(optional, bool), 'Invalid default optional %s' % optional
-        
-        self.info = info
-        self.optional = optional
-        
-    def isValid(self, category):
-        '''
-        Checks if the provided category object is valid for this category.
-        
-        @param category: object
-            The category object to verify.
-        @return: boolean
-            True if the category is valid for this category.
-        '''
-        return self == category
-    
-    def populate(self, categorized):
-        '''
-        Populate the provided categorized context.
-        
-        @param categorized: Context
-            The categorized context to be populated with data based on this category.
-        '''
-        assert isinstance(categorized, Categorized), 'Invalid categorized object %s' % categorized
-        categorized.category = self
-        if categorized.isOptional is None and self.optional is not None: categorized.isOptional = self.optional
-
-class Categorized(Context):
-    '''
-    Context for categorized definitions. 
-    '''
-    # ---------------------------------------------------------------- Defined
-    category = defines(Category, doc='''
-    @rtype: Category
-    The definition category.
-    ''')
-    isOptional = defines(bool, doc='''
-    @rtype: boolean
-    If True the definition value is optional.
-    ''')
-
-CATEGORY_CONTENT = Category('The content properties')
-# The constant that defines the content decoding category.
-
-SEPARATOR_CONTENT = '/'
-# The separator for content.

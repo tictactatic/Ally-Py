@@ -12,9 +12,10 @@ Renders the response encoder.
 from ally.container.ioc import injected
 from ally.core.spec.transform.encdec import IEncoder
 from ally.design.processor.attribute import requires, optional
-from ally.design.processor.context import Context, pushIn, cloneCollection
+from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerComposite
-from ally.design.processor.processor import Joiner
+from ally.design.processor.processor import Structure
+from ally.support.util_context import pushIn, cloneCollection
 from collections import Callable
 
 # --------------------------------------------------------------------
@@ -53,9 +54,10 @@ class RenderEncoderHandler(HandlerComposite):
     '''
     
     def __init__(self):
-        super().__init__(Joiner(Support=('response', 'request')), Invoker=Invoker)
+        super().__init__(Structure(SupportEncodeContent=('response', 'request')), Invoker=Invoker)
     
-    def process(self, chain, request:Request, response:Response, responseCnt:Context, Support:Context, **keyargs):
+    def process(self, chain, request:Request, response:Response, responseCnt:Context,
+                SupportEncodeContent:Context, **keyargs):
         '''
         @see: HandlerComposite.process
         
@@ -71,5 +73,5 @@ class RenderEncoderHandler(HandlerComposite):
         assert isinstance(request.invoker.encoder, IEncoder), 'Invalid encoder %s' % request.invoker.encoder
         assert callable(response.renderFactory), 'Invalid response renderer factory %s' % response.renderFactory
         
-        support = pushIn(Support(), response, request, interceptor=cloneCollection)
+        support = pushIn(SupportEncodeContent(), response, request, interceptor=cloneCollection)
         request.invoker.encoder.encode(response.obj, response.renderFactory(responseCnt), support)

@@ -10,7 +10,8 @@ Provides the rendering processing.
 '''
 
 from ally.container.ioc import injected
-from ally.core.spec.codes import ENCODING_UNKNOWN, Coded
+from ally.core.impl.processor.base import ErrorResponse, addError
+from ally.core.spec.codes import ENCODING_UNKNOWN
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import defines, optional
 from ally.design.processor.branch import Branch
@@ -29,13 +30,6 @@ class Request(Context):
     # ---------------------------------------------------------------- Optional
     accTypes = optional(list)
     accCharSets = optional(list)
-
-class Response(Coded):
-    '''
-    The response context.
-    '''
-    # ---------------------------------------------------------------- Defined
-    errorMessages = defines(list)
 
 class ResponseContent(Context):
     '''
@@ -75,7 +69,7 @@ class RenderingHandler(HandlerBranching):
         assert isinstance(self.charSetDefault, str), 'Invalid default character set %s' % self.charSetDefault
         super().__init__(Branch(self.renderingAssembly).included())
 
-    def process(self, chain, processing, request:Request, response:Response, responseCnt:ResponseContent, **keyargs):
+    def process(self, chain, processing, request:Request, response:ErrorResponse, responseCnt:ResponseContent, **keyargs):
         '''
         @see: HandlerBranching.process
         
@@ -84,7 +78,6 @@ class RenderingHandler(HandlerBranching):
         assert isinstance(chain, Chain), 'Invalid chain %s' % chain
         assert isinstance(processing, Processing), 'Invalid processing %s' % processing
         assert isinstance(request, Request), 'Invalid request %s' % request
-        assert isinstance(response, Response), 'Invalid response %s' % response
         assert isinstance(responseCnt, ResponseContent), 'Invalid response content %s' % responseCnt
         
         # Resolving the character set
@@ -107,8 +100,7 @@ class RenderingHandler(HandlerBranching):
             if chain.branch(processing).execute(CONSUMED):
                 if response.isSuccess is not False:
                     ENCODING_UNKNOWN.set(response)
-                    if response.errorMessages is None: response.errorMessages = []
-                    response.errorMessages.append('Content type \'%s\' not supported for rendering' % responseCnt.type)
+                    addError(response, 'Content type \'%(type)s\' not supported for rendering', type=responseCnt.type)
             else: resolved = True
 
         if not resolved:
@@ -121,7 +113,6 @@ class RenderingHandler(HandlerBranching):
                 if not chain.branch(processing).execute(CONSUMED): break
             else:
                 ENCODING_UNKNOWN.set(response)
-                if response.errorMessages is None: response.errorMessages = []
-                response.errorMessages.append('There is no renderer available')
-                response.errorMessages.append('This is more likely a setup issues since the '\
-                'default content types should have resolved the renderer')
+                addError(response,
+                         'There is no renderer available',
+                         'This is more likely a setup issues since the default content types should have resolved the renderer')

@@ -76,7 +76,7 @@ class InvokerResourcesHandler(HandlerProcessor):
     def __init__(self):
         assert isinstance(self.nameResources, str), 'Invalid resources name %s' % self.nameResources
         assert isinstance(self.nameRef, str), 'Invalid reference name %s' % self.nameRef
-        super().__init__(Node=Node, Support=Support)
+        super().__init__(Node=Node, SupportEncodeContent=Support)
         
     def process(self, chain, register:Register, Invoker:InvokerResources, **keyargs):
         '''

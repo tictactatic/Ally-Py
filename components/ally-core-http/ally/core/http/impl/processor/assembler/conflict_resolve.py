@@ -10,9 +10,9 @@ Provides the node invokers conflicts resolving or error reporting.
 '''
 
 from ally.container.ioc import injected
+from ally.core.impl.processor.assembler.base import excludeFrom, InvokerExcluded
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
-from ally.design.processor.execution import Chain
 from ally.design.processor.handler import HandlerProcessor
 import logging
 
@@ -39,14 +39,6 @@ class Node(Context):
     invokers = defines(dict)
     # ---------------------------------------------------------------- Required
     conflicts = requires(dict)
-
-class Invoker(Context):
-    '''
-    The invoker context.
-    '''
-    # ---------------------------------------------------------------- Required
-    id = requires(str)
-    location = requires(str)
     
 # --------------------------------------------------------------------
 
@@ -57,7 +49,7 @@ class ConflictResolveHandler(HandlerProcessor):
     '''
     
     def __init__(self):
-        super().__init__(Node=Node, Invoker=Invoker)
+        super().__init__(Node=Node, Invoker=InvokerExcluded)
 
     def process(self, chain, register:Register, **keyargs):
         '''
@@ -65,9 +57,7 @@ class ConflictResolveHandler(HandlerProcessor):
         
         Provides the conflict resolving.
         '''
-        assert isinstance(chain, Chain), 'Invalid chain %s' % chain
         assert isinstance(register, Register), 'Invalid register %s' % register
-        assert isinstance(register.exclude, set), 'Invalid exclude set %s' % register.exclude
         
         if not register.nodes: return
         
@@ -79,14 +69,13 @@ class ConflictResolveHandler(HandlerProcessor):
             
             for methodHTTP, invokers in node.conflicts.items():
                 if not invokers: continue
-                assert  isinstance(invokers, list), 'Invalid invokers %s' % invokers
+                assert isinstance(invokers, list), 'Invalid invokers %s' % invokers
                 if len(invokers) > 1:
                     locations = []
                     for invoker in invokers:
-                        assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
+                        assert isinstance(invoker, InvokerExcluded), 'Invalid invoker %s' % invoker
                         locations.append(invoker.location)
-                        register.exclude.add(invoker.id)
-                    chain.cancel()
+                    excludeFrom(chain, invokers)
                     
                     if reported.isdisjoint(locations):
                         log.error('Cannot use invokers because they have the same web address, at:%s', ''.join(locations))

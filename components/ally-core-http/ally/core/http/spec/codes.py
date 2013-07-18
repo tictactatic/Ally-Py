@@ -10,8 +10,8 @@ Contains the codes to be used for the HTTP server responses.
 '''
 
 from ally.core.spec.codes import ENCODING_UNKNOWN, CONTENT_BAD, CONTENT_ILLEGAL, \
-    CONTENT_MISSING, CONTENT_EXPECTED, INPUT_ERROR, DELETE_ERROR, DELETE_SUCCESS, \
-    UPDATE_ERROR, UPDATE_SUCCESS, INSERT_ERROR, INSERT_SUCCESS
+    CONTENT_MISSING, CONTENT_EXPECTED, DECODING_FAILED, INPUT_ERROR, DELETE_ERROR, \
+    DELETE_SUCCESS, UPDATE_ERROR, UPDATE_SUCCESS, INSERT_ERROR, INSERT_SUCCESS
 from ally.http.spec.codes import CodeHTTP
 
 # --------------------------------------------------------------------
@@ -23,6 +23,7 @@ CODE_TO_STATUS = {
                   CONTENT_ILLEGAL.code: 400,  # HTTP code 400 Bad Request
                   CONTENT_MISSING.code: 400,  # HTTP code 400 Bad Request
                   CONTENT_EXPECTED.code: 400,  # HTTP code 400 Bad Request
+                  DECODING_FAILED.code: 400,  # HTTP code 400 Bad Request
                   INPUT_ERROR.code: 400,  # HTTP code 400 Bad Request
                   DELETE_ERROR.code: 400,  # HTTP code 404 Not Found
                   DELETE_SUCCESS.code: 204,  # HTTP code 204 No Content
@@ -47,6 +48,7 @@ CONTENT_LENGHT_ERROR = CodeHTTP('Length required ', 411)  # HTTP code 411 length
 CONTENT_TYPE_ERROR = CodeHTTP('Content type not acceptable ', 406)  # HTTP code 406 Not acceptable
 
 PARAMETER_ILLEGAL = CodeHTTP('Illegal parameter', 400)  # HTTP code 400 Bad Request
+PARAMETER_INVALID = CodeHTTP('Invalid parameter', 400)  # HTTP code 400 Bad Request
 
 FORMATING_ERROR = CodeHTTP('Invalid formatting', 400)  # HTTP code 400 Bad Request
 

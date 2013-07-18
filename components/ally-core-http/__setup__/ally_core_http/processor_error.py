@@ -13,7 +13,7 @@ from ..ally_core.processor import rendering
 from ..ally_core.resources import injectorAssembly
 from ..ally_http.processor import acceptRequestDecode, contentLengthEncode, \
     allowEncode, methodOverride, contentTypeResponseEncode, internalError
-from .processor import allow_method_override, uri, explainError, \
+from .processor import allow_method_override, uri, errorExplain, \
     read_from_params, headerParameter
 from ally.container import ioc
 from ally.core.http.impl.processor.error_populator import ErrorPopulator
@@ -49,7 +49,7 @@ def assemblyErrorDelivery() -> Assembly:
 @ioc.before(assemblyErrorDelivery)
 def updateAssemblyErrorDelivery():
     assemblyErrorDelivery().add(internalError(), injectorAssembly(), uri(), acceptRequestDecode(), rendering(),
-                                errorPopulator(), explainError(), contentTypeResponseEncode(), contentLengthEncode(),
+                                errorPopulator(), errorExplain(), contentTypeResponseEncode(), contentLengthEncode(),
                                 allowEncode())
     if allow_method_override(): assemblyErrorDelivery().add(methodOverride(), before=acceptRequestDecode())
     if read_from_params(): assemblyErrorDelivery().add(headerParameter(), after=internalError())

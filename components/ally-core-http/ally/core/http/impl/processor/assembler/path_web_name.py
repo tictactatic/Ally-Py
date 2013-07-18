@@ -11,9 +11,10 @@ Provides the web name for the path.
 
 from ally.api.type import Call
 from ally.container.ioc import injected
+from ally.core.impl.processor.assembler.base import excludeFrom, \
+    RegisterExcluding, InvokerExcluded
 from ally.design.processor.attribute import requires, defines, definesIf
 from ally.design.processor.context import Context
-from ally.design.processor.execution import Chain
 from ally.design.processor.handler import HandlerProcessor
 from collections import Callable
 import logging
@@ -25,7 +26,7 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
-class Register(Context):
+class Register(RegisterExcluding):
     '''
     The register context.
     '''
@@ -33,19 +34,15 @@ class Register(Context):
     hintsCall = definesIf(dict)
     # ---------------------------------------------------------------- Required
     suggest = requires(Callable)
-    invokers = requires(list)
-    exclude = requires(set)
     
-class Invoker(Context):
+class Invoker(InvokerExcluded):
     '''
     The invoker context.
     '''
     # ---------------------------------------------------------------- Defined
     path = defines(list)
     # ---------------------------------------------------------------- Required
-    id = requires(str)
     call = requires(Call)
-    location = requires(str)
     
 class Element(Context):
     '''
@@ -79,15 +76,13 @@ class PathWebNameHandler(HandlerProcessor):
         
         Provides the domain based on elements models.
         '''
-        assert isinstance(chain, Chain), 'Invalid chain %s' % chain
         assert isinstance(register, Register), 'Invalid register %s' % register
-        assert isinstance(register.exclude, set), 'Invalid exclude set %s' % register.exclude
+        if not register.invokers: return
         
         if Register.hintsCall in register:
             if register.hintsCall is None: register.hintsCall = {}
             register.hintsCall[self.hintName] = self.hintDescription
         
-        if not register.invokers: return
         for invoker in register.invokers:
             assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
             if not invoker.call: continue  # No call to process hints on.
@@ -99,8 +94,7 @@ class PathWebNameHandler(HandlerProcessor):
                 if not isinstance(webName, str) or not re.match('\w+$', webName):
                     log.error('Cannot use because invalid web name \'%s\', can only contain alpha numeric characters at:%s',
                               webName, invoker.location)
-                    register.exclude.add(invoker.id)
-                    chain.cancel()
+                    excludeFrom(chain, invoker)
                     break
                 
                 for el in reversed(invoker.path):

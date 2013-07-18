@@ -11,10 +11,12 @@ Provides the paths based on id property inputs.
 
 from ally.api.operator.type import TypeProperty, TypeModel
 from ally.api.type import Input
+from ally.core.impl.processor.assembler.base import excludeFrom, \
+    RegisterExcluding, InvokerExcluded
 from ally.design.processor.attribute import requires, defines
-from ally.design.processor.context import Context, pushIn, cloneCollection
-from ally.design.processor.execution import Chain
+from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
+from ally.support.util_context import pushIn, cloneCollection
 import itertools
 import logging
 
@@ -24,7 +26,7 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
-class Register(Context):
+class Register(RegisterExcluding):
     '''
     The register context.
     '''
@@ -33,11 +35,8 @@ class Register(Context):
     @rtype: dictionary{TypeModel: set(TypeModel)}
     The model relations, as a key the model that depends on the models found in the value set.
     ''')
-    # ---------------------------------------------------------------- Required
-    invokers = requires(list)
-    exclude = requires(set)
     
-class InvokerOnInput(Context):
+class InvokerOnInput(InvokerExcluded):
     '''
     The invoker context.
     '''
@@ -51,10 +50,8 @@ class InvokerOnInput(Context):
     The path elements.
     ''')
     # ---------------------------------------------------------------- Required
-    id = requires(str)
     inputs = requires(tuple)
     target = requires(TypeModel)
-    location = requires(str)
     
 class ElementInput(Context):
     '''
@@ -87,13 +84,11 @@ class PathInputHandler(HandlerProcessor):
         
         Provides the paths based on property id inputs.
         '''
-        assert isinstance(chain, Chain), 'Invalid chain %s' % chain
         assert isinstance(register, Register), 'Invalid register %s' % register
         assert issubclass(Invoker, InvokerOnInput), 'Invalid invoker %s' % Invoker
         assert issubclass(Element, ElementInput), 'Invalid element %s' % Element
-        assert isinstance(register.exclude, set), 'Invalid exclude set %s' % register.exclude
-        if not register.invokers: return  # No invoker to process
         
+        if not register.invokers: return  # No invoker to process
         assert isinstance(register.invokers, list), 'Invalid invokers %s' % register.invokers
 
         if register.relations is None: register.relations = {}
@@ -110,8 +105,7 @@ class PathInputHandler(HandlerProcessor):
                     if inp.type in properties:
                         log.error('Cannot use because the %s should appear at most once, try using an alias '
                                   'on one of the annotations, at:%s', inp.type, invoker.location)
-                        register.exclude.add(invoker.id)
-                        chain.cancel()
+                        excludeFrom(chain, invoker)
                         break
                     properties.add(inp.type)
                     invoker.solved.add(inp.name)

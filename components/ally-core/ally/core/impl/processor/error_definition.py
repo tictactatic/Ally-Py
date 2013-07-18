@@ -10,11 +10,13 @@ Provides the definitions based on error code.
 '''
 
 from ally.container.ioc import injected
-from ally.core.impl.verifier import IVerifier
+from ally.core.impl.processor.base import addError
+from ally.core.spec.definition import IVerifier
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
 import itertools
+from ally.design.processor.resolvers import resolversFor
 
 # --------------------------------------------------------------------
 
@@ -44,7 +46,7 @@ class Response(Context):
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    errorDefinitions = defines(list)
+    errorMessages = defines(list)
     # ---------------------------------------------------------------- Required
     code = requires(str)
     isSuccess = requires(bool)
@@ -57,18 +59,23 @@ class ErrorDefinitionHandler(HandlerProcessor):
     Provides the definitions based on error code.
     '''
 
-    errors = dict
-    # The errors dictionary having as a key the error code and as a value a list of verifiers
-    # to be used for invoker definitions.
+    errors = list
+    # The errors list containing tuples having as the first value the error code, as the second the verifier
+    # to be used for invoker definitions, and on third the messages to be added also if the verifiers check at least one
+    # definition.
 
     def __init__(self):
-        assert isinstance(self.errors, dict), 'Invalid errors %s' % self.errors
-        if __debug__:
-            for code, verifiers in self.errors.items():
-                assert isinstance(code, str), 'Invalid code %s' % code
-                assert isinstance(verifiers, list), 'Invalid verifiers %s' % verifiers
-                for verifier in verifiers: assert isinstance(verifier, IVerifier), 'Invalid verifier %s' % verifier
-        super().__init__(Invoker=Invoker)
+        assert isinstance(self.errors, list), 'Invalid errors %s' % self.list
+        
+        resolvers = resolversFor(dict(Invoker=Invoker))
+        for code, verifier, messages in self.errors:
+            assert isinstance(code, str), 'Invalid code %s' % code
+            assert isinstance(verifier, IVerifier), 'Invalid verifier %s' % verifier
+            assert isinstance(messages, tuple), 'Invalid messages %s' % messages
+            for message in messages: assert isinstance(message, str), 'Invalid message %s' % message
+            verifier.prepare(resolvers)
+            
+        super().__init__(**resolvers)
 
     def process(self, chain, register:Register, request:Request, response:Response, **keyargs):
         '''
@@ -93,13 +100,14 @@ class ErrorDefinitionHandler(HandlerProcessor):
             
         if definitions is None: return  # No definitions to process.
         
-        verifiers = self.errors.get(response.code)
-        if not verifiers: return
-        
-        if response.errorDefinitions is None: response.errorDefinitions = []
-        for defin in definitions:
-            for verifier in verifiers:
+        for code, verifier, messages in self.errors:
+            if code != response.code: continue
+            
+            verified, unverified = [], []
+            for defin in definitions:
                 assert isinstance(verifier, IVerifier), 'Invalid verifier %s' % verifier
-                if verifier.isValid(defin):
-                    response.errorDefinitions.append(defin)
-                    break
+                if verifier.isValid(defin): verified.append(defin)
+                else: unverified.append(defin)
+            
+            if verified: addError(response, messages, verified)
+            definitions = unverified
