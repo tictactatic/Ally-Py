@@ -1,12 +1,12 @@
 '''
-Created on Apr 17, 2013
+Created on Jul 19, 2013
 
 @package: ally core
 @copyright: 2012 Sourcefabric o.p.s.
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
 
-Provides general specifications for indexes. 
+Provides specifications for indexes. 
 '''
 
 # --------------------------------------------------------------------
@@ -43,3 +43,4 @@ class Index:
         
         self.block = block
         self.values = values
+        

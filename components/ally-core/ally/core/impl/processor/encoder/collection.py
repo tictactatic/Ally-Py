@@ -9,15 +9,15 @@ Created on Mar 8, 2013
 Provides the collection encoder.
 '''
 
-from .base import RequestEncoder, DefineEncoder, encoderSpecifiers, encoderCourrupt
+from .base import RequestEncoder, DefineEncoder, encoderSpecifiers
 from ally.api.operator.type import TypeModel, TypeProperty
 from ally.api.type import Iter
 from ally.container.ioc import injected
-from ally.core.impl.encdec import EncoderWithSpecifiers
-from ally.core.spec.transform.encdec import IEncoder, IRender
+from ally.core.impl.transform import TransfromWithSpecifiers
+from ally.core.spec.transform import ITransfrom, IRender
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.branch import Branch
-from ally.design.processor.execution import Processing
+from ally.design.processor.execution import Processing, Abort
 from ally.design.processor.handler import HandlerBranching
 from collections import Iterable
 import logging
@@ -65,7 +65,7 @@ class CollectionEncode(HandlerBranching):
         else:
             if not isinstance(itemType, (TypeModel, TypeProperty)):
                 log.error('Cannot get the collection name for item %s', itemType)
-                return encoderCourrupt(chain)
+                raise Abort(create)
             if isinstance(itemType, TypeProperty):
                 assert isinstance(itemType, TypeProperty)
                 model = itemType.parent
@@ -77,12 +77,12 @@ class CollectionEncode(HandlerBranching):
         assert isinstance(arg.create, RequestEncoder), 'Invalid create item %s' % arg.create
         if arg.create.encoder is None:
             log.error('Cannot encode collection item %s', itemType)
-            return encoderCourrupt(chain)
+            raise Abort(create)
         create.encoder = EncoderCollection(name, arg.create.encoder, encoderSpecifiers(create))
 
 # --------------------------------------------------------------------
 
-class EncoderCollection(EncoderWithSpecifiers):
+class EncoderCollection(TransfromWithSpecifiers):
     '''
     Implementation for a @see: IEncoder for collections.
     '''
@@ -92,20 +92,20 @@ class EncoderCollection(EncoderWithSpecifiers):
         Construct the collection encoder.
         '''
         assert isinstance(name, str), 'Invalid name %s' % name
-        assert isinstance(encoder, IEncoder), 'Invalid item encoder %s' % encoder
+        assert isinstance(encoder, ITransfrom), 'Invalid item encoder %s' % encoder
         super().__init__(specifiers)
         
         self.name = name
         self.encoder = encoder
         
-    def encode(self, obj, target, support):
+    def transform(self, value, target, support):
         '''
-        @see: IEncoder.encode
+        @see: ITransfrom.transform
         '''
-        assert isinstance(obj, Iterable), 'Invalid collection object %s' % obj
+        assert isinstance(value, Iterable), 'Invalid collection value %s' % value
         assert isinstance(target, IRender), 'Invalid target %s' % target
         
-        target.beginCollection(self.name, **self.populate(obj, support))
-        for objItem in obj: self.encoder.encode(objItem, target, support)
+        target.beginCollection(self.name, **self.populate(value, support))
+        for item in value: self.encoder.transform(item, target, support)
         target.end()
         

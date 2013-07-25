@@ -204,7 +204,7 @@ def updateHeadersCustom():
 def updateAssemblyResources():
     assemblyResources().add(internalError(), injectorAssembly(), converterPath(), uri(), methodInvoker(),
                             contentTypeRequestDecode(), contentLengthDecode(), acceptRequestDecode(), converterContent(),
-                            rendering(), #parsing(),  # parsingMultiPart(),
+                            rendering(), parsing(),  # parsingMultiPart(),
                             content(), parameter(), scheme(), invoking(), encoderPath(),
                             encoderPathInvoker(), renderEncoder(), status(), errorDefinition(), errorExplain(),
                             contentIndexEncode(), contentTypeResponseEncode(), contentLengthEncode(), allowEncode()

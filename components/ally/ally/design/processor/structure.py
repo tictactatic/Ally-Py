@@ -99,7 +99,7 @@ def restructureResolvers(resolvers, mapping, reversed=False, remove=False):
     assert isinstance(reversed, bool), 'Invalid reversed flag %s' % reversed
     assert isinstance(remove, bool), 'Invalid remove flag %s' % remove
     
-    restructured = {}
+    restructured, removed = {}, set() if remove else None
     for name in mapping:
         if isinstance(name, tuple):
             if reversed: nameFrom, nameTo = name
@@ -110,10 +110,11 @@ def restructureResolvers(resolvers, mapping, reversed=False, remove=False):
             assert isinstance(name, str), 'Invalid mapping name %s' % name
             nameFrom = nameTo = name
         
-        if remove: resolver = resolvers.pop(nameFrom, None)
-        else: resolver = resolvers.get(nameFrom)
+        resolver = resolvers.get(nameFrom)
         if resolver:
             assert isinstance(resolver, IResolver), 'Invalid resolver %s' % resolver
+            if remove: removed.add(nameFrom)
+            
             rresolver = restructured.get(nameTo)
             if rresolver:
                 assert isinstance(rresolver, IResolver), 'Invalid resolver %s' % rresolver
@@ -121,5 +122,9 @@ def restructureResolvers(resolvers, mapping, reversed=False, remove=False):
                 others.difference_update(rresolver.list())
                 restructured[nameTo] = rresolver.merge(resolver.copy(others))
             else: restructured[nameTo] = resolver
+    
+    if removed:
+        for name in removed: resolvers.pop(name)
+        
     return restructured
     

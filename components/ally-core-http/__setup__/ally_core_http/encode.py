@@ -15,6 +15,7 @@ from ..ally_core.encode import assemblyModelExtraEncode, updateAssemblyEncode, \
     modelPropertyEncode, modelEncode
 from ..ally_core.parsing_rendering import blocksDefinitions
 from ally.container import ioc
+from ally.core.http.impl.index import BLOCKS_HTTP
 from ally.core.http.impl.processor.encoder.accessible_paths import \
     AccessiblePathEncode
 from ally.core.http.impl.processor.encoder.model_path import \
@@ -25,7 +26,6 @@ from ally.core.http.impl.processor.encoder.property_of_model_path import \
     PropertyOfModelPathAttributeEncode
 from ally.core.http.impl.processor.encoder.property_reference import \
     PropertyReferenceEncode
-from ally.core.http.spec.transform.index import BLOCKS_HTTP
 from ally.design.processor.handler import Handler
 
 # --------------------------------------------------------------------

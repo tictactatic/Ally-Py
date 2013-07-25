@@ -11,10 +11,9 @@ Provides the accessible paths for a model.
 
 from ally.api.operator.type import TypeModel
 from ally.container.ioc import injected
+from ally.core.http.impl.index import NAME_BLOCK_REST, ACTION_REFERENCE
 from ally.core.http.spec.server import IEncoderPathInvoker
-from ally.core.http.spec.transform.index import NAME_BLOCK_REST, \
-    ACTION_REFERENCE
-from ally.core.spec.transform.encdec import IEncoder, IRender
+from ally.core.spec.transform import ITransfrom, IRender
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
@@ -56,8 +55,8 @@ class Create(Context):
     The create encoder context.
     '''
     # ---------------------------------------------------------------- Defined
-    encoder = defines(IEncoder, doc='''
-    @rtype: IEncoder
+    encoder = defines(ITransfrom, doc='''
+    @rtype: ITransfrom
     The encoder for the accessible paths.
     ''')
     
@@ -111,9 +110,9 @@ class AccessiblePathEncode(HandlerProcessor):
         
 # --------------------------------------------------------------------
 
-class EncoderAccessiblePath(IEncoder):
+class EncoderAccessiblePath(ITransfrom):
     '''
-    Implementation for a @see: IEncoder for model paths.
+    Implementation for a @see: ITransfrom for model paths.
     '''
     
     def __init__(self, nameRef, accessible):
@@ -126,9 +125,9 @@ class EncoderAccessiblePath(IEncoder):
         self.nameRef = nameRef
         self.accessible = accessible
     
-    def encode(self, obj, target, support):
+    def transform(self, value, target, support):
         '''
-        @see: IEncoder.encode
+        @see: ITransfrom.transform
         '''
         assert isinstance(target, IRender), 'Invalid target %s' % target
         assert isinstance(support, Support), 'Invalid support %s' % support

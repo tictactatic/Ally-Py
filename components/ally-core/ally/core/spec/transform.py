@@ -1,54 +1,34 @@
 '''
-Created on Mar 8, 2013
+Created on Jul 18, 2013
 
 @package: ally core
 @copyright: 2012 Sourcefabric o.p.s.
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
 
-Provides encoder decoder specifications. 
+Provides transformation specifications. 
 '''
 
 import abc
 
 # --------------------------------------------------------------------
 
-# TODO: Gabriel: unify encoder and decoder into one ITransfrom api
-
-class IEncoder(metaclass=abc.ABCMeta):
+class ITransfrom(metaclass=abc.ABCMeta):
     '''
-    The encoder specification.
+    The transform specification.
     '''
     
     @abc.abstractmethod
-    def encode(self, obj, target, support):
+    def transform(self, value, target, support):
         '''
-        Renders the value in to the provided renderer.
-        
-        @param obj: object
-            The value object to be encoded.
-        @param target: object
-            The target to be used to place the encoded value.
-        @param support: object
-            Support context object containing additional data required for encoding.
-        '''
-
-class IDecoder(metaclass=abc.ABCMeta):
-    '''
-    The decoder specification.
-    '''
-    
-    @abc.abstractmethod
-    def decode(self, value, target, support):
-        '''
-        Decode the value based into the provided target.
+        Transforms the value into the provided target.
         
         @param value: object
-            The value to be placed on the path.
+            The value to be transformed.
         @param target: object
-            The target object to decode in.
-        @param support: object
-            Support context object containing additional data required for decoding.
+            The target to be used to place the transformed value.
+        @param support: Context
+            Support context object containing additional data required for transforming.
         '''
 
 # --------------------------------------------------------------------
@@ -59,11 +39,11 @@ class ISpecifier(metaclass=abc.ABCMeta):
     '''
     
     @abc.abstractmethod
-    def populate(self, obj, specifications, support):
+    def populate(self, value, specifications, support):
         '''
         Populates the rendering specifications before being used by an encoder.
         
-        @param obj: object
+        @param value: object
             The value object to process based on.
         @param specifications: dictionary{string: object}
             The rendering specifications to process.
@@ -120,32 +100,4 @@ class IRender(metaclass=abc.ABCMeta):
     def end(self):
         '''
         Called to signal that the current block (object or collection) has ended the rendering.
-        '''
-
-class IDevise(metaclass=abc.ABCMeta):
-    '''
-    The specification for the constructor of decoded objects.
-    '''
-    __slots__ = ()
-    
-    @abc.abstractclassmethod
-    def get(self, target):
-        '''
-        Get the value represented by the constructor from the provided target.
-        
-        @param target: object
-            The target to get the value from.
-        @return: object
-            The constructed object from the target.
-        '''
-        
-    @abc.abstractclassmethod
-    def set(self, target, value):
-        '''
-        Set the constructed value into the provided target.
-        
-        @param target: object
-            The target to set the value to.
-        @param value: object
-            The value object to set to the target.
         '''

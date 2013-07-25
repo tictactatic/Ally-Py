@@ -12,7 +12,6 @@ Provides the time zone header definitions.
 from ..ally_core.definition import definitions, defin, errors, error, desc
 from .definition_header import CATEGORY_HEADER, VERIFY_CATEGORY, \
     updateDescriptionsForHeaders
-from ally.api.type import typeFor
 from ally.container import ioc
 from ally.core.http.spec.codes import TIME_ZONE_ERROR
 from ally.core.impl.definition import Name
@@ -35,8 +34,8 @@ else:
     
     @ioc.before(definitions)
     def updateDefinitionsForTimeZone():
-        defin(category=CATEGORY_HEADER, name=TIME_ZONE.name, type=typeFor(str))
-        defin(category=CATEGORY_HEADER, name=CONTENT_TIME_ZONE.name, type=typeFor(str))
+        defin(category=CATEGORY_HEADER, name=TIME_ZONE.name)
+        defin(category=CATEGORY_HEADER, name=CONTENT_TIME_ZONE.name)
         
     @ioc.before(errors)
     def updateDefinitionErrorForTimeZone():

@@ -105,3 +105,24 @@ class IDelete(metaclass=abc.ABCMeta):
         if cls is IDelete:
             if any('__delete__' in B.__dict__ for B in C.__mro__): return True
         return NotImplemented
+
+# --------------------------------------------------------------------
+
+class IDo(metaclass=abc.ABCMeta):
+    '''
+    Provides the do call specification. This is automatically handled by the python language.
+    '''
+    __slots__ = ()
+
+    @abc.abstractclassmethod
+    def __call__(self, *args, **kwds):
+        '''
+        Perform some action.
+        '''
+
+    @classmethod
+    def __subclasshook__(cls, C):
+        if cls is IDo:
+            if any("__call__" in B.__dict__ for B in C.__mro__):
+                return True
+        return NotImplemented

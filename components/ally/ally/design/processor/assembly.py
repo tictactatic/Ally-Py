@@ -12,7 +12,7 @@ Contains the assembly support.
 from .context import create
 from .execution import Processing
 from .resolvers import resolversFor, checkIf, solve, reportFor
-from .spec import IProcessor, IFinalizer, AssemblyError, LIST_UNAVAILABLE
+from .spec import IProcessor, AssemblyError, LIST_UNAVAILABLE
 from abc import ABCMeta  # @UnusedImport
 from ally.design.processor.report import ReportUnused
 from collections import Iterable
@@ -126,9 +126,7 @@ class Assembly(Container):
             assert isinstance(processor, IProcessor), 'Invalid processor %s' % processor
             processor.register(sources, current, extensions, calls, report)
         for processor in self.processors:
-            if isinstance(processor, IFinalizer):
-                assert isinstance(processor, IFinalizer)
-                processor.finalized(sources, current, extensions, report)
+            processor.finalized(sources, current, extensions, report)
         
         solve(current, sources)
         if checkIf(current, LIST_UNAVAILABLE):

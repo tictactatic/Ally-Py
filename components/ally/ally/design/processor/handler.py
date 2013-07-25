@@ -131,11 +131,11 @@ class HandlerRenamer(Handler):
         @param mapping: arguments[tuple(string, string)]
             The mappings that the renamer needs to make, also the context to be passed along without renaming need to
             be provided as simple names, attention the order in which the context mappings are provided is crucial, examples:
-                ('request': 'solicitation')
+                ('request', 'solicitation')
                     The wrapped processor will receive as the 'request' context the 'solicitation' context.
-                ('request': 'solicitation'), ('request': 'response')
+                ('request', 'solicitation'), ('request', 'response')
                     The wrapped processor will receive as the 'request' context the 'solicitation' and 'response' context.
-                ('solicitation': 'request'), ('response': 'request')
+                ('solicitation', 'request'), ('response', 'request')
                     The wrapped processor will receive as the 'solicitation' and 'response' context the 'request' context.
         '''
         if isinstance(target, Container):

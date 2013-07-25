@@ -65,7 +65,6 @@ class Request(Context):
     A dictionary containing the arguments to be used for the invoking.
     ''')
     # ---------------------------------------------------------------- Required
-    scheme = requires(str)
     uri = requires(str)
     converterPath = requires(Converter)
 

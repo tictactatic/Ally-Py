@@ -14,8 +14,8 @@ from ally.api.type import Call
 from ally.design.processor.attribute import requires
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
+from ally.support.util_spec import IDo
 from ally.support.util_sys import locationStack
-from collections import Callable
 
 # --------------------------------------------------------------------
 
@@ -25,10 +25,10 @@ class Register(Context):
     '''
     # ---------------------------------------------------------------- Required
     invokers = requires(list)
-    suggest = requires(Callable)
     relations = requires(dict)
     hintsCall = requires(dict)
     hintsModel = requires(dict)
+    doSuggest = requires(IDo)
     
 class Invoker(Context):
     '''
@@ -55,7 +55,7 @@ class ValidateHintsHandler(HandlerProcessor):
         Process the hints.
         '''
         assert isinstance(register, Register), 'Invalid register %s' % register
-        assert callable(register.suggest), 'Invalid suggest %s' % register.suggest
+        assert isinstance(register.doSuggest, IDo), 'Invalid do suggest %s' % register.doSuggest
         
         reported = set()
         if register.invokers:
@@ -73,7 +73,7 @@ class ValidateHintsHandler(HandlerProcessor):
                     if hname not in hintsCall: unknown.append('\'%s\'' % hname)
                 if unknown:
                     if invoker.location not in reported:
-                        register.suggest('Unknown hints %s, at:%s', ', '.join(unknown), invoker.location)
+                        register.doSuggest('Unknown hints %s, at:%s', ', '.join(unknown), invoker.location)
                         reported.add(invoker.location)
                     present = True
             
@@ -81,7 +81,7 @@ class ValidateHintsHandler(HandlerProcessor):
                 available = []
                 for hname in sorted(hintsCall):
                     available.append('\t%s: %s' % (hname, hintsCall[hname]))
-                register.suggest('The available call hints are:\n%s', '\n'.join(available))
+                register.doSuggest('The available call hints are:\n%s', '\n'.join(available))
         
         if register.relations:
             if register.hintsModel is None: hintsModel = {}
@@ -97,7 +97,7 @@ class ValidateHintsHandler(HandlerProcessor):
                 if unknown:
                     location = locationStack(model.clazz)
                     if location not in reported:
-                        register.suggest('Unknown hints %s, at:%s', ', '.join(unknown), location)
+                        register.doSuggest('Unknown hints %s, at:%s', ', '.join(unknown), location)
                         reported.add(location)
                     present = True
             
@@ -105,5 +105,5 @@ class ValidateHintsHandler(HandlerProcessor):
                 available = []
                 for hname in sorted(hintsModel):
                     available.append('\t%s: %s' % (hname, hintsModel[hname]))
-                register.suggest('The available model hints are:\n%s', '\n'.join(available))
+                register.doSuggest('The available model hints are:\n%s', '\n'.join(available))
                 

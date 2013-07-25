@@ -188,14 +188,21 @@ class InputType(VerifierOperator):
     Implementation for a @see: IVerifier that validates for a specific input type,
     the first definition input will be checked.
     '''
-        
+
     class Definition(Context):
         '''
         The definition context.
         '''
         # ---------------------------------------------------------------- Required
-        parent = requires(Context)
-        input = requires(Input)
+        decoding = requires(Context)
+    
+    class Decoding(Context):
+        '''
+        The decoding context.
+        '''
+        # ---------------------------------------------------------------- Optional
+        parent = optional(Context)
+        input = optional(Input)
     
     def __init__(self, *types, check=lambda own, found: own == found):
         '''
@@ -221,13 +228,15 @@ class InputType(VerifierOperator):
         '''
         @see: IVerifier.prepare
         '''
-        merge(resolvers, dict(Definition=InputType.Definition))
+        merge(resolvers, dict(Definition=InputType.Definition, Decoding=InputType.Decoding))
         
     def isValid(self, definition):
         '''
         @see: IVerifier.isValid
         '''
-        input = findFirst(definition, InputType.Definition.parent, InputType.Definition.input)
+        assert isinstance(definition, InputType.Definition), 'Invalid definition %s' % definition
+        if not definition.decoding: return False
+        input = findFirst(definition.decoding, InputType.Decoding.parent, InputType.Decoding.input)
         if input:
             assert isinstance(input, Input), 'Invalid input %s' % input
             for typ in self.types:
@@ -240,13 +249,13 @@ class Property(VerifierOperator):
     the first definition property will be checked.
     '''
     
-    class Definition(Context):
+    class Decoding(Context):
         '''
-        The definition context.
+        The decoding context.
         '''
-        # ---------------------------------------------------------------- Required
-        parent = requires(Context)
-        property = requires(TypeProperty)
+        # ---------------------------------------------------------------- Optional
+        parent = optional(Context)
+        property = optional(TypeProperty)
         
     def __init__(self, *properties):
         '''
@@ -267,13 +276,15 @@ class Property(VerifierOperator):
         '''
         @see: IVerifier.prepare
         '''
-        merge(resolvers, dict(Definition=Property.Definition))
+        merge(resolvers, dict(Definition=InputType.Definition, Decoding=Property.Decoding))
         
     def isValid(self, definition):
         '''
         @see: IVerifier.isValid
         '''
-        property = findFirst(definition, Property.Definition.parent, Property.Definition.property)
+        assert isinstance(definition, InputType.Definition), 'Invalid definition %s' % definition
+        if not definition.decoding: return False
+        property = findFirst(definition.decoding, Property.Decoding.parent, Property.Decoding.property)
         if property:
             if property in self.properties: return True
             for prop in self.properties:
@@ -302,19 +313,21 @@ class PropertyTypeOf(VerifierOperator):
         '''
         @see: IVerifier.prepare
         '''
-        merge(resolvers, dict(Definition=Property.Definition))
+        merge(resolvers, dict(Definition=InputType.Definition, Decoding=Property.Decoding))
         
     def isValid(self, definition):
         '''
         @see: IVerifier.isValid
         '''
-        prop = findFirst(definition, Property.Definition.parent, Property.Definition.property)
+        assert isinstance(definition, InputType.Definition), 'Invalid definition %s' % definition
+        if not definition.decoding: return False
+        prop = findFirst(definition.decoding, Property.Decoding.parent, Property.Decoding.property)
         if prop:
             assert isinstance(prop, TypeProperty), 'Invalid property type %s' % prop
             return isinstance(prop.type, self.types)
         return False
     
-class ModelId(VerifierOperator):
+class ModelId(VerifierOperator, Singletone):
     '''
     Implementation for a @see: IVerifier that validates for model id properties types,
     the first definition property will be checked.
@@ -324,23 +337,25 @@ class ModelId(VerifierOperator):
         '''
         @see: IVerifier.prepare
         '''
-        merge(resolvers, dict(Definition=Property.Definition))
+        merge(resolvers, dict(Definition=InputType.Definition, Decoding=Property.Decoding))
         
     def isValid(self, definition):
         '''
         @see: IVerifier.isValid
         '''
-        prop = findFirst(definition, Property.Definition.parent, Property.Definition.property)
+        assert isinstance(definition, InputType.Definition), 'Invalid definition %s' % definition
+        if not definition.decoding: return False
+        prop = findFirst(definition.decoding, Property.Decoding.parent, Property.Decoding.property)
         if prop:
             assert isinstance(prop, TypeProperty), 'Invalid property %s' % prop
             if isinstance(prop.parent, TypeModel):
                 assert isinstance(prop.parent, TypeModel)
-                return prop.parent.propertyId != prop
+                return prop.parent.propertyId == prop
         return False
 
 # --------------------------------------------------------------------
 
-class ReferenceNames(IValue, Singletone):
+class ReferencesNames(IValue, Singletone):
     '''
     Implementation for a @see: IValue that provides the references names.
     '''
@@ -350,37 +365,24 @@ class ReferenceNames(IValue, Singletone):
         The definition context.
         '''
         # ---------------------------------------------------------------- Optional
-        parent = optional(Context)
+        references = optional(list)
         # ---------------------------------------------------------------- Required
         name = requires(str)
-        references = requires(list)
         
     def prepare(self, resolvers):
         '''
         @see: IValue.prepare
         '''
-        merge(resolvers, dict(Definition=ReferenceNames.Definition))
+        merge(resolvers, dict(Definition=ReferencesNames.Definition))
         
     def get(self, definition):
         '''
         @see: IValue.get
         '''
-        assert isinstance(definition, ReferenceNames.Definition), 'Invalid definition %s' % definition
+        assert isinstance(definition, ReferencesNames.Definition), 'Invalid definition %s' % definition
         names = []
-        if definition.references:
+        if ReferencesNames.Definition.references in definition and definition.references:
             for defin in definition.references:
-                name = findFirst(defin, ReferenceNames.Definition.parent, ReferenceNames.Definition.name)
-                if name: names.append(name)
+                assert isinstance(defin, ReferencesNames.Definition), 'Invalid definition %s' % defin
+                if defin.name: names.append(defin.name)
         return names
-        
-    def isValid(self, definition):
-        '''
-        @see: IVerifier.isValid
-        '''
-        property = findFirst(definition, Property.Definition.parent, Property.Definition.property)
-        if property:
-            if property in self.properties: return True
-            for prop in self.properties:
-                if isCompatible(prop, property): return True
-        return False
-    

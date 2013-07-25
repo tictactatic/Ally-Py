@@ -11,14 +11,11 @@ Provides the configurations for the resources.
 
 from ..ally_core.resources import encoding, processMethod, \
     updateAssemblyAssembler, assemblyAssembler
-from .decode import assemblyDecodeParameters
 from ally.container import ioc
 from ally.core.http.impl.processor.assembler.conflict_replace import \
     ConflictReplaceHandler
 from ally.core.http.impl.processor.assembler.conflict_resolve import \
     ConflictResolveHandler
-from ally.core.http.impl.processor.assembler.decoding_parameter import \
-    DecodingParameterHandler
 from ally.core.http.impl.processor.assembler.invoker_node import \
     InvokerNodeHandler
 from ally.core.http.impl.processor.assembler.invoker_resources import \
@@ -44,12 +41,6 @@ from ally.core.http.impl.processor.scheme import AssemblerSchemeHandler
 from ally.design.processor.handler import Handler
 
 # --------------------------------------------------------------------
-
-@ioc.entity
-def decodingParameter() -> Handler:
-    b = DecodingParameterHandler()
-    b.decodeAssembly = assemblyDecodeParameters()
-    return b
 
 @ioc.entity
 def methodHTTP() -> Handler: return MethodHTTPHandler()
@@ -97,7 +88,7 @@ def assemblerScheme() -> Handler: return AssemblerSchemeHandler()
 
 @ioc.after(updateAssemblyAssembler)
 def updateAssemblyAssemblerForHTTPCore():
-    assemblyAssembler().add(decodingParameter(), methodHTTP(), pathInput(), pathUpdate(), pathTarget(),
+    assemblyAssembler().add(methodHTTP(), pathInput(), pathUpdate(), pathTarget(),
                             pathDomain(), pathWebName(), invokerResources(), invokerNode(), conflictReplace(),
                             conflictResolve(), pathSlash(), pathGetModel(), pathGetAccesible(), after=processMethod())
 

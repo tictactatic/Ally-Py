@@ -214,13 +214,7 @@ class IProcessor(metaclass=abc.ABCMeta):
         @param report: IReport
             The report to be used in the registration process.
         '''
-
-class IFinalizer(metaclass=abc.ABCMeta):
-    '''
-    The processor finalizer specification.
-    '''
-    
-    @abc.abstractmethod
+        
     def finalized(self, sources, resolvers, extensions, report):
         '''
         The processor finalized action on the resolvers.
@@ -234,7 +228,7 @@ class IFinalizer(metaclass=abc.ABCMeta):
         @param report: IReport
             The report to be used in the registration process.
         '''
-
+        
 # --------------------------------------------------------------------
 
 class ContextMetaClass(abc.ABCMeta):

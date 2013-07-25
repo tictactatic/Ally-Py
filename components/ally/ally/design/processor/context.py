@@ -147,7 +147,8 @@ class Object(metaclass=ContextMetaClass):
         Assigned to the context as the __str__ method.
         '''
         namesValues = ((name, getattr(self, name)) for name, attr in self.__attributes__.items() if attr in self)
-        attrs = ', '.join('%s=%s' % (name, 'self' if value == self else value) for name, value in namesValues)
+        attrs = ', '.join('%s=%s' % (name, 'Context' if isinstance(value, Context) else value)
+                          for name, value in namesValues)
         return '%s(%s)' % (self.__class__.__name__, attrs)
 
 # --------------------------------------------------------------------

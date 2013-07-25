@@ -12,11 +12,10 @@ Provides a processor that provides the request content as an invoking argument.
 from ally.api.model import Content
 from ally.api.type import Input, typeFor
 from ally.container.ioc import injected
-from ally.core.impl.processor.assembler.base import InvokerExcluded, \
-    RegisterExcluding, excludeFrom
 from ally.core.spec.codes import CONTENT_EXPECTED, Coded
 from ally.design.processor.attribute import requires, optional, defines
 from ally.design.processor.context import Context
+from ally.design.processor.execution import Abort
 from ally.design.processor.handler import HandlerProcessor
 from ally.support.util_context import asData
 from ally.support.util_io import IInputStream
@@ -29,6 +28,13 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
+class Register(Context):
+    '''
+    The register context.
+    '''
+    # ---------------------------------------------------------------- Required
+    invokers = requires(list)
+    
 class Invoker(Context):
     '''
     The invoker context.
@@ -63,7 +69,7 @@ class RequestContent(RequestContentData):
     # ---------------------------------------------------------------- Optional
     fetchNextContent = optional(Callable)
     
-class InvokerAssembler(InvokerExcluded):
+class InvokerAssembler(Context):
     '''
     The invoker context.
     '''
@@ -75,6 +81,7 @@ class InvokerAssembler(InvokerExcluded):
     solved = defines(set)
     # ---------------------------------------------------------------- Required
     inputs = requires(tuple)
+    location = requires(str)
     
 # --------------------------------------------------------------------
 
@@ -123,15 +130,16 @@ class AssemblerContentHandler(HandlerProcessor):
         
         self.contentType = typeFor(Content)
 
-    def process(self, chain, register:RegisterExcluding, **keyargs):
+    def process(self, chain, register:Register, **keyargs):
         '''
         @see: HandlerProcessor.process
         
         Populate the content flag if required.
         '''
-        assert isinstance(register, RegisterExcluding), 'Invalid register %s' % register
+        assert isinstance(register, Register), 'Invalid register %s' % register
         if not register.invokers: return  # No invokers to process.
         
+        aborted = []
         for invoker in register.invokers:
             assert isinstance(invoker, InvokerAssembler), 'Invalid invoker %s' % invoker
             if not invoker.inputs: continue
@@ -146,11 +154,13 @@ class AssemblerContentHandler(HandlerProcessor):
             if toMany:
                 log.error('Cannot use because there are to many \'Content\' inputs, only a maximum of one is allowed, at:%s',
                           invoker.location)
-                excludeFrom(chain, invoker)
+                aborted.append(invoker)
             elif inpContent:
                 if invoker.solved is None: invoker.solved = set()
                 invoker.solved.add(inpContent.name)
                 invoker.hasContent = True
+                
+        if aborted: raise Abort(*aborted)
 
 # --------------------------------------------------------------------
 

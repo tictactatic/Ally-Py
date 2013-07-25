@@ -12,14 +12,15 @@ Provides the text base parser processor handler.
 from ally.container.ioc import injected
 from ally.core.impl.processor.base import ErrorResponse, addError
 from ally.core.spec.codes import CONTENT_BAD, CONTENT_MISSING
-from ally.core.spec.resources import Converter
-from ally.core.spec.transform.encdec import IDecoder
-from ally.design.processor.attribute import requires, defines
+from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain
 from ally.design.processor.handler import HandlerProcessor
+from ally.support.util_context import findFirst
 from ally.support.util_io import IInputStream, IClosable
+from ally.support.util_spec import IDo
 import abc
+import itertools
 import logging
 
 # --------------------------------------------------------------------
@@ -33,8 +34,26 @@ class Invoker(Context):
     The invoker context.
     '''
     # ---------------------------------------------------------------- Required
-    decoder = requires(IDecoder)
+    definitions = requires(list)
     
+class Decoding(Context):
+    '''
+    The decoding context.
+    '''
+    # ---------------------------------------------------------------- Optional
+    parent = optional(Context)
+    # ---------------------------------------------------------------- Required
+    contentDefinitions = requires(dict)
+    doDecode = requires(IDo)
+
+class Definition(Context):
+    '''
+    The definition context.
+    '''
+    # ---------------------------------------------------------------- Required
+    name = requires(str)
+    category = requires(str)
+      
 class Request(Context):
     '''
     The request context.
@@ -42,7 +61,6 @@ class Request(Context):
     # ---------------------------------------------------------------- Required
     invoker = requires(Context)
     arguments = requires(dict)
-    converterContent = requires(Converter)
     
 class RequestContent(Context):
     '''
@@ -53,22 +71,16 @@ class RequestContent(Context):
     charSet = requires(str)
     source = requires(IInputStream)
 
-class SupportDecoding(Context):
+class Support(Context):
     '''
     The decoder support context.
     '''
     # ---------------------------------------------------------------- Defined
-    category = defines(object, doc='''
-    @rtype: object
-    The category of the ongoing decoding.
+    doFailure = defines(IDo, doc='''
+    @rtype: callable(Context, object)
+    The call to use in reporting content decoding failures.
     ''')
-    converter = defines(Converter, doc='''
-    @rtype: Converter
-    The converter to be used for decoding.
-    ''')
-    # ---------------------------------------------------------------- Required
-    failures = requires(list)
-
+    
 # --------------------------------------------------------------------
 
 @injected
@@ -79,16 +91,16 @@ class ParseBaseHandler(HandlerProcessor):
 
     contentTypes = set
     # The set(string) containing as the content types specific for this parser.
-    separator = str
-    # The separator to be used for path.
+    category = str
+    # The definition category to use for reporting.
 
-    def __init__(self):
+    def __init__(self, decoding=Decoding):
         assert isinstance(self.contentTypes, set), 'Invalid content types %s' % self.contentTypes
-        assert isinstance(self.separator, str), 'Invalid separator %s' % self.separator
-        super().__init__(Invoker=Invoker)
+        assert isinstance(self.category, str), 'Invalid category %s' % self.category
+        super().__init__(decoding=decoding, Definition=Definition, Invoker=Invoker)
 
     def process(self, chain, request:Request, requestCnt:RequestContent, response:ErrorResponse,
-                Support:SupportDecoding, **keyargs):
+                decoding:Context, support:Support, **keyargs):
         '''
         @see: HandlerProcessor.process
         
@@ -97,47 +109,111 @@ class ParseBaseHandler(HandlerProcessor):
         assert isinstance(chain, Chain), 'Invalid processors chain %s' % chain
         assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(requestCnt, RequestContent), 'Invalid request content %s' % requestCnt
+        assert isinstance(support, Support), 'Invalid support %s' % support
+        assert isinstance(request.invoker, Invoker), 'Invalid invoker %s' % request.invoker
         
         # Check if the response is for this parser
-        if requestCnt.type in self.contentTypes:
-            if requestCnt.source is None: CONTENT_MISSING.set(response)
-            else:
-                assert isinstance(request.invoker, Invoker), 'Invalid request invoker %s' % request.invoker
-                decoder = request.invoker.decoder
-                assert isinstance(decoder, IDecoder), 'Invalid decoder %s' % decoder
-                assert isinstance(requestCnt.source, IInputStream), 'Invalid request content stream %s' % requestCnt.source
-                assert isinstance(requestCnt.charSet, str), 'Invalid request content character set %s' % requestCnt.charSet
-    
-                support = Support(category=CATEGORY_CONTENT, converter=request.converterContent)
-                assert isinstance(support, SupportDecoding), 'Invalid support %s' % support
-    
-                if request.arguments is None: request.arguments = {}
-                errors = self.parse(lambda path, obj: decoder.decode(path, obj, request.arguments, support),
-                                    requestCnt.source, requestCnt.charSet)
-                if errors is not None or support.failures:
-                    CONTENT_BAD.set(response)
-                    if errors is not None: addError(response, errors)
-                    if support.failures: addError(response, support.failures)
-                    
-                if isinstance(requestCnt.source, IClosable): requestCnt.source.close()
-            chain.cancel()  # We need to stop the chain if we have been able to provide the parsing
-        else:
+        if requestCnt.type not in self.contentTypes:
             assert log.debug('The content type \'%s\' is not for this %s parser', requestCnt.type, self) or True
+            return
+        
+        chain.cancel()  # We need to stop the chain if we have been able to provide the parsing
+        if requestCnt.source is None:
+            CONTENT_MISSING.set(response)
+            return
+
+        assert isinstance(requestCnt.source, IInputStream), 'Invalid request content stream %s' % requestCnt.source
+        assert isinstance(requestCnt.charSet, str), 'Invalid request content character set %s' % requestCnt.charSet
+        
+        definitions, values, messages = None, None, None
+        
+        def indexDefinition(decoding):
+            assert isinstance(decoding, Decoding), 'Invalid decoding %s' % decoding
+            
+            defin = findFirst(decoding, Decoding.parent, lambda decoding: decoding.contentDefinitions.get(self.category)
+                              if decoding.contentDefinitions else None)
+            if defin:
+                assert isinstance(defin, Definition), 'Invalid definition %s for %s' % (defin, decoding)
+                assert isinstance(defin.name, str), 'Invalid definition name %s' % defin.name
+                
+                nonlocal definitions
+                if definitions is None: definitions = {}
+                byName = definitions.get(defin.name)
+                if byName is None: byName = definitions[defin.name] = []
+                byName.append(defin)
+                return defin.name
+        
+        def doFailure(decoding, value):
+            assert value is not None, 'None value is not allowed'
+            name = indexDefinition(decoding)
+            nonlocal values
+            if values is None: values = {}
+            byName = values.get(name)
+            if byName is None: byName = values[name] = []
+            byName.append(value)
+            
+        support.doFailure = doFailure
+        
+        def doDecode(decoding, value):
+            assert isinstance(decoding, Decoding), 'Invalid decoding %s' % decoding
+            assert isinstance(decoding.doDecode, IDo), 'Invalid decode %s' % decoding.doDecode
+            assert isinstance(request, Request)
+            if request.arguments is None: request.arguments = {}
+            decoding.doDecode(value, request.arguments, support)
+            
+        def doReport(decoding, message):
+            assert isinstance(message, str), 'Invalid message %s' % message
+            name = indexDefinition(decoding)
+            nonlocal messages
+            if messages is None: messages = {}
+            byName = messages.get(name)
+            if byName is None: byName = messages[name] = []
+            byName.append(message)
+        
+        self.parse(requestCnt.source, requestCnt.charSet, decoding, doDecode, doReport)
+        
+        if definitions or values or messages:
+            CONTENT_BAD.set(response)
+            
+            for name in itertools.chain(sorted(definitions) if definitions else (), (None,)):
+                report = []
+                if messages and name in messages: report.extend(messages[name])
+                
+                valuesOfName = values.get(name) if values else None
+                if valuesOfName:
+                    if name: report.append('Invalid values \'%(values)s\' for \'%(name)s\'')
+                    else: report.append('Invalid values \'%(values)s\'')
+                    
+                if name: report.extend(definitions[name])
+                
+                addError(response, report, name=name, values=valuesOfName)
+                
+            if values and None in values or messages and None in messages:
+                categoryDefinitions = []
+                for defin in request.invoker.definitions:
+                    assert isinstance(defin, Definition), 'Invalid definition %s' % defin
+                    if defin.category == self.category: categoryDefinitions.append(defin)
+                if categoryDefinitions: addError(response, 'The available content', categoryDefinitions)
+            
+        if isinstance(requestCnt.source, IClosable): requestCnt.source.close()
 
     # ----------------------------------------------------------------
 
     @abc.abstractclassmethod
-    def parse(self, decoder, source, charSet):
+    def parse(self, source, charSet, definition, doDecode, doReport):
         '''
         Parse the input stream using the decoder.
         
-        @param decoder: callable(path, content) -> list[string]|None
-            The decoder to be used by the parsing.
         @param source: IInputStream
             The byte input stream containing the content to be parsed.
         @param charSet: string
             The character set for the input source stream.
-        @return: Iterable[string]|None
-            If a problem occurred while parsing and decoding it will return a detailed error messages, if the parsing is
-            successful a None value will be returned.
+        @param definition: Definition
+            The definition to be used by the parsing.
+        @param doDecode: callable(decoding, object)
+            The decode to be used by the parsing, the first argument is the decoding to decode
+            and the second one is the value to be decoded.
+        @param doReport: callable(decoding, string)
+            The report decoding to be used by the parsing, the first argument is the decoding target
+            and the second one is the error message.
         '''

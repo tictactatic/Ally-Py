@@ -9,16 +9,14 @@ Created on Jul 27, 2012
 Provides the invoker encoder.
 '''
 
-from ..encoder.base import RequestEncoder
-from .base import InvokerExcluded, RegisterExcluding, excludeFrom
 from ally.api.type import Type
 from ally.container.ioc import injected
-from ally.core.spec.transform.encdec import IEncoder
+from ally.core.spec.transform import ITransfrom
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context
-from ally.design.processor.execution import Processing
+from ally.design.processor.execution import Processing, Abort
 from ally.design.processor.handler import HandlerBranching
 from ally.support.api.util_service import isModelId
 import logging
@@ -29,13 +27,20 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
-class Invoker(InvokerExcluded):
+class Register(Context):
+    '''
+    The register context.
+    '''
+    # ---------------------------------------------------------------- Required
+    invokers = requires(list)
+    
+class Invoker(Context):
     '''
     The invoker context.
     '''
     # ---------------------------------------------------------------- Defined
-    encoder = defines(IEncoder, doc='''
-    @rtype: IEncoder
+    encoder = defines(ITransfrom, doc='''
+    @rtype: ITransfrom
     The encoder to be used for rendering the response object.
     ''')
     hideProperties = defines(bool, doc='''
@@ -47,13 +52,19 @@ class Invoker(InvokerExcluded):
     output = requires(Type)
     isCollection = requires(bool)
     invokerGet = requires(Context)
+    location = requires(str)
 
-class Create(RequestEncoder):
+class Create(Context):
     '''
     The create encoder context.
     '''
+    # ---------------------------------------------------------------- Defined
+    objType = defines(Type, doc='''
+    @rtype: Type
+    The type that is the target of the encoder create.
+    ''')
     # ---------------------------------------------------------------- Required
-    isCorrupted = requires(bool)
+    encoder = requires(ITransfrom)
     
 # --------------------------------------------------------------------
 
@@ -72,16 +83,17 @@ class EncodingHandler(HandlerBranching):
                          included(('invoker', 'Invoker'), ('node', 'Node'), ('Support', 'SupportEncodeContent')),
                          Invoker=Invoker)
 
-    def process(self, chain, processing, register:RegisterExcluding, **keyargs):
+    def process(self, chain, processing, register:Register, **keyargs):
         '''
         @see: HandlerBranching.process
         
         Populate the encoder.
         '''
         assert isinstance(processing, Processing), 'Invalid processing %s' % processing
-        assert isinstance(register, RegisterExcluding), 'Invalid register %s' % register
+        assert isinstance(register, Register), 'Invalid register %s' % register
         if not register.invokers: return
         
+        aborted = []
         for invoker in register.invokers:
             assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
             
@@ -92,10 +104,13 @@ class EncodingHandler(HandlerBranching):
                     invoker.hideProperties = True
                 elif isModelId(invoker.output): invoker.hideProperties = True
             
-            arg = processing.executeWithAll(create=processing.ctx.create(objType=invoker.output),
-                                            node=invoker.node, invoker=invoker, **keyargs)
-            assert isinstance(arg.create, Create), 'Invalid create %s' % arg.create
-            if arg.create.isCorrupted:
+            try: arg = processing.executeWithAll(create=processing.ctx.create(objType=invoker.output),
+                                                 node=invoker.node, invoker=invoker, **keyargs)
+            except Abort:
                 log.error('Cannot use because cannot create encoder for %s, at:%s', invoker.output, invoker.location)
-                excludeFrom(chain, invoker)
-            elif arg.create.encoder is not None: invoker.encoder = arg.create.encoder
+                aborted.append(invoker)
+            else:
+                assert isinstance(arg.create, Create), 'Invalid create %s' % arg.create
+                if arg.create.encoder is not None: invoker.encoder = arg.create.encoder
+                
+        if aborted: raise Abort(*aborted)

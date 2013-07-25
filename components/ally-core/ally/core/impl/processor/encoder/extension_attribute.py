@@ -13,7 +13,7 @@ from .base import RequestEncoderNamed
 from ally.api.operator.type import TypeExtension, TypeProperty
 from ally.api.type import typeFor, Iter
 from ally.container.ioc import injected
-from ally.core.spec.transform.encdec import IEncoder, ISpecifier, IRender
+from ally.core.spec.transform import ITransfrom, ISpecifier, IRender
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import defines, optional
 from ally.design.processor.branch import Branch
@@ -38,8 +38,8 @@ class Create(Context):
     The attributes specifications provider from the extension.
     ''')
     # ---------------------------------------------------------------- Optional
-    encoder = optional(IEncoder)
-    
+    encoder = optional(ITransfrom)
+
 # --------------------------------------------------------------------
 
 @injected
@@ -111,10 +111,10 @@ class AttributesExtension(ISpecifier):
         if attributes is None: attributes = specifications['attributes'] = {}
         render = RenderAttributes(attributes)
         for name, encoder in properties:
-            assert isinstance(encoder, IEncoder), 'Invalid property encoder %s' % encoder
+            assert isinstance(encoder, ITransfrom), 'Invalid property encoder %s' % encoder
             objValue = getattr(obj, name)
             if objValue is None: continue
-            encoder.encode(objValue, render, support)
+            encoder.transform(objValue, render, support)
 
 class RenderAttributes(IRender):
     '''

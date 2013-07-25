@@ -10,19 +10,19 @@ Provides the model encoder.
 '''
 
 from .base import RequestEncoderNamed, RequestEncoder, DefineEncoder, \
-    encoderSpecifiers, encoderName, encoderCourrupt
+    encoderSpecifiers, encoderName
 from ally.api.operator.type import TypeModel, TypeProperty
 from ally.api.type import Iter, Boolean, Integer, Number, String, Time, Date, \
     DateTime, typeFor
 from ally.container.ioc import injected
-from ally.core.impl.encdec import EncoderWithSpecifiers
-from ally.core.spec.transform.encdec import IEncoder, IRender
-from ally.core.spec.transform.index import NAME_BLOCK
+from ally.core.impl.index import NAME_BLOCK
+from ally.core.impl.transform import TransfromWithSpecifiers
+from ally.core.spec.transform import ITransfrom, IRender
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires
 from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context
-from ally.design.processor.execution import Processing
+from ally.design.processor.execution import Processing, Abort
 from ally.design.processor.handler import HandlerBranching
 import logging
 
@@ -90,7 +90,7 @@ class ModelEncode(HandlerBranching):
                 assert isinstance(arg.create, RequestEncoderNamed), 'Invalid create property %s' % arg.create
                 if arg.create.encoder is None:
                     log.error('Cannot encode %s', prop)
-                    return encoderCourrupt(chain)
+                    raise Abort(create)
                 properties.append((prop.name, arg.create.encoder))
         
             if modelExtraProcessing:
@@ -128,9 +128,9 @@ class ModelEncode(HandlerBranching):
        
 # --------------------------------------------------------------------
 
-class EncoderModel(EncoderWithSpecifiers):
+class EncoderModel(TransfromWithSpecifiers):
     '''
-    Implementation for a @see: IEncoder for model.
+    Implementation for a @see: ITransfrom for model.
     '''
     
     def __init__(self, name, properties, extra=None, specifiers=None):
@@ -139,29 +139,29 @@ class EncoderModel(EncoderWithSpecifiers):
         '''
         assert isinstance(name, str), 'Invalid model name %s' % name
         assert isinstance(properties, list), 'Invalid properties %s' % properties
-        assert extra is None or isinstance(extra, IEncoder), 'Invalid extra encoder %s' % extra
+        assert extra is None or isinstance(extra, ITransfrom), 'Invalid extra encoder %s' % extra
         super().__init__(specifiers)
         
         self.name = name
         self.properties = properties
         self.extra = extra
         
-    def encode(self, obj, target, support):
+    def transform(self, value, target, support):
         '''
-        @see: IEncoder.encode
+        @see: ITransfrom.transform
         '''
         assert isinstance(target, IRender), 'Invalid target %s' % target
         
         if not self.properties:
-            target.beginObject(self.name, **self.populate(obj, support, indexBlock=NAME_BLOCK))
+            target.beginObject(self.name, **self.populate(value, support, indexBlock=NAME_BLOCK))
         else:
-            target.beginObject(self.name, **self.populate(obj, support))
+            target.beginObject(self.name, **self.populate(value, support))
             for name, encoder in self.properties:
-                assert isinstance(encoder, IEncoder), 'Invalid property encoder %s' % encoder
-                objValue = getattr(obj, name)
-                if objValue is None: continue
-                encoder.encode(objValue, target, support)
+                assert isinstance(encoder, ITransfrom), 'Invalid property encoder %s' % encoder
+                val = getattr(value, name)
+                if val is None: continue
+                encoder.transform(val, target, support)
                 
-            if self.extra: self.extra.encode(obj, target, support)
+            if self.extra: self.extra.transform(value, target, support)
                 
         target.end()

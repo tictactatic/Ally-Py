@@ -9,16 +9,17 @@ Created on Nov 24, 2011
 Provides the configurations for the resources.
 '''
 
+from .decode import assemblyDecode
 from .definition import definitions
 from .encode import assemblyEncode
 from ally.container import ioc
+from ally.core.impl.processor.assembler.decoding import DecodingHandler
 from ally.core.impl.processor.assembler.definition import DefinitionHandler
 from ally.core.impl.processor.assembler.encoding import EncodingHandler
 from ally.core.impl.processor.assembler.injector_assembly import \
     InjectorAssemblyHandler
 from ally.core.impl.processor.assembler.invoker_service import \
     InvokerServiceHandler
-from ally.core.impl.processor.assembler.option_slice import OptionSliceHandler
 from ally.core.impl.processor.assembler.process_method import \
     ProcessMethodHandler
 from ally.core.impl.processor.assembler.validate_hints import \
@@ -33,26 +34,6 @@ import logging
 # --------------------------------------------------------------------
 
 log = logging.getLogger(__name__)
-
-# --------------------------------------------------------------------
-
-@ioc.config
-def slice_limit_maximum() -> int:
-    ''' The maximum imposed slice limit on a collection, if none then no maximum limit will be imposed'''
-    return 100
-
-@ioc.config
-def slice_limit_default() -> int:
-    '''
-    The default slice limit on a collection if none is specified, if none then the 'slice_limit_maximum' limit
-    will be used as the default one.
-    '''
-    return 30
-
-@ioc.config
-def slice_with_total() -> bool:
-    ''' The default value for providing the total count'''
-    return True
 
 # --------------------------------------------------------------------
 
@@ -74,11 +55,9 @@ def invokerService() -> Handler: return InvokerServiceHandler()
 def processMethod() -> Handler: return ProcessMethodHandler()
 
 @ioc.entity
-def optionSlice() -> Handler:
-    b = OptionSliceHandler()
-    b.maximumLimit = slice_limit_maximum()
-    b.defaultLimit = slice_limit_default()
-    b.defaultWithTotal = slice_with_total()
+def decoding() -> Handler:
+    b = DecodingHandler()
+    b.decodeAssembly = assemblyDecode()
     return b
 
 @ioc.entity
@@ -115,7 +94,7 @@ def assemblyAssembler() -> Assembly:
 
 @ioc.before(assemblyAssembler)
 def updateAssemblyAssembler():
-    assemblyAssembler().add(invokerService(), processMethod(), encoding(), optionSlice(), assemblerContent(),
+    assemblyAssembler().add(invokerService(), processMethod(), decoding(), encoding(), assemblerContent(),
                             validateSolved(), validateHints(), definition())
 
 # --------------------------------------------------------------------

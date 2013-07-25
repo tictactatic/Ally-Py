@@ -11,16 +11,17 @@ Provides the assembly contexts management and injection.
 
 from ally.container.ioc import injected
 from ally.design.processor.assembly import Assembly, log
-from ally.design.processor.attribute import defines
+from ally.design.processor.attribute import defines, requires
 from ally.design.processor.context import Context, create
-from ally.design.processor.execution import Processing, Chain, CONSUMED
+from ally.design.processor.execution import Processing, Chain, Abort
 from ally.design.processor.handler import Handler
 from ally.design.processor.report import ReportUnused
 from ally.design.processor.resolvers import resolversFor, solve, checkIf, \
     reportFor, merge
 from ally.design.processor.spec import IProcessor, LIST_UNAVAILABLE, \
-    AssemblyError, IResolver, LIST_UNUSED, LIST_CLASSES, IFinalizer
-from collections import Iterable, Callable
+    AssemblyError, IResolver, LIST_UNUSED, LIST_CLASSES
+from ally.support.util_spec import IDo
+from collections import Iterable
 
 # --------------------------------------------------------------------
 
@@ -29,10 +30,6 @@ class Register(Context):
     The register context.
     '''
     # ---------------------------------------------------------------- Defined
-    suggest = defines(Callable, doc='''
-    @rtype: callable(*args)
-    The suggest logger to be used for registration.
-    ''')
     services = defines(Iterable, doc='''
     @rtype: Iterable(class)
     The classes that implement service APIs.
@@ -42,11 +39,22 @@ class Register(Context):
     The invoker identifiers that dictate the invokers to be excluded from the process. This is set gets updated whenever
     there is a problem invoker and in the case the chain is no fully consumed another try is made with this exclusion set.
     ''')
+    doSuggest = defines(IDo, doc='''
+    @rtype: callable(*args)
+    The suggest logger to be used for registration.
+    ''')
+   
+class Invoker(Context):
+    '''
+    The invoker context.
+    '''
+    # ---------------------------------------------------------------- Required
+    id = requires(str)
 
 # --------------------------------------------------------------------
 
 @injected
-class InjectorAssemblyHandler(Handler, IProcessor, IFinalizer):
+class InjectorAssemblyHandler(Handler, IProcessor):
     '''
     Implementation for a processor that manages the assemblers assembly contexts.
     '''
@@ -66,14 +74,12 @@ class InjectorAssemblyHandler(Handler, IProcessor, IFinalizer):
         self.calls = []
         self.report = ReportUnused()
         
-        sources = resolversFor(dict(register=Register))
+        sources = resolversFor(dict(register=Register, Invoker=Invoker))
         for processor in self.assembly.processors:
             assert isinstance(processor, IProcessor), 'Invalid processor %s' % processor
             processor.register(sources, self.resolvers, self.extensions, self.calls, self.report)
         for processor in self.processors:
-            if isinstance(processor, IFinalizer):
-                assert isinstance(processor, IFinalizer)
-                processor.finalized(sources, self.resolvers, self.extensions, self.report)
+            processor.finalized(sources, self.resolvers, self.extensions, self.report)
         
         solve(self.resolvers, sources)
         
@@ -99,7 +105,7 @@ class InjectorAssemblyHandler(Handler, IProcessor, IFinalizer):
         
     def finalized(self, sources, resolvers, extensions, report):
         '''
-        @see: IFinalizer.register
+        @see: IProcessor.register
         '''
         assert not self.done, 'Cannot register anymore the service registering has been performed already'
         assert isinstance(sources, dict), 'Invalid sources %s' % sources
@@ -145,10 +151,26 @@ class InjectorAssemblyHandler(Handler, IProcessor, IFinalizer):
         exclude = set()
         while True:
             suggestions = []
-            chain = Chain(self.processing, True, register=self.processing.ctx.register(services=iter(services),
-                                                exclude=exclude, suggest=lambda *args: suggestions.append(args)))
-            if chain.execute(CONSUMED): break
-        self.assembled = chain.arg
+            register = self.processing.ctx.register(services=iter(services),
+                                                  exclude=exclude, doSuggest=lambda *args: suggestions.append(args))
+            try:
+                self.assembled = self.processing.executeWithAll(register=register)
+                break
+            except Abort as e:
+                assert isinstance(e, Abort)
+                found = set()
+                for reason in e.reasons:
+                    if isinstance(reason, Invoker):
+                        assert isinstance(reason, Invoker)
+                        assert isinstance(reason.id, str), 'Invalid invoker id %s' % reason.id
+                        if reason.id in exclude:
+                            log.error('Already excluded %s', reason)
+                            return
+                        found.add(reason.id)
+                if not found:
+                    log.error('Could not locate any invoker reason in %s', e.reasons)
+                    return
+                exclude.update(found)
         
         if suggestions:
             log.warn('Available suggestions:\n%s', '\n'.join(suggest[0] % suggest[1:] for suggest in suggestions))

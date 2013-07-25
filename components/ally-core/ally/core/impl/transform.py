@@ -6,24 +6,24 @@ Created on Jul 14, 2013
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
 
-Provides basic implementations for encoder decoder specifications. 
+Provides basic implementations for transform specifications. 
 '''
 
-from ally.core.spec.transform.encdec import IEncoder, ISpecifier
+from ally.core.spec.transform import ITransfrom, ISpecifier
    
 # --------------------------------------------------------------------
 
-class EncoderWithSpecifiers(IEncoder):
+class TransfromWithSpecifiers(ITransfrom):
     '''
-    Support implementation for a @see: IEncoder that also contains @see: ISpecifier.
+    Support implementation for a @see: ITransfrom that also contains @see: ISpecifier.
     '''
     
     def __init__(self, specifiers=None):
         '''
-        Construct the encoder with modifiers.
+        Construct the transform with modifiers.
         
         @param specifiers: list[ISpecifier]|tuple(ISpecifier)|None
-            The specifiers of the encoder.
+            The specifiers of the transform.
         '''
         if __debug__:
             if specifiers:
@@ -32,21 +32,21 @@ class EncoderWithSpecifiers(IEncoder):
                 
         self.specifiers = specifiers
         
-    def populate(self, obj, support, **specifications):
+    def populate(self, value, support, **specifications):
         '''
         Populates based on the contained specifiers the provided specifications.
         
-        @param obj: object
+        @param value: object
             The value object to process based on.
         @param support: object
             Support context object containing additional data required for processing.
         @param specifications: key arguments
-            The rendering specifications to process.
+            The specifications arguments to process.
         @return: dictionary{string: object}
-            The rendering specifications.
+            The specifications.
         '''
         if self.specifiers:
             for specifier in self.specifiers:
                 assert isinstance(specifier, ISpecifier), 'Invalid specifier %s' % specifier
-                specifier.populate(obj, specifications, support)
+                specifier.populate(value, specifications, support)
         return specifications

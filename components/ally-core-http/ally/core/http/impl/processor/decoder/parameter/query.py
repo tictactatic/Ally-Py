@@ -11,13 +11,21 @@ Provides the queries types decoding.
 
 from ally.api.operator.type import TypeQuery, TypeProperty, TypeCriteria, \
     TypeModel
+from ally.api.type import Type
 from ally.container.ioc import injected
-from ally.core.impl.processor.decoder.base import RequestDecoding, DefineCreate
-from ally.core.spec.transform.encdec import IDevise
+from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines
+from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessor
+from ally.design.processor.execution import Processing, CONSUMED, Abort
+from ally.design.processor.handler import HandlerBranching
 from ally.support.util import firstOf
+from ally.support.util_spec import IDo
+import logging
+
+# --------------------------------------------------------------------
+
+log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
@@ -28,9 +36,9 @@ class Invoker(Context):
     # ---------------------------------------------------------------- Required
     target = requires(TypeModel)
 
-class DecodingQuery(RequestDecoding):
+class Decoding(Context):
     '''
-    The query decoding context.
+    The decoding context.
     '''
     # ---------------------------------------------------------------- Defined
     parent = defines(Context, doc='''
@@ -41,130 +49,171 @@ class DecodingQuery(RequestDecoding):
     @rtype: TypeProperty
     The property that represents the decoding.
     ''')
-    references = defines(list, doc='''
-    @rtype: list[Context]
-    The decoding references that directly linked with this decoding.
+    parameterDefinition = defines(Context, doc='''
+    @rtype: Context
+    The definition context for the parameter decoding.
     ''')
     # ---------------------------------------------------------------- Required
+    type = requires(Type)
+    doSet = requires(IDo)
+    doGet = requires(IDo)
+
+class Parameter(Context):
+    '''
+    The parameter context.
+    '''
+    # ---------------------------------------------------------------- Defined
     path = requires(list)
+    
+class DefinitionQuery(Context):
+    '''
+    The definition context.
+    '''
+    # ---------------------------------------------------------------- Defined
+    references = defines(list, doc='''
+    @rtype: list[Context]
+    The definition references that directly linked with this definition.
+    ''')
 
 # --------------------------------------------------------------------
 
 @injected
-class QueryDecode(HandlerProcessor):
+class QueryDecode(HandlerBranching):
     '''
     Implementation for a handler that provides the query values decoding.
     '''
     
+    decodeQueryAssembly = Assembly
+    # The decode processors to be used for decoding.
+    
     def __init__(self):
-        super().__init__()
+        assert isinstance(self.decodeQueryAssembly, Assembly), \
+        'Invalid order decode assembly %s' % self.decodeQueryAssembly
+        super().__init__(Branch(self.decodeQueryAssembly).included())
         
-    def process(self, chain, create:DefineCreate, invoker:Invoker, Decoding:DecodingQuery, **keyargs):
+    def process(self, chain, processing, decoding:Decoding, parameter:Parameter, invoker:Invoker,
+                Definition:DefinitionQuery, **keyargs):
         '''
-        @see: HandlerProcessor.process
+        @see: HandlerBranching.process
         
         Create the query decodings.
         '''
-        assert isinstance(create, DefineCreate), 'Invalid create %s' % create
+        assert isinstance(processing, Processing), 'Invalid processing %s' % processing
+        assert isinstance(decoding, Decoding), 'Invalid decoding %s' % decoding
+        assert isinstance(parameter, Parameter), 'Invalid parameter %s' % parameter
         assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
-        assert issubclass(Decoding, DecodingQuery), 'Invalid decoding class %s' % Decoding
-        
-        if not create.decodings: return 
-        # There is not decodings to process.
-        
-        k, decodings = 0, []
-        while k < len(create.decodings):
-            decoding = create.decodings[k]
-            k += 1
-            
-            assert isinstance(decoding, DecodingQuery), 'Invalid decoding %s' % decoding
-            
-            if not isinstance(decoding.type, TypeQuery): continue
-            # If the type is not query just move along.
-            assert isinstance(decoding.type, TypeQuery)
-            
-            k -= 1
-            del create.decodings[k]
-            
-            qpath = list(decoding.path)
-            # If the query is for the target model then we will use simple names.
-            if invoker.target == decoding.type.target and qpath: qpath.pop()
-        
-            for cname, cprop in decoding.type.properties.items():
-                assert isinstance(cprop, TypeProperty), 'Invalid property %s' % cprop
-                assert isinstance(cprop.type, TypeCriteria), 'Invalid criteria %s' % cprop.type
-                
-                cpath = list(qpath)
-                cpath.append(cname)
-                
-                decodingByProp = {}
-                for name, prop in cprop.type.properties.items():
-                    assert isinstance(prop, TypeProperty), 'Invalid property %s' % prop
-                    cdecoding = Decoding()
-                    decodings.append(cdecoding)
-                    decodingByProp[prop] = cdecoding
-                    assert isinstance(cdecoding, DecodingQuery), 'Invalid decoding %s' % cdecoding
-                    
-                    cdecoding.parent = decoding
-                    cdecoding.path = list(cpath)
-                    cdecoding.path.append(name)
-                    cdecoding.devise = DeviseCriteria(decoding.devise, cprop, prop)
-                    cdecoding.property = prop
-                    cdecoding.type = prop.type
-                
-                if cprop.type.main:
-                    mdecoding = Decoding()
-                    decodings.append(mdecoding)
-                    assert isinstance(mdecoding, DecodingQuery), 'Invalid decoding %s' % mdecoding
-                    
-                    mdecoding.parent = decoding
-                    mdecoding.path = cpath
-                    mdecoding.devise = DeviseCriteria(decoding.devise, cprop, *cprop.type.main.values())
-                    mdecoding.property = cprop
-                    mdecoding.type = firstOf(cprop.type.main.values()).type
-                    mdecoding.references = [decodingByProp[prop] for prop in cprop.type.main.values()]
-                    
-        create.decodings.extend(decodings)
-
-# --------------------------------------------------------------------
-
-class DeviseCriteria(IDevise):
-    '''
-    Implementation for @see: IDevise for handling criteria properties.
-    '''
+        assert issubclass(Definition, DefinitionQuery), 'Invalid definition class %s' % Definition
     
-    def __init__(self, devise, criteria, *properties):
+        if not isinstance(decoding.type, TypeQuery): return
+        # If the type is not query just move along.
+        assert isinstance(decoding.type, TypeQuery)
+        
+        # If the query is for the target model then we will use simple names.
+        if invoker.target == decoding.type.target: qpath = ()
+        else: qpath = parameter.path
+    
+        keyargs.update(invoker=invoker, Definition=Definition)
+        for cname, cprop in decoding.type.properties.items():
+            assert isinstance(cprop, TypeProperty), 'Invalid property %s' % cprop
+            assert isinstance(cprop.type, TypeCriteria), 'Invalid criteria %s' % cprop.type
+            
+            cpath = list(qpath)
+            cpath.append(cname)
+            
+            definitions = {}
+            for name, prop in cprop.type.properties.items():
+                assert isinstance(prop, TypeProperty), 'Invalid property %s' % prop
+                cdecoding = decoding.__class__()
+                assert isinstance(cdecoding, Decoding), 'Invalid decoding %s' % cdecoding
+                
+                cdecoding.parent = decoding
+                cdecoding.doSet = self.createSet(decoding.doGet, decoding.doSet, cprop, prop)
+                cdecoding.doGet = self.createGet(decoding.doGet, cprop, prop)
+                cdecoding.property = prop
+                cdecoding.type = prop.type
+                
+                cparameter = parameter.__class__()
+                assert isinstance(cparameter, Parameter), 'Invalid parameter %s' % cparameter
+                cparameter.path = list(cpath)
+                cparameter.path.append(name)
+                
+                consumed, arg = processing.execute(CONSUMED, decoding=cdecoding, parameter=cparameter, **keyargs)
+                if not consumed: continue
+                assert isinstance(arg.decoding, Decoding), 'Invalid decoding %s' % arg.decoding
+                if not arg.decoding.doDecode:
+                    log.error('Cannot decode criteria property %s for query of %s', prop, decoding.type)
+                    raise Abort(decoding)
+                if arg.decoding.parameterDefinition: definitions[name] = arg.decoding.parameterDefinition
+            
+            if cprop.type.main:
+                mdecoding = decoding.__class__()
+                assert isinstance(mdecoding, Decoding), 'Invalid decoding %s' % mdecoding
+                
+                prop = firstOf(cprop.type.main.values())
+                references = [defin for defin in map(definitions.get, cprop.type.main) if defin]
+                
+                mdecoding.parent = decoding
+                mdecoding.doSet = self.createSet(decoding.doGet, decoding.doSet, cprop, *cprop.type.main.values())
+                mdecoding.doGet = self.createGet(decoding.doGet, cprop, prop)
+                mdecoding.property = cprop
+                mdecoding.type = prop.type
+                mdecoding.parameterDefinition = Definition(references=references)
+
+                mparameter = parameter.__class__()
+                assert isinstance(mparameter, Parameter), 'Invalid parameter %s' % mparameter
+                mparameter.path = cpath
+                
+                consumed, arg = processing.execute(CONSUMED, decoding=mdecoding, parameter=mparameter, **keyargs)
+                if not consumed: continue
+                assert isinstance(arg.decoding, Decoding), 'Invalid decoding %s' % arg.decoding
+                if not arg.decoding.doDecode:
+                    log.error('Cannot decode main criteria properties %s for query of %s',
+                              ', '.join(map(str, cprop.type.main.values())), decoding.type)
+                    raise Abort(decoding)
+                    
+    # ----------------------------------------------------------------
+    
+    def createGet(self, getter, criteria, prop):
         '''
-        Construct the devise criteria.
+        Create the do get for criteria.
         '''
-        assert isinstance(devise, IDevise), 'Invalid devise %s' % devise
+        assert isinstance(getter, IDo), 'Invalid getter %s' % getter
+        assert isinstance(criteria, TypeProperty), 'Invalid criteria property %s' % criteria
+        assert isinstance(prop, TypeProperty), 'Invalid property %s' % prop
+        def doGet(arguments):
+            '''
+            Do get the criteria property value.
+            '''
+            assert isinstance(criteria, TypeProperty)
+            assert isinstance(prop, TypeProperty)
+            query = getter(arguments)
+            if query is None: return
+            if criteria not in query: return
+            return getattr(getattr(query, criteria.name), prop.name)
+        return doGet
+    
+    def createSet(self, getter, setter, criteria, *properties):
+        '''
+        Create the do set for criteria.
+        '''
+        assert isinstance(getter, IDo), 'Invalid getter %s' % getter
+        assert isinstance(setter, IDo), 'Invalid setter %s' % setter
         assert isinstance(criteria, TypeProperty), 'Invalid criteria property %s' % criteria
         assert properties, 'At least one property is required'
         if __debug__:
             for prop in properties: assert isinstance(prop, TypeProperty), 'Invalid property %s' % prop
-        
-        self.devise = devise
-        self.criteria = criteria
-        self.properties = properties
-        
-    def get(self, target):
-        '''
-        @see: IDevise.get
-        '''
-        query = self.devise.get(target)
-        if query is None: return
-        if self.criteria not in query: return
-        return getattr(getattr(query, self.criteria.name), self.properties[0].name)
-        
-    def set(self, target, value):
-        '''
-        @see: IDevise.set
-        '''
-        query = self.devise.get(target)
-        if query is None:
-            query = self.criteria.parent.clazz()
-            self.devise.set(target, query)
-        target = getattr(query, self.criteria.name)
-        for prop in self.properties:
-            assert isinstance(prop, TypeProperty), 'Invalid property %s' % prop
-            setattr(target, prop.name, value)
+        def doSet(arguments, value):
+            '''
+            Do set the criteria properties value.
+            '''
+            assert isinstance(criteria, TypeProperty)
+            assert isinstance(criteria.parent, TypeQuery), 'Invalid criteria %s' % criteria
+            query = getter(arguments)
+            if query is None:
+                query = criteria.parent.clazz()
+                setter(arguments, query)
+            target = getattr(query, criteria.name)
+            for prop in properties:
+                assert isinstance(prop, TypeProperty), 'Invalid property %s' % prop
+                setattr(target, prop.name, value)
+        return doSet

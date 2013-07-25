@@ -11,10 +11,9 @@ Provides the domain for the path.
 
 from ally.api.operator.type import TypeModel
 from ally.container.ioc import injected
-from ally.core.impl.processor.assembler.base import excludeFrom, \
-    RegisterExcluding, InvokerExcluded
 from ally.design.processor.attribute import requires, defines, definesIf
 from ally.design.processor.context import Context
+from ally.design.processor.execution import Abort
 from ally.design.processor.handler import HandlerProcessor
 import logging
 
@@ -24,19 +23,21 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
-class Register(RegisterExcluding):
+class Register(Context):
     '''
     The register context.
     '''
     # ---------------------------------------------------------------- Defined
+    invokers = requires(list)
     hintsModel = definesIf(dict)
     
-class Invoker(InvokerExcluded):
+class Invoker(Context):
     '''
     The invoker context.
     '''
     # ---------------------------------------------------------------- Defined
     path = defines(list)
+    location = requires(str)
     
 class ElementDomain(Context):
     '''
@@ -79,6 +80,7 @@ class PathDomainHandler(HandlerProcessor):
             if register.hintsModel is None: register.hintsModel = {}
             register.hintsModel[self.hintName] = self.hintDescription
 
+        aborted = []
         for invoker in register.invokers:
             assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
             if not invoker.path: continue  # No path model to process for.
@@ -94,9 +96,11 @@ class PathDomainHandler(HandlerProcessor):
                     if not isinstance(domain, str) or not domain:
                         log.error('Cannot use invoker because the model %s domain \'%s\' is invalid, at:%s',
                                   el.model, domain, invoker.location)
-                        excludeFrom(chain, invoker)
+                        aborted.append(invoker)
                     else:
                         assert isinstance(domain, str)
                         for name in reversed(domain.split('/')):
                             if name: invoker.path.insert(0, Element(name=name))
                 break
+        
+        if aborted: raise Abort(*aborted)

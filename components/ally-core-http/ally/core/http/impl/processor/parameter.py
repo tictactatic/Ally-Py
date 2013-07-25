@@ -13,12 +13,13 @@ from ally.container.ioc import injected
 from ally.core.http.impl.processor.base import ErrorResponseHTTP
 from ally.core.http.spec.codes import PARAMETER_ILLEGAL, PARAMETER_INVALID
 from ally.core.impl.processor.base import addError
-from ally.core.spec.transform.encdec import IDecoder
-from ally.design.processor.attribute import requires, optional
+from ally.core.spec.resources import Converter
+from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerComposite
 from ally.design.processor.processor import Structure
-from ally.support.util_context import findFirst, pushIn, cloneCollection
+from ally.support.util_context import pushIn, cloneCollection, findFirst
+from ally.support.util_spec import IDo
 
 # --------------------------------------------------------------------
 
@@ -27,17 +28,25 @@ class Invoker(Context):
     The invoker context.
     '''
     # ---------------------------------------------------------------- Required
-    decodingParameters = requires(dict)
+    decodingsParameter = requires(dict)
+
+class Decoding(Context):
+    '''
+    The decoding context.
+    '''
+    # ---------------------------------------------------------------- Optional
+    parent = optional(Context)
+    # ---------------------------------------------------------------- Required
+    parameterDefinition = requires(Context)
+    doDecode = requires(IDo)
+    doDefault = requires(IDo)
 
 class Definition(Context):
     '''
     The definition context.
     '''
-    # ---------------------------------------------------------------- Optional
-    parent = optional(Context)
     # ---------------------------------------------------------------- Required
     name = requires(str)
-    decoder = requires(IDecoder)
     
 class Request(Context):
     '''
@@ -47,13 +56,21 @@ class Request(Context):
     parameters = requires(list)
     invoker = requires(Context)
     arguments = requires(dict)
+    converterPath = requires(Converter)
 
 class Support(Context):
     '''
     The support context.
     '''
-    # ---------------------------------------------------------------- Required
-    failures = requires(list)
+    # ---------------------------------------------------------------- Defined
+    converter = defines(Converter, doc='''
+    @rtype: Converter
+    The converter to be used for decoding parameters.
+    ''')
+    doFailure = defines(IDo, doc='''
+    @rtype: callable(Context, object)
+    The call to use in reporting parameters decoding failures.
+    ''')
     
 # --------------------------------------------------------------------
 
@@ -64,7 +81,8 @@ class ParameterHandler(HandlerComposite):
     '''
 
     def __init__(self):
-        super().__init__(Structure(SupportDecodeParameter='request'), Invoker=Invoker, Definition=Definition)
+        super().__init__(Structure(SupportDecodeParameter='request'),
+                         Invoker=Invoker, Decoding=Decoding, Definition=Definition)
 
     def process(self, chain, request:Request, response:ErrorResponseHTTP, SupportDecodeParameter:Support, **keyargs):
         '''
@@ -78,45 +96,68 @@ class ParameterHandler(HandlerComposite):
         if not request.invoker: return  # No invoker available
         assert isinstance(request.invoker, Invoker), 'Invalid invoker %s' % request.invoker
         
-        if request.parameters:
-            illegal = set()
+        illegal = None
+        decodings = request.invoker.decodingsParameter
+        if not decodings:
+            if request.parameters: illegal = set(name for name, value in request.parameters)
+        else:
+            assert isinstance(decodings, dict), 'Invalid decodings %s' % decodings
+
+            failures = {}
+            support = pushIn(SupportDecodeParameter(converter=request.converterPath, doFailure=self.createFailure(failures)),
+                             request, interceptor=cloneCollection, exclude=Support)
+            assert isinstance(support, Support), 'Invalid support %s' % support
+            if request.arguments is None: request.arguments = {}
             
-            decodings = request.invoker.decodingParameters
-            if not decodings: illegal.update(name for name, value in request.parameters)
-            else:
-                assert isinstance(decodings, dict), 'Invalid decodings %s' % decodings
-                
-                support = pushIn(SupportDecodeParameter(), request, interceptor=cloneCollection)
-                assert isinstance(support, Support), 'Invalid support %s' % support
-                if request.arguments is None: request.arguments = {}
+            visited = set()
+            if request.parameters:
                 for name, value in request.parameters:
                     decoding = decodings.get(name)
-                    if decoding is None: illegal.add(name)
+                    if decoding is None:
+                        if illegal is None: illegal = set()
+                        illegal.add(name)
                     else:
-                        assert isinstance(decoding, Definition), 'Invalid decoding %s' % decoding
-                        assert isinstance(decoding.decoder, IDecoder), 'Invalid decoder %s' % decoding.decoder
-                        decoding.decoder.decode(value, request.arguments, support)
+                        assert isinstance(decoding, Decoding), 'Invalid decoding definition %s' % decoding
+                        assert isinstance(decoding.doDecode, IDo), 'Invalid do decode %s' % decoding.doDecode
+                        decoding.doDecode(value, request.arguments, support)
+                        visited.add(name)
+                    
+            for name, decoding in decodings.items():
+                if name not in visited and decoding.doDefault: decoding.doDefault(request.arguments, support)
+            
+            if failures:
+                PARAMETER_INVALID.set(response)
                 
-                if support.failures:
-                    PARAMETER_INVALID.set(response)
-                    
-                    decodingByName, valuesByName = {}, {}
-                    for value, decoding in support.failures:
-                        name = findFirst(decoding, Definition.parent, Definition.name)
-                        if name:
-                            byName = decodingByName.get(name)
-                            if byName is None: byName = decodingByName[name] = []
-                            byName.append(decoding)
-                            
-                            byName = valuesByName.get(name)
-                            if byName is None: byName = valuesByName[name] = []
-                            byName.append(value)
-                    
-                    for name in sorted(valuesByName):
-                        addError(response, 'Invalid values %(values)s for \'%(name)s\'',
-                                 decodingByName[name], name=name, values=valuesByName[name])
-                    
-            if illegal:
-                PARAMETER_ILLEGAL.set(response)
-                addError(response, 'Unknown parameters %(parameters)s', parameters=sorted(illegal))
+                for name in sorted(failures):
+                    definitions, values = failures[name]
+                    addError(response, 'Invalid values \'%(values)s\' for \'%(name)s\'', definitions, name=name, values=values)
                 
+        if illegal:
+            PARAMETER_ILLEGAL.set(response)
+            addError(response, 'Unknown parameters %(parameters)s', parameters=sorted(illegal))
+                
+    # --------------------------------------------------------------------
+    
+    def createFailure(self, failures):
+        '''
+        Creates the do failure.
+        '''
+        assert isinstance(failures, dict), 'Invalid failures %s' % failures
+        def doFailure(decoding, value):
+            '''
+            Index the failure.
+            '''
+            assert value is not None, 'None value is not allowed'
+            assert isinstance(decoding, Decoding), 'Invalid decoding %s' % decoding
+            
+            defin = findFirst(decoding, Decoding.parent, Decoding.parameterDefinition)
+            assert isinstance(defin, Definition), 'Invalid definition %s for %s' % (defin, decoding)
+            assert isinstance(defin.name, str), 'Invalid definition name %s' % defin.name
+            
+            byName = failures.get(defin.name)
+            if byName is None: byName = failures[defin.name] = ([], [])
+            
+            definitions, values = byName
+            definitions.append(defin)
+            values.append(value)
+        return doFailure

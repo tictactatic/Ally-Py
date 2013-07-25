@@ -11,10 +11,10 @@ Provides the JSON encoder processor handler.
 
 from .base import RenderBaseHandler, Content
 from ally.container.ioc import injected
+from ally.core.impl.index import ACTION_STREAM, ACTION_DISCARD, NAME_BLOCK, \
+    ACTION_INJECT, Index, ACTION_NAME
 from ally.core.spec.resources import Converter
-from ally.core.spec.transform.encdec import IRender
-from ally.core.spec.transform.index import ACTION_STREAM, ACTION_DISCARD, \
-    NAME_BLOCK, ACTION_INJECT, Index, ACTION_NAME
+from ally.core.spec.transform import IRender
 from ally.design.processor.attribute import requires
 from ally.design.processor.context import Context
 from ally.indexing.spec.model import Block, Action
@@ -457,7 +457,6 @@ class RenderJSON(IRender):
             assert isinstance(attributes, dict), 'Invalid attributes %s' % attributes
             for nameAttr, valueAttr in attributes.items():
                 assert isinstance(nameAttr, str), 'Invalid attribute name %s' % nameAttr
-                assert isinstance(valueAttr, str), 'Invalid attribute value %s' % valueAttr
                 
                 if self._first: self._first = False
                 else: self._out.write(',')

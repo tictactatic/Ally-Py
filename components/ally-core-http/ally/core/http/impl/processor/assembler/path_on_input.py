@@ -11,10 +11,9 @@ Provides the paths based on id property inputs.
 
 from ally.api.operator.type import TypeProperty, TypeModel
 from ally.api.type import Input
-from ally.core.impl.processor.assembler.base import excludeFrom, \
-    RegisterExcluding, InvokerExcluded
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
+from ally.design.processor.execution import Abort
 from ally.design.processor.handler import HandlerProcessor
 from ally.support.util_context import pushIn, cloneCollection
 import itertools
@@ -26,7 +25,7 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
-class Register(RegisterExcluding):
+class Register(Context):
     '''
     The register context.
     '''
@@ -35,8 +34,11 @@ class Register(RegisterExcluding):
     @rtype: dictionary{TypeModel: set(TypeModel)}
     The model relations, as a key the model that depends on the models found in the value set.
     ''')
+    # ---------------------------------------------------------------- Required
+    invokers = requires(list)
+    exclude = requires(set)
     
-class InvokerOnInput(InvokerExcluded):
+class InvokerOnInput(Context):
     '''
     The invoker context.
     '''
@@ -50,8 +52,10 @@ class InvokerOnInput(InvokerExcluded):
     The path elements.
     ''')
     # ---------------------------------------------------------------- Required
+    id = requires(str)
     inputs = requires(tuple)
     target = requires(TypeModel)
+    location = requires(str)
     
 class ElementInput(Context):
     '''
@@ -92,7 +96,7 @@ class PathInputHandler(HandlerProcessor):
         assert isinstance(register.invokers, list), 'Invalid invokers %s' % register.invokers
 
         if register.relations is None: register.relations = {}
-        ninvokers = []
+        ninvokers, aborted = [], []
         for invoker in register.invokers:
             assert isinstance(invoker, InvokerOnInput), 'Invalid invoker %s' % invoker
             
@@ -105,10 +109,10 @@ class PathInputHandler(HandlerProcessor):
                     if inp.type in properties:
                         log.error('Cannot use because the %s should appear at most once, try using an alias '
                                   'on one of the annotations, at:%s', inp.type, invoker.location)
-                        excludeFrom(chain, invoker)
+                        aborted.append(invoker)
                         break
                     properties.add(inp.type)
-                    invoker.solved.add(inp.name)
+                    invoker.solved.add(inp)
                     if inp.hasDefault: optional.append(inp)
                     else: mandatory.append(inp)
             else:
@@ -134,5 +138,6 @@ class PathInputHandler(HandlerProcessor):
                         assert isinstance(inp.type, TypeProperty)
                         invoker.path.append(Element(name=inp.type.parent.name, model=inp.type.parent))
                         invoker.path.append(Element(property=inp.type))
-                        
+
+        if aborted: raise Abort(*aborted)                        
         register.invokers.extend(ninvokers)

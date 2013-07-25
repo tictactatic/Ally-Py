@@ -9,11 +9,12 @@ Created on Jun 5, 2013
 Provides the validation for solved inputs.
 '''
 
-from .base import excludeFrom, InvokerExcluded, RegisterExcluding
 from ally.api.type import Input
 from ally.design.processor.attribute import requires
+from ally.design.processor.context import Context
+from ally.design.processor.execution import Abort
 from ally.design.processor.handler import HandlerProcessor
-from collections import Callable
+from ally.support.util_spec import IDo
 import logging
 
 # --------------------------------------------------------------------
@@ -22,20 +23,22 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
-class Register(RegisterExcluding):
+class Register(Context):
     '''
     The register context.
     '''
     # ---------------------------------------------------------------- Required
-    suggest = requires(Callable)
+    invokers = requires(list)
+    doSuggest = requires(IDo)
     
-class Invoker(InvokerExcluded):
+class Invoker(Context):
     '''
     The invoker context.
     '''
     # ---------------------------------------------------------------- Required
     inputs = requires(tuple)
     solved = requires(set)
+    location = requires(str)
     
 # --------------------------------------------------------------------
 
@@ -56,7 +59,7 @@ class ValidateSolvedHandler(HandlerProcessor):
         assert isinstance(register, Register), 'Invalid register %s' % register
         if not register.invokers: return  # No invokers to process.
         
-        reported = set()
+        reported, aborted = set(), []
         for invoker in register.invokers:
             assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
             if not invoker.inputs: continue
@@ -67,7 +70,7 @@ class ValidateSolvedHandler(HandlerProcessor):
             unsolved, keep = [], True
             for inp in invoker.inputs:
                 assert isinstance(inp, Input), 'Invalid input %s' % inp
-                if inp.name not in solved:
+                if inp not in solved:
                     unsolved.append('\'%s\'' % inp.name)
                     if not inp.hasDefault: keep = False
             
@@ -75,11 +78,11 @@ class ValidateSolvedHandler(HandlerProcessor):
                 if invoker.location not in reported:
                     log.error('Cannot use because of unsolved inputs %s, at:%s', ', '.join(unsolved), invoker.location)
                     reported.add(invoker.location)
-                assert isinstance(register.exclude, set), 'Invalid exclude set %s' % register.exclude
-                excludeFrom(chain, invoker)
+                aborted.append(invoker)
                 
             elif unsolved and invoker.location not in reported:
-                assert callable(register.suggest), 'Invalid suggest %s' % register.suggest
-                register.suggest('Unsolved inputs %s, at:%s', ', '.join(unsolved), invoker.location)
+                assert isinstance(register.doSuggest, IDo), 'Invalid do suggest %s' % register.doSuggest
+                register.doSuggest('Unsolved inputs %s, at:%s', ', '.join(unsolved), invoker.location)
                 reported.add(invoker.location)
-            
+        
+        if aborted: raise Abort(*aborted)

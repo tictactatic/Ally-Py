@@ -21,6 +21,9 @@ import logging
 
 # --------------------------------------------------------------------
 
+CATEGORY_CONTENT_XML = 'content XML'
+# The name of the XML content category.
+
 log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
@@ -80,8 +83,8 @@ def parseJSON() -> Handler:
 @ioc.entity
 def parseXML() -> Handler:
     b = ParseXMLHandler(); yield b
+    b.category = CATEGORY_CONTENT_XML
     b.contentTypes = set(content_types_xml())
-    b.separator = SEPARATOR_CONTENT
 
 # --------------------------------------------------------------------
 # Create the renders
@@ -129,8 +132,7 @@ def updateBlocksDefinitions():
 @ioc.before(assemblyParsing)
 def updateAssemblyParsing():
     # TODO: Gabriel: assemblyParsing().add(parseJSON())
-    # assemblyParsing().add(parseXML())
-    pass
+    assemblyParsing().add(parseXML())
 
 @ioc.before(assemblyRendering)
 def updateAssemblyRendering():

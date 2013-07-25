@@ -13,7 +13,7 @@ from ally.api.operator.type import TypeProperty
 from ally.api.type import Iter, Type, Dict
 from ally.container.ioc import injected
 from ally.core.spec.resources import Converter
-from ally.core.spec.transform.encdec import IEncoder, IRender
+from ally.core.spec.transform import ITransfrom, IRender
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
@@ -26,8 +26,8 @@ class Create(Context):
     The create encoder context.
     '''
     # ---------------------------------------------------------------- Defined
-    encoder = defines(IEncoder, doc='''
-    @rtype: IEncoder
+    encoder = defines(ITransfrom, doc='''
+    @rtype: ITransfrom
     The encoder for the property.
     ''')    
     # ---------------------------------------------------------------- Required
@@ -71,9 +71,9 @@ class PropertyEncode(HandlerProcessor):
 
 # --------------------------------------------------------------------
 
-class EncoderProperty(IEncoder):
+class EncoderProperty(ITransfrom):
     '''
-    Implementation for a @see: IEncoder for properties.
+    Implementation for a @see: ITransfrom for properties.
     '''
     
     def __init__(self, name, valueType):
@@ -85,25 +85,23 @@ class EncoderProperty(IEncoder):
         self.name = name
         self.valueType = valueType
         
-    def encode(self, obj, target, support):
+    def transform(self, value, target, support):
         '''
-        @see: IEncoder.encode
+        @see: ITransfrom.transform
         '''
         assert isinstance(target, IRender), 'Invalid target %s' % target
         assert isinstance(support, Support), 'Invalid support %s' % support
         assert isinstance(support.converterContent, Converter), 'Invalid converter %s' % support.converterContent
         
         if isinstance(self.valueType, Iter):
-            assert isinstance(obj, Iterable), 'Invalid object %s' % obj
-            itemType = self.valueType.itemType
-            value = [support.converterContent.asString(item, itemType) for item in obj]
+            assert isinstance(value, Iterable), 'Invalid value %s' % value
+            value = [support.converterContent.asString(item, self.valueType.itemType) for item in value]
         elif isinstance(self.valueType, Dict):
-            assert isinstance(obj, dict), 'Invalid object %s' % obj
-            keyType = self.valueType.keyType
-            valueType = self.valueType.valueType
-            value = {support.converterContent.asString(key, keyType): support.converterContent.asString(item, valueType)
-                     for key, item in obj.items()}
+            assert isinstance(value, dict), 'Invalid value %s' % value
+            value = {support.converterContent.asString(key, self.valueType.keyType):
+                     support.converterContent.asString(item, self.valueType.valueType)
+                     for key, item in value.items()}
         else:
-            value = support.converterContent.asString(obj, self.valueType)
+            value = support.converterContent.asString(value, self.valueType)
         target.property(self.name, value)
         

@@ -22,7 +22,7 @@ class Invoker(Context):
     The invoker context.
     '''
     # ---------------------------------------------------------------- Required
-    hasScheme = requires(bool)
+    schemeInput = requires(Input)
 
 class Request(Context):
     '''
@@ -46,9 +46,9 @@ class InvokerAssembler(Context):
     The invoker context.
     '''
     # ---------------------------------------------------------------- Defined
-    hasScheme = defines(bool, doc='''
-    @rtype: boolean
-    Flag indicating that a scheme argument is required for invoker.
+    schemeInput = defines(Input, doc='''
+    @rtype: Input
+    The input where the scheme has to be placed.
     ''')
     solved = defines(set)
     # ---------------------------------------------------------------- Required
@@ -63,8 +63,6 @@ class SchemeHandler(HandlerProcessor):
 
     def __init__(self):
         super().__init__(Invoker=Invoker)
-        
-        self.schemeType = typeFor(Scheme)
 
     def process(self, chain, request:Request, response:CodedHTTP, **keyargs):
         '''
@@ -78,10 +76,11 @@ class SchemeHandler(HandlerProcessor):
         if request.invoker is None: return  # No invoker to provide the scheme for
         
         assert isinstance(request.invoker, Invoker), 'Invalid invoker %s' % request.invoker
-        if not request.invoker.hasScheme: return  # No scheme required
+        if not request.invoker.schemeInput: return  # No scheme required
+        assert isinstance(request.invoker.schemeInput, Input), 'Invalid input %s' % request.invoker.schemeInput
         
         if request.arguments is None: request.arguments = {}
-        request.arguments[self.schemeType] = request.scheme
+        request.arguments[request.invoker.schemeInput.name] = request.scheme
 
 # --------------------------------------------------------------------
  
@@ -112,7 +111,7 @@ class AssemblerSchemeHandler(HandlerProcessor):
                 assert isinstance(inp, Input), 'Invalid input %s' % inp
                 if inp.type == self.schemeType:
                     if invoker.solved is None: invoker.solved = set()
-                    invoker.solved.add(inp.name)
-                    invoker.hasScheme = True
+                    invoker.solved.add(inp)
+                    invoker.schemeInput = inp
                     break
                     

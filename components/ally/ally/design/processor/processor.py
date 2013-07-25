@@ -13,7 +13,7 @@ from .branch import IBranch
 from .context import Context
 from .execution import Processing
 from .resolvers import merge, solve
-from .spec import AssemblyError, IProcessor, IFinalizer, ContextMetaClass, \
+from .spec import AssemblyError, IProcessor, ContextMetaClass, \
     ProcessorError, IReport
 from .structure import restructureData, restructureResolvers
 from ally.design.processor.spec import IResolver
@@ -216,7 +216,7 @@ class Brancher(Contextual):
 
 # --------------------------------------------------------------------
     
-class Composite(IProcessor, IFinalizer):
+class Composite(IProcessor):
     '''
     Implementation for @see: IProcessor that contains other processors and registeres them as a single processor.
     '''
@@ -245,12 +245,11 @@ class Composite(IProcessor, IFinalizer):
             
     def finalized(self, sources, resolvers, extensions, report):
         '''
-        @see: IFinalizer.finalized
+        @see: IProcessor.finalized
         '''
         for processor in self.processors:
-            if isinstance(processor, IFinalizer):
-                assert isinstance(processor, IFinalizer)
-                processor.finalized(sources, resolvers, extensions, report)
+            assert isinstance(processor, IProcessor), 'Invalid processor %s' % processor
+            processor.finalized(sources, resolvers, extensions, report)
         
     # ----------------------------------------------------------------
 
@@ -268,19 +267,19 @@ class Renamer(IProcessor):
         '''
         Construct the processor that renames the context names for the provided processor.
         
-        @param processor: Processor
+        @param processor: IProcessor
             Restructures the provided processor.
         @param mapping: arguments[tuple(string string)]
             The mappings that the renamer needs to make, also the context to be passed along without renaming need to
             be provided as simple names, attention the order in which the context mappings are provided is crucial, examples:
-                ('request': 'solicitation')
+                ('request', 'solicitation')
                     The wrapped processor will receive as the 'request' context the 'solicitation' context.
-                ('request': 'solicitation'), ('request': 'response')
+                ('request', 'solicitation'), ('request', 'response')
                     The wrapped processor will receive as the 'request' context the 'solicitation' and 'response' context.
-                ('solicitation': 'request'), ('response': 'request')
+                ('solicitation', 'request'), ('response', 'request')
                     The wrapped processor will receive as the 'solicitation' and 'response' context the 'request' context.
         '''
-        assert isinstance(processor, Processor), 'Invalid processor %s' % processor
+        assert isinstance(processor, IProcessor), 'Invalid processor %s' % processor
         assert mapping, 'At least one mapping is required'
         if __debug__:
             for name in mapping: assert isinstance(name, (str, tuple)), 'Invalid current context name %s' % name
@@ -288,19 +287,19 @@ class Renamer(IProcessor):
         self.processor = processor
         self.mapping = mapping
 
-    def register(self, sources, current, extensions, calls, report):
+    def register(self, sources, resolvers, extensions, calls, report):
         '''
         @see: IProcessor.register
         '''
         assert isinstance(calls, list), 'Invalid calls %s' % calls
         
         wsources = restructureResolvers(sources, self.mapping)
-        wcurrent = restructureResolvers(current, self.mapping)
+        wcurrent = restructureResolvers(resolvers, self.mapping)
         wextensions = restructureResolvers(extensions, self.mapping)
         wcalls = []
         self.processor.register(wsources, wcurrent, wextensions, wcalls, report)
         
-        merge(current, restructureResolvers(wcurrent, self.mapping, True))
+        merge(resolvers, restructureResolvers(wcurrent, self.mapping, True))
         merge(extensions, restructureResolvers(wextensions, self.mapping, True))
         
         def wrapper(*args, **keyargs):
@@ -308,6 +307,19 @@ class Renamer(IProcessor):
             for call in wcalls: call(*args, **keyargs)
         
         calls.append(wrapper)
+        
+    def finalized(self, sources, resolvers, extensions, report):
+        '''
+        @see: IProcessor.finalized
+        '''
+        wsources = restructureResolvers(sources, self.mapping)
+        wcurrent = restructureResolvers(resolvers, self.mapping)
+        wextensions = restructureResolvers(extensions, self.mapping)
+        
+        self.processor.finalized(wsources, wcurrent, wextensions, report)
+        
+        merge(resolvers, restructureResolvers(wcurrent, self.mapping, True))
+        merge(extensions, restructureResolvers(wextensions, self.mapping, True))
         
     # ----------------------------------------------------------------
 
@@ -326,7 +338,7 @@ class Structure(IProcessor):
         Construct the processor that structures the contexts.
         
         @param mapping: key arguments of string or tuple(string)
-            The join mapping, as a key is considered the target context and as a value is expected either the name
+            The structure mapping, as a key is considered the target context and as a value is expected either the name
             of another context or tuple of contexts to be pushed in the target context, attention the order is crucial
             since if two or more contexts define the same attribute only the first one will be considered.
         '''
@@ -339,18 +351,18 @@ class Structure(IProcessor):
             assert target not in names, 'Target %s cannot be in names %s' % (target, names)
             self.mapping[target] = names
 
-    def register(self, sources, current, extensions, calls, report):
+    def register(self, sources, resolvers, extensions, calls, report):
         '''
         @see: IProcessor.register
         '''
         assert isinstance(sources, dict), 'Invalid sources %s' % sources
-        assert isinstance(current, dict), 'Invalid current %s' % current
+        assert isinstance(resolvers, dict), 'Invalid resolvers %s' % resolvers
         assert isinstance(extensions, dict), 'Invalid sources %s' % extensions
         
         jextensions = {}
         for target, names in self.mapping.items():
             self._join(target, names, sources, jextensions)
-            self._join(target, names, current, jextensions)
+            self._join(target, names, resolvers, jextensions)
             self._join(target, names, extensions, jextensions)
         solve(extensions, jextensions)
     

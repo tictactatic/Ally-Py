@@ -11,12 +11,11 @@ Provides the web name for the path.
 
 from ally.api.type import Call
 from ally.container.ioc import injected
-from ally.core.impl.processor.assembler.base import excludeFrom, \
-    RegisterExcluding, InvokerExcluded
 from ally.design.processor.attribute import requires, defines, definesIf
 from ally.design.processor.context import Context
+from ally.design.processor.execution import Abort
 from ally.design.processor.handler import HandlerProcessor
-from collections import Callable
+from ally.support.util_spec import IDo
 import logging
 import re
 
@@ -26,16 +25,17 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
-class Register(RegisterExcluding):
+class Register(Context):
     '''
     The register context.
     '''
     # ---------------------------------------------------------------- Defined
     hintsCall = definesIf(dict)
     # ---------------------------------------------------------------- Required
-    suggest = requires(Callable)
+    invokers = requires(list)
+    doSuggest = requires(IDo)
     
-class Invoker(InvokerExcluded):
+class Invoker(Context):
     '''
     The invoker context.
     '''
@@ -43,6 +43,7 @@ class Invoker(InvokerExcluded):
     path = defines(list)
     # ---------------------------------------------------------------- Required
     call = requires(Call)
+    location = requires(str)
     
 class Element(Context):
     '''
@@ -83,6 +84,7 @@ class PathWebNameHandler(HandlerProcessor):
             if register.hintsCall is None: register.hintsCall = {}
             register.hintsCall[self.hintName] = self.hintDescription
         
+        aborted = []
         for invoker in register.invokers:
             assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
             if not invoker.call: continue  # No call to process hints on.
@@ -94,7 +96,7 @@ class PathWebNameHandler(HandlerProcessor):
                 if not isinstance(webName, str) or not re.match('\w+$', webName):
                     log.error('Cannot use because invalid web name \'%s\', can only contain alpha numeric characters at:%s',
                               webName, invoker.location)
-                    excludeFrom(chain, invoker)
+                    aborted.append(invoker)
                     break
                 
                 for el in reversed(invoker.path):
@@ -103,6 +105,7 @@ class PathWebNameHandler(HandlerProcessor):
                         el.name = '%s%s' % (webName, el.name)
                         break
                 else:
-                    assert callable(register.suggest), 'Invalid suggest %s' % register.suggest
-                    register.suggest('Could not process the web name at:%s', invoker.location)
-                    
+                    assert isinstance(register.doSuggest, IDo), 'Invalid do suggest %s' % register.doSuggest
+                    register.doSuggest('Could not process the web name at:%s', invoker.location)
+
+        if aborted: raise Abort(*aborted)                    

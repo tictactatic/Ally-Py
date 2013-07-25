@@ -11,10 +11,9 @@ Provides the paths for a model.
 
 from ally.api.type import Type
 from ally.container.ioc import injected
+from ally.core.http.impl.index import ACTION_REFERENCE, NAME_BLOCK_REST
 from ally.core.http.spec.server import IEncoderPathInvoker
-from ally.core.http.spec.transform.index import ACTION_REFERENCE, \
-    NAME_BLOCK_REST
-from ally.core.spec.transform.encdec import ISpecifier, IEncoder
+from ally.core.spec.transform import ISpecifier, ITransfrom
 from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
@@ -38,7 +37,7 @@ class Create(Context):
     The specifiers for attributes with the paths.
     ''')
     # ---------------------------------------------------------------- Optional
-    encoder = optional(IEncoder)
+    encoder = optional(ITransfrom)
     # ---------------------------------------------------------------- Required
     objType = requires(Type)
     

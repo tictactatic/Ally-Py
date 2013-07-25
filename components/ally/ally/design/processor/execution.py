@@ -10,11 +10,11 @@ Contains the classes used in the execution of processors.
 '''
 
 from .spec import ContextMetaClass, isNameForClass
+from ally.support.util_sys import locationStack
 from collections import Iterable, deque
 import itertools
 import logging
 import sys
-from ally.support.util_sys import locationStack
 
 # --------------------------------------------------------------------
 
@@ -25,7 +25,37 @@ CANCELED = 1 << 2  # Flag indicating if the chain is canceled.
 EXCEPTION = 1 << 3  # Flag indicating if the chain is in exception.
 
 # --------------------------------------------------------------------
+
+class Abort(Exception):
+    '''
+    Known exception that triggers a controlled abort of the execution.
+    '''
+    
+    def __init__(self, *reasons):
+        '''
+        Creates the abort exception.
         
+        @param reasons: argument[object]
+            The abort reasons.
+        '''
+        super().__init__()
+        self.reasons = list(reasons)
+        
+    def add(self, *reasons):
+        '''
+        Adds new reasons for the abort.
+        
+        @param reasons: argument[object]
+            The abort reasons.
+        @return: self
+            The same exception instance for rerasing.
+        '''
+        assert reasons, 'At least a reason is required'
+        self.reasons.extend(reasons)
+        return self
+
+# --------------------------------------------------------------------
+
 class Processing:
     '''
     Container for processor's, provides chains for their execution.
@@ -94,20 +124,31 @@ class Processing:
         self.ctx.__dict__.update(contexts)
         return self
     
-    def execute(self, **keyargs):
+    def execute(self, *flags, **keyargs):
         '''
         Executes the processing in a chain with the provided arguments.
         
+        @param flags: arguments[integer]
+            The flags to associate the execution with.
         @param keyargs: key arguments
             The key arguments that will be processed.
-        @return: object
-            The chain processed arguments.
+        @return: object|tuple(boolean, object)
+            The chain processed arguments, if any flag is provided it will return the execution status
+            and the processed arguments
         '''
         chain = Chain(self, False, **keyargs)
+        if flags:
+            combined = 0
+            for flag in flags:
+                assert isinstance(flag, int), 'Invalid flag %s' % flag
+                combined |= flag
+            ret = chain.execute(combined)
+            return ret, chain.arg
+
         chain.execute()
         return chain.arg
     
-    def executeWithAll(self, **keyargs):
+    def executeWithAll(self, *flags, **keyargs):
         '''
         Executes the processing in a chain with the provided arguments and automatically fills in the arguments that are not
         provided but required by the processing.
@@ -115,13 +156,24 @@ class Processing:
         process is done when a context name is not present in the provided arguments, the value added is being as follows:
             - if the context name start with a capital letter then the class is provided as a value
             - if the context names starts with a lower case then an instance is created for the class and used as a value.
-            
+        
+        @param flags: arguments[integer]
+            The flags to associate the execution with.
         @param keyargs: key arguments
             The key arguments that will be processed.
-        @return: object
-            The chain processed arguments.
+        @return: object|tuple(boolean, object)
+            The chain processed arguments, if any flag is provided it will return the execution status
+            and the processed arguments
         '''
         chain = Chain(self, True, **keyargs)
+        if flags:
+            combined = 0
+            for flag in flags:
+                assert isinstance(flag, int), 'Invalid flag %s' % flag
+                combined |= flag
+            ret = chain.execute(combined)
+            return ret, chain.arg
+        
         chain.execute()
         return chain.arg
     
@@ -226,6 +278,7 @@ class Execution:
             call = self._calls.popleft()
             assert log.debug('Processing %s', call) or True
             try: call(self, **self.arg.__dict__)
+            except Abort: raise
             except Exception as e:
                 self._status = EXCEPTION
                 if self._handleError():

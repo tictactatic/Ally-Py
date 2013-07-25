@@ -11,9 +11,9 @@ Provides the HTTP method name.
 
 from ally.api import config
 from ally.container.ioc import injected
-from ally.core.impl.processor.assembler.base import excludeFrom, InvokerExcluded, \
-    RegisterExcluding
 from ally.design.processor.attribute import requires, defines
+from ally.design.processor.context import Context
+from ally.design.processor.execution import Abort
 from ally.design.processor.handler import HandlerProcessor
 from ally.http.spec import server
 import logging
@@ -23,8 +23,15 @@ import logging
 log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
+
+class Register(Context):
+    '''
+    The register context.
+    '''
+    # ---------------------------------------------------------------- Required
+    invokers = requires(list)
     
-class Invoker(InvokerExcluded):
+class Invoker(Context):
     '''
     The invoker context.
     '''
@@ -35,6 +42,7 @@ class Invoker(InvokerExcluded):
     ''')
     # ---------------------------------------------------------------- Required
     method = requires(int)
+    location = requires(str)
     
 # --------------------------------------------------------------------
 
@@ -56,15 +64,16 @@ class MethodHTTPHandler(HandlerProcessor):
         assert isinstance(self.mappings, dict), 'Invalid mappings %s' % self.mappings
         super().__init__(Invoker=Invoker)
 
-    def process(self, chain, register:RegisterExcluding, **keyargs):
+    def process(self, chain, register:Register, **keyargs):
         '''
         @see: HandlerProcessor.process
         
         Provides the HTTP method name.
         '''
-        assert isinstance(register, RegisterExcluding), 'Invalid register %s' % register
+        assert isinstance(register, Register), 'Invalid register %s' % register
         if not register.invokers: return
         
+        aborted = []
         for invoker in register.invokers:
             assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
             
@@ -72,5 +81,6 @@ class MethodHTTPHandler(HandlerProcessor):
             if invoker.methodHTTP is None:
                 log.error('Cannot use because the method \'%s\' is not a valid HTTP method, at:%s',
                           invoker.method, invoker.location)
-                excludeFrom(chain, invoker)
-                continue
+                aborted.append(invoker)
+                
+        if aborted: raise Abort(*aborted)

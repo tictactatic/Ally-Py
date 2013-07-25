@@ -10,10 +10,9 @@ Provides the paths adjustments for update invokers.
 '''
 
 from ally.api.operator.type import TypeModel, TypeProperty
-from ally.core.impl.processor.assembler.base import excludeFrom, InvokerExcluded, \
-    RegisterExcluding
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
+from ally.design.processor.execution import Abort
 from ally.design.processor.handler import HandlerProcessor
 from ally.exception import DevelError
 from ally.http.spec.server import HTTP_PUT
@@ -27,7 +26,14 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
-class Invoker(InvokerExcluded):
+class Register(Context):
+    '''
+    The register context.
+    '''
+    # ---------------------------------------------------------------- Required
+    invokers = requires(list)
+    
+class Invoker(Context):
     '''
     The invoker context.
     '''
@@ -41,6 +47,7 @@ class Invoker(InvokerExcluded):
     # ---------------------------------------------------------------- Required
     methodHTTP = requires(str)
     target = requires(TypeModel)
+    location = requires(str)
     
 class ElementUpdate(Context):
     '''
@@ -62,16 +69,17 @@ class PathUpdateHandler(HandlerProcessor):
     def __init__(self):
         super().__init__(Invoker=Invoker)
 
-    def process(self, chain, register:RegisterExcluding, Element:ElementUpdate, **keyargs):
+    def process(self, chain, register:Register, Element:ElementUpdate, **keyargs):
         '''
         @see: HandlerProcessor.process
         
         Provides the paths adjustments based on target models.
         '''
-        assert isinstance(register, RegisterExcluding), 'Invalid register %s' % register
+        assert isinstance(register, Register), 'Invalid register %s' % register
         assert issubclass(Element, ElementUpdate), 'Invalid element %s' % Element
         if not register.invokers: return
 
+        aborted = []
         for invoker in register.invokers:
             assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
             if invoker.methodHTTP != HTTP_PUT: continue
@@ -85,13 +93,15 @@ class PathUpdateHandler(HandlerProcessor):
                 if el.model == invoker.target:
                     log.error('Cannot use for update because the %s is already present as input, at:%s',
                               invoker.target, invoker.location)
-                    excludeFrom(chain, invoker)
+                    aborted.append(invoker)
                     break
             else:
                 invoker.path.append(Element(name=invoker.target.name, model=invoker.target))
                 invoker.path.append(Element(property=invoker.target.propertyId))
                 invoker.prepare = partial(self.prepare, invoker, invoker.prepare)
-                
+
+        if aborted: raise Abort(*aborted)
+        
     # ----------------------------------------------------------------
     
     def prepare(self, invoker, wrapped, arguments):

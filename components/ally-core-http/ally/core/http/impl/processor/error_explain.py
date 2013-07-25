@@ -10,7 +10,6 @@ Provides support for explaining the errors in the content of the request.
 '''
 
 from _abcoll import Iterable
-from ally.api.type import Type
 from ally.container.ioc import injected
 from ally.core.spec.definition import IValue, IVerifier
 from ally.design.processor.attribute import requires, optional, defines
@@ -18,7 +17,6 @@ from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
 from ally.design.processor.resolvers import resolversFor
 from ally.support.util import TextTable
-from ally.support.util_context import findFirst
 from ally.support.util_io import IInputStream
 from codecs import getwriter
 from collections import deque
@@ -37,13 +35,12 @@ class Definition(Context):
     The definition context.
     '''
     # ---------------------------------------------------------------- Optional
-    parent = optional(Context)
     isMandatory = optional(bool)
     enumeration = optional(list)
     references = optional(list)
     # ---------------------------------------------------------------- Required
     name = requires(str)
-    type = requires(Type)
+    types = requires(list)
     
 class Response(Context):
     '''
@@ -158,19 +155,18 @@ class ErrorExplainHandler(HandlerProcessor):
                 
                 if Definition.references in defin and defin.references: stack.appendleft(iter(defin.references))
                 
-                name = findFirst(defin, Definition.parent, Definition.name)
-                if name and name not in presented:
-                    presented.add(name)
+                if defin.name and defin.name not in presented:
+                    presented.add(defin.name)
                     
                     if Definition.enumeration in defin and defin.enumeration:
                         represent = '\n'.join('- %s' % enum for enum in defin.enumeration)
-                    elif defin.type: represent = str(defin.type)
+                    elif defin.types: represent = ', '.join(str(typ) for typ in defin.types)
                     else: represent = ''
                     
                     mandatory = ''
                     if Definition.isMandatory in defin and defin.isMandatory: mandatory = '*'
                     
-                    table.add(mandatory, name, represent, self.descriptionFor(defin))
+                    table.add(mandatory, defin.name, represent, self.descriptionFor(defin))
         if presented: table.render(out)
     
     def transformData(self, data, definition=None):
@@ -186,7 +182,7 @@ class ErrorExplainHandler(HandlerProcessor):
                 value = value.get(definition)
                 
             if isinstance(value, (str, Number)): tansformed[key] = value
-            else:
+            elif value is not None:
                 assert isinstance(value, Iterable), 'Invalid data value %s for %s' % (value, key)
                 if __debug__:
                     for item in value: assert isinstance(item, (str, Number)), 'Invalid item value %s for %s' % (item, key)

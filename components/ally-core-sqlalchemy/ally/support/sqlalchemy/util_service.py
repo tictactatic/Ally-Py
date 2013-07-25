@@ -27,9 +27,9 @@ def handle(e, entity):
     Handles the SQL alchemy exception while inserting or updating.
     '''
     if isinstance(e, IntegrityError):
-        raise InputError(Ref(_('Cannot persist, failed unique constraints on entity'), model=typeFor(entity).container))
+        raise InputError(Ref(_('Cannot persist, failed unique constraints on entity'), ref=typeFor(entity)))
     if isinstance(e, OperationalError):
-        raise InputError(Ref(_('A foreign key is not valid'), model=typeFor(entity).container))
+        raise InputError(Ref(_('A foreign key is not valid'), ref=typeFor(entity)))
     raise e
 
 # --------------------------------------------------------------------

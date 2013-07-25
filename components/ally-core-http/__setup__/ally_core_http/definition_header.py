@@ -15,7 +15,6 @@ from ..ally_core.parsing_rendering import contentTypes
 from .definition_parameter import updateErrorsForParameters
 from .processor import allow_method_override, parametersAsHeaders, \
     read_from_params
-from ally.api.type import typeFor
 from ally.container import ioc
 from ally.core.http.spec.codes import PARAMETER_ILLEGAL
 from ally.core.impl.definition import Name, Category
@@ -47,11 +46,11 @@ def updateCategoriesForHeaders():
     
 @ioc.before(definitions)
 def updateDefinitionsForHeaders():
-    defin(category=CATEGORY_HEADER, name=ACCEPT.name, type=typeFor(str), enumeration=list(contentTypes()))
-    defin(category=CATEGORY_HEADER, name=CONTENT_TYPE.name, type=typeFor(str))
+    defin(category=CATEGORY_HEADER, name=ACCEPT.name, enumeration=list(contentTypes()))
+    defin(category=CATEGORY_HEADER, name=CONTENT_TYPE.name)
     
     if allow_method_override():
-        defin(category=CATEGORY_HEADER, name=METHOD_OVERRIDE.name, type=typeFor(str))
+        defin(category=CATEGORY_HEADER, name=METHOD_OVERRIDE.name)
         
 @ioc.after(updateErrorsForParameters)
 def updateErrorsForHeaders():

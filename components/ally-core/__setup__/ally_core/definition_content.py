@@ -9,21 +9,18 @@ Created on Jul 14, 2013
 Provides the content definitions.
 '''
 
-#TODO: Gabriel: repair
-#from .definition import addDescriber, definitionDescribers, definitionError, \
-#    addError
-#from ally.container import ioc
-#from ally.core.impl.verifier import VerifyModelId, VerifyCategory
-#from ally.core.spec.codes import CONTENT_BAD
-#from ally.core.spec.transform.encdec import CATEGORY_CONTENT
-#
-## --------------------------------------------------------------------
-#
-#@ioc.before(definitionError)
-#def updateDefinitionErrorForContent():
-#    addError(CONTENT_BAD.code, VerifyCategory(CATEGORY_CONTENT))
-#    
-#@ioc.before(definitionDescribers)
-#def updateDescribersForContent():
-#    addDescriber(VerifyModelId(), 'represents the model id')  # This is based on @see: modelDecode()
+from .definition import descriptions, desc, categories, category
+from .parsing_rendering import CATEGORY_CONTENT_XML
+from ally.container import ioc
+from ally.core.impl.definition import ModelId
+
+# --------------------------------------------------------------------
+
+@ioc.before(categories)
+def updateCategoriesForContent():
+    category(CATEGORY_CONTENT_XML, 'XML content xpaths')
+
+@ioc.before(descriptions)
+def updateDescriptionsForContent():
+    desc(ModelId(), 'represents the model id')  # This is based on @see: modelDecode()
 

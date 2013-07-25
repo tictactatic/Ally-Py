@@ -10,9 +10,9 @@ Provides the node invokers conflicts resolving or error reporting.
 '''
 
 from ally.container.ioc import injected
-from ally.core.impl.processor.assembler.base import excludeFrom, InvokerExcluded
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
+from ally.design.processor.execution import Abort
 from ally.design.processor.handler import HandlerProcessor
 import logging
 
@@ -31,6 +31,13 @@ class Register(Context):
     nodes = requires(list)
     hintsCall = requires(dict)
 
+class Invoker(Context):
+    '''
+    The invoker context.
+    '''
+    # ---------------------------------------------------------------- Required
+    location = requires(str)
+    
 class Node(Context):
     '''
     The node context.
@@ -49,7 +56,7 @@ class ConflictResolveHandler(HandlerProcessor):
     '''
     
     def __init__(self):
-        super().__init__(Node=Node, Invoker=InvokerExcluded)
+        super().__init__(Node=Node, Invoker=Invoker)
 
     def process(self, chain, register:Register, **keyargs):
         '''
@@ -61,7 +68,7 @@ class ConflictResolveHandler(HandlerProcessor):
         
         if not register.nodes: return
         
-        present, reported = False, set() 
+        reported, aborted = set(), []
         for node in register.nodes:
             assert isinstance(node, Node), 'Invalid node %s' % node
             if not node.conflicts: continue
@@ -73,20 +80,20 @@ class ConflictResolveHandler(HandlerProcessor):
                 if len(invokers) > 1:
                     locations = []
                     for invoker in invokers:
-                        assert isinstance(invoker, InvokerExcluded), 'Invalid invoker %s' % invoker
+                        assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
                         locations.append(invoker.location)
-                    excludeFrom(chain, invokers)
+                    aborted.extend(invokers)
                     
                     if reported.isdisjoint(locations):
                         log.error('Cannot use invokers because they have the same web address, at:%s', ''.join(locations))
                         reported.update(locations)
-                    present = True
                 else:
                     if node.invokers is None: node.invokers = {}
                     node.invokers[methodHTTP] = invokers[0]
                     
-        if present and register.hintsCall:
+        if aborted and register.hintsCall:
             available = []
             for hname in sorted(register.hintsCall):
                 available.append('\t%s: %s' % (hname, register.hintsCall[hname]))
             log.error('In order to make the invokers available please use one of the call hints:\n%s', '\n'.join(available))
+            raise Abort(*aborted)

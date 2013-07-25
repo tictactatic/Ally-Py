@@ -14,9 +14,9 @@ from inspect import isclass, ismodule, stack, getsourcelines, getsourcefile
 from os.path import dirname, relpath
 from pkgutil import iter_modules, get_importer, iter_importers, \
     iter_importer_modules
+import functools
 import re
 import sys
-from functools import update_wrapper
 
 # --------------------------------------------------------------------
 
@@ -30,25 +30,6 @@ def fullyQName(obj):
     if not isclass(obj):
         obj = obj.__class__
     return obj.__module__ + '.' + obj.__name__
-
-def classForName(name):
-    '''
-    Provides the class for the provided fully qualified name of a class.
-    
-    @param name: string
-        The fully qualified class name,
-    @return: class
-        The class of the fully qualified name.
-    '''
-    parts = name.split(".")
-    module_name = ".".join(parts[:-1])
-    class_name = parts[-1]
-    if module_name == "":
-        if class_name not in sys.modules: return __import__(class_name)
-        return sys.modules[class_name]
-    else:
-        if module_name not in sys.modules:__import__(module_name)
-        return getattr(sys.modules[module_name], class_name)
 
 def exceptionModule(e):
     '''
@@ -89,7 +70,7 @@ def updateWrapper(wrapper, wrapped):
     stack tracking for the wrapped function.
     '''
     location = locationStack(wrapper)
-    update_wrapper(wrapper, wrapped)
+    functools.update_wrapper(wrapper, wrapped)
     try: wrapper.__wrapped_location__ = '%s%s' % (location, wrapped.__wrapped_location__)
     except AttributeError: wrapper.__wrapped_location__ = '%s%s' % (location, locationStack(wrapped))
 

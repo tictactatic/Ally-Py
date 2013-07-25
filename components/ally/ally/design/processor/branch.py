@@ -14,7 +14,7 @@ from .context import create
 from .execution import Processing
 from .resolvers import copyAttributes, attributesFor, extractContexts, solve, \
     merge, checkIf, reportFor
-from .spec import ContextMetaClass, IReport, IProcessor, IFinalizer, AssemblyError, \
+from .spec import ContextMetaClass, IReport, IProcessor, AssemblyError, \
     LIST_UNAVAILABLE
 from .structure import restructureResolvers, extractResolvers
 import abc
@@ -84,9 +84,8 @@ class WithAssembly(IBranch):
             assert isinstance(proc, IProcessor), 'Invalid processor %s' % proc
             proc.register(sources, current, extensions, calls, report)
         for proc in self._assembly.processors:
-            if isinstance(proc, IFinalizer):
-                assert isinstance(proc, IFinalizer)
-                proc.finalized(sources, current, extensions, report)
+            assert isinstance(proc, IProcessor), 'Invalid processor %s' % proc
+            proc.finalized(sources, current, extensions, report)
         return calls
 
 # --------------------------------------------------------------------
@@ -227,9 +226,9 @@ class Branch(WithAssembly):
             order in which the context mappings are provided is crucial, examples:
                 ('request', 'solicitation')
                     The assembly will receive as the 'request' context the 'solicitation' context.
-                ('request', 'solicitation'), ('request': 'response')
+                ('request', 'solicitation'), ('request', 'response')
                     The assembly will receive as the 'request' context the 'solicitation' and 'response' context.
-                ('solicitation', 'request'), ('response': 'request')
+                ('solicitation', 'request'), ('response', 'request')
                     The assembly will receive as the 'solicitation' and 'response' context the 'request' context.
         @return: self
             This branch for chaining purposes.

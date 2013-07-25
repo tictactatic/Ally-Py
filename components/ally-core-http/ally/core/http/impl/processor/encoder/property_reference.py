@@ -12,9 +12,8 @@ Provides the reference types encoding.
 from ally.api.operator.type import TypeProperty
 from ally.api.type import TypeReference, Type
 from ally.container.ioc import injected
-from ally.core.http.spec.transform.index import NAME_BLOCK_CLOB, \
-    ACTION_REFERENCE
-from ally.core.spec.transform.encdec import IEncoder, IRender
+from ally.core.http.impl.index import NAME_BLOCK_CLOB, ACTION_REFERENCE
+from ally.core.spec.transform import ITransfrom, IRender
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
@@ -27,7 +26,7 @@ class Create(Context):
     The create encoder context.
     '''
     # ---------------------------------------------------------------- Defined
-    encoder = defines(IEncoder, doc='''
+    encoder = defines(ITransfrom, doc='''
     @rtype: IEncoder
     The encoder for the reference.
     ''')
@@ -78,9 +77,9 @@ class PropertyReferenceEncode(HandlerProcessor):
 
 # --------------------------------------------------------------------
 
-class EncoderReference(IEncoder):
+class EncoderReference(ITransfrom):
     '''
-    Implementation for a @see: IEncoder for references types.
+    Implementation for a @see: ITransfrom for references types.
     '''
     
     def __init__(self, name, nameRef):
@@ -93,13 +92,13 @@ class EncoderReference(IEncoder):
         self.name = name
         self.nameRef = nameRef
         
-    def encode(self, obj, target, support):
+    def transform(self, value, target, support):
         '''
-        @see: IEncoder.encode
+        @see: ITransfrom.transform
         '''
         assert isinstance(target, IRender), 'Invalid target %s' % target
         assert isinstance(support, Support), 'Invalid support %s' % support
         assert isinstance(support.encoderPath, IEncoderPath), 'Invalid path encoder %s' % support.encoderPath
         
-        target.beginObject(self.name, attributes={self.nameRef: support.encoderPath.encode(obj)}, indexBlock=NAME_BLOCK_CLOB,
-                           indexAttributesCapture={self.nameRef: ACTION_REFERENCE}).end()
+        target.beginObject(self.name, attributes={self.nameRef: support.encoderPath.encode(value)},
+                           indexBlock=NAME_BLOCK_CLOB, indexAttributesCapture={self.nameRef: ACTION_REFERENCE}).end()

@@ -11,9 +11,9 @@ Provides the XML encoder processor handler.
 
 from .base import Content, RenderBaseHandler
 from ally.container.ioc import injected
-from ally.core.spec.transform.encdec import IRender
-from ally.core.spec.transform.index import NAME_BLOCK, ACTION_DISCARD, \
-    ACTION_STREAM, ACTION_INJECT, ACTION_NAME, Index
+from ally.core.impl.index import NAME_BLOCK, ACTION_DISCARD, ACTION_STREAM, \
+    ACTION_INJECT, ACTION_NAME, Index
+from ally.core.spec.transform import IRender
 from ally.indexing.spec.model import Block, Action
 from ally.indexing.spec.perform import skip, feed, feedValue, feedName, \
     feedIndexed, feedContent, push, pop, setFlagIfBefore, remFlag
@@ -23,7 +23,6 @@ from collections import deque
 from functools import partial
 from io import BytesIO
 from xml.sax.saxutils import XMLGenerator, quoteattr
-
 
 # --------------------------------------------------------------------
 

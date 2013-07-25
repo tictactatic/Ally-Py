@@ -9,18 +9,17 @@ Created on Mar 18, 2013
 Provides the model property encoder.
 '''
 
-from .base import RequestEncoderNamed, DefineEncoder, encoderSpecifiers, encoderName, \
-    encoderCourrupt
+from .base import RequestEncoderNamed, DefineEncoder, encoderSpecifiers, encoderName
 from ally.api.operator.type import TypeModel, TypeProperty
 from ally.container.ioc import injected
-from ally.core.impl.encdec import EncoderWithSpecifiers
-from ally.core.spec.transform.encdec import IEncoder, IRender
-from ally.core.spec.transform.index import NAME_BLOCK
+from ally.core.impl.transform import TransfromWithSpecifiers
+from ally.core.spec.transform import ITransfrom, IRender
+from ally.core.impl.index import NAME_BLOCK
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires
 from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context
-from ally.design.processor.execution import Processing
+from ally.design.processor.execution import Processing, Abort
 from ally.design.processor.handler import HandlerBranching
 import logging
 
@@ -78,7 +77,7 @@ class ModelPropertyEncode(HandlerBranching):
             assert isinstance(arg.create, RequestEncoderNamed), 'Invalid create property %s' % arg.create
             if arg.create.encoder is None:
                 log.error('Cannot encode %s', prop)
-                return encoderCourrupt(chain)
+                raise Abort(create)
             encoder = arg.create.encoder
         else: encoder = None
         
@@ -86,9 +85,9 @@ class ModelPropertyEncode(HandlerBranching):
         
 # --------------------------------------------------------------------
 
-class EncoderModelProperty(EncoderWithSpecifiers):
+class EncoderModelProperty(TransfromWithSpecifiers):
     '''
-    Implementation for a @see: IEncoder for model property.
+    Implementation for a @see: ITransfrom for model property.
     '''
     
     def __init__(self, name, encoder, specifiers=None):
@@ -96,18 +95,18 @@ class EncoderModelProperty(EncoderWithSpecifiers):
         Construct the model property encoder.
         '''
         assert isinstance(name, str), 'Invalid model name %s' % name
-        assert encoder is None or isinstance(encoder, IEncoder), 'Invalid property encoder %s' % encoder
+        assert encoder is None or isinstance(encoder, ITransfrom), 'Invalid property encoder %s' % encoder
         super().__init__(specifiers)
         
         self.name = name
         self.encoder = encoder
         
-    def encode(self, obj, target, support):
+    def transform(self, value, target, support):
         '''
-        @see: IEncoder.encode
+        @see: ITransfrom.transform
         '''
         assert isinstance(target, IRender), 'Invalid target %s' % target
         
-        target.beginObject(self.name, **self.populate(obj, support, indexBlock=NAME_BLOCK))
-        if self.encoder: self.encoder.encode(obj, target, support)
+        target.beginObject(self.name, **self.populate(value, support, indexBlock=NAME_BLOCK))
+        if self.encoder: self.encoder.transform(value, target, support)
         target.end()

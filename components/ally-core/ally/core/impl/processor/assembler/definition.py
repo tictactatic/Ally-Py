@@ -9,7 +9,6 @@ Created on Jul 13, 2013
 Provides general register definitions.
 '''
 
-from ally.api.type import Type
 from ally.container.ioc import injected
 from ally.design.processor.attribute import defines
 from ally.design.processor.context import Context
@@ -40,10 +39,6 @@ class DefinitionPopulate(Context):
     name = defines(str, doc='''
     @rtype: string
     The name of the definition.
-    ''')
-    type = defines(Type, doc='''
-    @rtype: Type
-    The type of the definition.
     ''')
     enumeration = defines(list, doc='''
     @rtype: list[string]

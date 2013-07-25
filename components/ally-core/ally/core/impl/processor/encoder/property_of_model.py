@@ -12,7 +12,7 @@ Provides the properties of model encoder.
 from ally.api.operator.type import TypeModel, TypePropertyContainer
 from ally.api.type import Type
 from ally.container.ioc import injected
-from ally.core.spec.transform.encdec import IEncoder
+from ally.core.spec.transform import ITransfrom
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.branch import Branch
@@ -27,8 +27,8 @@ class Create(Context):
     The create encoder context.
     '''
     # ---------------------------------------------------------------- Defined
-    encoder = defines(IEncoder, doc='''
-    @rtype: IEncoder
+    encoder = defines(ITransfrom, doc='''
+    @rtype: ITransfrom
     The encoder for the property of model.
     ''')
     # ---------------------------------------------------------------- Required

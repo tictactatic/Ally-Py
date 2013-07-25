@@ -11,10 +11,9 @@ Provides the node based on invokers.
 
 from ally.api.operator.type import TypeProperty
 from ally.container.ioc import injected
-from ally.core.impl.processor.assembler.base import excludeFrom, \
-    RegisterExcluding, InvokerExcluded
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
+from ally.design.processor.execution import Abort
 from ally.design.processor.handler import HandlerProcessor
 import logging
 
@@ -24,7 +23,7 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
-class Register(RegisterExcluding):
+class Register(Context):
     '''
     The register context.
     '''
@@ -37,8 +36,10 @@ class Register(RegisterExcluding):
     @rtype: list[Context]
     The list of nodes that are found in root.
     ''')
+    # ---------------------------------------------------------------- Required
+    invokers = requires(list)
     
-class Invoker(InvokerExcluded):
+class Invoker(Context):
     '''
     The invoker context.
     '''
@@ -50,6 +51,7 @@ class Invoker(InvokerExcluded):
     # ---------------------------------------------------------------- Required
     methodHTTP = requires(str)
     path = requires(list)
+    location = requires(str)
 
 class Element(Context):
     '''
@@ -112,7 +114,8 @@ class InvokerNodeHandler(HandlerProcessor):
         if register.root is None:
             register.root = Node()
             register.nodes.append(register.root)
-            
+        
+        aborted = []
         for invoker in register.invokers:
             assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
             assert isinstance(invoker.methodHTTP, str), 'Invalid HTTP method name %s' % invoker.methodHTTP
@@ -161,17 +164,19 @@ class InvokerNodeHandler(HandlerProcessor):
                         
                     node = cnode
             
-            if not valid:
-                excludeFrom(chain, invoker)
-                continue
-            
-            if node.invokers is None: node.invokers = {invoker.methodHTTP: invoker}
-            elif node.conflicts and invoker.methodHTTP in node.conflicts: node.conflicts[invoker.methodHTTP].append(invoker)
-            elif invoker.methodHTTP in node.invokers:
-                if node.conflicts is None: node.conflicts = {}
-                conflicts = node.conflicts.get(invoker.methodHTTP)
-                if conflicts is None: conflicts = node.conflicts[invoker.methodHTTP] = [node.invokers.pop(invoker.methodHTTP)]
-                conflicts.append(invoker)
-                continue
-            else: node.invokers[invoker.methodHTTP] = invoker
-            invoker.node = node
+            if not valid: aborted.append(invoker)
+            else:
+                if node.invokers is None: node.invokers = {invoker.methodHTTP: invoker}
+                elif node.conflicts and invoker.methodHTTP in node.conflicts:
+                    node.conflicts[invoker.methodHTTP].append(invoker)
+                elif invoker.methodHTTP in node.invokers:
+                    if node.conflicts is None: node.conflicts = {}
+                    conflicts = node.conflicts.get(invoker.methodHTTP)
+                    if conflicts is None: 
+                        conflicts = node.conflicts[invoker.methodHTTP] = [node.invokers.pop(invoker.methodHTTP)]
+                    conflicts.append(invoker)
+                    continue
+                else: node.invokers[invoker.methodHTTP] = invoker
+                invoker.node = node
+        
+        if aborted: raise Abort(*aborted)

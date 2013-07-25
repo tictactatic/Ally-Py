@@ -10,10 +10,9 @@ Provides the resource paths encoding.
 '''
 
 from ally.container.ioc import injected
+from ally.core.http.impl.index import NAME_BLOCK_REST, ACTION_REFERENCE
 from ally.core.http.spec.server import IEncoderPathInvoker
-from ally.core.http.spec.transform.index import NAME_BLOCK_REST, \
-    ACTION_REFERENCE
-from ally.core.spec.transform.encdec import IEncoder, IRender
+from ally.core.spec.transform import ITransfrom, IRender
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
@@ -46,8 +45,8 @@ class InvokerResources(Context):
     id = defines(str)
     methodHTTP = defines(str)
     path = defines(list)
-    encoder = defines(IEncoder, doc='''
-    @rtype: IEncoder
+    encoder = defines(ITransfrom, doc='''
+    @rtype: ITransfrom
     The encoder to be used for rendering the response object.
     ''')
     # ---------------------------------------------------------------- Required
@@ -100,9 +99,9 @@ class InvokerResourcesHandler(HandlerProcessor):
 
 # --------------------------------------------------------------------
 
-class EncoderResources(IEncoder):
+class EncoderResources(ITransfrom):
     '''
-    Implementation for a @see: IEncoder for resources.
+    Implementation for a @see: ITransfrom for resources.
     '''
     
     def __init__(self, nameResources, nameRef, invoker):
@@ -117,9 +116,9 @@ class EncoderResources(IEncoder):
         self.nameRef = nameRef
         self.invoker = invoker
         
-    def encode(self, obj, target, support):
+    def transform(self, value, target, support):
         '''
-        @see: IEncoder.encode
+        @see: ITransfrom.transform
         '''
         assert isinstance(target, IRender), 'Invalid target %s' % target
         assert isinstance(support, Support), 'Invalid support %s' % support

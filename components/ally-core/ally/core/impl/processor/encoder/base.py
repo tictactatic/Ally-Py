@@ -10,11 +10,9 @@ Provides aid contexts and support functions that are generally used.
 '''
 
 from ally.api.type import Type
-from ally.core.spec.transform.encdec import IEncoder
-from ally.design.processor.attribute import requires, defines, definesIf, \
-    optional
+from ally.core.spec.transform import ITransfrom
+from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
-from ally.design.processor.execution import Chain
 
 # --------------------------------------------------------------------
 # The create contexts.
@@ -29,7 +27,7 @@ class RequestEncoder(Context):
     The type that is the target of the encoder create.
     ''')
     # ---------------------------------------------------------------- Required
-    encoder = requires(IEncoder)
+    encoder = requires(ITransfrom)
     
 class RequestEncoderNamed(RequestEncoder):
     '''
@@ -46,13 +44,9 @@ class DefineEncoder(Context):
     The create encoder context.
     '''
     # ---------------------------------------------------------------- Defined
-    encoder = defines(IEncoder, doc='''
-    @rtype: IEncoder
+    encoder = defines(ITransfrom, doc='''
+    @rtype: ITransfrom
     The encoder to be used for rendering objects.
-    ''')
-    isCorrupted = definesIf(bool, doc='''
-    @rtype: boolean
-    Flag indicating that the create process is corrupted.
     ''')
     # ---------------------------------------------------------------- Optional
     name = optional(str)
@@ -84,15 +78,3 @@ def encoderName(context, default=None):
     '''
     if DefineEncoder.name in context and context.name: return context.name
     return default
-
-def encoderCourrupt(chain):
-    '''
-    Corrupts the chain create and also cancels the chain.
-    
-    @param chain: Chain
-        The chain to corrupt and cancel based on.
-    '''
-    assert isinstance(chain, Chain), 'Invalid chain %s' % chain
-    create = chain.arg.create
-    if DefineEncoder.isCorrupted in create: create.isCorrupted = True
-    chain.cancel()

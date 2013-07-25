@@ -10,7 +10,7 @@ Provides the content index header encoding.
 '''
 
 from ally.container.ioc import injected
-from ally.core.spec.transform.index import Index
+from ally.core.impl.index import Index
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires
 from ally.design.processor.branch import Branch

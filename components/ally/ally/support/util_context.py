@@ -121,7 +121,53 @@ def cloneCollection(value):
 
 # --------------------------------------------------------------------
 
-def findFirst(context, search, attribute, maximum=1000):
+def iterate(context, nextCall, maximum=1000):
+    '''
+    Iterates all the contexts found based on the next call, also the first context (the provided one will be iterated).
+    
+    @param context: Context
+        The first context to start the iteration.
+    @param nextCall: callable(Context) -> Context|None
+        The call used to fetch the next context from the current one.
+    @return: Iterator(Context)
+        The iterated contexts.
+    '''
+    assert isinstance(context, Context), 'Invalid context %s' % context
+    assert callable(nextCall), 'Invalid next callable %s' % nextCall
+    
+    while context is not None:
+        assert isinstance(context, Context), 'Invalid context %s' % context
+        if maximum <= 0: break
+        yield context
+        maximum -= 1
+        context = nextCall(context)
+
+def listing(context, search, attribute=None, **keyargs):
+    '''
+    Lists all the contexts found based on the search attribute, also the first context (the provided one will be listed).
+    
+    @param context: Context
+        The first context to start the listing.
+    @param search: Context.attribute(Context)
+        The context attribute to do the listing based on.
+    @param attribute: Context.attribute|None
+        The context attribute to provide the value for, if None the contexts will be placed in the list.
+    @return: list[object]
+        The found contexts or values.
+    '''
+    assert isinstance(context, Context), 'Invalid context %s' % context
+    sattr = attributeOf(search)
+    assert isinstance(sattr, IAttribute), 'Invalid search attribute %s' % search
+    if attribute:
+        attr = attributeOf(attribute)
+        assert isinstance(attr, IAttribute), 'Invalid attribute %s' % attribute
+    else: attr = None
+    
+    contexts = iterate(context, lambda context: getattr(context, sattr.__name__) if sattr in context else None, **keyargs)
+    if attr: return [getattr(context, attr.__name__) for context in contexts]
+    return list(contexts)
+
+def findFirst(context, search, attrOrCall, **keyargs):
     '''
     Finds the first value that is not None for the provided attribute, the search will be made based on the search 
     attribute which must be for a context.
@@ -130,25 +176,22 @@ def findFirst(context, search, attribute, maximum=1000):
         The context to search in.
     @param search: Context.attribute(Context)
         The context attribute to search based on.
-    @param attribute: Context.attribute
-        The context attribute to provide the first value for.
-    @param maximum: integer
-        The maximum search depth to be made, after this None will be returned.
+    @param attribute: Context.attribute|callable(Context) -> object
+        The context attribute to provide the first value for, or a call that takes the context as a value
+        an whenever returns a not None value it means the value has been found.
     @return: object|None
         The found value or None if no value could be found.
     '''
     assert isinstance(context, Context), 'Invalid context %s' % context
     sattr = attributeOf(search)
     assert isinstance(sattr, IAttribute), 'Invalid search attribute %s' % search
-    attr = attributeOf(attribute)
-    assert isinstance(attr, IAttribute), 'Invalid attribute %s' % attr
-    assert isinstance(maximum, int), 'Invalid maximum %s' % maximum
+    if callable(attrOrCall): call = attrOrCall
+    else:
+        attr = attributeOf(attrOrCall)
+        assert isinstance(attr, IAttribute), 'Invalid attribute or call %s' % attrOrCall
+        call = lambda context: getattr(context, attr.__name__)
     
-    while context is not None:
+    for context in iterate(context, lambda context: getattr(context, sattr.__name__) if sattr in context else None, **keyargs):
         assert isinstance(context, Context), 'Invalid context %s' % context
-        if maximum <= 0: return
-        value = getattr(context, attr.__name__)
+        value = call(context)
         if value is not None: return value
-        if sattr in context: context = getattr(context, sattr.__name__)
-        else: context = None
-        maximum -= 1

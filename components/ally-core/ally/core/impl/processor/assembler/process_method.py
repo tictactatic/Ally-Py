@@ -9,11 +9,12 @@ Created on May 28, 2013
 Provides the processing on callers based on methods.
 '''
 
-from .base import excludeFrom, InvokerExcluded, RegisterExcluding
 from ally.api.config import GET, INSERT, UPDATE, DELETE
 from ally.api.operator.type import TypeProperty, TypeModel
 from ally.api.type import Iter, Type
 from ally.design.processor.attribute import requires, defines
+from ally.design.processor.context import Context
+from ally.design.processor.execution import Abort
 from ally.design.processor.handler import HandlerProcessor
 import logging
 
@@ -22,8 +23,15 @@ import logging
 log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
+
+class Register(Context):
+    '''
+    The register context.
+    '''
+    # ---------------------------------------------------------------- Required
+    invokers = requires(list)
     
-class Invoker(InvokerExcluded):
+class Invoker(Context):
     '''
     The invoker context.
     '''
@@ -44,6 +52,7 @@ class Invoker(InvokerExcluded):
     method = requires(int)
     inputs = requires(tuple)
     output = requires(Type)
+    location = requires(str)
     
 # --------------------------------------------------------------------
 
@@ -55,15 +64,16 @@ class ProcessMethodHandler(HandlerProcessor):
     def __init__(self):
         super().__init__(Invoker=Invoker)
 
-    def process(self, chain, register:RegisterExcluding, **keyargs):
+    def process(self, chain, register:Register, **keyargs):
         '''
         @see: HandlerProcessor.process
         
         Process the invokers based on method.
         '''
-        assert isinstance(register, RegisterExcluding), 'Invalid register %s' % register
+        assert isinstance(register, Register), 'Invalid register %s' % register
         if not register.invokers: return
         
+        aborted = []
         for invoker in register.invokers:
             assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
             
@@ -75,8 +85,9 @@ class ProcessMethodHandler(HandlerProcessor):
             else:
                 log.error('Cannot use because the method %s is not known, at:%s', invoker.method, invoker.location)
                 keep = False
-                
-            if not keep: excludeFrom(chain, invoker)
+            if not keep: aborted.append(invoker)
+        
+        if aborted: raise Abort(*aborted)
 
     # ----------------------------------------------------------------
     
@@ -115,11 +126,18 @@ class ProcessMethodHandler(HandlerProcessor):
             assert isinstance(output, TypeProperty)
             output = output.parent
 
-        if isinstance(output, TypeModel):
-            invoker.target = output
-            return True
+        if not isinstance(output, TypeModel):
+            log.error('Cannot use because the output %s is not for a model, at:%s', invoker.output, invoker.location)
+            return False
         
-        log.error('Cannot use because the output %s is not for a model, at:%s', invoker.output, invoker.location)
+        models = [inp.type for inp in invoker.inputs if isinstance(inp.type, TypeModel)]
+        if len(models) > 1:
+            log.error('Cannot use because there are to many models %s to insert, at:%s',
+                     ', '.join(str(model) for model in models), invoker.location)
+            return False
+            
+        invoker.target = output
+        return True
  
     def processUPDATE(self, invoker):
         '''
@@ -129,7 +147,7 @@ class ProcessMethodHandler(HandlerProcessor):
 
         models = [inp.type for inp in invoker.inputs if isinstance(inp.type, TypeModel)]
         if len(models) > 1:
-            log.error('Cannot use because there are to many models %s to insert, at:%s',
+            log.error('Cannot use because there are to many models %s to update, at:%s',
                      ', '.join(str(model) for model in models), invoker.location)
             return False
         elif models: invoker.target = models[0]

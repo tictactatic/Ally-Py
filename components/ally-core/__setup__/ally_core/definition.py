@@ -14,11 +14,6 @@ from ally.core.spec.definition import IVerifier
 
 # --------------------------------------------------------------------
 
-INFO_LIST_ITEM = 'list_item'
-# The index for list item info.
-
-# --------------------------------------------------------------------
-
 @ioc.entity
 def categories():
     ''' The categories descriptions, contains dictionary{string: list[string]}'''
