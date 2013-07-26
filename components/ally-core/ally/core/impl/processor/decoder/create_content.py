@@ -57,7 +57,7 @@ class Decoding(Context):
 # --------------------------------------------------------------------
 
 @injected
-class CreateContentDecode(HandlerBranching):
+class CreateContentHandler(HandlerBranching):
     '''
     Implementation for a handler that provides the creation of decoded content.
     '''
@@ -68,8 +68,7 @@ class CreateContentDecode(HandlerBranching):
     def __init__(self):
         assert isinstance(self.decodeContentAssembly, Assembly), \
         'Invalid content decode assembly %s' % self.decodeContentAssembly
-        super().__init__(Branch(self.decodeContentAssembly).
-                         included(('Support', 'SupportDecodeContent'), ('decoding', 'Decoding')).included(),
+        super().__init__(Branch(self.decodeContentAssembly).included(('decoding', 'Decoding')).included(),
                          Decoding=Decoding)
     
     def process(self, chain, processing, create:Create, invoker:Invoker, **keyargs):

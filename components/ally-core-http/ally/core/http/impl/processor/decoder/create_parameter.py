@@ -52,7 +52,7 @@ class Parameter(Context):
 # --------------------------------------------------------------------
 
 @injected
-class CreateParameterDecode(HandlerBranching):
+class CreateParameterHandler(HandlerBranching):
     '''
     Implementation for a handler that provides the create of decoded parameters.
     '''
@@ -64,8 +64,7 @@ class CreateParameterDecode(HandlerBranching):
         assert isinstance(self.decodeParameterAssembly, Assembly), \
         'Invalid parameter decode assembly %s' % self.decodeParameterAssembly
         super().__init__(Branch(self.decodeParameterAssembly).using(parameter=Parameter).
-                         included(('Support', 'SupportDecodeParameter'), ('decoding', 'Decoding')).included(),
-                         Decoding=Decoding)
+                         included(('decoding', 'Decoding')).included(), Decoding=Decoding)
     
     def process(self, chain, processing, create:Create, **keyargs):
         '''

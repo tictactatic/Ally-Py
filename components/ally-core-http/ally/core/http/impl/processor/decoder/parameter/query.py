@@ -49,10 +49,6 @@ class Decoding(Context):
     @rtype: TypeProperty
     The property that represents the decoding.
     ''')
-    parameterDefinition = defines(Context, doc='''
-    @rtype: Context
-    The definition context for the parameter decoding.
-    ''')
     # ---------------------------------------------------------------- Required
     type = requires(Type)
     doSet = requires(IDo)
@@ -157,13 +153,13 @@ class QueryDecode(HandlerBranching):
                 mdecoding.doGet = self.createGet(decoding.doGet, cprop, prop)
                 mdecoding.property = cprop
                 mdecoding.type = prop.type
-                mdecoding.parameterDefinition = Definition(references=references)
 
                 mparameter = parameter.__class__()
                 assert isinstance(mparameter, Parameter), 'Invalid parameter %s' % mparameter
                 mparameter.path = cpath
                 
-                consumed, arg = processing.execute(CONSUMED, decoding=mdecoding, parameter=mparameter, **keyargs)
+                consumed, arg = processing.execute(CONSUMED, decoding=mdecoding, definition=Definition(references=references),
+                                                   parameter=mparameter, **keyargs)
                 if not consumed: continue
                 assert isinstance(arg.decoding, Decoding), 'Invalid decoding %s' % arg.decoding
                 if not arg.decoding.doDecode:
@@ -180,13 +176,13 @@ class QueryDecode(HandlerBranching):
         assert isinstance(getter, IDo), 'Invalid getter %s' % getter
         assert isinstance(criteria, TypeProperty), 'Invalid criteria property %s' % criteria
         assert isinstance(prop, TypeProperty), 'Invalid property %s' % prop
-        def doGet(arguments):
+        def doGet(target):
             '''
             Do get the criteria property value.
             '''
             assert isinstance(criteria, TypeProperty)
             assert isinstance(prop, TypeProperty)
-            query = getter(arguments)
+            query = getter(target)
             if query is None: return
             if criteria not in query: return
             return getattr(getattr(query, criteria.name), prop.name)
@@ -202,16 +198,16 @@ class QueryDecode(HandlerBranching):
         assert properties, 'At least one property is required'
         if __debug__:
             for prop in properties: assert isinstance(prop, TypeProperty), 'Invalid property %s' % prop
-        def doSet(arguments, value):
+        def doSet(target, value):
             '''
             Do set the criteria properties value.
             '''
             assert isinstance(criteria, TypeProperty)
             assert isinstance(criteria.parent, TypeQuery), 'Invalid criteria %s' % criteria
-            query = getter(arguments)
+            query = getter(target)
             if query is None:
                 query = criteria.parent.clazz()
-                setter(arguments, query)
+                setter(target, query)
             target = getattr(query, criteria.name)
             for prop in properties:
                 assert isinstance(prop, TypeProperty), 'Invalid property %s' % prop

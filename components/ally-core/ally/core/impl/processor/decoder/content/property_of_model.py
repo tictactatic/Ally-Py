@@ -9,11 +9,13 @@ Created on Jul 24, 2013
 Provides the properties of model decoding.
 '''
 
-from .model import Decoding, Support
 from ally.api.operator.type import TypeProperty, TypeModel
+from ally.api.type import Type
 from ally.container.ioc import injected
 from ally.design.processor.assembly import Assembly
+from ally.design.processor.attribute import defines, requires
 from ally.design.processor.branch import Branch
+from ally.design.processor.context import Context
 from ally.design.processor.execution import Processing, Abort
 from ally.design.processor.handler import HandlerBranching
 from ally.support.util_context import listing
@@ -23,6 +25,49 @@ import logging
 # --------------------------------------------------------------------
 
 log = logging.getLogger(__name__)
+
+# --------------------------------------------------------------------
+
+class Decoding(Context):
+    '''
+    The model decoding context.
+    '''
+    # ---------------------------------------------------------------- Defined
+    name = defines(str, doc='''
+    @rtype: string
+    The decoder name.
+    ''')
+    parent = defines(Context, doc='''
+    @rtype: Context
+    The parent decoding that this decoding is based on.
+    ''')
+    property = defines(TypeProperty, doc='''
+    @rtype: TypeProperty
+    The property that represents the decoding.
+    ''')
+    children = defines(dict, doc='''
+    @rtype: dictionary{string: Context}
+    The decoding children indexed by the decoding name.
+    ''')
+    doDecode = defines(IDo, doc='''
+    @rtype: callable(target, value)
+    Decodes the value into the provided target.
+    @param target: Context
+        Target context object used for decoding.
+    @param value: object
+        The value to be decoded.
+    ''')
+    # ---------------------------------------------------------------- Required
+    type = requires(Type)
+    doSet = requires(IDo)
+    doGet = requires(IDo)
+    
+class Target(Context):
+    '''
+    The target context.
+    '''
+    # ---------------------------------------------------------------- Required
+    doFailure = requires(IDo)
     
 # --------------------------------------------------------------------
 
@@ -38,7 +83,7 @@ class PropertyOfModelDecode(HandlerBranching):
     def __init__(self):
         assert isinstance(self.decodePropertyAssembly, Assembly), \
         'Invalid property decode assembly %s' % self.decodePropertyAssembly
-        super().__init__(Branch(self.decodePropertyAssembly).included(), Support=Support)
+        super().__init__(Branch(self.decodePropertyAssembly).included(), Target=Target)
         
     def process(self, chain, processing, decoding:Decoding, **keyargs):
         '''
@@ -86,20 +131,20 @@ class PropertyOfModelDecode(HandlerBranching):
         assert isinstance(decoding, Decoding), 'Invalid decoding %s' % decoding
         assert isinstance(decoding.children, dict), 'Invalid decoding children %s' % decoding.children
         assert isinstance(decode, IDo), 'Invalid decode %s' % decode
-        def doDecode(value, arguments, support):
+        def doDecode(target, value):
             '''
             Do decode the property of model.
             '''
-            if not isinstance(value, dict): return decode(value, arguments, support)
-            assert isinstance(support, Support), 'Invalid support %s' % support
+            if not isinstance(value, dict): return decode(target, value)
+            assert isinstance(target, Target), 'Invalid target %s' % target
             assert isinstance(decoding, Decoding)
             
             for pname, pvalue in value.items():
                 cdecoding = decoding.children.get(pname)
                 if not cdecoding:
-                    support.doFailure(decoding, pname)
+                    target.doFailure(decoding, pname)
                     continue
                 assert isinstance(cdecoding, Decoding), 'Invalid decoding %s' % cdecoding
                 assert isinstance(cdecoding.doDecode, IDo), 'Invalid decode %s' % cdecoding.doDecode
-                cdecoding.doDecode(pvalue, arguments, support)
+                cdecoding.doDecode(target, pvalue)
         return doDecode

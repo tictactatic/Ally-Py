@@ -9,7 +9,7 @@ Created on Jun 28, 2011
 Provides support for explaining the errors in the content of the request.
 '''
 
-from _abcoll import Iterable
+from collections import Iterable, deque
 from ally.container.ioc import injected
 from ally.core.spec.definition import IValue, IVerifier
 from ally.design.processor.attribute import requires, optional, defines
@@ -19,7 +19,6 @@ from ally.design.processor.resolvers import resolversFor
 from ally.support.util import TextTable
 from ally.support.util_io import IInputStream
 from codecs import getwriter
-from collections import deque
 from io import BytesIO
 from numbers import Number
 import logging
@@ -148,25 +147,27 @@ class ErrorExplainHandler(HandlerProcessor):
         '''
         table = TextTable('*', 'Name', 'Type', 'Description')
         presented, stack = set(), deque()
-        stack.append(iter(contexts))
+        stack.extend(contexts)
         while stack:
-            for defin in stack.pop():
-                assert isinstance(defin, Definition), 'Invalid definition %s' % defin
+            defin = stack.popleft()
+            assert isinstance(defin, Definition), 'Invalid definition %s' % defin
+            
+            if Definition.references in defin and defin.references:
+                stack.extendleft(defin.references)
+            
+            if defin.name and defin.name not in presented:
+                presented.add(defin.name)
                 
-                if Definition.references in defin and defin.references: stack.appendleft(iter(defin.references))
+                if Definition.enumeration in defin and defin.enumeration:
+                    represent = '\n'.join('- %s' % enum for enum in defin.enumeration)
+                elif defin.types: represent = ', '.join(str(typ) for typ in defin.types)
+                else: represent = ''
                 
-                if defin.name and defin.name not in presented:
-                    presented.add(defin.name)
+                mandatory = ''
+                if Definition.isMandatory in defin and defin.isMandatory: mandatory = '*'
+                
+                table.add(mandatory, defin.name, represent, self.descriptionFor(defin))
                     
-                    if Definition.enumeration in defin and defin.enumeration:
-                        represent = '\n'.join('- %s' % enum for enum in defin.enumeration)
-                    elif defin.types: represent = ', '.join(str(typ) for typ in defin.types)
-                    else: represent = ''
-                    
-                    mandatory = ''
-                    if Definition.isMandatory in defin and defin.isMandatory: mandatory = '*'
-                    
-                    table.add(mandatory, defin.name, represent, self.descriptionFor(defin))
         if presented: table.render(out)
     
     def transformData(self, data, definition=None):

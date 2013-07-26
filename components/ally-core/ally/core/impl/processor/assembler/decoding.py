@@ -66,22 +66,29 @@ class DecodingRequest(Context):
     The type to be decoded.
     ''')
     doSet = defines(IDo, doc='''
-    @rtype: callable(value, arguments)
+    @rtype: callable(target, value)
     Set the constructed value into the provided target.
-    @param target: object
-        The target to set the value to.
+    @param target: Context
+        The target context to set the value to.
     @param value: object
         The value object to set to the target.
     ''')
     doGet = defines(IDo, doc='''
-    @rtype: callable(arguments) -> object
+    @rtype: callable(target) -> object
     Get the value represented by the constructor from the provided target.
-    @param target: object
-        The target to get the value from.
+    @param target: Context
+        The target context to get the value from.
     @return: object
-        The constructed object from the target.
+        The object from the target.
     ''')
     
+class Target(Context):
+    '''
+    The target context.
+    '''
+    # ---------------------------------------------------------------- Required
+    arguments = requires(dict)
+      
 # --------------------------------------------------------------------
 
 @injected
@@ -97,7 +104,7 @@ class DecodingHandler(HandlerBranching):
         assert isinstance(self.decodeAssembly, Assembly), 'Invalid decode assembly %s' % self.decodeAssembly
         super().__init__(Branch(self.decodeAssembly).using(create=Create).
                          included(('node', 'Node'), ('invoker', 'Invoker')).included(),
-                         Invoker=Invoker)
+                         Invoker=Invoker, Target=Target)
 
     def process(self, chain, processing, register:Register, Decoding:DecodingRequest, **keyargs):
         '''
@@ -148,12 +155,13 @@ class DecodingHandler(HandlerBranching):
         Create the do get.
         '''
         assert isinstance(key, str), 'Invalid key %s' % key
-        def doGet(arguments):
+        def doGet(target):
             '''
             Do get the value from arguments.
             '''
-            assert isinstance(arguments, dict), 'Invalid arguments %s' % arguments
-            return arguments.get(key)
+            assert isinstance(target, Target), 'Invalid target %s' % target
+            assert isinstance(target.arguments, dict), 'Invalid arguments %s' % target.arguments
+            return target.arguments.get(key)
         return doGet
         
     def createSet(self, key):
@@ -161,11 +169,12 @@ class DecodingHandler(HandlerBranching):
         Create the do set.
         '''
         assert isinstance(key, str), 'Invalid key %s' % key
-        def doSet(arguments, value):
+        def doSet(target, value):
             '''
             Do set the value to arguments.
             '''
-            assert isinstance(arguments, dict), 'Invalid arguments %s' % arguments
-            arguments[key] = value
+            assert isinstance(target, Target), 'Invalid target %s' % target
+            assert isinstance(target.arguments, dict), 'Invalid arguments %s' % target.arguments
+            target.arguments[key] = value
         return doSet
 

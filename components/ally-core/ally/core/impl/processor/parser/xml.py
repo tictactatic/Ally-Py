@@ -10,7 +10,7 @@ Provides the XML parser processor handler.
 '''
 
 from . import base
-from .base import ParseBaseHandler
+from .base import ParseBaseHandler, Target
 from ally.container.ioc import injected
 from ally.design.processor.attribute import requires
 from ally.support.util_io import IInputStream
@@ -44,14 +44,15 @@ class ParseXMLHandler(ParseBaseHandler):
 
         self.parser = make_parser()
 
-    def parse(self, source, charSet, decoding, doDecode, doReport):
+    def parse(self, source, charSet, decoding, target):
         '''
         @see: ParseBaseHandler.parse
         '''
         assert isinstance(source, IInputStream), 'Invalid stream %s' % source
         assert isinstance(charSet, str), 'Invalid character set %s' % charSet
+        assert isinstance(target, Target), 'Invalid target %s' % target
         
-        parse = Parse(self.parser, decoding, doDecode, doReport)
+        parse = Parse(self.parser, decoding, target)
         self.parser.setContentHandler(parse)
         inpsrc = InputSource()
         inpsrc.setByteStream(source)
@@ -59,7 +60,7 @@ class ParseXMLHandler(ParseBaseHandler):
         try: self.parser.parse(source)
         except SAXParseException as e:
             assert isinstance(e, SAXParseException)
-            doReport(decoding, 'Bad XML content at line %s and column %s' % (e.getLineNumber(), e.getColumnNumber()))
+            target.doReport(decoding, 'Bad XML content at line %s and column %s' % (e.getLineNumber(), e.getColumnNumber()))
 
 # --------------------------------------------------------------------
 
@@ -67,31 +68,34 @@ class Parse(ContentHandler):
     '''
     Content handler used for parsing the xml content.
     '''
-    __slots__ = ('parser', 'decoding', 'doDecode', 'doReport', 'last', 'isInvalid', 'path', 'content', 'contains')
+    __slots__ = ('parser', 'decoding', 'target', 'last', 'isInvalid', 'path', 'content', 'contains', 'visited')
 
-    def __init__(self, parser, decoding, doDecode, doReport):
+    def __init__(self, parser, decoding, target):
         '''
         Construct the parser.
         
         @param parser: object
             The XML parser.
-        @param definition: DefinitionXML
-            The decoder definition used in the parsing process.
+        @param decoding: Decoding
+            The decoding used in the parsing process.
+        @param target: Target
+            The target used in the parsing process.
         '''
         assert parser is not None, 'A parser is required'
         assert isinstance(decoding, Decoding), 'Invalid decoding %s' % decoding
+        assert isinstance(target, Target), 'Invalid target %s' % target
         super().__init__()
         
         self.parser = parser
         self.decoding = decoding
-        self.doDecode = doDecode
-        self.doReport = doReport
+        self.target = target
 
         self.last = decoding
         self.isInvalid = False
         self.path = []
         self.content = []
         self.contains = [False]
+        self.visited = [set()]
 
     def startElement(self, name, attributes):
         '''
@@ -109,6 +113,7 @@ class Parse(ContentHandler):
             else:
                 self.last = self.last.children[name]
                 self.path.append(self.last)
+                if Decoding.doBegin in self.last and self.last.doBegin: self.last.doBegin(self.target)
         else:
             isUnexpected = name != self.last.name
             if isUnexpected:
@@ -116,19 +121,22 @@ class Parse(ContentHandler):
                 self.path.append(name)
             else:
                 self.path.append(self.last)
+                if Decoding.doBegin in self.last and self.last.doBegin: self.last.doBegin(self.target)
             
         if isUnexpected:
-            self.doReport(self.last, 'Unexpected element \'%s\' at line %s and column %s' % 
-                          self.located(asPath(self.path)))
+            self.target.doReport(self.last, 'Unexpected element \'%s\' at line %s and column %s' % 
+                                 self.located(asPath(self.path)))
         elif attributes:
-            self.doReport(self.last, 'No attributes accepted for \'%s\' at line %s and column %s' % 
-                          self.located(asPath(self.path)))
+            self.target.doReport(self.last, 'No attributes accepted for \'%s\' at line %s and column %s' % 
+                                 self.located(asPath(self.path)))
 
         if self.isInvalid: return
             
         self.content.append([])
         self.contains[-1] = True
         self.contains.append(False)
+        self.visited[-1].add(name)
+        self.visited.append(set())
 
     def characters(self, content):
         '''
@@ -141,7 +149,7 @@ class Parse(ContentHandler):
         @see: ContentHandler.endElement
         '''
         if not self.path:
-            self.doReport(self.last, 'Unexpected end element \'%s\' at line %s and column %s' % self.located(name))
+            self.target.doReport(self.last, 'Unexpected end element \'%s\' at line %s and column %s' % self.located(name))
             return
         
         current = self.path.pop()
@@ -152,18 +160,27 @@ class Parse(ContentHandler):
         
         assert isinstance(current, Decoding), 'Invalid decoding %s' % current
         self.last = previous
-
-        contains = self.contains.pop()
-        if contains:
-            content = ''.join(self.content.pop()).strip()
-            if content:
-                self.doReport(current, 'Invalid value \'%s\' for element \'%s\' at line %s and column %s' % 
-                              self.located(content, asPath(self.path, name)))
-        else:
-            content = '\n'.join(self.content.pop())
-            if content.strip(): self.doDecode(current, content)
-            else: self.doReport(current, 'Expected a value for element \'%s\' at line %s and column %s' % 
-                                self.located(asPath(self.path, name)))
+        visited, contains, content = self.visited.pop(), self.contains.pop(), '\n'.join(self.content.pop())
+        
+        abort = False
+        if current.children:
+            for cname, child in current.children.items():
+                assert isinstance(child, Decoding), 'Invalid decoding %s' % child
+                if cname not in visited and Decoding.isMandatory in child and child.isMandatory:
+                    self.target.doReport(current, 'Expected a value for element \'%s\' at line %s and column %s' % 
+                                         self.located(asPath(self.path, name, cname)))
+                    abort = True
+        
+        if not abort:
+            if contains or not current.doDecode:
+                if content.strip():
+                    self.target.doReport(current, 'Unexpected value \'%s\' for element \'%s\' at line %s and column %s' % 
+                                         self.located(content, asPath(self.path, name)))
+            elif content.strip(): current.doDecode(self.target, content)
+            else: self.target.doReport(current, 'Expected a value for element \'%s\' at line %s and column %s' % 
+                                       self.located(asPath(self.path, name)))
+            
+            if Decoding.doEnd in current and current.doEnd: current.doEnd(self.target)
 
     # ----------------------------------------------------------------
     

@@ -9,7 +9,7 @@ Created on Jul 15, 2013
 Provides the list string exploding.
 '''
 
-from ally.api.type import Type, List, String
+from ally.api.type import Type, List, typeFor
 from ally.container.ioc import injected
 from ally.design.processor.attribute import requires
 from ally.design.processor.context import Context
@@ -25,7 +25,6 @@ class Decoding(Context):
     '''
     # ---------------------------------------------------------------- Required
     type = requires(Type)
-    parameterDefinition = requires(Context)
     doDecode = requires(IDo)
 
 class Definition(Context):
@@ -53,7 +52,7 @@ class ExplodeDecode(HandlerProcessor):
         assert self.regexNormalize, 'Invalid regex for value normalize %s' % self.regexNormalize
         super().__init__(Definition=Definition)
         
-    def process(self, chain, decoding:Decoding, **keyargs):
+    def process(self, chain, decoding:Decoding, definition:Context=None, **keyargs):
         '''
         @see: HandlerProcessor.process
         
@@ -68,12 +67,9 @@ class ExplodeDecode(HandlerProcessor):
         
         decoding.doDecode = self.createExplode(decoding.doDecode)
         
-        if decoding.parameterDefinition:
-            assert isinstance(decoding.parameterDefinition, Definition), \
-            'Invalid definition %s' % decoding.parameterDefinition
-            assert isinstance(decoding.parameterDefinition.types, list), \
-            'Invalid definition %s' % decoding.parameterDefinition.types
-            decoding.parameterDefinition.types.append(String)
+        assert isinstance(definition, Definition), 'Invalid definition %s' % definition
+        assert isinstance(definition.types, list), 'Invalid definition %s' % definition.types
+        definition.types.append(typeFor(str))
 
     # ----------------------------------------------------------------
     
@@ -82,7 +78,7 @@ class ExplodeDecode(HandlerProcessor):
         Create the do explode decode.
         '''
         assert isinstance(decode, IDo), 'Invalid decode %s' % decode
-        def doDecode(value, arguments, support):
+        def doDecode(target, value):
             '''
             Do the explode decode.
             '''
@@ -90,5 +86,5 @@ class ExplodeDecode(HandlerProcessor):
                 value = self.regexSplit.split(value)
                 for k in range(0, len(value)): value[k] = self.regexNormalize.sub('', value[k])
                 
-            decode(value, arguments, support)
+            decode(target, value)
         return doDecode

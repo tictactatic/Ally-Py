@@ -10,19 +10,22 @@ Provides the setup for the decode processors.
 '''
 
 from ..ally_core.decode import assemblyDecode, updateAssemblyDecode, \
-    primitiveDecode
+    primitiveDecode, definitionIndex, markSolved
 from ally.container import ioc
 from ally.core.http.impl.processor.decoder.create_parameter import \
-    CreateParameterDecode
+    CreateParameterHandler
 from ally.core.http.impl.processor.decoder.create_parameter_order import \
     CreateParameterOrderDecode
-from ally.core.http.impl.processor.decoder.parameter.explode import \
-    ExplodeDecode
+from ally.core.http.impl.processor.decoder.parameter.definition_paramter import \
+    DefinitionParameterHandler
 from ally.core.http.impl.processor.decoder.parameter.index import \
-    IndexParameterDecode
+    IndexParameterHandler
 from ally.core.http.impl.processor.decoder.parameter.option import OptionDecode
 from ally.core.http.impl.processor.decoder.parameter.order import OrderDecode
 from ally.core.http.impl.processor.decoder.parameter.query import QueryDecode
+from ally.core.impl.processor.decoder.general.definition_create import \
+    DefinitionCreateHandler
+from ally.core.impl.processor.decoder.general.explode import ExplodeDecode
 from ally.core.impl.processor.decoder.general.list_decode import ListDecode
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.handler import Handler
@@ -56,7 +59,7 @@ def assemblyDecodeOrder() -> Assembly:
     return Assembly('Decode parameter order')
 
 @ioc.entity
-def assemblyDecodeItem() -> Assembly:
+def assemblyDecodeListItem() -> Assembly:
     '''
     The assembly containing the decoders for list items.
     '''
@@ -65,8 +68,8 @@ def assemblyDecodeItem() -> Assembly:
 # --------------------------------------------------------------------
 
 @ioc.entity
-def createParameterDecode() -> Handler:
-    b = CreateParameterDecode()
+def createParameter() -> Handler:
+    b = CreateParameterHandler()
     b.decodeParameterAssembly = assemblyDecodeParameter()
     return b
 
@@ -91,37 +94,48 @@ def optionDecode() -> Handler: return OptionDecode()
 @ioc.entity
 def listDecode() -> Handler:
     b = ListDecode()
-    b.listAssembly = assemblyDecodeItem()
+    b.listItemAssembly = assemblyDecodeListItem()
     return b
 
 @ioc.entity
 def explodeDecode() -> Handler: return ExplodeDecode()
 
+# --------------------------------------------------------------------
+
 @ioc.entity
-def indexParameterDecode() -> Handler:
-    b = IndexParameterDecode()
+def indexParameter() -> Handler: return IndexParameterHandler()
+
+@ioc.entity
+def definitionCreate() -> Handler:
+    b = DefinitionCreateHandler()
     b.category = CATEGORY_PARAMETER
     return b
 
+@ioc.entity
+def definitionParameter() -> Handler: return DefinitionParameterHandler()
+
 # --------------------------------------------------------------------
 
-@ioc.before(assemblyDecodeItem)
+@ioc.before(assemblyDecodeListItem)
 def updateAssemblyDecodeItem():
-    assemblyDecodeItem().add(primitiveDecode())
+    assemblyDecodeListItem().add(primitiveDecode())
     
 @ioc.before(assemblyDecodeQuery)
 def updateAssemblyDecodeQuery():
-    assemblyDecodeQuery().add(orderDecode(), primitiveDecode(), listDecode(), indexParameterDecode(), explodeDecode())
+    assemblyDecodeQuery().add(orderDecode(), primitiveDecode(), listDecode(), definitionCreate(), explodeDecode(),
+                              indexParameter(), definitionParameter(), definitionIndex(), markSolved())
     
 @ioc.before(assemblyDecodeParameter)
 def updateAssemblyDecodeParameter():
     assemblyDecodeParameter().add(optionDecode(), queryDecode(), orderDecode(), primitiveDecode(), listDecode(),
-                                  indexParameterDecode(), explodeDecode())
+                                  definitionCreate(), explodeDecode(), indexParameter(), definitionParameter(),
+                                  definitionIndex(), markSolved())
     
 @ioc.before(assemblyDecodeOrder)
 def updateAssemblyDecodeOrder():
-    assemblyDecodeOrder().add(primitiveDecode(), listDecode(), indexParameterDecode(), explodeDecode())
+    assemblyDecodeOrder().add(primitiveDecode(), listDecode(), definitionCreate(), explodeDecode(), indexParameter(),
+                              definitionParameter(), definitionIndex())
     
 @ioc.after(updateAssemblyDecode)
 def updateAssemblyDecodeForParameters():
-    assemblyDecode().add(createParameterDecode(), createParameterOrderDecode())
+    assemblyDecode().add(createParameter(), createParameterOrderDecode())

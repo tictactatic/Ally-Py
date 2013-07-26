@@ -12,7 +12,7 @@ Provides the list decoding.
 from ally.api.type import List, Type
 from ally.container.ioc import injected
 from ally.design.processor.assembly import Assembly
-from ally.design.processor.attribute import defines, requires, definesIf
+from ally.design.processor.attribute import defines, requires
 from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Processing, Abort
@@ -35,32 +35,22 @@ class Decoding(Context):
     @rtype: Context
     The parent decoding that this decoding is based on.
     ''')
-    name = definesIf(str, doc='''
-    @rtype: string
-    The name of the decode.
-    ''')
-    children = definesIf(dict, doc='''
-    @rtype: dictionary{string: Context}
-    The decoding children indexed by the decoding name.
-    ''')
     doDecode = defines(IDo, doc='''
-    @rtype: callable(value, arguments, support)
-    Decodes the value into the provided arguments.
+    @rtype: callable(target, value)
+    Decodes the value into the provided target.
+    @param target: Context
+        Target context object used for decoding.
     @param value: list[object]
         The list value to be decoded.
-    @param arguments: dictionary{string: object}
-        The decoded arguments.
-    @param support: Context
-        Support context object containing additional data required for decoding.
     ''')
     # ---------------------------------------------------------------- Required
     type = requires(Type)
     doSet = requires(IDo)
     doGet = requires(IDo)
 
-class Support(Context):
+class Target(Context):
     '''
-    The decoder support context.
+    The target context.
     '''
     # ---------------------------------------------------------------- Required
     doFailure = requires(IDo)
@@ -73,15 +63,12 @@ class ListDecode(HandlerBranching):
     Implementation for a handler that provides the list decoding.
     '''
     
-    listAssembly = Assembly
+    listItemAssembly = Assembly
     # The list item decode processors to be used for decoding.
-    itemName = None
-    # The name to set on the item decode, if one is required.
     
     def __init__(self):
-        assert isinstance(self.listAssembly, Assembly), 'Invalid list assembly %s' % self.listAssembly
-        assert self.itemName is None or isinstance(self.itemName, str), 'Invalid item name %s' % self.itemName
-        super().__init__(Branch(self.listAssembly).included(), Support=Support)
+        assert isinstance(self.listItemAssembly, Assembly), 'Invalid list item assembly %s' % self.listItemAssembly
+        super().__init__(Branch(self.listItemAssembly).included(), Target=Target)
 
     def process(self, chain, processing, decoding:Decoding, **keyargs):
         '''
@@ -97,26 +84,19 @@ class ListDecode(HandlerBranching):
         assert isinstance(decoding.type, List)
         
         idecoding = decoding.__class__()
-        assert isinstance(idecoding, Decoding), 'Invalid decoding %s' % idecoding
-        
         idecoding.parent = decoding
-        if Decoding.name in idecoding: idecoding.name = self.itemName
-                
-        idecoding.doSet = self.createSetItem(decoding.doGet, decoding.doSet)
         idecoding.type = decoding.type.itemType
+        idecoding.doSet = self.createSetItem(decoding.doGet, decoding.doSet)
         
         arg = processing.execute(decoding=idecoding, **keyargs)
         assert isinstance(arg.decoding, Decoding), 'Invalid decoding %s' % arg.decoding
         
         if arg.decoding.doDecode:
             decoding.doDecode = self.createDecode(arg.decoding.doDecode, decoding)
-            if Decoding.children in decoding and Decoding.name in arg.decoding and arg.decoding.name:
-                if decoding.children is None: decoding.children = {}
-                decoding.children[arg.decoding.name] = arg.decoding
         else:
             log.error('Cannot decode list item %s', decoding.type.itemType)
             raise Abort(decoding)
-        
+
     # ----------------------------------------------------------------
     
     def createSetItem(self, getter, setter):
@@ -125,12 +105,12 @@ class ListDecode(HandlerBranching):
         '''
         assert isinstance(getter, IDo), 'Invalid getter %s' % getter
         assert isinstance(setter, IDo), 'Invalid setter %s' % setter
-        def doSet(arguments, value):
+        def doSet(target, value):
             '''
             Do set the item value.
             '''
-            previous = getter(arguments)
-            if previous is None: setter(arguments, [value])
+            previous = getter(target)
+            if previous is None: setter(target, [value])
             else:
                 assert isinstance(previous, list), 'Invalid previous value %s' % previous
                 previous.append(value)
@@ -141,12 +121,12 @@ class ListDecode(HandlerBranching):
         Create the do decode for list.
         '''
         assert isinstance(decode, IDo), 'Invalid decode %s' % decode
-        def doDecode(value, arguments, support):
+        def doDecode(target, value):
             '''
             Do decode the list.
             '''
-            assert isinstance(support, Support), 'Invalid support %s' % support
-            if not isinstance(value, list): support.doFailure(decoding, value)
+            assert isinstance(target, Target), 'Invalid target %s' % target
+            if not isinstance(value, list): target.doFailure(decoding, value)
             else:
-                for item in value: decode(item, arguments, support)
+                for item in value: decode(target, item)
         return doDecode

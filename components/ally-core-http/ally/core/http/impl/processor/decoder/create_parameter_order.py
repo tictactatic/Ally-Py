@@ -44,18 +44,12 @@ class DecodingOrder(Context):
     '''
     # ---------------------------------------------------------------- Defined
     doDecode = defines(IDo, doc='''
-    @rtype: callable(value, arguments, support)
-    Decodes the value into the provided arguments.
+    @rtype: callable(target, value)
+    Decodes the value into the provided target.
+    @param target: Context
+        Target context object used for decoding.
     @param value: object
         The value to be decoded.
-    @param arguments: dictionary{string: object}
-        The decoded arguments.
-    @param support: Context
-        Support context object containing additional data required for decoding.
-    ''')
-    parameterDefinition = defines(Context, doc='''
-    @rtype: Context
-    The definition context for the parameter decoding.
     ''')
     type = defines(Type)
     
@@ -69,9 +63,9 @@ class DefinitionOrder(Context):
     The enumeration values that are allowed for order.
     ''')
 
-class Support(Context):
+class Target(Context):
     '''
-    The decoder support context.
+    The target context.
     '''
     # ---------------------------------------------------------------- Required
     doFailure = requires(IDo)
@@ -91,8 +85,7 @@ class CreateParameterOrderDecode(HandlerBranching):
         assert isinstance(self.decodeOrderAssembly, Assembly), \
         'Invalid order decode assembly %s' % self.decodeOrderAssembly
         super().__init__(Branch(self.decodeOrderAssembly).using(parameter=Parameter).
-                         included(('Support', 'SupportDecodeParameter'), ('decoding', 'Decoding')).included(),
-                         SupportDecodeParameter=Support)
+                         included(('decoding', 'Decoding')).included(), Target=Target)
         
     def process(self, chain, processing, create:Create, Decoding:DecodingOrder, Definition:DefinitionOrder, **keyargs):
         '''
@@ -114,16 +107,17 @@ class CreateParameterOrderDecode(HandlerBranching):
         
         adec.type = ddec.type = List(str)
         
-        adec.parameterDefinition = Definition(enumeration=sorted(create.orderSetters.keys()))
+        
         adec.doDecode = self.createDecode(True, create.orderSetters, create.orderPriorityGetters,
                                           create.orderPrioritySetters, adec)
-        
-        ddec.parameterDefinition = Definition(enumeration=sorted(create.orderSetters.keys()))
         ddec.doDecode = self.createDecode(False, create.orderSetters, create.orderPriorityGetters,
                                           create.orderPrioritySetters, ddec)
         
-        processing.wingIn(chain, True, decoding=ddec, parameter=processing.ctx.parameter(path=[NAME_DESC]))
-        processing.wingIn(chain, True, decoding=adec, parameter=processing.ctx.parameter(path=[NAME_ASC]))
+        adef = Definition(enumeration=sorted(create.orderSetters.keys()))
+        ddef = Definition(enumeration=sorted(create.orderSetters.keys()))
+        
+        processing.wingIn(chain, True, decoding=ddec, definition=ddef, parameter=processing.ctx.parameter(path=[NAME_DESC]))
+        processing.wingIn(chain, True, decoding=adec, definition=adef, parameter=processing.ctx.parameter(path=[NAME_ASC]))
 
     # ----------------------------------------------------------------
     
@@ -135,25 +129,25 @@ class CreateParameterOrderDecode(HandlerBranching):
         assert isinstance(settersAsc, dict), 'Invalid ascending mapping %s' % settersAsc
         assert isinstance(gettersPriority, list), 'Invalid priority getters %s' % gettersPriority
         assert isinstance(settersPriority, dict), 'Invalid priority setter %s' % settersPriority
-        def doDecode(value, arguments, support):
+        def doDecode(target, value):
             '''
             Do the order decode.
             '''
-            assert isinstance(support, Support), 'Invalid support %s' % support
+            assert isinstance(target, Target), 'Invalid target %s' % target
             
-            if not isinstance(value, list): return support.doFailure(decoding, value)
+            if not isinstance(value, list): return target.doFailure(decoding, value)
             
             for item in value:
                 setAsc = settersAsc.get(item)
-                if setAsc is None: support.doFailure(decoding, item)
+                if setAsc is None: target.doFailure(decoding, item)
                 else:
-                    setAsc(arguments, asc)
+                    setAsc(target, asc)
                     setPriority = settersPriority.get(item)
                     if setPriority:
-                        priorities = [priority for priority in (getPriority(arguments) for getPriority in gettersPriority)
+                        priorities = [priority for priority in (getPriority(target) for getPriority in gettersPriority)
                                       if priority is not None]
                         if priorities: current = max(priorities)
                         else: current = 0
                         
-                        setPriority(arguments, current + 1)
+                        setPriority(target, current + 1)
         return doDecode

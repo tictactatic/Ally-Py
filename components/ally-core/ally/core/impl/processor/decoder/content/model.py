@@ -10,7 +10,8 @@ Provides the model decoding.
 '''
 
 from ally.api.operator.type import TypeProperty, TypeModel
-from ally.api.type import Type
+from ally.api.type import Iter, Boolean, Integer, Number, String, Time, Date, \
+    DateTime, Type
 from ally.container.ioc import injected
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines
@@ -21,8 +22,6 @@ from ally.design.processor.handler import HandlerBranching
 from ally.support.util_context import listing
 from ally.support.util_spec import IDo
 import logging
-from ally.api.type import Iter, Boolean, Integer, Number, String, Time, Date, \
-    DateTime
     
 # --------------------------------------------------------------------
 
@@ -52,23 +51,21 @@ class Decoding(Context):
     The decoding children indexed by the decoding name.
     ''')
     doDecode = defines(IDo, doc='''
-    @rtype: callable(value, arguments, support)
-    Decodes the value into the provided arguments.
+    @rtype: callable(target, value)
+    Decodes the value into the provided target.
+    @param target: Context
+        Target context object used for decoding.
     @param value: object
         The value to be decoded.
-    @param arguments: dictionary{string: object}
-        The decoded arguments.
-    @param support: Context
-        Support context object containing additional data required for decoding.
     ''')
     # ---------------------------------------------------------------- Required
     type = requires(Type)
     doSet = requires(IDo)
     doGet = requires(IDo)
     
-class Support(Context):
+class Target(Context):
     '''
-    The decoder support context.
+    The target context.
     '''
     # ---------------------------------------------------------------- Required
     doFailure = requires(IDo)
@@ -89,7 +86,7 @@ class ModelDecode(HandlerBranching):
     def __init__(self):
         assert isinstance(self.decodeModelAssembly, Assembly), 'Invalid model decode assembly %s' % self.decodeModelAssembly
         assert isinstance(self.typeOrders, list), 'Invalid type orders %s' % self.typeOrders
-        super().__init__(Branch(self.decodeModelAssembly).included(), Support=Support)
+        super().__init__(Branch(self.decodeModelAssembly).included(), Target=Target)
         
     def process(self, chain, processing, decoding:Decoding, **keyargs):
         '''
@@ -140,12 +137,12 @@ class ModelDecode(HandlerBranching):
         '''
         assert isinstance(getter, IDo), 'Invalid getter %s' % getter
         assert isinstance(prop, TypeProperty), 'Invalid property %s' % prop
-        def doGet(arguments):
+        def doGet(target):
             '''
             Do get the model property value.
             '''
             assert isinstance(prop, TypeProperty)
-            model = getter(arguments)
+            model = getter(target)
             if model is None: return
             return getattr(model, prop.name)
         return doGet
@@ -157,16 +154,16 @@ class ModelDecode(HandlerBranching):
         assert isinstance(getter, IDo), 'Invalid getter %s' % getter
         assert isinstance(setter, IDo), 'Invalid setter %s' % setter
         assert isinstance(prop, TypeProperty), 'Invalid property %s' % prop
-        def doSet(arguments, value):
+        def doSet(target, value):
             '''
             Do set the model property value.
             '''
             assert isinstance(prop, TypeProperty)
             assert isinstance(prop.parent, TypeModel), 'Invalid property %s' % prop
-            model = getter(arguments)
+            model = getter(target)
             if model is None:
                 model = prop.parent.clazz()
-                setter(arguments, model)
+                setter(target, model)
             setattr(model, prop.name, value)
         return doSet
     
@@ -176,23 +173,23 @@ class ModelDecode(HandlerBranching):
         '''
         assert isinstance(decoding, Decoding), 'Invalid decoding %s' % decoding
         assert isinstance(decoding.children, dict), 'Invalid decoding children %s' % decoding.children
-        def doDecode(value, arguments, support):
+        def doDecode(target, value):
             '''
             Do decode the model.
             '''
-            assert isinstance(support, Support), 'Invalid support %s' % support
+            assert isinstance(target, Target), 'Invalid target %s' % target
             assert isinstance(decoding, Decoding)
             
-            if not isinstance(value, dict): return support.doFailure(decoding, value)
+            if not isinstance(value, dict): return target.doFailure(decoding, value)
             
             for pname, pvalue in value.items():
                 cdecoding = decoding.children.get(pname)
                 if not cdecoding:
-                    support.doFailure(decoding, pname)
+                    target.doFailure(decoding, pname)
                     continue
                 assert isinstance(cdecoding, Decoding), 'Invalid decoding %s' % cdecoding
                 assert isinstance(cdecoding.doDecode, IDo), 'Invalid decode %s' % cdecoding.doDecode
-                cdecoding.doDecode(pvalue, arguments, support)
+                cdecoding.doDecode(target, pvalue)
         return doDecode
     
     # --------------------------------------------------------------------

@@ -16,9 +16,8 @@ from ally.core.impl.processor.base import addError
 from ally.core.spec.resources import Converter
 from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerComposite
-from ally.design.processor.processor import Structure
-from ally.support.util_context import pushIn, cloneCollection, findFirst
+from ally.design.processor.handler import HandlerProcessor
+from ally.support.util_context import findFirst
 from ally.support.util_spec import IDo
 
 # --------------------------------------------------------------------
@@ -58,11 +57,15 @@ class Request(Context):
     arguments = requires(dict)
     converterPath = requires(Converter)
 
-class Support(Context):
+class TargetParameter(Context):
     '''
-    The support context.
+    The target context.
     '''
     # ---------------------------------------------------------------- Defined
+    arguments = defines(dict, doc='''
+    @rtype: dictionary{string: object}
+    The arguments do decode the parameters in.
+    ''')
     converter = defines(Converter, doc='''
     @rtype: Converter
     The converter to be used for decoding parameters.
@@ -75,22 +78,22 @@ class Support(Context):
 # --------------------------------------------------------------------
 
 @injected
-class ParameterHandler(HandlerComposite):
+class ParameterHandler(HandlerProcessor):
     '''
     Implementation for a processor that provides the transformation of parameters into arguments.
     '''
 
     def __init__(self):
-        super().__init__(Structure(SupportDecodeParameter='request'),
-                         Invoker=Invoker, Decoding=Decoding, Definition=Definition)
+        super().__init__(Invoker=Invoker, Decoding=Decoding, Definition=Definition)
 
-    def process(self, chain, request:Request, response:ErrorResponseHTTP, SupportDecodeParameter:Support, **keyargs):
+    def process(self, chain, request:Request, response:ErrorResponseHTTP, Target:TargetParameter, **keyargs):
         '''
-        @see: HandlerComposite.process
+        @see: HandlerProcessor.process
         
         Process the parameters into arguments.
         '''
         assert isinstance(request, Request), 'Invalid request %s' % request
+        assert issubclass(Target, TargetParameter), 'Invalid target class %s' % Target
         if response.isSuccess is False: return  # Skip in case the response is in error
 
         if not request.invoker: return  # No invoker available
@@ -102,12 +105,15 @@ class ParameterHandler(HandlerComposite):
             if request.parameters: illegal = set(name for name, value in request.parameters)
         else:
             assert isinstance(decodings, dict), 'Invalid decodings %s' % decodings
-
+            
             failures = {}
-            support = pushIn(SupportDecodeParameter(converter=request.converterPath, doFailure=self.createFailure(failures)),
-                             request, interceptor=cloneCollection, exclude=Support)
-            assert isinstance(support, Support), 'Invalid support %s' % support
+            
             if request.arguments is None: request.arguments = {}
+            target = Target()
+            assert isinstance(target, TargetParameter), 'Invalid target %s' % target
+            target.arguments = request.arguments
+            target.converter = request.converterPath
+            target.doFailure = self.createFailure(failures)
             
             visited = set()
             if request.parameters:
@@ -119,11 +125,11 @@ class ParameterHandler(HandlerComposite):
                     else:
                         assert isinstance(decoding, Decoding), 'Invalid decoding definition %s' % decoding
                         assert isinstance(decoding.doDecode, IDo), 'Invalid do decode %s' % decoding.doDecode
-                        decoding.doDecode(value, request.arguments, support)
+                        decoding.doDecode(target, value)
                         visited.add(name)
                     
             for name, decoding in decodings.items():
-                if name not in visited and decoding.doDefault: decoding.doDefault(request.arguments, support)
+                if name not in visited and decoding.doDefault: decoding.doDefault(target)
             
             if failures:
                 PARAMETER_INVALID.set(response)

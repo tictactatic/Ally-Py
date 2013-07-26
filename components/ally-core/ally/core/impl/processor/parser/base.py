@@ -12,7 +12,8 @@ Provides the text base parser processor handler.
 from ally.container.ioc import injected
 from ally.core.impl.processor.base import ErrorResponse, addError
 from ally.core.spec.codes import CONTENT_BAD, CONTENT_MISSING
-from ally.design.processor.attribute import requires, defines, optional
+from ally.design.processor.attribute import requires, defines, optional, \
+    attribute
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain
 from ally.design.processor.handler import HandlerProcessor
@@ -42,6 +43,9 @@ class Decoding(Context):
     '''
     # ---------------------------------------------------------------- Optional
     parent = optional(Context)
+    isMandatory = optional(bool)
+    doBegin = requires(IDo)
+    doEnd = requires(IDo)
     # ---------------------------------------------------------------- Required
     contentDefinitions = requires(dict)
     doDecode = requires(IDo)
@@ -60,7 +64,6 @@ class Request(Context):
     '''
     # ---------------------------------------------------------------- Required
     invoker = requires(Context)
-    arguments = requires(dict)
     
 class RequestContent(Context):
     '''
@@ -71,14 +74,18 @@ class RequestContent(Context):
     charSet = requires(str)
     source = requires(IInputStream)
 
-class Support(Context):
+class Target(Context):
     '''
-    The decoder support context.
+    The target context.
     '''
     # ---------------------------------------------------------------- Defined
     doFailure = defines(IDo, doc='''
     @rtype: callable(Context, object)
     The call to use in reporting content decoding failures.
+    ''')
+    doReport = attribute(IDo, doc='''
+    @rtype: callable(Context, object)
+    The call to use in reporting content decoding errors.
     ''')
     
 # --------------------------------------------------------------------
@@ -100,7 +107,7 @@ class ParseBaseHandler(HandlerProcessor):
         super().__init__(decoding=decoding, Definition=Definition, Invoker=Invoker)
 
     def process(self, chain, request:Request, requestCnt:RequestContent, response:ErrorResponse,
-                decoding:Context, support:Support, **keyargs):
+                decoding:Context, target:Target, **keyargs):
         '''
         @see: HandlerProcessor.process
         
@@ -109,7 +116,7 @@ class ParseBaseHandler(HandlerProcessor):
         assert isinstance(chain, Chain), 'Invalid processors chain %s' % chain
         assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(requestCnt, RequestContent), 'Invalid request content %s' % requestCnt
-        assert isinstance(support, Support), 'Invalid support %s' % support
+        assert isinstance(target, Target), 'Invalid support %s' % target
         assert isinstance(request.invoker, Invoker), 'Invalid invoker %s' % request.invoker
         
         # Check if the response is for this parser
@@ -152,15 +159,6 @@ class ParseBaseHandler(HandlerProcessor):
             if byName is None: byName = values[name] = []
             byName.append(value)
             
-        support.doFailure = doFailure
-        
-        def doDecode(decoding, value):
-            assert isinstance(decoding, Decoding), 'Invalid decoding %s' % decoding
-            assert isinstance(decoding.doDecode, IDo), 'Invalid decode %s' % decoding.doDecode
-            assert isinstance(request, Request)
-            if request.arguments is None: request.arguments = {}
-            decoding.doDecode(value, request.arguments, support)
-            
         def doReport(decoding, message):
             assert isinstance(message, str), 'Invalid message %s' % message
             name = indexDefinition(decoding)
@@ -169,8 +167,11 @@ class ParseBaseHandler(HandlerProcessor):
             byName = messages.get(name)
             if byName is None: byName = messages[name] = []
             byName.append(message)
+            
+        target.doFailure = doFailure
+        target.doReport = doReport
         
-        self.parse(requestCnt.source, requestCnt.charSet, decoding, doDecode, doReport)
+        self.parse(requestCnt.source, requestCnt.charSet, decoding, target)
         
         if definitions or values or messages:
             CONTENT_BAD.set(response)
@@ -200,7 +201,7 @@ class ParseBaseHandler(HandlerProcessor):
     # ----------------------------------------------------------------
 
     @abc.abstractclassmethod
-    def parse(self, source, charSet, definition, doDecode, doReport):
+    def parse(self, source, charSet, decoding, target):
         '''
         Parse the input stream using the decoder.
         
@@ -208,12 +209,8 @@ class ParseBaseHandler(HandlerProcessor):
             The byte input stream containing the content to be parsed.
         @param charSet: string
             The character set for the input source stream.
-        @param definition: Definition
-            The definition to be used by the parsing.
-        @param doDecode: callable(decoding, object)
-            The decode to be used by the parsing, the first argument is the decoding to decode
-            and the second one is the value to be decoded.
-        @param doReport: callable(decoding, string)
-            The report decoding to be used by the parsing, the first argument is the decoding target
-            and the second one is the error message.
+        @param decoding: Decoding
+            The decoding to be used by the parsing.
+        @param target: Target
+            The target to decode in.
         '''

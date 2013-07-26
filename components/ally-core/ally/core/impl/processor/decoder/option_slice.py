@@ -47,12 +47,10 @@ class Decoding(Context):
     '''
     # ---------------------------------------------------------------- Defined
     doDefault = defines(IDo, doc='''
-    @rtype: callable(arguments, support)
+    @rtype: callable(target)
     Placed the default value into the provided arguments.
-    @param arguments: dictionary{string: object}
-        The decoded arguments.
-    @param support: Context
-        Support context object containing additional data required for decoding.
+    @param target: Context
+        The target decoded.
     ''')
     # ---------------------------------------------------------------- Required
     input = requires(Input)
@@ -61,7 +59,7 @@ class Decoding(Context):
     
 # --------------------------------------------------------------------
 
-class OptionSliceDecode(HandlerProcessor):
+class OptionSliceHandler(HandlerProcessor):
     '''
     Implementation for a processor that enforces collection slicing values.
     '''
@@ -130,14 +128,14 @@ class OptionSliceDecode(HandlerProcessor):
         Create the do set limit.
         '''
         assert isinstance(setter, IDo), 'Invalid setter %s' % setter
-        def doSet(arguments, value):
+        def doSet(target, value):
             '''
             Do set the value but only until maximum value.
             '''
             assert isinstance(value, int), 'Invalid value %s' % value
             
             if value > self.maximumLimit: value = self.maximumLimit
-            setter(arguments, value)
+            setter(target, value)
         return doSet
     
     def createDefaultLimit(self, setter):
@@ -145,12 +143,12 @@ class OptionSliceDecode(HandlerProcessor):
         Create the do default limit.
         '''
         assert isinstance(setter, IDo), 'Invalid setter %s' % setter
-        def doDefault(arguments, support):
+        def doDefault(target):
             '''
             Do set the default limit value.
             '''
-            if self.defaultLimit is not None: setter(arguments, self.defaultLimit)
-            else: setter(arguments, self.maximumLimit)
+            if self.defaultLimit is not None: setter(target, self.defaultLimit)
+            else: setter(target, self.maximumLimit)
         return doDefault
     
     def createDefaultTotal(self, setter):
@@ -158,9 +156,9 @@ class OptionSliceDecode(HandlerProcessor):
         Create the do default total.
         '''
         assert isinstance(setter, IDo), 'Invalid setter %s' % setter
-        def doDefault(arguments, support):
+        def doDefault(target):
             '''
             Do set the total default value.
             '''
-            setter(arguments, self.defaultWithTotal)
+            setter(target, self.defaultWithTotal)
         return doDefault
