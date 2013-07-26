@@ -31,7 +31,8 @@ requirejs.config
         'vendor': config.cjs('vendor'),
         'angular': 'http://ajax.googleapis.com/ajax/libs/angularjs/1.0.7/angular',
         'angular-resource': 'http://code.angularjs.org/1.0.7/angular-resource',
-        'facebook-connect': 'https://connect.facebook.net/en_US/all'
+        'facebook-connect': 'https://connect.facebook.net/en_US/all',
+        'angular-bootstrap': config.cjs('ui-bootstrap-tpls-0.4.0.min')
 	},
     shim: {
         'vendor/backbone': {
@@ -43,7 +44,8 @@ requirejs.config
 			exports: 'Codebird'
 		},
         'angular': {exports: 'angular'},
-        'angular-resource': {deps: ['angular']}
+        'angular-resource': {deps: ['angular']},
+        'angular-bootstrap': {deps: ['angular', 'bootstrap']}
     }
 });
 
