@@ -8,22 +8,13 @@ To run this example, it is necessary to go through the next steps:
 
 1) Environment preparation
 
-Some Ally-Py packages prevent proper work unless the application-specific security
-packages are developed. Thus Ally-Py security-related packages shall be removed when
-these simple examples should be run.
-
-Packages for removal:
-components/service-gateway
-components/service-gateway-recaptcha
-plugins/security-rbac
-
 Some auxiliary libraries are necessary. They are stored in the main repository part,
 in the "../distribution/libraries directory".
 
-Copy them into the distribution/libraries subdirectory of this (example)
+Copy them into the distribution/libraries subdirectory of this (examples)
 directory.
 
-Other steps are relative to this (example) directory.
+Other steps are relative to this (examples) directory.
 
 2) Building the sources
 
@@ -43,7 +34,21 @@ python3 ./distribution/application.py -dump
 The configuration *.properties files are created in the "distribution" subdirectory.
 You can look into those files and tweak them.
 
-4) Running the system
+4) Plugin avoiding
+
+Some Ally-Py packages prevent proper work unless the application-specific security
+packages are developed. Thus Ally-Py security-related packages shall not be loaded
+when these simple examples should be run.
+
+To deactivate those packages, set in ./distribution/application.properties
+the option 'excluded_plugins', see below.
+
+excluded_plugins:
+- components/service-gateway
+- components/service-gateway-recaptcha
+- plugins/security-rbac
+
+5) Running the system
 
 On the command line, run the:
 
