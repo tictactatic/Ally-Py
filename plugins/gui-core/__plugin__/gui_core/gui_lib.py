@@ -86,4 +86,4 @@ def updateStartFile():
     except:
         log.exception('Error publishing demo client file')
     else:
-        assert log.debug('Client start script published:', server_url() + getPublishedLib('core/' + ui_demo_file())) or True
+        assert log.debug('Client start script published: \'%s\'', server_url() + getPublishedLib('core/' + ui_demo_file())) or True
