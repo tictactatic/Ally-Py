@@ -6,12 +6,12 @@ Created on Jun 19, 2013
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Martin Saturka
 
-The scanner used for extracting the localized text messages from dust.
+The scanner used for extracting the localized text messages from html.
 '''
 
-def extract_dust(fileobj, keywords, comment_tags, options):
+def extract_html(fileobj, keywords, comment_tags, options):
     '''
-    Parses the dust files for localizations. It expects fairly simple structure.
+    Parses the html files for localizations. It expects fairly simple structure.
 
     :param fileobj: the seekable, file-like object the messages should be
                     extracted from
@@ -111,7 +111,7 @@ def find_in_line(line, name_keywords):
             if not closing_correct:
                 continue
             # test the inner part to be comma(space)-separated quoted strings
-            inner_part = test_inner_strings(line[(open_position+1):(check_close_position)])
+            inner_part = validate_inner_strings(line[(open_position+1):(check_close_position)])
             # if wrong inner part, test another (if remaining) closing
             if inner_part is None:
                 continue
@@ -125,7 +125,7 @@ def find_in_line(line, name_keywords):
     found_functions.reverse() # to output the found occurrences from left to right
     return found_functions
 
-def test_inner_strings(line_part):
+def validate_inner_strings(line_part):
     '''
     Checking the line_part to be of structure "a param", 'another param', ...
 
@@ -155,8 +155,13 @@ def test_inner_strings(line_part):
             if state not in [PARAMS_START, STRING_AFTER]:
                 return wrong
             return params
-        check_char = line_part[check_position]
+        check_char = usage_char = line_part[check_position]
         check_position += 1
+
+        if (STRING_INNER == state) and (check_char == '\\') and (check_position < line_part_len):
+            usage_char += line_part[check_position]
+            check_char = '_'
+            check_position += 1
 
         if PARAMS_START == state:
             if check_char not in quots:
@@ -171,7 +176,7 @@ def test_inner_strings(line_part):
                 params.append(taken_string)
                 taken_string = ''
                 continue
-            taken_string += check_char
+            taken_string += usage_char
             continue
 
         if STRING_AFTER == state:
@@ -194,12 +199,12 @@ def test_inner_strings(line_part):
 def test():
     from io import StringIO
 
-    test_dust = '''
+    test_html = '''
     testing
     <a>_("a", 'b');
     <tag>N_(); //"none _(''_('example'); _("
-    <a>_('c', "def");
+    <a>_('c', "def\\"n");
     '''
 
-    for one in extract_dust(StringIO(test_dust), ['_', 'N_'], [], {}):
+    for one in extract_html(StringIO(test_html), ['_', 'N_'], [], {}):
         print(one)
