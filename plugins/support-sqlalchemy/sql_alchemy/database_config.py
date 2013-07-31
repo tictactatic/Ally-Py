@@ -14,6 +14,7 @@ from ally.container.error import ConfigError
 from sqlalchemy.engine import create_engine
 from sqlalchemy.engine.base import Engine
 from sqlalchemy.orm.session import sessionmaker
+from sqlalchemy import event
 import logging
 
 # --------------------------------------------------------------------
@@ -41,7 +42,14 @@ def alchemySessionCreator(): return sessionmaker(bind=alchemyEngine())
 
 @ioc.entity
 def alchemyEngine() -> Engine:
-    return create_engine(database_url(), pool_recycle=alchemy_pool_recycle())
+    engine = create_engine(database_url(), pool_recycle=alchemy_pool_recycle())
+
+    if database_url().startswith('sqlite://'):
+        @event.listens_for(engine, 'connect')
+        def setSQLiteFKs(dbapi_con, con_record):
+            dbapi_con.execute('PRAGMA foreign_keys=ON')
+
+    return engine
 
 @ioc.entity
 def metas(): return []

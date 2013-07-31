@@ -18,7 +18,7 @@ from ally.support.api.util_service import copy
 from ally.support.sqlalchemy.session import SessionSupport
 from ally.support.sqlalchemy.util_service import buildQuery, buildLimits, handle
 from inspect import isclass
-from sqlalchemy.exc import SQLAlchemyError, OperationalError
+from sqlalchemy.exc import SQLAlchemyError, OperationalError, IntegrityError
 import logging
 from ally.support.sqlalchemy.mapper import MappedSupport
 from ally.api.extension import IterPart
@@ -196,7 +196,7 @@ class EntityCRUDServiceAlchemy(EntitySupportAlchemy):
         '''
         try:
             return self.session().query(self.Entity).filter(self.Entity.Id == id).delete() > 0
-        except OperationalError:
+        except (OperationalError, IntegrityError):
             assert log.debug('Could not delete entity %s with id \'%s\'', self.Entity, id, exc_info=True) or True
             raise InputError(Ref(_('Cannot delete because is in use'), model=self.model))
 
