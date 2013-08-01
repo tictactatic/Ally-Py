@@ -53,7 +53,6 @@ class IResolver(metaclass=abc.ABCMeta):
     '''
     The context resolver specification. The resolvers implementations need to be of a immutable nature.
     '''
-    __slots__ = ()
         
     @abc.abstractmethod
     def copy(self, names=None):
@@ -121,7 +120,6 @@ class IAttribute(metaclass=abc.ABCMeta):
     '''
     The attribute specification, all valid attributes located in a class need to define the: '__name__', '__objclass__'.
     '''
-    __slots__ = ('__name__', '__objclass__')
     
     @abc.abstractmethod
     def resolver(self):
@@ -172,7 +170,6 @@ class IReport(metaclass=abc.ABCMeta):
     '''
     Provides the reporting support.
     '''
-    __slots__ = ()
     
     def open(self, name):
         '''
@@ -192,12 +189,11 @@ class IReport(metaclass=abc.ABCMeta):
             The resolvers to be reported.
         '''
 
-class IProcessor(metaclass=abc.ABCMeta):
+class IProcessor:
     '''
     The processor specification.
     '''
     
-    @abc.abstractmethod
     def register(self, sources, resolvers, extensions, calls, report):
         '''
         Register the processor call. The processor needs to alter the attributes and extensions dictionaries based on the
@@ -227,6 +223,18 @@ class IProcessor(metaclass=abc.ABCMeta):
             The resolvers that are not part of the current resolvers but they are rather extension for the final contexts.
         @param report: IReport
             The report to be used in the registration process.
+        '''
+    
+    def export(self, required, resolvers):
+        '''
+        The processor exports.
+        
+        @param required: object
+            The object identifying the required exports.
+        @param resolvers: dictionary{string: IResolver}
+            The exported resolvers.
+        @return: dictionary{string: IResolver}|None
+            The exported resolvers for the required verb.
         '''
         
 # --------------------------------------------------------------------

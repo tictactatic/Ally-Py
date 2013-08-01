@@ -12,14 +12,15 @@ Provides the assembler processor.
 from ally.assemblage.http.spec.assemblage import RequestNode
 from ally.container.ioc import injected
 from ally.design.processor.attribute import requires, defines
-from ally.design.processor.context import Context, asData
+from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain
 from ally.design.processor.handler import HandlerProcessor
+from ally.indexing.impl.modifier import iterateModified
 from ally.indexing.spec.modifier import Content, IAlter, IModifier
+from ally.support.util_context import asData
 from ally.support.util_io import IInputStream
 from collections import Callable, Iterable
 import logging
-from ally.indexing.impl.modifier import iterateModified
 
 # --------------------------------------------------------------------
 

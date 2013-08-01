@@ -13,6 +13,7 @@ from ally.api.operator.type import TypeProperty, TypeModel
 from ally.api.type import Iter, Boolean, Integer, Number, String, Time, Date, \
     DateTime, Type
 from ally.container.ioc import injected
+from ally.core.impl.processor.base import FailureTarget, addFailure
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.branch import Branch
@@ -63,13 +64,6 @@ class Decoding(Context):
     doSet = requires(IDo)
     doGet = requires(IDo)
     
-class Target(Context):
-    '''
-    The target context.
-    '''
-    # ---------------------------------------------------------------- Required
-    doFailure = requires(IDo)
-    
 # --------------------------------------------------------------------
 
 @injected
@@ -86,7 +80,7 @@ class ModelDecode(HandlerBranching):
     def __init__(self):
         assert isinstance(self.decodeModelAssembly, Assembly), 'Invalid model decode assembly %s' % self.decodeModelAssembly
         assert isinstance(self.typeOrders, list), 'Invalid type orders %s' % self.typeOrders
-        super().__init__(Branch(self.decodeModelAssembly).included(), Target=Target)
+        super().__init__(Branch(self.decodeModelAssembly).included(), Target=FailureTarget)
         
     def process(self, chain, processing, decoding:Decoding, **keyargs):
         '''
@@ -177,19 +171,18 @@ class ModelDecode(HandlerBranching):
             '''
             Do decode the model.
             '''
-            assert isinstance(target, Target), 'Invalid target %s' % target
             assert isinstance(decoding, Decoding)
             
-            if not isinstance(value, dict): return target.doFailure(decoding, value)
-            
-            for pname, pvalue in value.items():
-                cdecoding = decoding.children.get(pname)
-                if not cdecoding:
-                    target.doFailure(decoding, pname)
-                    continue
-                assert isinstance(cdecoding, Decoding), 'Invalid decoding %s' % cdecoding
-                assert isinstance(cdecoding.doDecode, IDo), 'Invalid decode %s' % cdecoding.doDecode
-                cdecoding.doDecode(target, pvalue)
+            if not isinstance(value, dict): addFailure(target, decoding, value=value)
+            else:
+                for pname, pvalue in value.items():
+                    cdecoding = decoding.children.get(pname)
+                    if not cdecoding:
+                        addFailure(target, decoding, value=pname)
+                        continue
+                    assert isinstance(cdecoding, Decoding), 'Invalid decoding %s' % cdecoding
+                    assert isinstance(cdecoding.doDecode, IDo), 'Invalid decode %s' % cdecoding.doDecode
+                    cdecoding.doDecode(target, pvalue)
         return doDecode
     
     # --------------------------------------------------------------------

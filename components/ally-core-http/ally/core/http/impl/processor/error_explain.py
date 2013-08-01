@@ -9,7 +9,6 @@ Created on Jun 28, 2011
 Provides support for explaining the errors in the content of the request.
 '''
 
-from collections import Iterable, deque
 from ally.container.ioc import injected
 from ally.core.spec.definition import IValue, IVerifier
 from ally.design.processor.attribute import requires, optional, defines
@@ -19,8 +18,8 @@ from ally.design.processor.resolvers import resolversFor
 from ally.support.util import TextTable
 from ally.support.util_io import IInputStream
 from codecs import getwriter
+from collections import deque
 from io import BytesIO
-from numbers import Number
 import logging
 
 # --------------------------------------------------------------------
@@ -182,12 +181,9 @@ class ErrorExplainHandler(HandlerProcessor):
                 assert isinstance(value, IValue)
                 value = value.get(definition)
                 
-            if isinstance(value, (str, Number)): tansformed[key] = value
-            elif value is not None:
-                assert isinstance(value, Iterable), 'Invalid data value %s for %s' % (value, key)
-                if __debug__:
-                    for item in value: assert isinstance(item, (str, Number)), 'Invalid item value %s for %s' % (item, key)
-                tansformed[key] = ', '.join(str(item) for item in value)
+            if value is not None:
+                if isinstance(value, list): tansformed[key] = ', '.join(str(item) for item in value)
+                else: tansformed[key] = str(value)
             
         return tansformed
     

@@ -29,19 +29,18 @@ def server_provide_errors() -> bool:
     return True
 
 @ioc.config
-def server_pattern_resources():
+def root_uri_resources():
     '''
-    The pattern used for matching the REST resources paths in HTTP URL's
-    !Attention this configuration needs to be in concordance with 'root_uri_resources' configuration
+    The pattern used for matching the resources paths in HTTP URL's
     '''
-    return '^resources(?:/|(?=\\.)|$)(.*)'
+    return 'resources'
 
 @ioc.config
-def server_pattern_errors():
+def root_uri_errors():
     '''
     The pattern used for matching the errors paths in HTTP URL's
     '''
-    return '^error(?:/|(?=\\.)|$)(.*)'
+    return 'error'
 
 # --------------------------------------------------------------------
 
@@ -49,14 +48,14 @@ def server_pattern_errors():
 def resourcesRouter() -> Handler:
     b = RoutingByPathHandler()
     b.assembly = assemblyResources()
-    b.pattern = server_pattern_resources()
+    b.rootURI = root_uri_resources()
     return b
 
 @ioc.entity
 def errorsRouter() -> Handler:
     b = RoutingByPathHandler()
     b.assembly = assemblyErrorDelivery()
-    b.pattern = server_pattern_errors()
+    b.rootURI = root_uri_errors()
     return b
 
 # --------------------------------------------------------------------

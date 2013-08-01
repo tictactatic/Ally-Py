@@ -20,6 +20,7 @@ from ally.design.processor.execution import Processing, Abort
 from ally.design.processor.handler import HandlerBranching
 from ally.support.util_spec import IDo
 import logging
+from ally.core.impl.processor.base import FailureTarget, addFailure
 
 # --------------------------------------------------------------------
 
@@ -44,6 +45,10 @@ class Decoding(Context):
     @param value: dictionary{object: object}
         The dictionary value to be decoded.
     ''')
+    isMandatory = defines(bool, doc='''
+    @rtype: boolean
+    Indicates that the decoding needs to have a value provided.
+    ''')
     # ---------------------------------------------------------------- Optional
     doBegin = optional(IDo)
     doEnd = optional(IDo)
@@ -51,13 +56,6 @@ class Decoding(Context):
     type = requires(Type)
     doSet = requires(IDo)
     doGet = requires(IDo)
-
-class Target(Context):
-    '''
-    The target context.
-    '''
-    # ---------------------------------------------------------------- Required
-    doFailure = requires(IDo)
     
 # --------------------------------------------------------------------
 
@@ -72,7 +70,7 @@ class DictDecode(HandlerBranching):
     
     def __init__(self):
         assert isinstance(self.dictItemAssembly, Assembly), 'Invalid item assembly %s' % self.dictItemAssembly
-        super().__init__(Branch(self.dictItemAssembly).included(), Target=Target)
+        super().__init__(Branch(self.dictItemAssembly).included(), Target=FailureTarget)
 
     def process(self, chain, processing, decoding:Decoding, **keyargs):
         '''
@@ -91,6 +89,7 @@ class DictDecode(HandlerBranching):
         assert isinstance(idecoding, Decoding), 'Invalid decoding %s' % idecoding
         
         idecoding.parent = decoding
+        idecoding.isMandatory = True
         idecoding.doSet = self.createSetItem(decoding.doGet, decoding.doSet)
         
         arg = processing.execute(decoding=idecoding, **keyargs)
@@ -138,12 +137,11 @@ class DictDecode(HandlerBranching):
             '''
             Do decode the dictionary.
             '''
-            assert isinstance(target, Target), 'Invalid target %s' % target
             assert isinstance(idecoding, Decoding)
-            if not isinstance(value, dict): target.doFailure(decoding, value)
+            if not isinstance(value, dict): addFailure(target, decoding, value=value)
             else:
                 assert isinstance(value, dict)
-                for item in value:
+                for item in value.items():
                     if begin: begin(target)
                     decode(target, item)
                     if end: end(target)
@@ -156,6 +154,10 @@ class DecodingItem(Context):
     The decoding context.
     '''
     # ---------------------------------------------------------------- Defined
+    isMandatory = defines(bool, doc='''
+    @rtype: boolean
+    Indicates that the decoding needs to have a value provided.
+    ''')
     doBegin = defines(IDo, doc='''
     @rtype: callable(target)
     Required to be triggered in order to begin the decoding.
@@ -182,7 +184,7 @@ class DecodingItem(Context):
     type = requires(Type)
     doSet = requires(IDo)
     
-class TargetItem(Target):
+class TargetItem(FailureTarget):
     '''
     The target context.
     '''
@@ -236,10 +238,12 @@ class DictItemDecode(HandlerBranching):
         assert isinstance(vdecoding, DecodingItem), 'Invalid decoding %s' % vdecoding
         
         kdecoding.parent = decoding
+        kdecoding.isMandatory = True
         kdecoding.type = decoding.parent.type.keyType
         kdecoding.doSet, kdecoding.doGet = self.doSetKey, self.doGetKey
         
         vdecoding.parent = decoding
+        vdecoding.isMandatory = True
         vdecoding.type = decoding.parent.type.valueType
         vdecoding.doSet, vdecoding.doGet = self.doSetValue, self.doGetValue
         
@@ -308,10 +312,10 @@ class DictItemDecode(HandlerBranching):
             Do decode the dictionary item.
             '''
             assert isinstance(target, TargetItem), 'Invalid target %s' % target
-            if not isinstance(value, tuple) or len(value) != 2: target.doFailure(decoding, value)
+            if not isinstance(value, tuple) or len(value) != 2: addFailure(target, decoding, value=value)
             else:
-                decodeKey(value[0])
-                decodeValue(value[1])
+                decodeKey(target, value[0])
+                decodeValue(target, value[1])
         return doDecode
     
     def createEnd(self, setter):

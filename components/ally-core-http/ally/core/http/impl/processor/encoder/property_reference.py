@@ -17,7 +17,7 @@ from ally.core.spec.transform import ITransfrom, IRender
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
-from ally.http.spec.server import IEncoderPath
+from ally.support.util_spec import IDo
 
 # --------------------------------------------------------------------
 
@@ -39,7 +39,7 @@ class Support(Context):
     The encoder support context.
     '''
     # ---------------------------------------------------------------- Required
-    encoderPath = requires(IEncoderPath)
+    doEncodePath = requires(IDo)
     
 # --------------------------------------------------------------------
 
@@ -98,7 +98,7 @@ class EncoderReference(ITransfrom):
         '''
         assert isinstance(target, IRender), 'Invalid target %s' % target
         assert isinstance(support, Support), 'Invalid support %s' % support
-        assert isinstance(support.encoderPath, IEncoderPath), 'Invalid path encoder %s' % support.encoderPath
+        assert isinstance(support.doEncodePath, IDo), 'Invalid path encoder %s' % support.doEncodePath
         
-        target.beginObject(self.name, attributes={self.nameRef: support.encoderPath.encode(value)},
+        target.beginObject(self.name, attributes={self.nameRef: support.doEncodePath(value)},
                            indexBlock=NAME_BLOCK_CLOB, indexAttributesCapture={self.nameRef: ACTION_REFERENCE}).end()

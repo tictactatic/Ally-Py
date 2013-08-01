@@ -54,10 +54,9 @@ class RenderEncoderHandler(HandlerComposite):
     '''
     
     def __init__(self):
-        super().__init__(Structure(SupportEncodeContent=('response', 'request')), Invoker=Invoker)
+        super().__init__(Structure(Support=('response', 'request')), Invoker=Invoker)
     
-    def process(self, chain, request:Request, response:Response, responseCnt:Context,
-                SupportEncodeContent:Context, **keyargs):
+    def process(self, chain, request:Request, response:Response, responseCnt:Context, Support:Context, **keyargs):
         '''
         @see: HandlerComposite.process
         
@@ -72,6 +71,6 @@ class RenderEncoderHandler(HandlerComposite):
         if not request.invoker.encoder: return  # No encoder to process
         assert isinstance(request.invoker.encoder, ITransfrom), 'Invalid encoder %s' % request.invoker.encoder
         assert callable(response.renderFactory), 'Invalid response renderer factory %s' % response.renderFactory
-        
-        support = pushIn(SupportEncodeContent(), response, request, interceptor=cloneCollection)
+
+        support = pushIn(Support(), response, request, interceptor=cloneCollection)
         request.invoker.encoder.transform(response.obj, response.renderFactory(responseCnt), support)

@@ -9,13 +9,12 @@ Created on Jun 28, 2011
 Provides the URI request node handler.
 '''
 
-from ally.core.spec.resources import Converter
-from ally.design.processor.attribute import requires, defines, definesIf
+from ally.core.http.impl.processor.base import ErrorResponseHTTP
+from ally.core.impl.processor.base import addError
+from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
-from ally.http.spec.codes import PATH_FOUND, PATH_NOT_FOUND, CodedHTTP, \
-    MISSING_SLASH
-from ally.support.core.util_resources import valueOfAny
+from ally.http.spec.codes import PATH_FOUND, PATH_NOT_FOUND, MISSING_SLASH
 from urllib.parse import unquote
 import logging
 
@@ -37,10 +36,9 @@ class Node(Context):
     The node context.
     '''
     # ---------------------------------------------------------------- Required
-    byName = requires(dict)
-    byType = requires(dict)
-    properties = requires(set)
     invokers = requires(dict)
+    child = requires(Context)
+    childByName = requires(dict)
     hasMandatorySlash = requires(bool)
 
 class Request(Context):
@@ -52,21 +50,16 @@ class Request(Context):
     @rtype: Context
     The node corresponding to the request.
     ''')
-    pathValues = definesIf(dict, doc='''
-    @rtype: dictionary{TypeProperty: object}
-    A dictionary containing the path values indexed by the node properties.
+    nodeValues = defines(dict, doc='''
+    @rtype: dictionary{Context: string}
+    A dictionary containing the path values indexed by the node.
     ''')
     extension = defines(str, doc='''
     @rtype: string
     The extension of the requested URI.
     ''')
-    arguments = definesIf(dict, doc='''
-    @rtype: dictionary{Type|string: object}
-    A dictionary containing the arguments to be used for the invoking.
-    ''')
     # ---------------------------------------------------------------- Required
     uri = requires(str)
-    converterPath = requires(Converter)
 
 class ResponseContent(Context):
     '''
@@ -89,7 +82,8 @@ class URIHandler(HandlerProcessor):
     def __init__(self):
         super().__init__(Node=Node)
 
-    def process(self, chain, register:Register, request:Request, response:CodedHTTP, responseCnt:ResponseContent, **keyargs):
+    def process(self, chain, register:Register, request:Request, response:ErrorResponseHTTP,
+                responseCnt:ResponseContent, **keyargs):
         '''
         @see: HandlerProcessor.process
         
@@ -97,12 +91,10 @@ class URIHandler(HandlerProcessor):
         '''
         assert isinstance(register, Register), 'Invalid register %s' % register
         assert isinstance(request, Request), 'Invalid required request %s' % request
-        assert isinstance(response, CodedHTTP), 'Invalid response %s' % response
         assert isinstance(responseCnt, ResponseContent), 'Invalid response content %s' % responseCnt
         
         if response.isSuccess is False: return  # Skip in case the response is in error
         assert isinstance(request.uri, str), 'Invalid request URI %s' % request.uri
-        assert isinstance(request.converterPath, Converter), 'Invalid request converter %s' % request.converterPath
         
         paths = request.uri.split('/')
         i = paths[-1].rfind('.') if len(paths) > 0 else -1
@@ -119,41 +111,40 @@ class URIHandler(HandlerProcessor):
         if request.extension: responseCnt.type = request.extension
         
         node = register.root
-        for path in paths:
+        for k, path in enumerate(paths):
             assert isinstance(node, Node), 'Invalid node %s' % node
-            if node.byName:
-                assert isinstance(node.byName, dict), 'Invalid by name %s' % node.byName
-                node = node.byName.get(path)
-            elif node.byType:
-                assert isinstance(node.byType, dict) and node.byType, 'Invalid node by type %s' % node.byType
-                try: value, typeValue = valueOfAny(request.converterPath, path, node.byType)
-                except ValueError:
-                    assert log.debug('Invalid value \'%s\' for: %s', path, ','.join(str(typ) for typ in node.byType)) or True
-                    node = None
-                else:
-                    node = node.byType[typeValue]
-                    if Request.arguments in request:
-                        assert isinstance(node.properties, set), 'Invalid properties types %s' % node.properties
-                        if request.arguments is None: request.arguments = {}
-                        for propType in node.properties: request.arguments[propType] = value
-                    if Request.pathValues in request:
-                        assert isinstance(node.properties, set), 'Invalid properties types %s' % node.properties
-                        if request.pathValues is None: request.pathValues = {}
-                        for propType in node.properties: request.pathValues[propType] = value
-            else: node = None
-
-            if node is None: break
-                
-        if node is None or not node.invokers:
+            
+            if node.childByName:
+                if path not in node.childByName:
+                    PATH_NOT_FOUND.set(response)
+                    addError(response, 'Instead of \'%(item)s\' or before it is expected: %(names)s',
+                             item=path, names=sorted(node.childByName))
+                    return
+                node = node.childByName[path]
+                continue
+            
+            if node.child:
+                if request.nodeValues is None: request.nodeValues = {}
+                request.nodeValues[node] = path
+                node = node.child
+                continue
+            
             PATH_NOT_FOUND.set(response)
-            assert log.debug('No resource found for URI %s', request.uri) or True
+            addError(response, 'No more path items expected after \'%(path)s\'', path='/'.join(paths[:k]))
+            return
+                
+        if not node.invokers:
+            PATH_NOT_FOUND.set(response)
+            if node.childByName:
+                addError(response, 'Expected additional path items, one of: %(names)s', names=sorted(node.childByName))
+            else: addError(response, 'Expected additional path items')
             return
         
         if not clearExtension and node.hasMandatorySlash:
             # We need to check if the last path element is not a string property ant there might be confusion
             # with the extension
             MISSING_SLASH.set(response)
-            assert log.debug('Unclear extension for URI %s', request.uri) or True
+            addError(response, 'Unclear extension, you need to add a trailing slash to URI')
             return
                 
         assert log.debug('Found resource for URI %s', request.uri) or True

@@ -16,7 +16,7 @@ from ally.design.processor.attribute import requires, defines
 from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Processing, Abort
-from ally.design.processor.handler import HandlerBranching
+from ally.design.processor.handler import HandlerBranching, export
 from ally.support.util_spec import IDo
 import logging
 
@@ -87,8 +87,18 @@ class Target(Context):
     The target context.
     '''
     # ---------------------------------------------------------------- Required
-    arguments = requires(dict)
-      
+    arg = requires(object)
+    
+class Request(Context):
+    '''
+    The request context.
+    '''
+    # ---------------------------------------------------------------- Defined
+    arguments = defines(dict, doc='''
+    @rtype: dictionary{string: object}
+    A dictionary containing the arguments to be used for the invoking.
+    ''')
+          
 # --------------------------------------------------------------------
 
 @injected
@@ -105,6 +115,7 @@ class DecodingHandler(HandlerBranching):
         super().__init__(Branch(self.decodeAssembly).using(create=Create).
                          included(('node', 'Node'), ('invoker', 'Invoker')).included(),
                          Invoker=Invoker, Target=Target)
+        export(self, request=Request)
 
     def process(self, chain, processing, register:Register, Decoding:DecodingRequest, **keyargs):
         '''
@@ -160,8 +171,8 @@ class DecodingHandler(HandlerBranching):
             Do get the value from arguments.
             '''
             assert isinstance(target, Target), 'Invalid target %s' % target
-            assert isinstance(target.arguments, dict), 'Invalid arguments %s' % target.arguments
-            return target.arguments.get(key)
+            assert isinstance(target.arg.request, Request), 'Invalid request %s' % target.arg.request
+            if target.arg.request.arguments: return target.arg.request.arguments.get(key)
         return doGet
         
     def createSet(self, key):
@@ -174,7 +185,8 @@ class DecodingHandler(HandlerBranching):
             Do set the value to arguments.
             '''
             assert isinstance(target, Target), 'Invalid target %s' % target
-            assert isinstance(target.arguments, dict), 'Invalid arguments %s' % target.arguments
-            target.arguments[key] = value
+            assert isinstance(target.arg.request, Request), 'Invalid request %s' % target.arg.request
+            if target.arg.request.arguments is None: target.arg.request.arguments = {}
+            target.arg.request.arguments[key] = value
         return doSet
 

@@ -14,8 +14,7 @@ from . import server_type, server_protocol, server_version, server_host, \
 from .processor import assemblyNotFound, connectionClose, connection
 from ally.container import ioc
 from ally.design.processor.assembly import Assembly
-from ally.design.processor.handler import Handler
-from ally.http.impl.processor.router_by_path import RoutingByPathHandler
+from ally.design.processor.handler import Handler, RoutingHandler
 from ally.http.server import server_basic
 from threading import Thread
 
@@ -47,11 +46,7 @@ def serverBasic():
 # --------------------------------------------------------------------
 
 @ioc.entity
-def notFoundRouter() -> Handler:
-    b = RoutingByPathHandler()
-    b.assembly = assemblyNotFound()
-    b.pattern = '(?:.*)'
-    return b
+def notFoundRouter() -> Handler: return RoutingHandler(assemblyNotFound())
 
 # --------------------------------------------------------------------
 

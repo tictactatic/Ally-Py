@@ -80,7 +80,7 @@ class EncodingHandler(HandlerBranching):
     def __init__(self):
         assert isinstance(self.encodeAssembly, Assembly), 'Invalid encode assembly %s' % self.encodeAssembly
         super().__init__(Branch(self.encodeAssembly).using(create=Create).
-                         included(('invoker', 'Invoker'), ('node', 'Node'), ('Support', 'SupportEncodeContent')),
+                         included(('invoker', 'Invoker'), ('node', 'Node')).included(),
                          Invoker=Invoker)
 
     def process(self, chain, processing, register:Register, **keyargs):

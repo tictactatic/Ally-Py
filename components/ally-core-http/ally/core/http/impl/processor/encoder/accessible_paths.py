@@ -12,7 +12,6 @@ Provides the accessible paths for a model.
 from ally.api.operator.type import TypeModel
 from ally.container.ioc import injected
 from ally.core.http.impl.index import NAME_BLOCK_REST, ACTION_REFERENCE
-from ally.core.http.spec.server import IEncoderPathInvoker
 from ally.core.spec.transform import ITransfrom, IRender
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
@@ -21,6 +20,7 @@ from ally.support.util import firstOf
 from ally.support.util_sys import locationStack
 from collections import OrderedDict
 import logging
+from ally.support.util_spec import IDo
 
 # --------------------------------------------------------------------
 
@@ -41,14 +41,7 @@ class Invoker(Context):
     '''
     # ---------------------------------------------------------------- Required
     target = requires(TypeModel)
-
-class Support(Context):
-    '''
-    The support context.
-    '''
-    # ---------------------------------------------------------------- Required
-    pathValues = requires(dict)
-    encoderPathInvoker = requires(IEncoderPathInvoker)
+    doEncodePath = requires(IDo)
 
 class Create(Context):
     '''
@@ -73,7 +66,7 @@ class AccessiblePathEncode(HandlerProcessor):
     
     def __init__(self):
         assert isinstance(self.nameRef, str), 'Invalid reference name %s' % self.nameRef
-        super().__init__(Support=Support)
+        super().__init__()
         
     def process(self, chain, node:Node, invoker:Invoker, create:Create, **keyargs):
         '''
@@ -130,11 +123,9 @@ class EncoderAccessiblePath(ITransfrom):
         @see: ITransfrom.transform
         '''
         assert isinstance(target, IRender), 'Invalid target %s' % target
-        assert isinstance(support, Support), 'Invalid support %s' % support
-        assert isinstance(support.encoderPathInvoker, IEncoderPathInvoker), \
-        'Invalid encoder path %s' % support.encoderPathInvoker
         
         indexes = dict(indexBlock=NAME_BLOCK_REST, indexAttributesCapture={self.nameRef: ACTION_REFERENCE})
         for name, invoker in self.accessible.items():
-            path = support.encoderPathInvoker.encode(invoker, support.pathValues)
-            target.beginObject(name, attributes={self.nameRef: path}, **indexes).end()
+            assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
+            assert isinstance(invoker.doEncodePath, IDo), 'Invalid path encode %s' % invoker.doEncodePath
+            target.beginObject(name, attributes={self.nameRef: invoker.doEncodePath(support)}, **indexes).end()

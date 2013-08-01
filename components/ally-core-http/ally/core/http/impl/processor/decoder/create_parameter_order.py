@@ -19,6 +19,7 @@ from ally.design.processor.context import Context
 from ally.design.processor.execution import Processing
 from ally.design.processor.handler import HandlerBranching
 from ally.support.util_spec import IDo
+from ally.core.impl.processor.base import FailureTarget, addFailure
 
 # --------------------------------------------------------------------
 
@@ -62,13 +63,6 @@ class DefinitionOrder(Context):
     @rtype: list[string]
     The enumeration values that are allowed for order.
     ''')
-
-class Target(Context):
-    '''
-    The target context.
-    '''
-    # ---------------------------------------------------------------- Required
-    doFailure = requires(IDo)
       
 # --------------------------------------------------------------------
 
@@ -85,7 +79,7 @@ class CreateParameterOrderDecode(HandlerBranching):
         assert isinstance(self.decodeOrderAssembly, Assembly), \
         'Invalid order decode assembly %s' % self.decodeOrderAssembly
         super().__init__(Branch(self.decodeOrderAssembly).using(parameter=Parameter).
-                         included(('decoding', 'Decoding')).included(), Target=Target)
+                         included(('decoding', 'Decoding')).included(), Target=FailureTarget)
         
     def process(self, chain, processing, create:Create, Decoding:DecodingOrder, Definition:DefinitionOrder, **keyargs):
         '''
@@ -133,21 +127,19 @@ class CreateParameterOrderDecode(HandlerBranching):
             '''
             Do the order decode.
             '''
-            assert isinstance(target, Target), 'Invalid target %s' % target
-            
-            if not isinstance(value, list): return target.doFailure(decoding, value)
-            
-            for item in value:
-                setAsc = settersAsc.get(item)
-                if setAsc is None: target.doFailure(decoding, item)
-                else:
-                    setAsc(target, asc)
-                    setPriority = settersPriority.get(item)
-                    if setPriority:
-                        priorities = [priority for priority in (getPriority(target) for getPriority in gettersPriority)
-                                      if priority is not None]
-                        if priorities: current = max(priorities)
-                        else: current = 0
-                        
-                        setPriority(target, current + 1)
+            if not isinstance(value, list): addFailure(target, decoding, value=value) 
+            else:
+                for item in value:
+                    setAsc = settersAsc.get(item)
+                    if setAsc is None: addFailure(target, decoding, value=item)
+                    else:
+                        setAsc(target, asc)
+                        setPriority = settersPriority.get(item)
+                        if setPriority:
+                            priorities = [priority for priority in (getPriority(target) for getPriority in gettersPriority)
+                                          if priority is not None]
+                            if priorities: current = max(priorities)
+                            else: current = 0
+                            
+                            setPriority(target, current + 1)
         return doDecode

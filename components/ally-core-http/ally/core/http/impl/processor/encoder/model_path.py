@@ -12,11 +12,11 @@ Provides the paths for a model.
 from ally.api.type import Type
 from ally.container.ioc import injected
 from ally.core.http.impl.index import ACTION_REFERENCE, NAME_BLOCK_REST
-from ally.core.http.spec.server import IEncoderPathInvoker
 from ally.core.spec.transform import ISpecifier, ITransfrom
 from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
+from ally.support.util_spec import IDo
 
 # --------------------------------------------------------------------
     
@@ -26,6 +26,7 @@ class Invoker(Context):
     '''
     # ---------------------------------------------------------------- Required
     invokerGet = requires(Context)
+    doEncodePath = requires(IDo)
 
 class Create(Context):
     '''
@@ -41,14 +42,6 @@ class Create(Context):
     # ---------------------------------------------------------------- Required
     objType = requires(Type)
     
-class Support(Context):
-    '''
-    The encoder support context.
-    '''
-    # ---------------------------------------------------------------- Required
-    pathValues = requires(dict)
-    encoderPathInvoker = requires(IEncoderPathInvoker)
-    
 # --------------------------------------------------------------------
 
 @injected
@@ -62,7 +55,7 @@ class ModelPathAttributeEncode(HandlerProcessor):
     
     def __init__(self):
         assert isinstance(self.nameRef, str), 'Invalid reference name %s' % self.nameRef
-        super().__init__(Support=Support)
+        super().__init__()
         
     def process(self, chain, invoker:Invoker, create:Create, **keyargs):
         '''
@@ -93,6 +86,8 @@ class AttributeModelPath(ISpecifier):
         Construct the paths attributes.
         '''
         assert isinstance(nameRef, str), 'Invalid reference name %s' % nameRef
+        assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
+        assert isinstance(invoker.doEncodePath, IDo), 'Invalid path encode %s' % invoker.doEncodePath
         
         self.nameRef = nameRef
         self.invoker = invoker
@@ -101,15 +96,12 @@ class AttributeModelPath(ISpecifier):
         '''
         @see: IAttributes.populate
         '''
-        assert isinstance(support, Support), 'Invalid support %s' % support
-        assert isinstance(support.encoderPathInvoker, IEncoderPathInvoker), \
-        'Invalid encoder path %s' % support.encoderPathInvoker
         assert isinstance(specifications, dict), 'Invalid specifications %s' % specifications
         
         attributes = specifications.get('attributes')
         if attributes is None: attributes = specifications['attributes'] = {}
         assert isinstance(attributes, dict), 'Invalid attributes %s' % attributes
-        attributes[self.nameRef] = support.encoderPathInvoker.encode(self.invoker, support.pathValues)
+        attributes[self.nameRef] = self.invoker.doEncodePath(support)
         
         specifications['indexBlock'] = NAME_BLOCK_REST
         indexAttributesCapture = specifications.get('indexAttributesCapture')

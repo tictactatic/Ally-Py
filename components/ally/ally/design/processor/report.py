@@ -18,7 +18,6 @@ class ReportUnused(IReport):
     '''
     Implementation for @see: IReport that reports the unused attributes resolvers.
     '''
-    __slots__ = ('reports', 'resolvers')
     
     ident = '  '
     # The ident to use in the report.

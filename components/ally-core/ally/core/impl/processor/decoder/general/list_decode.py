@@ -11,6 +11,7 @@ Provides the list decoding.
 
 from ally.api.type import List, Type
 from ally.container.ioc import injected
+from ally.core.impl.processor.base import FailureTarget, addFailure
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import defines, requires
 from ally.design.processor.branch import Branch
@@ -43,17 +44,14 @@ class Decoding(Context):
     @param value: list[object]
         The list value to be decoded.
     ''')
+    isMandatory = defines(bool, doc='''
+    @rtype: boolean
+    Indicates that the decoding needs to have a value provided.
+    ''')
     # ---------------------------------------------------------------- Required
     type = requires(Type)
     doSet = requires(IDo)
     doGet = requires(IDo)
-
-class Target(Context):
-    '''
-    The target context.
-    '''
-    # ---------------------------------------------------------------- Required
-    doFailure = requires(IDo)
     
 # --------------------------------------------------------------------
 
@@ -68,7 +66,7 @@ class ListDecode(HandlerBranching):
     
     def __init__(self):
         assert isinstance(self.listItemAssembly, Assembly), 'Invalid list item assembly %s' % self.listItemAssembly
-        super().__init__(Branch(self.listItemAssembly).included(), Target=Target)
+        super().__init__(Branch(self.listItemAssembly).included(), Target=FailureTarget)
 
     def process(self, chain, processing, decoding:Decoding, **keyargs):
         '''
@@ -84,8 +82,10 @@ class ListDecode(HandlerBranching):
         assert isinstance(decoding.type, List)
         
         idecoding = decoding.__class__()
+        assert isinstance(idecoding, Decoding), 'Invalid decoding %s' % idecoding
         idecoding.parent = decoding
         idecoding.type = decoding.type.itemType
+        idecoding.isMandatory = True
         idecoding.doSet = self.createSetItem(decoding.doGet, decoding.doSet)
         
         arg = processing.execute(decoding=idecoding, **keyargs)
@@ -125,8 +125,7 @@ class ListDecode(HandlerBranching):
             '''
             Do decode the list.
             '''
-            assert isinstance(target, Target), 'Invalid target %s' % target
-            if not isinstance(value, list): target.doFailure(decoding, value)
+            if not isinstance(value, list): addFailure(target, decoding, value=value)
             else:
                 for item in value: decode(target, item)
         return doDecode

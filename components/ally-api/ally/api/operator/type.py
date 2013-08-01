@@ -10,6 +10,7 @@ Provides the operator types.
 '''
 
 from ..type import Type, Call, typeFor, TypeClass
+from ally.api.type import Input
 from inspect import ismethod
 
 # --------------------------------------------------------------------
@@ -267,6 +268,59 @@ class TypeOption(TypeContainer):
         super().__init__(clazz, isContainable=False)
         
 # --------------------------------------------------------------------
+
+class TypeInput(Type):
+    '''
+    Provides the type for the service call input.
+    '''
+
+    def __init__(self, parent, input):
+        '''
+        Constructs the service call input type.
+        @see: Type.__init__
+        
+        @param parent: TypeCall
+            The parent call type.
+        @param input: Input
+            The input for input type.
+        '''
+        assert isinstance(parent, TypeCall), 'Invalid parent %s' % parent
+        assert isinstance(input, Input), 'Invalid input %s' % input
+        super().__init__(False, False)
+
+        self.parent = parent
+        self.input = input
+
+    def isOf(self, type):
+        '''
+        @see: Type.isOf
+        '''
+        return self == typeFor(type)
+
+    def isValid(self, obj):
+        '''
+        @see: Type.isValid
+        '''
+        return self.input.type.isValid(obj)
+
+    def __hash__(self):
+        '''
+        @see: Type.__hash__
+        '''
+        return hash((self.parent, self.input))
+
+    def __eq__(self, other):
+        '''
+        @see: Type.__eq__
+        '''
+        if isinstance(other, self.__class__): return self.parent == other.parent and self.input == other.input
+        return False
+
+    def __str__(self):
+        '''
+        @see: Type.__str__
+        '''
+        return '%s.%s' % (self.parent, self.input.name)
     
 class TypeCall(Type):
     '''
@@ -282,6 +336,8 @@ class TypeCall(Type):
             The parent service type.
         @param call: Call
             The call for call type.
+        @ivar inputs: dictionary{string: TypeInput}
+            The type inputs of the call.
         '''
         assert isinstance(parent, TypeService), 'Invalid parent %s' % parent
         assert isinstance(call, Call), 'Invalid call %s' % call
@@ -289,6 +345,8 @@ class TypeCall(Type):
 
         self.parent = parent
         self.call = call
+        
+        self.inputs = {}
 
     def isOf(self, type):
         '''

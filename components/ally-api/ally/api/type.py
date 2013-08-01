@@ -348,8 +348,6 @@ class Input:
             A flag indicating that this input has a default value.
         @param default: object
             The default value.
-        @param optionType: TypeOption|None
-            The option type associated with the input, if this is provided the input is a key argument input type.
         '''
         assert isinstance(name, str), 'Invalid name %s' % name
         assert isinstance(type, Type), 'Invalid type %s' % type

@@ -10,6 +10,7 @@ Provides the setups for the parsing/rendering processors.
 '''
 
 from ally.container import ioc
+from ally.core.impl.processor.parser.text import ParseTextHandler
 from ally.core.impl.processor.parser.xml import ParseXMLHandler
 from ally.core.impl.processor.render.json import RenderJSONHandler, BLOCKS_JSON
 from ally.core.impl.processor.render.xml import RenderXMLHandler, BLOCKS_XML
@@ -17,12 +18,14 @@ from ally.design.processor.assembly import Assembly
 from ally.design.processor.handler import Handler
 import codecs
 import logging
-# from ally.core.impl.processor.parser.text import ParseTextHandler
 
 # --------------------------------------------------------------------
 
 CATEGORY_CONTENT_XML = 'content XML'
 # The name of the XML content category.
+
+CATEGORY_CONTENT_OBJECT = 'content text object'
+# The name of the text object content category.
 
 log = logging.getLogger(__name__)
 
@@ -76,9 +79,9 @@ def parseJSON() -> Handler:
     def parserJSON(content, charSet): return json.load(codecs.getreader(charSet)(content))
 
     b = ParseTextHandler(); yield b
+    b.category = CATEGORY_CONTENT_OBJECT
     b.contentTypes = set(content_types_json())
     b.parser = parserJSON
-    b.parserName = 'json'
 
 @ioc.entity
 def parseXML() -> Handler:
@@ -131,7 +134,7 @@ def updateBlocksDefinitions():
 
 @ioc.before(assemblyParsing)
 def updateAssemblyParsing():
-    # TODO: Gabriel: assemblyParsing().add(parseJSON())
+    assemblyParsing().add(parseJSON())
     assemblyParsing().add(parseXML())
 
 @ioc.before(assemblyRendering)

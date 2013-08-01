@@ -34,7 +34,8 @@ class Node(Context):
     Flag indicating that a trailing slash is mandatory for path.
     ''')
     # ---------------------------------------------------------------- Required
-    byType = requires(dict)
+    child = requires(Context)
+    type = requires(Type)
     
 # --------------------------------------------------------------------
 
@@ -58,11 +59,7 @@ class PathSlashHandler(HandlerProcessor):
         
         for node in register.nodes:
             assert isinstance(node, Node), 'Invalid node %s' % node
-            if node.byType:
-                for typ in node.byType:
-                    assert isinstance(typ, Type)
-                    if typ.isOf(str):
-                        for cnode in node.byType.values():
-                            assert isinstance(cnode, Node), 'Invalid node %s' % cnode
-                            cnode.hasMandatorySlash = True
-                        break
+            if node.type and (node.type.isOf(str) or node.type.isOf(float)):
+                assert isinstance(node.type, Type), 'Invalid node type %s' % node.type
+                assert isinstance(node.child, Node), 'Invalid node %s' % node.child
+                node.child.hasMandatorySlash = True

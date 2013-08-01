@@ -15,7 +15,6 @@ from ally.design.processor.attribute import requires, optional, defines, \
 from ally.design.processor.context import Context
 from ally.support.util_io import IInputStream
 from collections import Iterable
-import abc
 
 # --------------------------------------------------------------------
 
@@ -95,22 +94,3 @@ class ResponseContentHTTP(Context):
     @rtype: IInputStream|Iterable
     The source for the response content.
     ''')
-        
-# --------------------------------------------------------------------
-
-class IEncoderPath(metaclass=abc.ABCMeta):
-    '''
-    Provides the path encoding.
-    '''
-    __slots__ = ()
-
-    @abc.abstractmethod
-    def encode(self, path):
-        '''
-        Encodes the provided path to a full request path.
-        
-        @param path: object
-            The path to be encoded, the type depends on the implementation.
-        @return: string
-            The full compiled request path.
-        '''

@@ -49,13 +49,13 @@ class IRoleService(IEntityService):
     Role model service API.
     '''
     
-    @call
+    @call(webName='ByName')
     def getByName(self, name:Role.Name) -> Role:
         '''
         Provides the role based on a provided name.
         '''
     
-    @call(webName='Sub')  # TODO: Gabriel: remove or adjust the web name after refactoring assemblers.
+    @call(webName='Sub')
     def getRoles(self, roleId:Role, offset:int=None, limit:int=None, detailed:bool=True, q:QRole=None) -> Iter(Role):
         '''
         Provides the roles searched by the provided query.
@@ -90,5 +90,3 @@ class IRoleService(IEntityService):
         '''
         Unassign from the role the right. 
         '''
-
-# --------------------------------------------------------------------

@@ -12,8 +12,7 @@ Provides the text base parser processor handler.
 from ally.container.ioc import injected
 from ally.core.impl.processor.base import ErrorResponse, addError
 from ally.core.spec.codes import CONTENT_BAD, CONTENT_MISSING
-from ally.design.processor.attribute import requires, defines, optional, \
-    attribute
+from ally.design.processor.attribute import requires, optional
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain
 from ally.design.processor.handler import HandlerProcessor
@@ -21,7 +20,6 @@ from ally.support.util_context import findFirst
 from ally.support.util_io import IInputStream, IClosable
 from ally.support.util_spec import IDo
 import abc
-import itertools
 import logging
 
 # --------------------------------------------------------------------
@@ -43,9 +41,6 @@ class Decoding(Context):
     '''
     # ---------------------------------------------------------------- Optional
     parent = optional(Context)
-    isMandatory = optional(bool)
-    doBegin = requires(IDo)
-    doEnd = requires(IDo)
     # ---------------------------------------------------------------- Required
     contentDefinitions = requires(dict)
     doDecode = requires(IDo)
@@ -78,15 +73,8 @@ class Target(Context):
     '''
     The target context.
     '''
-    # ---------------------------------------------------------------- Defined
-    doFailure = defines(IDo, doc='''
-    @rtype: callable(Context, object)
-    The call to use in reporting content decoding failures.
-    ''')
-    doReport = attribute(IDo, doc='''
-    @rtype: callable(Context, object)
-    The call to use in reporting content decoding errors.
-    ''')
+    # ---------------------------------------------------------------- Required
+    failures = requires(list)
     
 # --------------------------------------------------------------------
 
@@ -132,9 +120,37 @@ class ParseBaseHandler(HandlerProcessor):
         assert isinstance(requestCnt.source, IInputStream), 'Invalid request content stream %s' % requestCnt.source
         assert isinstance(requestCnt.charSet, str), 'Invalid request content character set %s' % requestCnt.charSet
         
-        definitions, values, messages = None, None, None
+        self.parse(requestCnt.source, requestCnt.charSet, decoding, target)
         
-        def indexDefinition(decoding):
+        if target.failures:
+            CONTENT_BAD.set(response)
+            
+            for name, definitions, values, messages in self.indexFailures(target.failures):
+                if values:
+                    if name: messages.append('Invalid values \'%(values)s\' for \'%(name)s\'')
+                    else: messages.append('Invalid values \'%(values)s\'')
+                
+                addError(response, messages, definitions, name=name, values=values)
+                
+                if not name:
+                    defins = []
+                    for defin in request.invoker.definitions:
+                        assert isinstance(defin, Definition), 'Invalid definition %s' % defin
+                        if defin.category == self.category: defins.append(defin)
+                    if defins: addError(response, 'The available content', defins)
+            
+        if isinstance(requestCnt.source, IClosable): requestCnt.source.close()
+
+    # --------------------------------------------------------------------
+    
+    def indexFailures(self, failures):
+        '''
+        Indexes the failures, iterates (name, definitions, values, messages)
+        '''
+        assert isinstance(failures, list), 'Invalid failures %s' % failures
+        
+        indexed = {}
+        for decoding, value, messages, data in failures:
             assert isinstance(decoding, Decoding), 'Invalid decoding %s' % decoding
             
             defin = findFirst(decoding, Decoding.parent, lambda decoding: decoding.contentDefinitions.get(self.category)
@@ -142,62 +158,22 @@ class ParseBaseHandler(HandlerProcessor):
             if defin:
                 assert isinstance(defin, Definition), 'Invalid definition %s for %s' % (defin, decoding)
                 assert isinstance(defin.name, str), 'Invalid definition name %s' % defin.name
+                name = defin.name
+            else: name = None
                 
-                nonlocal definitions
-                if definitions is None: definitions = {}
-                byName = definitions.get(defin.name)
-                if byName is None: byName = definitions[defin.name] = []
-                byName.append(defin)
-                return defin.name
+            byName = indexed.get(name)
+            if byName is None: byName = indexed[name] = ([], [], [])
+            defins, values, msgs = byName
+            if defin: defins.append(defin)
+            if value: values.append(value)
+            msgs.extend(msg % data for msg in messages)
         
-        def doFailure(decoding, value):
-            assert value is not None, 'None value is not allowed'
-            name = indexDefinition(decoding)
-            nonlocal values
-            if values is None: values = {}
-            byName = values.get(name)
-            if byName is None: byName = values[name] = []
-            byName.append(value)
+        last = indexed.pop(None, None)
+        for name in sorted(indexed):
+            yield (name,) + indexed[name]
+        if last:
+            yield (None,) + last
             
-        def doReport(decoding, message):
-            assert isinstance(message, str), 'Invalid message %s' % message
-            name = indexDefinition(decoding)
-            nonlocal messages
-            if messages is None: messages = {}
-            byName = messages.get(name)
-            if byName is None: byName = messages[name] = []
-            byName.append(message)
-            
-        target.doFailure = doFailure
-        target.doReport = doReport
-        
-        self.parse(requestCnt.source, requestCnt.charSet, decoding, target)
-        
-        if definitions or values or messages:
-            CONTENT_BAD.set(response)
-            
-            for name in itertools.chain(sorted(definitions) if definitions else (), (None,)):
-                report = []
-                if messages and name in messages: report.extend(messages[name])
-                
-                valuesOfName = values.get(name) if values else None
-                if valuesOfName:
-                    if name: report.append('Invalid values \'%(values)s\' for \'%(name)s\'')
-                    else: report.append('Invalid values \'%(values)s\'')
-                    
-                if name: report.extend(definitions[name])
-                
-                addError(response, report, name=name, values=valuesOfName)
-                
-            if values and None in values or messages and None in messages:
-                categoryDefinitions = []
-                for defin in request.invoker.definitions:
-                    assert isinstance(defin, Definition), 'Invalid definition %s' % defin
-                    if defin.category == self.category: categoryDefinitions.append(defin)
-                if categoryDefinitions: addError(response, 'The available content', categoryDefinitions)
-            
-        if isinstance(requestCnt.source, IClosable): requestCnt.source.close()
-
     # ----------------------------------------------------------------
 
     @abc.abstractclassmethod

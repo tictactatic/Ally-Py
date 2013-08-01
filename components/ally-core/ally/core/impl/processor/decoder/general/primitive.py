@@ -11,6 +11,7 @@ Provides the primitive types decoding.
 
 from ally.api.type import Type, Iter, Dict
 from ally.container.ioc import injected
+from ally.core.impl.processor.base import FailureTarget, addFailure
 from ally.core.spec.resources import Converter
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
@@ -36,13 +37,12 @@ class Decoding(Context):
     type = requires(Type)
     doSet = requires(IDo)
     
-class Target(Context):
+class Target(FailureTarget):
     '''
     The target context.
     '''
     # ---------------------------------------------------------------- Required
     converter = requires(Converter)
-    doFailure = requires(IDo)
     
 # --------------------------------------------------------------------
 
@@ -87,7 +87,6 @@ class PrimitiveDecode(HandlerProcessor):
             assert isinstance(decoding, Decoding)
     
             try: value = target.converter.asValue(value, decoding.type)
-            except ValueError:
-                target.doFailure(decoding, value)
+            except ValueError: addFailure(target, decoding, value=value)
             else: decoding.doSet(target, value)
         return doDecode

@@ -9,15 +9,15 @@ Created on Nov 24, 2011
 Provides the configurations for the processors used in handling the request.
 '''
 
-from ..ally_core.parsing_rendering import assemblyParsing
-from ..ally_core.processor import converter, invoking, default_charset, \
-    rendering, content, renderEncoder, converterContent, blockIndexing, parsing, \
-    errorDefinition
-from ..ally_core.resources import injectorAssembly
+from ..ally_core.definition import descriptions
+from ..ally_core.processor import converter, invoking, rendering, content, \
+    renderEncoder, converterContent, blockIndexing, errorDefinition, parsing
+from ..ally_core.resources import decoding, injectorAssembly
 from ..ally_http.processor import acceptRequestDecode, encoderPath, \
     contentLengthDecode, contentLengthEncode, methodOverride, allowEncode, \
     contentTypeRequestDecode, contentTypeResponseEncode, methodOverrideAllow, \
     internalError
+from .decode import publishParameter, publishPath
 from ally.container import ioc
 from ally.core.http.impl.processor.content_index import \
     ContentIndexEncodeHandler
@@ -26,11 +26,8 @@ from ally.core.http.impl.processor.error_explain import ErrorExplainHandler
 from ally.core.http.impl.processor.headers.content_disposition import \
     ContentDispositionDecodeHandler
 from ally.core.http.impl.processor.method_invoker import MethodInvokerHandler
+from ally.core.http.impl.processor.multipart import MultipartHandler
 from ally.core.http.impl.processor.parameter import ParameterHandler
-from ally.core.http.impl.processor.parsing_multipart import \
-    ParsingMultiPartHandler
-from ally.core.http.impl.processor.path_encoder_invoker import \
-    InvokerPathEncoderHandler
 from ally.core.http.impl.processor.scheme import SchemeHandler
 from ally.core.http.impl.processor.uri import URIHandler
 from ally.core.http.spec.codes import CODE_TO_STATUS, CODE_TO_TEXT
@@ -39,8 +36,6 @@ from ally.design.processor.handler import Handler
 from ally.http.impl.processor.header_parameter import HeaderParameterHandler
 from ally.http.impl.processor.method_override import METHOD_OVERRIDE
 from ally.http.impl.processor.status import StatusHandler
-from ..ally_core.definition import descriptions
-# TODO: from ally.core.http.impl.processor.redirect import RedirectHandler
 
 # --------------------------------------------------------------------
 # Creating the processors used in handling the request
@@ -65,15 +60,6 @@ def header_parameters():
     list the custom headers will be appended automatically.
     '''
     return []
-
-@ioc.config
-def root_uri_resources():
-    '''
-    This will be used for adjusting the encoded URIs to have a root URI. The value needs to have one and only one '%s' marker
-    where the partial URI will be injected.
-    !Attention this configuration needs to be in concordance with 'server_pattern_resources' configuration
-    '''
-    return 'resources/%s'
 
 # --------------------------------------------------------------------
 
@@ -104,7 +90,10 @@ def headerParameter() -> Handler:
 def contentDispositionDecode() -> Handler: return ContentDispositionDecodeHandler()
 
 @ioc.entity
-def methodInvoker() -> Handler: return MethodInvokerHandler()
+def methodInvoker() -> Handler:
+    b = MethodInvokerHandler()
+    b.importDecoding = publishPath().importFrom(decoding())
+    return b
 
 # --------------------------------------------------------------------
 # Header encoders
@@ -130,26 +119,15 @@ def uri() -> Handler: return URIHandler()
 def scheme() -> Handler: return SchemeHandler()
 
 @ioc.entity
-def encoderPathInvoker() -> Handler:
-    b = InvokerPathEncoderHandler()
-    b.resourcesRootURI = root_uri_resources()
+def parameter() -> Handler:
+    b = ParameterHandler()
+    b.importDecoding = publishParameter().importFrom(decoding())
     return b
 
 @ioc.entity
-def parameter() -> Handler: return ParameterHandler()
-
-@ioc.entity
-def parsingMultiPart() -> Handler:
-    b = ParsingMultiPartHandler()
-    b.charSetDefault = default_charset()
-    b.parsingAssembly = assemblyParsing()
-    b.populateAssembly = assemblyMultiPartPopulate()
-    return b
-
-@ioc.entity
-def redirect() -> Handler:
-    b = RedirectHandler()
-    b.redirectAssembly = assemblyRedirect()
+def multipart() -> Handler:
+    b = MultipartHandler()
+    b.populateAssembly = assemblyMultipartPopulate()
     return b
 
 @ioc.entity
@@ -181,11 +159,11 @@ def assemblyResources() -> Assembly:
     return Assembly('REST resources')
 
 @ioc.entity
-def assemblyMultiPartPopulate() -> Assembly:
+def assemblyMultipartPopulate() -> Assembly:
     '''
     The assembly containing the handlers that will populate data on the next request content.
     '''
-    return Assembly('Multipart content')
+    return Assembly('Multipart content populate')
 
 @ioc.entity
 def assemblyBlocks() -> Assembly:
@@ -204,26 +182,20 @@ def updateHeadersCustom():
 def updateAssemblyResources():
     assemblyResources().add(internalError(), injectorAssembly(), converterPath(), uri(), methodInvoker(),
                             contentTypeRequestDecode(), contentLengthDecode(), acceptRequestDecode(), converterContent(),
-                            rendering(), parsing(),  # parsingMultiPart(),
+                            rendering(), multipart(), parsing(),
                             content(), parameter(), scheme(), invoking(), encoderPath(),
-                            encoderPathInvoker(), renderEncoder(), status(), errorDefinition(), errorExplain(),
+                            renderEncoder(), status(), errorDefinition(), errorExplain(),
                             contentIndexEncode(), contentTypeResponseEncode(), contentLengthEncode(), allowEncode()
                             )
-    
-
-# TODO: Gabriel: add the folowing
-#        redirect(),
-#        
-#        createDecoder(),
     
     if allow_method_override():
         assemblyResources().add(methodOverride(), before=methodInvoker())
         assemblyResources().add(methodOverrideAllow(), after=methodInvoker())
     if read_from_params(): assemblyResources().add(headerParameter(), after=internalError())
 
-@ioc.before(assemblyMultiPartPopulate)
-def updateAssemblyMultiPartPopulate():
-    assemblyMultiPartPopulate().add(contentTypeRequestDecode(), contentDispositionDecode())
+@ioc.before(assemblyMultipartPopulate)
+def updateAssemblyMultipartPopulate():
+    assemblyMultipartPopulate().add(contentTypeRequestDecode(), contentDispositionDecode())
     
 @ioc.before(assemblyBlocks)
 def updateAssemblyBlocks():

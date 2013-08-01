@@ -9,14 +9,14 @@ Created on Nov 24, 2011
 Provides the configurations for encoders and decoders.
 '''
 
-from ..ally_core.parsing_rendering import assemblyParsing, updateAssemblyParsing
+from ..ally_core.parsing_rendering import CATEGORY_CONTENT_OBJECT, \
+    assemblyParsing, updateAssemblyParsing, contentTypes
 from ally.container import ioc
 from ally.core.http.impl.processor.parser.formdata import ParseFormDataHandler
 from ally.core.http.impl.url_encoded import parseStr
-#from ally.core.impl.processor.parser.text import ParseTextHandler
+from ally.core.impl.processor.parser.text import ParseTextHandler
 from ally.design.processor.handler import Handler
 import codecs
-from ..ally_core.parsing_rendering import contentTypes
 
 # --------------------------------------------------------------------
 
@@ -35,9 +35,9 @@ def parseURLEncoded() -> Handler:
     def parseURLEncoded(content, charSet): return parseStr(codecs.getreader(charSet)(content).read())
     
     b = ParseTextHandler(); yield b
+    b.category = CATEGORY_CONTENT_OBJECT
     b.contentTypes = set(content_types_urlencoded())
     b.parser = parseURLEncoded
-    b.parserName = 'urlencoded'
 
 @ioc.entity
 def parseFormData() -> Handler:
@@ -51,6 +51,6 @@ def updateContentTypesForURLEncoded():
     contentTypes().update(content_types_urlencoded())
    
 @ioc.before(updateAssemblyParsing)
-def updateAssemblyParsingFormData(): pass
-    #TODO: Gabriel: assemblyParsing().add(parseFormData())
-    #TODO: Gabriel: assemblyParsing().add(parseURLEncoded())
+def updateAssemblyParsingFormData():
+    assemblyParsing().add(parseFormData())
+    assemblyParsing().add(parseURLEncoded())

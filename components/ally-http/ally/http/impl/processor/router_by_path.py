@@ -11,11 +11,11 @@ Provides a processor that routes the requests based on patterns.
 
 from ally.container.ioc import injected
 from ally.design.processor.assembly import Assembly
-from ally.design.processor.attribute import requires
+from ally.design.processor.attribute import requires, definesIf
+from ally.design.processor.branch import Routing
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain, Processing
 from ally.design.processor.handler import HandlerBranching
-from ally.design.processor.branch import Routing
 import logging
 import re
 
@@ -29,6 +29,11 @@ class Request(Context):
     '''
     Context for request. 
     '''
+    # ---------------------------------------------------------------- Defined
+    rootURI = definesIf(str, doc='''
+    @rtype: string
+    The root URI of the request.
+    ''')
     # ---------------------------------------------------------------- Required
     uri = requires(str)
 
@@ -43,16 +48,15 @@ class RoutingByPathHandler(HandlerBranching):
     
     assembly = Assembly
     # The assembly to be used in processing the request for the provided pattern.
-    pattern = str
-    # The string pattern for matching the path, the pattern needs to provide capturing groups that joined will become
-    # the routed uri.
+    rootURI = str
+    # The root URI that needs to be present in order for the router to delegate to the assembly.
     
     def __init__(self):
         assert isinstance(self.assembly, Assembly), 'Invalid assembly %s' % self.assembly
-        assert isinstance(self.pattern, str), 'Invalid pattern %s' % self.pattern
+        assert isinstance(self.rootURI, str), 'Invalid root URI %s' % self.rootURI
         super().__init__(Routing(self.assembly))
         
-        self._regex = re.compile(self.pattern)
+        self._regex = re.compile('^%s(?:/|(?=\\.)|$)(.*)' % re.escape(self.rootURI))
             
     def process(self, chain, processing, request:Request, **keyargs):
         '''
@@ -67,4 +71,5 @@ class RoutingByPathHandler(HandlerBranching):
         match = self._regex.match(request.uri)
         if match:
             request.uri = ''.join(match.groups())
+            if Request.rootURI in request: request.rootURI = self.rootURI
             chain.route(processing)

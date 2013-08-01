@@ -10,12 +10,14 @@ Provides the setup for the decode processors.
 '''
 
 from ..ally_core.decode import assemblyDecode, updateAssemblyDecode, \
-    primitiveDecode, definitionIndex, markSolved
+    primitiveDecode, definitionIndex, markSolved, updateAssemblyDecodeModel, \
+    assemblyDecodeModel, propertyOfModelDecode
 from ally.container import ioc
 from ally.core.http.impl.processor.decoder.create_parameter import \
     CreateParameterHandler
 from ally.core.http.impl.processor.decoder.create_parameter_order import \
     CreateParameterOrderDecode
+from ally.core.http.impl.processor.decoder.create_path import CreatePathHandler
 from ally.core.http.impl.processor.decoder.parameter.definition_paramter import \
     DefinitionParameterHandler
 from ally.core.http.impl.processor.decoder.parameter.index import \
@@ -23,11 +25,14 @@ from ally.core.http.impl.processor.decoder.parameter.index import \
 from ally.core.http.impl.processor.decoder.parameter.option import OptionDecode
 from ally.core.http.impl.processor.decoder.parameter.order import OrderDecode
 from ally.core.http.impl.processor.decoder.parameter.query import QueryDecode
+from ally.core.http.impl.processor.decoder.path.injected import \
+    InjectedPathDecode
 from ally.core.impl.processor.decoder.general.definition_create import \
     DefinitionCreateHandler
 from ally.core.impl.processor.decoder.general.explode import ExplodeDecode
 from ally.core.impl.processor.decoder.general.list_decode import ListDecode
 from ally.design.processor.assembly import Assembly
+from ally.design.processor.export import Publish
 from ally.design.processor.handler import Handler
 
 # --------------------------------------------------------------------
@@ -64,6 +69,15 @@ def assemblyDecodeListItem() -> Assembly:
     The assembly containing the decoders for list items.
     '''
     return Assembly('Decode parameter list item')
+
+# --------------------------------------------------------------------
+
+@ioc.entity
+def assemblyDecodePath() -> Assembly:
+    '''
+    The assembly containing the decoders for path items.
+    '''
+    return Assembly('Decode path')
 
 # --------------------------------------------------------------------
 
@@ -114,6 +128,23 @@ def definitionCreate() -> Handler:
 @ioc.entity
 def definitionParameter() -> Handler: return DefinitionParameterHandler()
 
+@ioc.entity
+def publishParameter() -> Publish: return Publish()
+
+# --------------------------------------------------------------------
+
+@ioc.entity
+def createPath() -> Handler:
+    b = CreatePathHandler()
+    b.decodePathAssembly = assemblyDecodePath()
+    return b
+
+@ioc.entity
+def injectedPathDecode() -> Handler: return InjectedPathDecode()
+
+@ioc.entity
+def publishPath() -> Publish: return Publish()
+
 # --------------------------------------------------------------------
 
 @ioc.before(assemblyDecodeListItem)
@@ -129,13 +160,25 @@ def updateAssemblyDecodeQuery():
 def updateAssemblyDecodeParameter():
     assemblyDecodeParameter().add(optionDecode(), queryDecode(), orderDecode(), primitiveDecode(), listDecode(),
                                   definitionCreate(), explodeDecode(), indexParameter(), definitionParameter(),
-                                  definitionIndex(), markSolved())
+                                  definitionIndex(), markSolved(), publishParameter())
     
 @ioc.before(assemblyDecodeOrder)
 def updateAssemblyDecodeOrder():
     assemblyDecodeOrder().add(primitiveDecode(), listDecode(), definitionCreate(), explodeDecode(), indexParameter(),
-                              definitionParameter(), definitionIndex())
+                              definitionParameter(), definitionIndex(), publishParameter())
     
+# --------------------------------------------------------------------
+
+@ioc.before(assemblyDecodePath)
+def updateAssemblyDecodePath():
+    assemblyDecodePath().add(primitiveDecode(), publishPath())
+    
+@ioc.after(updateAssemblyDecodeModel)
+def updateAssemblyDecodeModelForPath():
+    assemblyDecodeModel().add(injectedPathDecode(), after=propertyOfModelDecode())
+
+# --------------------------------------------------------------------
+
 @ioc.after(updateAssemblyDecode)
 def updateAssemblyDecodeForParameters():
-    assemblyDecode().add(createParameter(), createParameterOrderDecode())
+    assemblyDecode().add(createParameter(), createParameterOrderDecode(), createPath())

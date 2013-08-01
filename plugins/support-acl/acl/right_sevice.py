@@ -9,13 +9,10 @@ Created on Jan 19, 2013
 Provides the ACL right that is designed for handling service based mapping.
 '''
 
-from .spec import RightAcl, Filter
+from .spec import RightAcl
 from ally.api.config import GET, INSERT, UPDATE, DELETE
-from ally.api.operator.container import Service, Call
-from ally.api.operator.type import TypeService
+from ally.api.operator.type import TypeService, TypeCall
 from ally.api.type import typeFor
-from ally.support.util import iterRef
-from inspect import isfunction
 
 # --------------------------------------------------------------------
 
@@ -39,30 +36,23 @@ class RightService(RightAcl):
     
     # ----------------------------------------------------------------
     
-    def add(self, *references, filter=None):
+    def add(self, *calls, filter=None):
         '''
         Used for adding to the right the service calls.
         
-        @param references: arguments[tuple(class, string)]
-            The references of the service call to associate with the right.
+        @param calls: arguments[TypeCall]
+            The service calls to associate with the right.
         @param filter: Filter|None
             The filter to be used with the added calls, for more details about filter policy.
         @return: self
             The self object for chaining purposes.
         '''
-        indexed = iterRef(references)
-        assert indexed, 'At least one reference is required'
-        for service, names in indexed.items():
-            typ = typeFor(service)
-            assert isinstance(typ, TypeService), 'Invalid service %s' % service
-            assert isinstance(typ.service, Service)
-            for name in names:
-                if isfunction(name): name = name.__name__
-                assert name in typ.service.calls, 'Invalid call name \'%s\' for service %s' % (name, typ)
-                call = typ.service.calls[name]
-                assert isinstance(call, Call)
-                structCall = self.structure.obtainCall(typ, call)
-                if filter: structCall.pushFilter(filter)
+        assert calls, 'At least one call is required'
+        for callRef in calls:
+            call = typeFor(callRef)
+            assert isinstance(call, TypeCall), 'Invalid call %s' % call
+            structCall = self.structure.obtainCall(typ, call)
+            if filter: structCall.pushFilter(filter)
         return self
         
     def allFor(self, method, *services, filter=None):

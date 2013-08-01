@@ -14,7 +14,6 @@ from ally.design.processor.attribute import requires
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Abort
 from ally.design.processor.handler import HandlerProcessor
-from ally.support.util_spec import IDo
 import logging
 
 # --------------------------------------------------------------------
@@ -29,7 +28,6 @@ class Register(Context):
     '''
     # ---------------------------------------------------------------- Required
     invokers = requires(list)
-    doSuggest = requires(IDo)
     
 class Invoker(Context):
     '''
@@ -79,10 +77,5 @@ class ValidateSolvedHandler(HandlerProcessor):
                     log.error('Cannot use because of unsolved inputs %s, at:%s', ', '.join(unsolved), invoker.location)
                     reported.add(invoker.location)
                 aborted.append(invoker)
-                
-            elif unsolved and invoker.location not in reported:
-                assert isinstance(register.doSuggest, IDo), 'Invalid do suggest %s' % register.doSuggest
-                register.doSuggest('Unsolved inputs %s, at:%s', ', '.join(unsolved), invoker.location)
-                reported.add(invoker.location)
         
         if aborted: raise Abort(*aborted)

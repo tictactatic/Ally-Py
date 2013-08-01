@@ -218,6 +218,8 @@ class CallAPI(TypeSupport):
         assert isinstance(type, TypeCall), 'Invalid call type %s' % type
         TypeSupport.__init__(self, type)
         
+        for name, input in type.inputs.items(): setattr(self, name, input)
+        
     def __call__(self, *args, **keyargs):
         raise TypeError('Cannot use an API service call that is not implemented')
 

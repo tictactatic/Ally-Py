@@ -14,7 +14,7 @@ from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
 from ally.http.spec.headers import HeadersRequire, HOST
-from ally.http.spec.server import IEncoderPath
+from ally.support.util_spec import IDo
 from urllib.parse import urlsplit, urlunsplit
 import logging
 
@@ -36,8 +36,8 @@ class Response(Context):
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    encoderPath = defines(IEncoderPath, doc='''
-    @rtype: IEncoderPath
+    doEncodePath = defines(IDo, doc='''
+    @rtype: callable(path:string) -> string
     The path encoder used for encoding paths that will be rendered in the response.
     ''')
     
@@ -59,20 +59,14 @@ class EncoderPathHandler(HandlerProcessor):
         assert isinstance(response, Response), 'Invalid response %s' % response
 
         host = HOST.fetch(request)
-        if host: response.encoderPath = EncoderPathHost(request.scheme, host)
+        if host: response.doEncodePath = self.createEncode(request.scheme, host)
         else: assert log.debug('No host header available for URI %s', request.uri) or True
-
-# --------------------------------------------------------------------
-
-class EncoderPathHost(IEncoderPath):
-    '''
-    Provides encoding host prefixing for the URI paths to be encoded in the response.
-    '''
-    __slots__ = ('_scheme', '_host')
-
-    def __init__(self, scheme, host):
+        
+    # ----------------------------------------------------------------
+    
+    def createEncode(self, scheme, host):
         '''
-        Construct the encoder.
+        Create the path encode.
         
         @param scheme: string
             The encoded path scheme.
@@ -81,18 +75,16 @@ class EncoderPathHost(IEncoderPath):
         '''
         assert isinstance(scheme, str), 'Invalid scheme %s' % scheme
         assert isinstance(host, str), 'Invalid host %s' % host
-        self._scheme = scheme
-        self._host = host
-
-    def encode(self, path):
-        '''
-        @see: IEncoderPath.encode
-        '''
-        assert isinstance(path, str), 'Invalid path %s' % path
-        url = urlsplit(path)
-
-        if url.scheme: return urlunsplit((url.scheme, url.netloc, url.path, url.query, url.fragment))
-        if url.netloc: return urlunsplit((self._scheme, url.netloc, url.path, url.query, url.fragment))
-        # We just needed to append the scheme
-        return urlunsplit((self._scheme, self._host, url.path, url.query, url.fragment))
+        def doEncodePath(path):
+            '''
+            Do encode the path.
+            '''
+            assert isinstance(path, str), 'Invalid path %s' % path
+            url = urlsplit(path)
     
+            if url.scheme: return urlunsplit((url.scheme, url.netloc, url.path, url.query, url.fragment))
+            if url.netloc: return urlunsplit((scheme, url.netloc, url.path, url.query, url.fragment))
+            # We just needed to append the scheme
+            return urlunsplit((scheme, host, url.path, url.query, url.fragment))
+        return doEncodePath
+

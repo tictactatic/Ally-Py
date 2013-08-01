@@ -19,7 +19,7 @@ from ally.design.processor.execution import Abort
 from ally.design.processor.handler import HandlerProcessor
 from ally.support.util_context import asData
 from ally.support.util_io import IInputStream
-from collections import Callable
+from ally.support.util_spec import IDo
 import logging
 
 # --------------------------------------------------------------------
@@ -67,7 +67,7 @@ class RequestContent(RequestContentData):
     # ---------------------------------------------------------------- Required
     source = requires(IInputStream)
     # ---------------------------------------------------------------- Optional
-    fetchNextContent = optional(Callable)
+    doFetchNextContent = optional(IDo)
     
 class InvokerAssembler(Context):
     '''
@@ -152,8 +152,8 @@ class AssemblerContentHandler(HandlerProcessor):
                     inpContent = inp
             
             if toMany:
-                log.error('Cannot use because there are to many \'Content\' inputs, only a maximum of one is allowed, at:%s',
-                          invoker.location)
+                log.error('Cannot use because there are to many \'%s\' inputs, only a maximum of one is allowed, at:%s',
+                          typeFor(Content), invoker.location)
                 aborted.append(invoker)
             elif inpContent:
                 if invoker.solved is None: invoker.solved = set()
@@ -198,8 +198,8 @@ class ContentData(Content):
         if self._closed: raise ValueError('I/O operation on a closed content file')
 
         self._closed = True
-        if RequestContent.fetchNextContent in self._content and self._content.fetchNextContent is not None:
-            content = self._content.fetchNextContent()
+        if RequestContent.doFetchNextContent in self._content and self._content.doFetchNextContent is not None:
+            content = self._content.doFetchNextContent()
         else: content = None
 
         if content is not None: return ContentData(content)

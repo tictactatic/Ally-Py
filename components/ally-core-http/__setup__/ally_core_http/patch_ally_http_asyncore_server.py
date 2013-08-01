@@ -10,8 +10,7 @@ Provides the setup patch when the server is asyncore.
 '''
 
 from ..ally_http import server_type
-from .processor import updateAssemblyResources, assemblyResources, \
-    parsingMultiPart
+from .processor import updateAssemblyResources, assemblyResources, multipart
 from ally.container import ioc
 import logging
 
@@ -30,4 +29,4 @@ else:
     @ioc.after(updateAssemblyResources)
     def updateAssemblyResourcesForHTTPAsyncore():
         if server_type() == SERVER_ASYNCORE:
-            assemblyResources().add(asyncoreContent(), before=parsingMultiPart())
+            assemblyResources().add(asyncoreContent(), before=multipart())

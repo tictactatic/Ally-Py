@@ -12,8 +12,10 @@ Provides the XML parser processor handler.
 from . import base
 from .base import ParseBaseHandler, Target
 from ally.container.ioc import injected
-from ally.design.processor.attribute import requires
+from ally.core.impl.processor.base import addFailure
+from ally.design.processor.attribute import requires, optional
 from ally.support.util_io import IInputStream
+from ally.support.util_spec import IDo
 from xml.sax import make_parser
 from xml.sax._exceptions import SAXParseException
 from xml.sax.handler import ContentHandler
@@ -26,9 +28,14 @@ class Decoding(base.Decoding):
     '''
     The decoding context.
     '''
+    # ---------------------------------------------------------------- Optional
+    isMandatory = optional(bool)
     # ---------------------------------------------------------------- Required
     name = requires(str)
     children = requires(dict)
+    doBegin = requires(IDo)
+    doDecode = requires(IDo)
+    doEnd = requires(IDo)
     
 # --------------------------------------------------------------------
 
@@ -60,7 +67,8 @@ class ParseXMLHandler(ParseBaseHandler):
         try: self.parser.parse(source)
         except SAXParseException as e:
             assert isinstance(e, SAXParseException)
-            target.doReport(decoding, 'Bad XML content at line %s and column %s' % (e.getLineNumber(), e.getColumnNumber()))
+            addFailure(target, decoding, 'Bad XML content at line %(line)s and column %(column)s',
+                       line=e.getLineNumber(), column=e.getColumnNumber())
 
 # --------------------------------------------------------------------
 
@@ -124,11 +132,11 @@ class Parse(ContentHandler):
                 if Decoding.doBegin in self.last and self.last.doBegin: self.last.doBegin(self.target)
             
         if isUnexpected:
-            self.target.doReport(self.last, 'Unexpected element \'%s\' at line %s and column %s' % 
-                                 self.located(asPath(self.path)))
+            addFailure(self.target, self.last, 'Unexpected element \'%(path)s\' at line %(line)s and column %(column)s',
+                       **self.located(path=asPath(self.path)))
         elif attributes:
-            self.target.doReport(self.last, 'No attributes accepted for \'%s\' at line %s and column %s' % 
-                                 self.located(asPath(self.path)))
+            addFailure(self.target, self.last, 'No attributes accepted for \'%(path)s\' at line %(line)s and column %(column)s',
+                       **self.located(path=asPath(self.path)))
 
         if self.isInvalid: return
             
@@ -149,7 +157,9 @@ class Parse(ContentHandler):
         @see: ContentHandler.endElement
         '''
         if not self.path:
-            self.target.doReport(self.last, 'Unexpected end element \'%s\' at line %s and column %s' % self.located(name))
+            addFailure(self.target, self.last,
+                       'Unexpected end element \'%(name)s\' at line %(line)s and column %(column)s',
+                       **self.located(name=name))
             return
         
         current = self.path.pop()
@@ -167,28 +177,33 @@ class Parse(ContentHandler):
             for cname, child in current.children.items():
                 assert isinstance(child, Decoding), 'Invalid decoding %s' % child
                 if cname not in visited and Decoding.isMandatory in child and child.isMandatory:
-                    self.target.doReport(current, 'Expected a value for element \'%s\' at line %s and column %s' % 
-                                         self.located(asPath(self.path, name, cname)))
+                    addFailure(self.target, current,
+                               'Expected a value for element \'%(path)s\' at line %(line)s and column %(column)s',
+                               **self.located(path=asPath(self.path, name, cname)))
                     abort = True
         
         if not abort:
             if contains or not current.doDecode:
                 if content.strip():
-                    self.target.doReport(current, 'Unexpected value \'%s\' for element \'%s\' at line %s and column %s' % 
-                                         self.located(content, asPath(self.path, name)))
+                    addFailure(self.target, current, 'Unexpected value \'%(content)s\' for element \'%(path)s\' at '
+                               'line %(line)s and column %(column)s',
+                               **self.located(content=content, path=asPath(self.path, name)))
             elif content.strip(): current.doDecode(self.target, content)
-            else: self.target.doReport(current, 'Expected a value for element \'%s\' at line %s and column %s' % 
-                                       self.located(asPath(self.path, name)))
+            else: addFailure(self.target, current,
+                             'Expected a value for element \'%(path)s\' at line %(line)s and column %(column)s',
+                             **self.located(path=asPath(self.path, name)))
             
             if Decoding.doEnd in current and current.doEnd: current.doEnd(self.target)
 
     # ----------------------------------------------------------------
     
-    def located(self, *args):
+    def located(self, **data):
         '''
-        Provides a tuple with the line and column at the end of the provided arguments
+        Provides a dictionary with the line and column at the end of the provided arguments
         '''
-        return args + (self.parser.getLineNumber(), self.parser.getColumnNumber())
+        data['line'] = self.parser.getLineNumber()
+        data['column'] = self.parser.getColumnNumber()
+        return data
     
 # --------------------------------------------------------------------
 

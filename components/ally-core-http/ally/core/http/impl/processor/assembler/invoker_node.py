@@ -10,6 +10,7 @@ Provides the node based on invokers.
 '''
 
 from ally.api.operator.type import TypeProperty
+from ally.api.type import Type
 from ally.container.ioc import injected
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
@@ -57,6 +58,11 @@ class Element(Context):
     '''
     The element context.
     '''
+    # ---------------------------------------------------------------- Defined
+    node = defines(Context, doc='''
+    @rtype: Context
+    The element node.
+    ''')
     # ---------------------------------------------------------------- Required
     name = requires(str)
     property = requires(TypeProperty)
@@ -66,17 +72,9 @@ class NodeInvoker(Context):
     The node context.
     '''
     # ---------------------------------------------------------------- Defined
-    byName = defines(dict, doc='''
-    @rtype: dictionary{string: Context}
-    The child nodes indexed by name.
-    ''')
-    byType = defines(dict, doc='''
-    @rtype: dictionary{Type: Context}
-    The child nodes indexed by type.
-    ''')
-    properties = defines(set, doc='''
-    @rtype: set(TypeProperty)
-    The properties types that will are associated with the node value.
+    parent = defines(Context, doc='''
+    @rtype: Context
+    The parent node.
     ''')
     invokers = defines(dict, doc='''
     @rtype: dictionary{string: Context}
@@ -85,6 +83,18 @@ class NodeInvoker(Context):
     conflicts = defines(dict, doc='''
     @rtype: dictionary{string: list[Context]}
     The invokers indexed by the HTTP method name that conflict with the invoker associated with the method in 'invokers'.
+    ''')
+    child = defines(Context, doc='''
+    @rtype: Context
+    The direct child node for a user input value.
+    ''')
+    childByName = defines(dict, doc='''
+    @rtype: dictionary{string: Context}
+    The child nodes indexed by name.
+    ''')
+    type = defines(Type, doc='''
+    @rtype: Type
+    The type represented by the child node.
     ''')
     
 # --------------------------------------------------------------------
@@ -128,41 +138,49 @@ class InvokerNodeHandler(HandlerProcessor):
                     assert isinstance(el, Element), 'Invalid element %s' % el
                     if el.property:
                         assert isinstance(el.property, TypeProperty)
-                            
-                        if node.byName:
-                            log.error('Cannot use because the node already has names (%s) and cannot add type \'%s\', at:%s',
-                                     ', '.join(str(typ) for typ in node.byName), el.property.type, invoker.location)
-                            valid = False
-                            break
                         
                         if not el.property.type.isPrimitive:
                             log.error('Cannot use because the %s is not a primitive, at:%s', el.property, invoker.location)
                             valid = False
                             break
                         
-                        if node.byType is None: node.byType = {}
-                        cnode = node.byType.get(el.property.type)
-                        if cnode is None:
-                            cnode = node.byType[el.property.type] = Node()
-                            register.nodes.append(cnode)
-                        if cnode.properties is None: cnode.properties = set()
-                        cnode.properties.add(el.property)
-                    else:
-                        assert isinstance(el.name, str) and el.name, 'Invalid element name %s' % el.name
-                            
-                        if node.byType:
-                            log.error('Cannot use because the node already has types (%s) and cannot add name \'%s\', at:%s',
-                                     ', '.join(str(typ) for typ in node.byType), el.name, invoker.location)
+                        if node.type is None: node.type = el.property.type
+                        elif node.type != el.property.type:
+                            log.error('Cannot use because the node type %s, from:%s\n, and is incompatible with property '
+                                      '%s, at:%s', node.type, ''.join(invk.location for invk in node.invokers.values()),
+                                      el.property, invoker.location)
                             valid = False
                             break
                         
-                        if node.byName is None: node.byName = {}
-                        cnode = node.byName.get(el.name)
-                        if cnode is None:
-                            cnode = node.byName[el.name] = Node()
-                            register.nodes.append(cnode)
+                        assert isinstance(node.type, Type), 'Invalid node type %s' % node.type
+                        if node.type.isOf(str) and node.childByName:
+                            log.error('Cannot use because the node already has named children (%s) and cannot use with '
+                                      'string property \'%s\', at:%s', ', '.join(str(childName) 
+                                                        for childName in node.childByName), el.property, invoker.location)
+                            valid = False
+                            break
                         
-                    node = cnode
+                        el.node = node
+                        if node.child is None:
+                            node.child = Node(parent=node)
+                            register.nodes.append(node.child)
+                        node = node.child
+                    else:
+                        assert isinstance(el.name, str) and el.name, 'Invalid element name %s' % el.name
+                            
+                        if node.type and node.type.isOf(str):
+                            log.error('Cannot use because the node represents a string property and cannot add name '
+                                      '\'%s\', at:%s', el.name, invoker.location)
+                            valid = False
+                            break
+                        
+                        el.node = node
+                        if node.childByName is None: node.childByName = {}
+                        cnode = node.childByName.get(el.name)
+                        if cnode is None:
+                            cnode = node.childByName[el.name] = Node(parent=node)
+                            register.nodes.append(cnode)
+                        node = cnode
             
             if not valid: aborted.append(invoker)
             else:

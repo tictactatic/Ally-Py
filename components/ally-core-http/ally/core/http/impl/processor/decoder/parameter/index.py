@@ -32,7 +32,7 @@ class Invoker(Context):
     # ---------------------------------------------------------------- Defined
     decodingsParameter = defines(dict, doc='''
     @rtype: dictionary{string: Context}
-    The decoding dictionary to be used in decoding the parameters values.
+    The decoding dictionary to be used in decoding the parameters values indexed by parameter name.
     ''')
 
 class Decoding(Context):
@@ -86,4 +86,6 @@ class IndexParameterHandler(HandlerProcessor):
                       findFirst(decoding, Decoding.parent, Decoding.input) or name,
                       findFirst(invoker.decodingsParameter[name], Decoding.parent, Decoding.input) or name, name)
             raise Abort(decoding)
+        
         invoker.decodingsParameter[name] = decoding
+    

@@ -109,7 +109,6 @@ class Specification:
     '''
     Provides attribute specifications.
     '''
-    __slots__ = ('status', 'types', 'definedIn', 'doc', 'defined', 'usedIn')
     
     def __init__(self, status, types, definedIn=None, doc=None, defined=None):
         '''
@@ -156,7 +155,6 @@ class Resolver(IResolver):
     '''
     Implementation for a @see: IResolver that manages contexts with @see: Attribute.
     '''
-    __slots__ = ('specifications',)
 
     def __init__(self, context):
         '''
@@ -471,7 +469,6 @@ class Attribute(IAttribute):
     '''
     Base attribute implementation for a @see: IAttribute that manages a attributes by status.
     '''
-    __slots__ = ('specification', 'Resolver', 'isPlaced')
 
     def __init__(self, specification, Resolver=Resolver):
         '''
@@ -583,7 +580,6 @@ class AttributeObject(Attribute):
     '''
     Object descriptor implementation for a @see: Attribute.
     '''
-    __slots__ = ('descriptor',)
     
     def __init__(self, specification, Resolver=Resolver):
         '''

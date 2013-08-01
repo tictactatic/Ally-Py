@@ -53,7 +53,7 @@ class Decoding(Context):
     # ---------------------------------------------------------------- Required
     input = requires(Input)
     doDecode = requires(IDo)
-      
+
 # --------------------------------------------------------------------
 
 @injected

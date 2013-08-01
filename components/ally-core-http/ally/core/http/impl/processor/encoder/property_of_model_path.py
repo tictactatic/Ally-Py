@@ -9,16 +9,15 @@ Created on Mar 8, 2013
 Provides the paths for properties of model.
 '''
 
-from ally.api.operator.type import TypeModel, TypeProperty, \
-    TypePropertyContainer
+from ally.api.operator.type import TypeModel, TypePropertyContainer
 from ally.api.type import Type
 from ally.container.ioc import injected
 from ally.core.http.impl.index import NAME_BLOCK_REST, ACTION_REFERENCE
-from ally.core.http.spec.server import IEncoderPathInvoker
 from ally.core.spec.transform import ISpecifier, ITransfrom
 from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
+from ally.support.util_spec import IDo
 
 # --------------------------------------------------------------------
     
@@ -27,7 +26,16 @@ class Node(Context):
     The node context.
     '''
     # ---------------------------------------------------------------- Required
+    parent = requires(Context)
     invokersGet = requires(dict)
+
+class Invoker(Context):
+    '''
+    The invoker context.
+    '''
+    # ---------------------------------------------------------------- Required
+    node = requires(Context)
+    doEncodePath = requires(IDo)
     
 class Create(Context):
     '''
@@ -42,15 +50,17 @@ class Create(Context):
     encoder = optional(ITransfrom)
     # ---------------------------------------------------------------- Required
     objType = requires(Type)
-    
+
 class Support(Context):
     '''
-    The encoder support context.
+    The support context.
     '''
-    # ---------------------------------------------------------------- Required
-    pathValues = requires(dict)
-    encoderPathInvoker = requires(IEncoderPathInvoker)
-    
+    # ---------------------------------------------------------------- Defined
+    nodeValues = defines(dict, doc='''
+    @rtype: dictionary{Context: object}
+    The values used in constructing the paths indexed by corresponding node.
+    ''')
+       
 # --------------------------------------------------------------------
 
 @injected
@@ -64,7 +74,7 @@ class PropertyOfModelPathAttributeEncode(HandlerProcessor):
     
     def __init__(self):
         assert isinstance(self.nameRef, str), 'Invalid reference name %s' % self.nameRef
-        super().__init__(Support=Support)
+        super().__init__(Invoker=Invoker, Support=Support)
         
     def process(self, chain, node:Node, create:Create, **keyargs):
         '''
@@ -91,7 +101,7 @@ class PropertyOfModelPathAttributeEncode(HandlerProcessor):
         if invoker is None: return  # No get invoker available
         
         if create.specifiers is None: create.specifiers = []
-        create.specifiers.append(AttributesPath(self.nameRef, model.propertyId, invoker))
+        create.specifiers.append(AttributesPath(self.nameRef, invoker))
 
 # --------------------------------------------------------------------
 
@@ -100,15 +110,16 @@ class AttributesPath(ISpecifier):
     Implementation for a @see: ISpecifier for attributes paths.
     '''
     
-    def __init__(self, nameRef, property, invoker):
+    def __init__(self, nameRef, invoker):
         '''
         Construct the paths attributes.
         '''
         assert isinstance(nameRef, str), 'Invalid reference name %s' % nameRef
-        assert isinstance(property, TypeProperty), 'Invalid property type %s' % property
+        assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
+        assert isinstance(invoker.node, Node), 'Invalid invoker node %s' % invoker.node
+        assert isinstance(invoker.doEncodePath, IDo), 'Invalid path encode %s' % invoker.doEncodePath
         
         self.nameRef = nameRef
-        self.property = property
         self.invoker = invoker
         
     def populate(self, obj, specifications, support):
@@ -116,16 +127,13 @@ class AttributesPath(ISpecifier):
         @see: ISpecifier.populate
         '''
         assert isinstance(support, Support), 'Invalid support %s' % support
-        assert isinstance(support.encoderPathInvoker, IEncoderPathInvoker), \
-        'Invalid encoder path %s' % support.encoderPathInvoker
-        
-        if support.pathValues is None: support.pathValues = {}
-        support.pathValues[self.property] = obj
+        if support.nodeValues is None: support.nodeValues = {}
+        support.nodeValues[self.invoker.node.parent] = obj
         
         attributes = specifications.get('attributes')
         if attributes is None: attributes = specifications['attributes'] = {}
         assert isinstance(attributes, dict), 'Invalid attributes %s' % attributes
-        attributes[self.nameRef] = support.encoderPathInvoker.encode(self.invoker, support.pathValues)
+        attributes[self.nameRef] = self.invoker.doEncodePath(support)
         
         specifications['indexBlock'] = NAME_BLOCK_REST
         indexAttributesCapture = specifications.get('indexAttributesCapture')

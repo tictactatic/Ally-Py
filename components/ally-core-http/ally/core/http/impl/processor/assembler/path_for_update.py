@@ -14,10 +14,7 @@ from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Abort
 from ally.design.processor.handler import HandlerProcessor
-from ally.exception import DevelError
 from ally.http.spec.server import HTTP_PUT
-from collections import Callable
-from functools import partial
 import logging
 
 # --------------------------------------------------------------------
@@ -39,11 +36,6 @@ class Invoker(Context):
     '''
     # ---------------------------------------------------------------- Defined
     path = defines(list)
-    prepare = defines(Callable, doc='''
-    @rtype: callable(dictionary{Type|string: object})
-    A callable that prepares the arguments for invoking, takes in a dictionary of type or string to object mapping of 
-    arguments.
-    ''')
     # ---------------------------------------------------------------- Required
     methodHTTP = requires(str)
     target = requires(TypeModel)
@@ -56,6 +48,10 @@ class ElementUpdate(Context):
     # ---------------------------------------------------------------- Defined
     name = defines(str)
     property = defines(TypeProperty)
+    isInjected = defines(bool, doc='''
+    @rtype: boolean
+    If True indicates that the path element is actually to be injected inside a model entity.
+    ''')
     # ---------------------------------------------------------------- Required
     model = requires(TypeModel)
     
@@ -97,27 +93,7 @@ class PathUpdateHandler(HandlerProcessor):
                     break
             else:
                 invoker.path.append(Element(name=invoker.target.name, model=invoker.target))
-                invoker.path.append(Element(property=invoker.target.propertyId))
-                invoker.prepare = partial(self.prepare, invoker, invoker.prepare)
+                invoker.path.append(Element(property=invoker.target.propertyId, isInjected=True))
 
         if aborted: raise Abort(*aborted)
         
-    # ----------------------------------------------------------------
-    
-    def prepare(self, invoker, wrapped, arguments):
-        '''
-        Prepares the arguments for invoking.
-        '''
-        assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
-        assert isinstance(invoker.target, TypeModel), 'Invalid target %s' % invoker.target
-        assert isinstance(arguments, dict), 'Invalid arguments %s' % arguments
-        assert isinstance(invoker.target.propertyId, TypeProperty)
-        
-        modelObj, idObj = arguments[invoker.target], arguments[invoker.target.propertyId]
-        
-        val = getattr(modelObj, invoker.target.propertyId.name)
-        if val is None: setattr(modelObj, invoker.target.propertyId.name, idObj)
-        elif val != idObj:
-            raise DevelError('Cannot set value %s for \'%s\', expected value %s' % (val, invoker.target.propertyId.name, idObj))
-       
-        if wrapped: wrapped(arguments)

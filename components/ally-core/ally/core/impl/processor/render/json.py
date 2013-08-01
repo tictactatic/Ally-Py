@@ -300,7 +300,14 @@ class ConverterJSON(Converter):
         '''
         @see: Converter.asValue
         '''
-        return self.wrapped.asValue(value, type)
+        if isinstance(value, str): return self.wrapped.asValue(value, type)
+        if type.isOf(int):
+            if isinstance(value, int): return value
+        if type.isOf(float):
+            if isinstance(value, float): return value
+        if type.isOf(bool):
+            if isinstance(value, bool): return value
+        raise ValueError('Invalid value \'%s\' for type %s' % (value, type))
 
 # --------------------------------------------------------------------
 

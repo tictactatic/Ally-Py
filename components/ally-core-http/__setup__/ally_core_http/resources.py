@@ -9,13 +9,15 @@ Created on Jun 1, 2012
 Provides the configurations for the resources.
 '''
 
-from ..ally_core.resources import encoding, processMethod, \
-    updateAssemblyAssembler, assemblyAssembler
+from ..ally_core.resources import processMethod, updateAssemblyAssembler, \
+    assemblyAssembler
 from ally.container import ioc
 from ally.core.http.impl.processor.assembler.conflict_replace import \
     ConflictReplaceHandler
 from ally.core.http.impl.processor.assembler.conflict_resolve import \
     ConflictResolveHandler
+from ally.core.http.impl.processor.assembler.encoding_path import \
+    EncodingPathHandler
 from ally.core.http.impl.processor.assembler.invoker_node import \
     InvokerNodeHandler
 from ally.core.http.impl.processor.assembler.invoker_resources import \
@@ -84,12 +86,14 @@ def pathGetAccesible() -> Handler: return PathGetAccesibleHandler()
 @ioc.entity
 def assemblerScheme() -> Handler: return AssemblerSchemeHandler()
 
+@ioc.entity
+def encodingPath() -> Handler: return EncodingPathHandler()
+
 # --------------------------------------------------------------------
 
 @ioc.after(updateAssemblyAssembler)
 def updateAssemblyAssemblerForHTTPCore():
     assemblyAssembler().add(methodHTTP(), pathInput(), pathUpdate(), pathTarget(),
                             pathDomain(), pathWebName(), invokerResources(), invokerNode(), conflictReplace(),
-                            conflictResolve(), pathSlash(), pathGetModel(), pathGetAccesible(), after=processMethod())
-
-    assemblyAssembler().add(assemblerScheme(), after=encoding())
+                            conflictResolve(), pathSlash(), pathGetModel(), pathGetAccesible(), assemblerScheme(),
+                            encodingPath(), after=processMethod())

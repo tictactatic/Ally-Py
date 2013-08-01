@@ -43,7 +43,7 @@ class RequestContentDecode(Context):
     @rtype: string
     The request character set for the text content.
     ''')
-    typeAttr = defines(dict, doc='''
+    typeAttr = definesIf(dict, doc='''
     @rtype: dictionary{string, string}
     The content request type attributes.
     ''')
@@ -75,7 +75,7 @@ class ContentTypeRequestDecodeHandler(HandlerProcessor):
             value, attributes = value[0]
             requestCnt.type = value
             requestCnt.charSet = attributes.get(CONTENT_TYPE_ATTR_CHAR_SET, None)
-            requestCnt.typeAttr = attributes
+            if RequestContentDecode.typeAttr in requestCnt: requestCnt.typeAttr = attributes
 
 # --------------------------------------------------------------------
 

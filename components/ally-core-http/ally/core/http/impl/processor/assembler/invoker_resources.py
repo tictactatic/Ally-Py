@@ -8,16 +8,16 @@ Created on Mar 18, 2013
 
 Provides the resource paths encoding.
 '''
-
+# TODO: Gabrile: Move to encoders when they are refactored
 from ally.container.ioc import injected
 from ally.core.http.impl.index import NAME_BLOCK_REST, ACTION_REFERENCE
-from ally.core.http.spec.server import IEncoderPathInvoker
 from ally.core.spec.transform import ITransfrom, IRender
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
 from ally.http.spec.server import HTTP_GET
 from ally.support.util import firstOf
+from ally.support.util_spec import IDo
 
 # --------------------------------------------------------------------
 
@@ -51,13 +51,7 @@ class InvokerResources(Context):
     ''')
     # ---------------------------------------------------------------- Required
     node = requires(Context)
-      
-class Support(Context):
-    '''
-    The encoder support context.
-    '''
-    # ---------------------------------------------------------------- Required
-    encoderPathInvoker = requires(IEncoderPathInvoker)
+    doEncodePath = requires(IDo)
     
 # --------------------------------------------------------------------
 
@@ -75,7 +69,7 @@ class InvokerResourcesHandler(HandlerProcessor):
     def __init__(self):
         assert isinstance(self.nameResources, str), 'Invalid resources name %s' % self.nameResources
         assert isinstance(self.nameRef, str), 'Invalid reference name %s' % self.nameRef
-        super().__init__(Node=Node, SupportEncodeContent=Support)
+        super().__init__(Node=Node)
         
     def process(self, chain, register:Register, Invoker:InvokerResources, **keyargs):
         '''
@@ -121,9 +115,6 @@ class EncoderResources(ITransfrom):
         @see: ITransfrom.transform
         '''
         assert isinstance(target, IRender), 'Invalid target %s' % target
-        assert isinstance(support, Support), 'Invalid support %s' % support
-        assert isinstance(support.encoderPathInvoker, IEncoderPathInvoker), \
-        'Invalid encoder path %s' % support.encoderPathInvoker
         
         target.beginCollection(self.nameResources)
         node = self.invoker.node
@@ -132,6 +123,7 @@ class EncoderResources(ITransfrom):
             if node.invokersAccessible:
                 indexes = dict(indexBlock=NAME_BLOCK_REST, indexAttributesCapture={self.nameRef: ACTION_REFERENCE})
                 for name, invoker in sorted(node.invokersAccessible, key=firstOf):
-                    path = support.encoderPathInvoker.encode(invoker)
-                    target.beginObject(name, attributes={self.nameRef: path}, **indexes).end()
+                    assert isinstance(invoker, InvokerResources), 'Invalid invoker %s' % invoker
+                    assert isinstance(invoker.doEncodePath, IDo), 'Invalid path encode %s' % invoker.doEncodePath
+                    target.beginObject(name, attributes={self.nameRef: invoker.doEncodePath(support)}, **indexes).end()
         target.end()

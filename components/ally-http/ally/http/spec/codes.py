@@ -83,6 +83,7 @@ def isSuccess(status):
 # Response codes.
 
 PATH_NOT_FOUND = CodeHTTP('Not found', 404)  # HTTP code 404 Not Found
+PATH_ERROR = CodeHTTP('Path error', 404)  # HTTP code 404 Not Found
 PATH_FOUND = CodeHTTP('OK', 200)  # HTTP code 200 OK
 
 METHOD_NOT_AVAILABLE = CodeHTTP('Method not allowed', 405)  # HTTP code 405 Method Not Allowed

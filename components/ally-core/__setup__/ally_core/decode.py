@@ -13,8 +13,6 @@ from .parsing_rendering import CATEGORY_CONTENT_XML
 from ally.container import ioc
 from ally.core.impl.processor.decoder.content.definition_content import \
     DefinitionContentHandler
-from ally.core.impl.processor.decoder.content.mandatory import \
-    MandatorySetHandler
 from ally.core.impl.processor.decoder.content.model import ModelDecode
 from ally.core.impl.processor.decoder.content.name_children import \
     NameChildrenHandler
@@ -36,6 +34,8 @@ from ally.core.impl.processor.render.xml import NAME_LIST_ITEM, NAME_DICT_ENTRY,
     NAME_DICT_KEY, NAME_DICT_VALUE
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.handler import Handler
+from .parsing_rendering import CATEGORY_CONTENT_OBJECT
+from ally.design.processor.export import Publish
 
 # --------------------------------------------------------------------
 
@@ -144,9 +144,6 @@ def propertyOfModelDecode() -> Handler:
     return b
 
 @ioc.entity
-def mandatorySet() -> Handler: return MandatorySetHandler()
-
-@ioc.entity
 def listDecode() -> Handler:
     b = ListDecode()
     b.listItemAssembly = assemblyDecodeListItem()
@@ -212,27 +209,35 @@ def definitionContentXML() -> Handler:
     b.separator = '/'
     return b
 
+@ioc.entity
+def definitionObjectCreate() -> Handler:
+    b = DefinitionCreateHandler()
+    b.category = CATEGORY_CONTENT_OBJECT
+    return b
+
+@ioc.entity
+def definitionContentObject() -> Handler: return DefinitionContentHandler()
+
+@ioc.entity
+def publishContent() -> Publish: return Publish()
+
 # --------------------------------------------------------------------
 
 @ioc.before(assemblyDecodeListItem)
 def updateAssemblyDecodeListItem():
-    assemblyDecodeListItem().add(nameListItemChildren(), mandatorySet(), primitiveDecode(),
-                                 definitionXMLCreate(), definitionContentXML())
+    assemblyDecodeListItem().add(nameListItemChildren(), primitiveDecode(), definitionXMLCreate(), definitionContentXML())
 
 @ioc.before(assemblyDecodeDictKey)
 def updateAssemblyDecodeDictKey():
-    assemblyDecodeDictKey().add(nameDictKeyChildren(), mandatorySet(), primitiveDecode(),
-                                definitionXMLCreate(), definitionContentXML())
+    assemblyDecodeDictKey().add(nameDictKeyChildren(), primitiveDecode(), definitionXMLCreate(), definitionContentXML())
     
 @ioc.before(assemblyDecodeDictValue)
 def updateAssemblyDecodeDictValue():
-    assemblyDecodeDictValue().add(nameDictValueChildren(), mandatorySet(), primitiveDecode(),
-                                  definitionXMLCreate(), definitionContentXML())
+    assemblyDecodeDictValue().add(nameDictValueChildren(), primitiveDecode(), definitionXMLCreate(), definitionContentXML())
       
 @ioc.before(assemblyDecodeDictItem)
 def updateAssemblyDecodeDictItem():
-    assemblyDecodeDictItem().add(nameDictItemChildren(), mandatorySet(), dictItemDecode(),
-                                 definitionXMLCreate(), definitionContentXML())
+    assemblyDecodeDictItem().add(nameDictItemChildren(), dictItemDecode(), definitionXMLCreate(), definitionContentXML())
 
 @ioc.before(assemblyDecodePropertyOfModel)
 def updateAssemblyDecodePropertyOfModel():
@@ -241,11 +246,12 @@ def updateAssemblyDecodePropertyOfModel():
 @ioc.before(assemblyDecodeModel)
 def updateAssemblyDecodeModel():
     assemblyDecodeModel().add(propertyOfModelDecode(), listDecode(), dictDecode(), primitiveDecode(),
-                              definitionXMLCreate(), definitionContentXML(), definitionIndex())
+                              definitionXMLCreate(), definitionContentXML(), definitionIndex(),
+                              definitionObjectCreate(), definitionContentObject(), definitionIndex())
     
 @ioc.before(assemblyDecodeContent)
 def updateAssemblyDecodeContent():
-    assemblyDecodeContent().add(modelDecode(), markSolved())
+    assemblyDecodeContent().add(modelDecode(), markSolved(), publishContent())
 
 @ioc.before(assemblyDecode)
 def updateAssemblyDecode():

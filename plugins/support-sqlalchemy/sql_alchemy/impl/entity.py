@@ -168,9 +168,6 @@ class EntityCRUDServiceAlchemy(EntitySupportAlchemy):
         '''
         @see: IEntityCRUDService.insert
         '''
-        #TODO: Gabriel: remove
-        print(entity)
-        return 1
         assert self.model.isValid(entity), 'Invalid entity %s, expected %s' % (entity, self.Entity)
         entityDb = copy(entity, self.Entity())
         try:

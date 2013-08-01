@@ -48,6 +48,19 @@ class IBranch(metaclass=abc.ABCMeta):
         @return: Processing|None
             The branch processing, None if the branching is not able to provide a valid processing.
         ''' 
+    
+    @abc.abstractmethod
+    def export(self, required, resolvers):
+        '''
+        The branch exports.
+        
+        @param required: object
+            The object identifying the required exports.
+        @param resolvers: dictionary{string: IResolver}
+            The exported resolvers.
+        @return: dictionary{string: IResolver}|None
+            The exported resolvers for the required verb.
+        '''
 
 class WithAssembly(IBranch):
     '''
@@ -69,6 +82,19 @@ class WithAssembly(IBranch):
         @see: IBranch.name
         '''
         return self._assembly.name
+    
+    def export(self, required, resolvers):
+        '''
+        @see: IBranch.export
+        '''
+        exported = None
+        for proc in self._assembly.processors:
+            assert isinstance(proc, IProcessor), 'Invalid processor %s' % proc
+            exports = proc.export(required, resolvers)
+            if exports:
+                if exported is None: exported = {}
+                solve(exported, exports)
+        return exported
     
     # ----------------------------------------------------------------
     
@@ -140,7 +166,7 @@ class Routing(WithAssembly):
         report = report.open('Routing \'%s\'' % self.name())
         
         try:
-            rresolvers, rextensions = {}, {}
+            rresolvers, rextensions = dict(resolvers), {}
             calls = self._processAssembly(sources, rresolvers, rextensions, report)
             
         except: raise AssemblyError('Cannot process Routing for \'%s\'' % self.name())

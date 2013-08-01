@@ -9,16 +9,24 @@ Created on Aug 28, 2012
 Provides the text parser processor handler.
 '''
 
-from .base import ParseBaseHandler
+from . import base
+from .base import ParseBaseHandler, Target
 from ally.container.ioc import injected
+from ally.core.impl.processor.base import addFailure
+from ally.design.processor.attribute import requires
 from ally.support.util_io import IInputStream
-from collections import Callable, deque
-import logging
+from ally.support.util_spec import IDo
+from collections import Callable
 
 # --------------------------------------------------------------------
 
-log = logging.getLogger(__name__)
-
+class Decoding(base.Decoding):
+    '''
+    The decoding context.
+    '''
+    # ---------------------------------------------------------------- Required
+    doDecode = requires(IDo)
+    
 # --------------------------------------------------------------------
 
 @injected
@@ -30,37 +38,23 @@ class ParseTextHandler(ParseBaseHandler):
 
     parser = Callable
     # A Callable(file, string) function used for decoding a bytes file to a text object.
-    parserName = str
-    # The parser
 
     def __init__(self):
         assert callable(self.parser), 'Invalid callable parser %s' % self.parser
-        assert isinstance(self.parserName, str), 'Invalid parser name %s' % self.parserName
         super().__init__()
 
         self.contentType = next(iter(self.contentTypes))
 
-    def parse(self, decoder, data, source, charSet):
+    def parse(self, source, charSet, decoding, target):
         '''
         @see: ParseBaseHandler.parse
         '''
-        assert callable(decoder), 'Invalid decoder %s' % decoder
-        assert isinstance(data, dict), 'Invalid data %s' % data
         assert isinstance(source, IInputStream), 'Invalid stream %s' % source
         assert isinstance(charSet, str), 'Invalid character set %s' % charSet
+        assert isinstance(decoding, Decoding), 'Invalid decoding %s' % decoding
+        assert isinstance(target, Target), 'Invalid target %s' % target
+        assert callable(decoding.doDecode), 'Invalid decoding %s' % decoding.doDecode
 
         try: obj = self.parser(source, charSet)
-        except ValueError: return 'Bad %s content' % self.parserName
-
-        process = deque()
-        process.append((deque(), obj))
-        while process:
-            path, obj = process.popleft()
-            if obj is None or isinstance(obj, (str, list)):
-                if not decoder(path=deque(path), value=obj, **data): return 'Invalid path \'%s\' in object' % '/'.join(path)
-
-            elif isinstance(obj, dict):
-                for name, value in obj.items():
-                    itemPath = deque(path)
-                    itemPath.append(name)
-                    process.append((itemPath, value))
+        except ValueError as e: addFailure(target, decoding, str(e))
+        else: decoding.doDecode(target, obj)

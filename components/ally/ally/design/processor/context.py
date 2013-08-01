@@ -11,6 +11,7 @@ Provides the context support.
 
 from .spec import IAttribute, ContextMetaClass, CREATE_DEFINITION, IResolver
 from ally.support.util import immut
+from weakref import WeakSet
 
 # --------------------------------------------------------------------
 
@@ -114,15 +115,17 @@ class Object(metaclass=ContextMetaClass):
     can have object created.
     '''
     __definer__ = definerObject
-    
     __subclasshook__ = Context.__subclasshook__
+    
+    _contained = WeakSet()
+    _uncontained = WeakSet()
     
     def __init__(self, **keyargs):
         '''
         Assigned to the context as the __init__ method.
         '''
         for name, value in keyargs.items(): setattr(self, name, value)
-    
+
     def __getattr__(self, name):
         '''
         Assigned to the context whenever the application is in not in debug mode and there is no need to perform validations.
@@ -139,8 +142,14 @@ class Object(metaclass=ContextMetaClass):
         '''
         attribute = attributeOf(attribute)
         if attribute is None: return False
+        if attribute in self.__class__._contained: return True
+        if attribute in self.__class__._uncontained: return False
         assert isinstance(attribute, IAttribute)
-        return attribute.isIn(self.__class__)
+        if attribute.isIn(self.__class__):
+            self.__class__._contained.add(attribute)
+            return True
+        self.__class__._uncontained.add(attribute)
+        return False
     
     def __str__(self):
         '''

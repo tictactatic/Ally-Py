@@ -13,15 +13,15 @@ from .branch import IBranch
 from .context import Context
 from .execution import Processing
 from .resolvers import merge, solve
-from .spec import AssemblyError, IProcessor, ContextMetaClass, \
-    ProcessorError, IReport
+from .spec import AssemblyError, IProcessor, ContextMetaClass, ProcessorError, \
+    IReport
 from .structure import restructureData, restructureResolvers
+from ally.design.processor.resolvers import resolverFor
 from ally.design.processor.spec import IResolver
 from ally.support.util_sys import locationStack, updateWrapper
 from collections import Iterable
 from inspect import ismethod, isfunction, getfullargspec
 import itertools
-from ally.design.processor.resolvers import resolverFor
 
 # --------------------------------------------------------------------
 
@@ -30,7 +30,6 @@ class Processor(IProcessor):
     Implementation for @see: IProcessor that takes as the call a function and uses the annotations on the function arguments 
     to extract the contexts.
     '''
-    __slots__ = ('contexts', 'call')
     
     def __init__(self, contexts, call):
         '''
@@ -50,6 +49,7 @@ class Processor(IProcessor):
 
         self.contexts = contexts
         self.call = call
+        self.exported = {}
 
     def register(self, sources, resolvers, extensions, calls, report):
         '''
@@ -59,9 +59,15 @@ class Processor(IProcessor):
         
         merge(resolvers, self.contexts)
         calls.append(self.call)
+    
+    def export(self, required, resolvers):
+        '''
+        @see: IProcessor.export
+        '''
+        merge(resolvers, self.exported)
         
     # ----------------------------------------------------------------
-
+    
     def __eq__(self, other):
         if not isinstance(other, self.__class__): return False
         return self.contexts == other.contexts and self.call == other.call
@@ -71,7 +77,6 @@ class Contextual(Processor):
     Implementation for @see: IProcessor that takes as the call a function and uses the annotations on the function arguments 
     to extract the contexts.
     '''
-    __slots__ = ('function',)
 
     def __init__(self, function):
         '''
@@ -161,7 +166,6 @@ class Brancher(Contextual):
     '''
     Implementation for @see: IProcessor that provides branching of other processors containers.
     '''
-    __slots__ = ('branches',)
     
     def __init__(self, function, *branches):
         '''
@@ -200,6 +204,19 @@ class Brancher(Contextual):
         def wrapper(*args, **keyargs): self.call(*itertools.chain(args, processings), **keyargs)
         updateWrapper(wrapper, self.call)
         calls.append(wrapper)
+    
+    def export(self, required, resolvers):
+        '''
+        @see: IProcessor.export
+        '''
+        exported = super().export(required, resolvers)
+        for branch in self.branches:
+            assert isinstance(branch, IBranch), 'Invalid branch %s' % branch
+            exports = branch.export(required, resolvers)
+            if exports:
+                if exported is None: exported = {}
+                solve(exported, exports)
+        return exported
         
     # ----------------------------------------------------------------
         
@@ -210,7 +227,7 @@ class Brancher(Contextual):
         arguments, annotations = super().processArguments(arguments, annotations)
         
         n = len(self.branches)
-        if len(arguments) > n: return arguments[n:], annotations
+        if len(arguments) >= n: return arguments[n:], annotations
         raise ProcessorError('Required function of form \'def processor(self, [chain], '
                              'processing, ..., contex:Context ...)\' for:%s' % locationStack(self.function))
 
@@ -220,7 +237,6 @@ class Composite(IProcessor):
     '''
     Implementation for @see: IProcessor that contains other processors and registeres them as a single processor.
     '''
-    __slots__ = ('processors',)
     
     def __init__(self, *processors):
         '''
@@ -250,6 +266,19 @@ class Composite(IProcessor):
         for processor in self.processors:
             assert isinstance(processor, IProcessor), 'Invalid processor %s' % processor
             processor.finalized(sources, resolvers, extensions, report)
+            
+    def export(self, required, resolvers):
+        '''
+        @see: IProcessor.export
+        '''
+        exported = None
+        for proc in self.processors:
+            assert isinstance(proc, IProcessor), 'Invalid processor %s' % proc
+            exports = proc.export(required, resolvers)
+            if exports:
+                if exported is None: exported = {}
+                solve(exported, exports)
+        return exported
         
     # ----------------------------------------------------------------
 
@@ -261,7 +290,6 @@ class Renamer(IProcessor):
     '''
     Implementation for @see: IProcessor that renames the context names for the provided processor.
     '''
-    __slots__ = ('processor', 'mapping')
     
     def __init__(self, processor, *mapping):
         '''
@@ -313,13 +341,20 @@ class Renamer(IProcessor):
         @see: IProcessor.finalized
         '''
         wsources = restructureResolvers(sources, self.mapping)
-        wcurrent = restructureResolvers(resolvers, self.mapping)
+        wresolvers = restructureResolvers(resolvers, self.mapping)
         wextensions = restructureResolvers(extensions, self.mapping)
         
-        self.processor.finalized(wsources, wcurrent, wextensions, report)
+        self.processor.finalized(wsources, wresolvers, wextensions, report)
         
-        merge(resolvers, restructureResolvers(wcurrent, self.mapping, True))
+        merge(resolvers, restructureResolvers(wresolvers, self.mapping, True))
         merge(extensions, restructureResolvers(wextensions, self.mapping, True))
+    
+    def export(self, required, resolvers):
+        '''
+        @see: IProcessor.exports
+        '''
+        exported = self.processor.export(required, restructureResolvers(resolvers, self.mapping))
+        if exported: return restructureResolvers(exported, self.mapping, True)
         
     # ----------------------------------------------------------------
 
@@ -331,7 +366,6 @@ class Structure(IProcessor):
     '''
     Implementation for @see: IProcessor that structure into a context other context(s).
     '''
-    __slots__ = ('mapping',)
     
     def __init__(self, **mapping):
         '''
@@ -390,3 +424,25 @@ class Structure(IProcessor):
     def __eq__(self, other):
         if not isinstance(other, self.__class__): return False
         return self.mapping == other.mapping
+
+# --------------------------------------------------------------------
+
+class Publisher(IProcessor):
+    '''
+    Processor used for publishing exported contexts.
+    '''
+    
+    def __init__(self, required):
+        '''
+        Construct the publisher.
+        
+        @param required: object
+            The required object to trigger the export.
+        '''
+        self.required = required
+        
+    def export(self, required, resolvers):
+        '''
+        @see: IProcessor.export
+        '''
+        if required == self.required: return dict(resolvers)

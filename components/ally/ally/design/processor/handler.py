@@ -10,11 +10,12 @@ Contains the handlers support.
 '''
 
 from .assembly import Container
+from .branch import Routing
 from .context import Context
-from .processor import Composite, Contextual, Brancher, Renamer
-from .spec import ContextMetaClass, IProcessor, ProcessorError
-from ally.design.processor.resolvers import resolverFor
-from ally.design.processor.spec import IResolver
+from .execution import Chain
+from .processor import Composite, Contextual, Brancher, Renamer, Processor
+from .resolvers import resolverFor, solve, resolversFor
+from .spec import ContextMetaClass, IProcessor, ProcessorError, IResolver
 from ally.support.util_sys import locationStack
 import abc
 
@@ -46,7 +47,7 @@ class HandlerProcessor(Handler):
         @param contexts: key arguments
             Additional context that are not used in the contextual function but they are required in assembly.
         '''
-        super().__init__(push(Contextual(self.process), contexts))
+        super().__init__(push(Contextual(self.process), **contexts))
 
     @abc.abstractclassmethod
     def process(self, chain, **keyargs):
@@ -72,7 +73,7 @@ class HandlerComposite(Handler):
         @param contexts: key arguments
             Additional context that are not used in the contextual function but they are required in assembly.
         '''
-        super().__init__(Composite(push(Contextual(self.process), contexts), *processors))
+        super().__init__(Composite(push(Contextual(self.process), **contexts), *processors))
 
     @abc.abstractclassmethod
     def process(self, chain, **keyargs):
@@ -102,7 +103,7 @@ class HandlerBranching(Handler):
         @param contexts: key arguments
             Additional context that are not used in the contextual function but they are required in assembly.
         '''
-        super().__init__(push(Brancher(self.process, *branches), contexts))
+        super().__init__(push(Brancher(self.process, *branches), **contexts))
 
     @abc.abstractclassmethod
     def process(self, chain, *processings, **keyargs):
@@ -117,7 +118,7 @@ class HandlerBranching(Handler):
 
 # --------------------------------------------------------------------
 
-class HandlerRenamer(Handler):
+class RenamerHandler(Handler):
     '''
     Handler renamer that wraps a container or a processor with the purpose of renaming contexts.
     '''
@@ -145,21 +146,42 @@ class HandlerRenamer(Handler):
         assert isinstance(processor, IProcessor), 'Invalid processor %s' % processor
         super().__init__(Renamer(processor, *mapping))
 
+class RoutingHandler(HandlerBranching):
+    '''
+    Implementation for a handler that provides routing to a designated container.
+    '''
+    
+    def __init__(self, target):
+        super().__init__(Routing(target))
+            
+    def process(self, chain, processing, **keyargs):
+        '''
+        @see: HandlerBranching.process
+        
+        Process the routing.
+        '''
+        assert isinstance(chain, Chain), 'Invalid chain %s' % chain
+        chain.route(processing)
+            
 # --------------------------------------------------------------------
 
-def push(processor, contexts):
+def push(container, **contexts):
     '''
     Pushes into the processor the additional provided contexts.
     
-    @param processor: Contextual
+    @param container: Container|Contextual
         The processor to push the context in.
-    @param contexts: dictionary{string: ContextMetaClass|IResolver}
+    @param contexts: key arguments of ContextMetaClass|IResolver}
         The context classes to push.
-    @return: Contextual
-        The same processor.
+    @return: Container|Contextual
+        The same container.
     '''
+    if isinstance(container, Contextual): processor = container
+    elif isinstance(container, Container):
+        assert isinstance(container, Container)
+        assert len(container.processors) == 1, 'Container %s, is required to have only one processor' % container
+        processor = container.processors[0]
     assert isinstance(processor, Contextual), 'Invalid processor %s' % processor
-    assert isinstance(contexts, dict), 'Invalid contexts %s' % contexts
     for name, context in contexts.items():
         assert isinstance(name, str), 'Invalid name %s' % name
         if isinstance(context, tuple):
@@ -178,4 +200,24 @@ def push(processor, contexts):
         if name in processor.contexts and processor.contexts[name] is not Context:
             raise ProcessorError('There is already a context for name \'%s\ in:%s' % (name, locationStack(processor.function)))
         processor.contexts[name] = context
-    return processor
+    return container
+
+def export(container, **contexts):
+    '''
+    Used in order to indicate the exported contexts.
+    
+    @param handler: Container|Processor
+        The handler or processor to publish the export to.
+    @param contexts: dictionary{string: ContextMetaClass|IResolver}
+        The context classes or resolvers to export.
+    @return: Container|Contextual
+        The same container.
+    '''
+    if isinstance(container, Processor): processor = container
+    elif isinstance(container, Container):
+        assert isinstance(container, Container)
+        assert len(container.processors) == 1, 'Container %s, is required to have only one processor' % container
+        processor = container.processors[0]
+    assert isinstance(processor, Processor), 'Invalid processor %s' % processor
+    solve(processor.exported, resolversFor(contexts))
+    return container

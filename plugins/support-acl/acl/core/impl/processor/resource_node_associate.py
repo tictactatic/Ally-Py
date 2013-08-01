@@ -12,19 +12,13 @@ Processor that associates a resources node with ACL rights.
 from acl.right_sevice import StructureRight, StructMethod, StructService, \
     StructCall, RightService
 from acl.spec import Filter, RightAcl
-from ally.api.operator.container import Call
 from ally.api.type import typeFor
 from ally.container import wire
 from ally.container.ioc import injected
 from ally.container.support import setup
-from ally.core.impl.invoker import InvokerCall
-from ally.core.spec.resources import Invoker, INodeChildListener, \
-    INodeInvokerListener, Path, Node
 from ally.design.processor.attribute import defines, requires, optional
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor, Handler
-from ally.support.core.util_resources import iterateNodes, pathForNode, \
-    METHOD_NODE_ATTRIBUTE, invokerCallOf
 from collections import Iterable
 import itertools
 

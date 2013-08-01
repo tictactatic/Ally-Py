@@ -10,14 +10,14 @@ Provides the invoking handler.
 '''
 
 from ally.api.config import GET, INSERT, UPDATE, DELETE
-from ally.api.operator.type import TypeOption, TypeProperty
 from ally.api.type import Input, Call
+from ally.core.impl.processor.base import ErrorResponse, addError
 from ally.core.spec.codes import INPUT_ERROR, INSERT_ERROR, INSERT_SUCCESS, \
-    UPDATE_SUCCESS, UPDATE_ERROR, DELETE_SUCCESS, DELETE_ERROR, Coded
+    UPDATE_SUCCESS, UPDATE_ERROR, DELETE_SUCCESS, DELETE_ERROR
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
-from ally.exception import DevelError, InputError, Ref
+from ally.exception import DevelError, InputError
 from ally.support.api.util_service import isModelId
 from collections import Callable
 import logging
@@ -37,7 +37,7 @@ class Invoker(Context):
     call = requires(Call)
     method = requires(int)
     inputs = requires(tuple)
-    prepare = requires(Callable)
+    namedArguments = requires(set)
     location = requires(str)
         
 class Request(Context):
@@ -48,7 +48,7 @@ class Request(Context):
     invoker = requires(Context)
     arguments = requires(dict)
 
-class Response(Coded):
+class Response(ErrorResponse):
     '''
     The response context.
     '''
@@ -101,19 +101,14 @@ class InvokingHandler(HandlerProcessor):
         if request.arguments is None: arguments = {}
         else: arguments = dict(request.arguments)
         
-        if invoker.prepare:
-            assert callable(invoker.prepare), 'Invalid invoker prepare %s' % invoker.prepare
-            invoker.prepare(arguments)
-        
         args, keyargs = [], {}
         for inp in invoker.inputs:
             assert isinstance(inp, Input), 'Invalid input %s' % inp
             
-            isOption = isinstance(inp.type, TypeProperty) and isinstance(inp.type.parent, TypeOption)
+            isKeyArg = invoker.namedArguments and inp.name in invoker.namedArguments
             
             if inp.name in arguments: value = arguments[inp.name]
-            elif inp.type in arguments: value = arguments[inp.type]
-            elif isOption:
+            elif isKeyArg:
                 if inp.hasDefault: keyargs[inp.name] = inp.default
                 continue
             elif inp.hasDefault:
@@ -122,7 +117,7 @@ class InvokingHandler(HandlerProcessor):
             else:
                 raise DevelError('No value for mandatory input \'%s\', at:%s' % (inp.name, invoker.location))
             
-            if isOption: keyargs[inp.name] = value
+            if isKeyArg: keyargs[inp.name] = value
             else: args.append(value)
         
         try:
@@ -133,47 +128,10 @@ class InvokingHandler(HandlerProcessor):
             callBack(invoker, value, response)
         except InputError as e:
             assert isinstance(e, InputError)
+            # TODO: Gabriel: Make a proper error handling.
             INPUT_ERROR.set(response)
-            response.errorDetails = self.processInputError(e)
+            addError(response, str(e))
             assert log.debug('User input exception: %s', e, exc_info=True) or True
-
-    def processInputError(self, e):
-        '''
-        Process the input error into an error object.
-        
-        @return: Object
-            The object containing the details of the input error.
-        '''
-        assert isinstance(e, InputError), 'Invalid input error %s' % e
-
-        messages, names, models, properties = [], [], {}, {}
-        for msg in e.message:
-            assert isinstance(msg, Ref)
-            if not msg.model:
-                messages.append(Value('message', msg.message))
-            elif not msg.property:
-                messagesModel = models.get(msg.model)
-                if not messagesModel: messagesModel = models[msg.model] = []
-                messagesModel.append(Value('message', msg.message))
-                if msg.model not in names: names.append(msg.model)
-            else:
-                propertiesModel = properties.get(msg.model)
-                if not propertiesModel: propertiesModel = properties[msg.model] = []
-                propertiesModel.append(Value(msg.property, msg.message))
-                if msg.model not in names: names.append(msg.model)
-
-        errors = []
-        if messages: errors.append(List('error', *messages))
-        for name in names:
-            messagesModel, propertiesModel = models.get(name), properties.get(name)
-
-            props = []
-            if messagesModel: props.append(List('error', *messagesModel))
-            if propertiesModel: props.extend(propertiesModel)
-
-            errors.append(Object(name, *props))
-
-        return Object('model', *errors)
 
     # ----------------------------------------------------------------
 

@@ -60,8 +60,8 @@ class Node(Context):
     the invoker accessible based on the current node.
     ''')
     # ---------------------------------------------------------------- Required
-    byName = requires(dict)
-    byType = requires(dict)
+    child = requires(Context)
+    childByName = requires(dict)
     invokers = requires(dict)
     
 # --------------------------------------------------------------------
@@ -91,30 +91,29 @@ class PathGetModelHandler(HandlerProcessor):
             nstack.append(current)
             current.invokersGet = dict(invokersGet)
             while nstack:
-                cnode = nstack.popleft()
-                assert isinstance(cnode, Node), 'Invalid node %s' % cnode
+                node = nstack.popleft()
+                assert isinstance(node, Node), 'Invalid node %s' % node
                     
-                if cnode.byName:
-                    nstack.extend(cnode.byName.values())
-                    stack.extend((node, current.invokersGet) for node in cnode.byName.values())
-                elif cnode.byType:
-                    for node in cnode.byType.values():
-                        assert isinstance(node, Node), 'Invalid node %s' % node
-                        if not node.invokers: continue  # Not invokers available for node
-                        invoker = node.invokers.get(HTTP_GET)
-                        if not invoker: continue  # Not GET invoker
-                        assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
-                        # Is a collection or is not a model so it cannot be used
-                        if invoker.isCollection or not invoker.isModel or not invoker.target: continue
-                        assert isinstance(invoker.target, TypeModel), 'Invalid target %s' % invoker.target
-                        
-                        for el in reversed(invoker.path):
-                            assert isinstance(el, Element), 'Invalid element %s' % el
-                            if not el.property: continue
-                            assert isinstance(el.property, TypeProperty), 'Invalid element property %s' % el.property
-                            if el.property.parent == invoker.target: current.invokersGet[el.property] = invoker
-                            break
-                        stack.extend((node, current.invokersGet) for node in cnode.byType.values())
+                if node.childByName:
+                    nstack.extend(node.childByName.values())
+                    stack.extend((nod, current.invokersGet) for nod in node.childByName.values())
+                elif node.child:
+                    assert isinstance(node.child, Node), 'Invalid node %s' % node.child
+                    if not node.child.invokers: continue  # Not invokers available for node
+                    invoker = node.child.invokers.get(HTTP_GET)
+                    if not invoker: continue  # Not GET invoker
+                    assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
+                    # Is a collection or is not a model so it cannot be used
+                    if invoker.isCollection or not invoker.isModel or not invoker.target: continue
+                    assert isinstance(invoker.target, TypeModel), 'Invalid target %s' % invoker.target
+                    
+                    for el in reversed(invoker.path):
+                        assert isinstance(el, Element), 'Invalid element %s' % el
+                        if not el.property: continue
+                        assert isinstance(el.property, TypeProperty), 'Invalid element property %s' % el.property
+                        if el.property.parent == invoker.target: current.invokersGet[el.property] = invoker
+                        break
+                    stack.append((node.child, current.invokersGet))
             
         for invoker in register.invokers:
             assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker

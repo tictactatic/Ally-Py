@@ -9,41 +9,9 @@ Created on Jan 19, 2013
 Provides the ACL specifications.
 '''
 
-from ally.api.operator.type import TypeProperty
-from ally.api.type import typeFor
 from collections import Iterable
 
 # --------------------------------------------------------------------
-
-class Filter:
-    '''
-    The filter model contains data describes a filter to be used for a certain call or calls.
-    '''
-    
-    def __init__(self, priority, authenticated, resource, filter):
-        '''
-        Construct the acl filter.
-        
-        @param priority: integer
-            The priority of the filter, this is used whenever there are more then one filter in the same context in order to
-            establish which one will be used. A higher value means a higher priority.
-        @param authenticated: TypeProperty
-            The property type of the authenticated resource specific for the action taker.
-        @param resource: TypeProperty
-            The property type that is targeted for filtering.
-        @param filter: object
-            The filter is an object that can be used by the security services in order to filter the authenticated vs resource.
-        '''
-        assert isinstance(priority, int), 'Invalid priority %s' % priority
-        authenticated = typeFor(authenticated)
-        assert isinstance(authenticated, TypeProperty), 'Invalid property type %s' % authenticated
-        resource = typeFor(resource)
-        assert isinstance(resource, TypeProperty), 'Invalid property type %s' % resource
-        
-        self.priority = priority
-        self.authenticated = authenticated
-        self.resource = resource
-        self.filter = filter
 
 class RightAcl:
     '''

@@ -12,6 +12,7 @@ Provides the properties of model decoding.
 from ally.api.operator.type import TypeProperty, TypeModel
 from ally.api.type import Type
 from ally.container.ioc import injected
+from ally.core.impl.processor.base import FailureTarget, addFailure
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import defines, requires
 from ally.design.processor.branch import Branch
@@ -62,13 +63,6 @@ class Decoding(Context):
     doSet = requires(IDo)
     doGet = requires(IDo)
     
-class Target(Context):
-    '''
-    The target context.
-    '''
-    # ---------------------------------------------------------------- Required
-    doFailure = requires(IDo)
-    
 # --------------------------------------------------------------------
 
 @injected
@@ -83,7 +77,7 @@ class PropertyOfModelDecode(HandlerBranching):
     def __init__(self):
         assert isinstance(self.decodePropertyAssembly, Assembly), \
         'Invalid property decode assembly %s' % self.decodePropertyAssembly
-        super().__init__(Branch(self.decodePropertyAssembly).included(), Target=Target)
+        super().__init__(Branch(self.decodePropertyAssembly).included(), Target=FailureTarget)
         
     def process(self, chain, processing, decoding:Decoding, **keyargs):
         '''
@@ -100,7 +94,6 @@ class PropertyOfModelDecode(HandlerBranching):
         if not isinstance(decoding.type.parent, TypeModel): return 
         # If the parent is not model just move along.
         
-        if decoding.children is None:  decoding.children = {}
         pdecoding = decoding.__class__()
         assert isinstance(pdecoding, Decoding), 'Invalid decoding %s' % pdecoding
         
@@ -119,6 +112,7 @@ class PropertyOfModelDecode(HandlerBranching):
                       arg.decoding.type)
             raise Abort(arg.decoding)
         
+        if decoding.children is None:  decoding.children = {}
         decoding.children[arg.decoding.name] = arg.decoding
         decoding.doDecode = self.createDecode(decoding, arg.decoding.doDecode)
     
@@ -136,13 +130,12 @@ class PropertyOfModelDecode(HandlerBranching):
             Do decode the property of model.
             '''
             if not isinstance(value, dict): return decode(target, value)
-            assert isinstance(target, Target), 'Invalid target %s' % target
             assert isinstance(decoding, Decoding)
             
             for pname, pvalue in value.items():
                 cdecoding = decoding.children.get(pname)
                 if not cdecoding:
-                    target.doFailure(decoding, pname)
+                    addFailure(target, decoding, value=pname)
                     continue
                 assert isinstance(cdecoding, Decoding), 'Invalid decoding %s' % cdecoding
                 assert isinstance(cdecoding.doDecode, IDo), 'Invalid decode %s' % cdecoding.doDecode

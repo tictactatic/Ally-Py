@@ -105,7 +105,7 @@ class InjectorAssemblyHandler(Handler, IProcessor):
         
     def finalized(self, sources, resolvers, extensions, report):
         '''
-        @see: IProcessor.register
+        @see: IProcessor.finalized
         '''
         assert not self.done, 'Cannot register anymore the service registering has been performed already'
         assert isinstance(sources, dict), 'Invalid sources %s' % sources

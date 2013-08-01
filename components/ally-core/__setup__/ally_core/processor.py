@@ -9,9 +9,11 @@ Created on Nov 24, 2011
 Provides the configurations for the processors used in handling the request.
 '''
 
+from .decode import publishContent
 from .definition import errors
 from .parsing_rendering import assemblyRendering, assemblyParsing, \
     blocksDefinitions
+from .resources import decoding
 from ally.container import ioc
 from ally.core.impl.processor.block_indexing import BlockIndexingHandler
 from ally.core.impl.processor.content import ContentHandler
@@ -66,6 +68,7 @@ def converterContent() -> Handler:
 def parsing() -> Handler:
     b = ParsingHandler()
     b.charSetDefault = default_charset()
+    b.importDecoding = publishContent().importFrom(decoding())
     b.parsingAssembly = assemblyParsing()
     return b
 

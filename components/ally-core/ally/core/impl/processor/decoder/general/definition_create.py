@@ -77,10 +77,13 @@ class DefinitionCreateHandler(HandlerProcessor):
         
         if not decoding.doDecode: return
         
+        if definition:
+            assert isinstance(definition, DefinitionDecoding), 'Invalid definition %s' % definition
+            if definition.category is not None and definition.category != self.category: definition = None
+        
         if not definition:
             definition = Definition()
             chain.process(definition=definition)
-        assert isinstance(definition, DefinitionDecoding), 'Invalid definition %s' % definition
         
         definition.decoding = decoding
         definition.category = self.category

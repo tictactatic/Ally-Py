@@ -16,12 +16,14 @@ from ally.core.impl.processor.base import addError
 from ally.core.spec.resources import Converter
 from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
+from ally.design.processor.execution import Chain
+from ally.design.processor.export import Import
 from ally.design.processor.handler import HandlerProcessor
 from ally.support.util_context import findFirst
 from ally.support.util_spec import IDo
 
 # --------------------------------------------------------------------
-
+    
 class Invoker(Context):
     '''
     The invoker context.
@@ -54,7 +56,6 @@ class Request(Context):
     # ---------------------------------------------------------------- Required
     parameters = requires(list)
     invoker = requires(Context)
-    arguments = requires(dict)
     converterPath = requires(Converter)
 
 class TargetParameter(Context):
@@ -62,18 +63,16 @@ class TargetParameter(Context):
     The target context.
     '''
     # ---------------------------------------------------------------- Defined
-    arguments = defines(dict, doc='''
-    @rtype: dictionary{string: object}
-    The arguments do decode the parameters in.
+    arg = defines(object, doc='''
+    @rtype: object
+    The ongoing chain arguments do decode the parameters based on.
     ''')
     converter = defines(Converter, doc='''
     @rtype: Converter
     The converter to be used for decoding parameters.
     ''')
-    doFailure = defines(IDo, doc='''
-    @rtype: callable(Context, object)
-    The call to use in reporting parameters decoding failures.
-    ''')
+    # ---------------------------------------------------------------- Required
+    failures = requires(list)
     
 # --------------------------------------------------------------------
 
@@ -82,9 +81,14 @@ class ParameterHandler(HandlerProcessor):
     '''
     Implementation for a processor that provides the transformation of parameters into arguments.
     '''
+    
+    importDecoding = Import
+    # The decoding imports to be used for parameters.
 
     def __init__(self):
+        assert isinstance(self.importDecoding, Import), 'Invalid import %s' % self.importDecoding
         super().__init__(Invoker=Invoker, Decoding=Decoding, Definition=Definition)
+        self.importDecoding.useIn(self)
 
     def process(self, chain, request:Request, response:ErrorResponseHTTP, Target:TargetParameter, **keyargs):
         '''
@@ -92,6 +96,7 @@ class ParameterHandler(HandlerProcessor):
         
         Process the parameters into arguments.
         '''
+        assert isinstance(chain, Chain), 'Invalid chain %s' % chain
         assert isinstance(request, Request), 'Invalid request %s' % request
         assert issubclass(Target, TargetParameter), 'Invalid target class %s' % Target
         if response.isSuccess is False: return  # Skip in case the response is in error
@@ -106,14 +111,8 @@ class ParameterHandler(HandlerProcessor):
         else:
             assert isinstance(decodings, dict), 'Invalid decodings %s' % decodings
             
-            failures = {}
-            
-            if request.arguments is None: request.arguments = {}
-            target = Target()
+            target = Target(arg=chain.arg, converter=request.converterPath)
             assert isinstance(target, TargetParameter), 'Invalid target %s' % target
-            target.arguments = request.arguments
-            target.converter = request.converterPath
-            target.doFailure = self.createFailure(failures)
             
             visited = set()
             if request.parameters:
@@ -131,12 +130,12 @@ class ParameterHandler(HandlerProcessor):
             for name, decoding in decodings.items():
                 if name not in visited and decoding.doDefault: decoding.doDefault(target)
             
-            if failures:
+            if target.failures:
                 PARAMETER_INVALID.set(response)
                 
-                for name in sorted(failures):
-                    definitions, values = failures[name]
-                    addError(response, 'Invalid values \'%(values)s\' for \'%(name)s\'', definitions, name=name, values=values)
+                for name, definitions, values, messages in self.indexFailures(target.failures):
+                    addError(response, messages, 'Invalid values \'%(values)s\' for \'%(name)s\'', definitions,
+                             name=name, values=values)
                 
         if illegal:
             PARAMETER_ILLEGAL.set(response)
@@ -144,15 +143,14 @@ class ParameterHandler(HandlerProcessor):
                 
     # --------------------------------------------------------------------
     
-    def createFailure(self, failures):
+    def indexFailures(self, failures):
         '''
-        Creates the do failure.
+        Indexes the failures, iterates (name, definitions, values, messages)
         '''
-        assert isinstance(failures, dict), 'Invalid failures %s' % failures
-        def doFailure(decoding, value):
-            '''
-            Index the failure.
-            '''
+        assert isinstance(failures, list), 'Invalid failures %s' % failures
+        
+        indexed = {}
+        for decoding, value, messages, data in failures:
             assert value is not None, 'None value is not allowed'
             assert isinstance(decoding, Decoding), 'Invalid decoding %s' % decoding
             
@@ -160,10 +158,13 @@ class ParameterHandler(HandlerProcessor):
             assert isinstance(defin, Definition), 'Invalid definition %s for %s' % (defin, decoding)
             assert isinstance(defin.name, str), 'Invalid definition name %s' % defin.name
             
-            byName = failures.get(defin.name)
-            if byName is None: byName = failures[defin.name] = ([], [])
+            byName = indexed.get(defin.name)
+            if byName is None: byName = indexed[defin.name] = ([], [], [])
             
-            definitions, values = byName
-            definitions.append(defin)
+            defins, values, msgs = byName
+            defins.append(defin)
             values.append(value)
-        return doFailure
+            msgs.extend(msg % data for msg in messages)
+        
+        for name in sorted(indexed):
+            yield (name,) + indexed[name]

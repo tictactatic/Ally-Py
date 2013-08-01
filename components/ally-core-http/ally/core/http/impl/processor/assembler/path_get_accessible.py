@@ -33,7 +33,6 @@ class Invoker(Context):
     '''
     # ---------------------------------------------------------------- Required
     node = requires(Context)
-    path = requires(list)
     target = requires(TypeModel)
     isCollection = requires(bool)
     isModel = requires(bool)
@@ -43,10 +42,9 @@ class Node(Context):
     The node context.
     '''
     # ---------------------------------------------------------------- Required
-    byName = requires(dict)
-    byType = requires(dict)
     invokers = requires(dict)
     invokersGet = requires(dict)
+    childByName = requires(dict)
     # ---------------------------------------------------------------- Defined
     invokersAccessible = defines(list, doc='''
     @rtype: list[tuple(string, Context)]
@@ -99,7 +97,7 @@ class PathGetAccesibleHandler(HandlerProcessor):
         assert isinstance(node, Node), 'Invalid node %s' % node
         assert isinstance(stack, deque), 'Invalid stack %s' % stack
         
-        if node.byName: stack.extend((''.join((name, cname)), cnode) for cname, cnode in node.byName.items())
+        if node.childByName: stack.extend((''.join((name, cname)), cnode) for cname, cnode in node.childByName.items())
         
         if not node.invokers or not node.invokersGet: return
         
@@ -133,6 +131,6 @@ class PathGetAccesibleHandler(HandlerProcessor):
             assert isinstance(invokerByProp, Invoker), 'Invalid invoker %s' % invokerByProp
             if not invokerByProp.node or invokerByProp.node == node: continue
             assert isinstance(invokerByProp.node, Node), 'Invalid node %s' % invokerByProp.node
-            if not invokerByProp.node.byName: continue
-            stack.extend((''.join((name, cname)), cnode) for cname, cnode in invokerByProp.node.byName.items())
+            if not invokerByProp.node.childByName: continue
+            stack.extend((''.join((name, cname)), cnode) for cname, cnode in invokerByProp.node.childByName.items())
             

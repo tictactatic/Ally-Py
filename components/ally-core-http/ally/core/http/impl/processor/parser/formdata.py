@@ -10,17 +10,18 @@ Provides the multipart form-data conversion to url encoded content.
 '''
 
 from ally.container.ioc import injected
+from ally.core.http.impl.processor.base import ErrorResponseHTTP
 from ally.core.http.spec.codes import MUTLIPART_ERROR
+from ally.core.impl.processor.base import addError
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
 from ally.support.util_io import IInputStream
-from collections import Callable, deque
+from ally.support.util_spec import IDo
 from io import BytesIO
 from urllib.parse import urlencode
 import logging
 import re
-from ally.http.spec.codes import CodedHTTP
 
 # --------------------------------------------------------------------
 
@@ -32,23 +33,19 @@ class RequestContent(Context):
     '''
     The request content context.
     '''
+    # ---------------------------------------------------------------- Defined
+    name = defines(str, doc='''
+    @rtype: string
+    The content disposition file name.
+    ''')
     # ---------------------------------------------------------------- Required
     type = requires(str)
     charSet = requires(str)
     disposition = requires(str)
     dispositionAttr = requires(dict)
     source = requires(IInputStream)
-    fetchNextContent = requires(Callable)
-    previousContent = requires(object)
-    # ---------------------------------------------------------------- Defined
-    name = defines(str)
-
-class Response(CodedHTTP):
-    '''
-    The response context.
-    '''
-    # ---------------------------------------------------------------- Defined
-    errorMessage = defines(str)
+    previousContent = requires(Context)
+    doFetchNextContent = requires(IDo)
 
 # --------------------------------------------------------------------
 
@@ -86,14 +83,14 @@ class ParseFormDataHandler(HandlerProcessor):
 
         self._reMultipart = re.compile(self.regexMultipart)
 
-    def process(self, chain, requestCnt:RequestContent, response:Response, **keyargs):
+    def process(self, chain, requestCnt:RequestContent, response:ErrorResponseHTTP, **keyargs):
         '''
         @see: HandlerProcessor.process
         
         Process the multi part data.
         '''
         assert isinstance(requestCnt, RequestContent), 'Invalid request content %s' % requestCnt
-        assert isinstance(response, Response), 'Invalid response %s' % response
+        assert isinstance(response, ErrorResponseHTTP), 'Invalid response %s' % response
 
         if requestCnt.previousContent is None: return
         # If there is no previous content it means that this is not a multi part request content.
@@ -103,12 +100,11 @@ class ParseFormDataHandler(HandlerProcessor):
         if not multiCnt.type or not self._reMultipart.match(multiCnt.type): return
         assert log.debug('Content type %s is multi part form data', multiCnt.type) or True
 
-        content, parameters = requestCnt, deque()
+        content, parameters = requestCnt, []
         while True:
             if content.disposition != self.contentDisposition:
                 MUTLIPART_ERROR.set(response)
-                response.errorMessage = 'Invalid multipart form data content disposition \'%s\'' % content.disposition
-                return
+                return addError(response, 'Invalid multipart form data content disposition \'%s\'' % content.disposition)
 
             name = content.dispositionAttr.pop(self.attrContentDispositionFile, None)
             if name is not None:
@@ -118,17 +114,16 @@ class ParseFormDataHandler(HandlerProcessor):
             name = content.dispositionAttr.pop(self.attrContentDispositionName, None)
             if not name:
                 MUTLIPART_ERROR.set(response)
-                response.errorMessage = 'Missing the content disposition header attribute name'
-                return
+                return addError(response, 'Missing the content disposition header attribute name')
 
             parameters.append((name, str(content.source.read(), requestCnt.charSet)))
 
-            content = content.fetchNextContent()
+            content = content.doFetchNextContent()
             if not content: break
             assert isinstance(content, RequestContent), 'Invalid request content %s' % content
 
         if parameters:
             requestCnt.type = self.contentTypeUrlEncoded
             requestCnt.charSet = self.charSet
-            requestCnt.fetchNextContent = lambda: content
+            requestCnt.doFetchNextContent = lambda: content
             requestCnt.source = BytesIO(urlencode(parameters).encode(self.charSet, 'replace'))

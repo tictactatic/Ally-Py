@@ -16,12 +16,12 @@ from .operator.extract import extractCriterias, extractProperties, \
 from .operator.type import Call, TypeCall, TypeModel, TypeProperty, TypeCriteria, \
     TypeQuery, TypeService, TypeExtension, TypeOption
 from .type import typeFor
+from ally.api.operator.type import TypePropertyContainer, TypeInput
 from ally.api.type import List, Input
 from ally.support.util_sys import locationStack
 from inspect import isclass, isfunction
 from re import match
 import logging
-from ally.api.operator.type import TypePropertyContainer
 
 # --------------------------------------------------------------------
 
@@ -334,6 +334,12 @@ def service(*generic):
                 assert isinstance(call, TypeCall)
                 if name not in service.calls:
                     service.calls[name] = TypeCall(service, processGenericCall(call.call, generic))
+                    
+        for call in service.calls.values():
+            assert isinstance(call.call, Call), 'Invalid call %s' % call.call
+            for inp in call.call.inputs:
+                assert isinstance(inp, Input), 'Invalid input %s' % inp
+                call.inputs[inp.name] = TypeInput(call, inp)
     
         return processAsService(clazz, service)
     if clazz: return decorator(clazz)

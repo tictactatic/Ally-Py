@@ -35,7 +35,7 @@ class IRightTypeService(IEntityNQService):
     Right type model service interface
     '''
     
-    @call
+    @call(webName='ByName')
     def getByName(self, name:RightType.Name) -> RightType:
         '''
         Provides the right type based on a provided name.
