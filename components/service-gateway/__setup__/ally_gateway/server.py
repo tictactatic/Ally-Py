@@ -1,7 +1,7 @@
 '''
 Created on Feb 1, 2013
 
-@package: service gateway
+@package: gateway service
 @copyright: 2012 Sourcefabric o.p.s.
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
@@ -28,7 +28,7 @@ def server_pattern_gateway():
         as the external server provides it.
     !Attention this configuration needs to be in concordance with 'server_pattern_resources' configuration whenever the gateway 
         is used internally.
-    !Attention this configuration needs to be in concordance with 'root_uri_resources' configuration.
+    !Attention this configuration needs to be in concordance with 'root_uri_resources' configuration
     '''
     return {
             GATEWAY_EXTERNAL: '(.*)',
@@ -48,4 +48,5 @@ def gatewayRouter() -> Handler:
 
 @ioc.before(updateAssemblyServer)
 def updateAssemblyServerForGatewayExternal():
-    if server_provide_gateway() == GATEWAY_EXTERNAL: assemblyServer().add(gatewayRouter())
+    if server_provide_gateway() == GATEWAY_EXTERNAL:
+        assemblyServer().add(gatewayRouter())

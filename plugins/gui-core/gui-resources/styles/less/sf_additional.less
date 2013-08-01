@@ -28,9 +28,9 @@
 .searchbar-container {
 	.reset-bootstrap-effects;
 	width:30%;
-	.border-radius(5px);
+	.border-radius(3px) !important;
 	border:1px solid #adadad;
-	height:30px !important;
+	height:32px !important;
 	background:url(../../images/search-icon.png) no-repeat 9px 6px #ffffff;
 	padding:0 0 0 35px !important;		
 	.box-shadow(inset 0 5px 5px -5px #acacac);
@@ -370,9 +370,16 @@
 	background: url("../../images/sf-checkbox.png") no-repeat 0 0;
 	vertical-align: top;
 	margin-right: 5px;
+	&:hover {
+		background-position: 0 -15px;
+		cursor: pointer;
+	}
 }
 .sf-checked {
-	background-position: 0 -15px;
+	background-position: 0 -30px;
+	&:hover {
+		background-position: 0 -30px;
+	}
 }
 .sf-checkbox {
 	/* display: none !important; */
@@ -558,6 +565,21 @@
 						margin-right: 0px;
 					}
 				}
+				&.small_col {
+					width: 100px;
+				}
+				&.avatar_col {
+			      width: 30px;
+			    }
+			    &.name_col {
+			      width: 200px;
+			    }
+			    &.username_col {
+			      width: 150px;
+			    }
+			    &.email_col {
+			      width: 250px;
+			    }
 			}
 		}
 	}
@@ -567,7 +589,7 @@
 			td {
 				border-bottom: 1px solid #e5e5e5;
 				padding: 8px 12px;
-				&.title_col {
+				&.title_col, &.name_col, &.email_col {
 					a {
 						color: #3097b5;
 						}					
@@ -580,6 +602,12 @@
 					.sf-dropdown-simple {
 						margin-right: 0px;
 					}
+				}
+				&.medium_col {
+					width: 150px;
+				}
+				&.small_col {
+					width: 120px;
 				}
 			}
 			&:hover {

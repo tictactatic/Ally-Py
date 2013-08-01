@@ -21,14 +21,14 @@ from ally.container.support import setup
 from ally.core.spec.resources import Node, Path, Invoker
 from ally.design.processor.attribute import defines, requires, optional
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerProcessor, Handler
+from ally.design.processor.handler import HandlerProcessorProceed, Handler
 from ally.http.spec.server import HTTP_GET, HTTP_DELETE, HTTP_POST, HTTP_PUT, \
     IEncoderPath
 from ally.support.core.util_resources import findNodesFor, propertyTypesOf, \
     ReplacerWithMarkers, pathForNode
 from collections import Callable, Iterable
 from gateway.api.gateway import Gateway
-import itertools
+from itertools import chain
 import logging
 
 # --------------------------------------------------------------------
@@ -58,16 +58,17 @@ class Solicitation(Context):
     '''
     The solicitation context.
     '''
+    # ---------------------------------------------------------------- Optional
+    provider = optional(Callable, doc='''
+    @rtype: callable(TypeProperty) -> string|None
+    Callable used for getting the authenticated value for the provided property type.
+    ''')
     # ---------------------------------------------------------------- Required
     encoderPath = requires(IEncoderPath, doc='''
     @rtype: IEncoderPath
     The path encoder used for encoding resource paths and patterns that will be used in gateways.
     ''')
     permissions = requires(Iterable)
-    provider = requires(Callable, doc='''
-    @rtype: callable(TypeProperty) -> string|None
-    Callable used for getting the authenticated value for the provided property type.
-    ''')
 
 class Reply(Context):
     '''
@@ -83,24 +84,27 @@ class Reply(Context):
 
 @injected
 @setup(Handler, name='gatewaysFromPermissions')
-class GatewaysFromPermissions(HandlerProcessor):
+class GatewaysFromPermissions(HandlerProcessorProceed):
     '''
     Provides the handler that creates gateways based on resource permissions.
     '''
     
     resourcesRoot = Node; wire.entity('resourcesRoot')
     # The root node to find the filters in.
+    separatorHeader = ':'
+    # The separator used between the header name and header value.
 
     def __init__(self):
         assert isinstance(self.resourcesRoot, Node), 'Invalid root node %s' % self.resourcesRoot
+        assert isinstance(self.separatorHeader, str), 'Invalid header separator %s' % self.separatorHeader
         super().__init__()
         
         self._cacheFilters = {}
         self.resourcesRoot.addStructureListener(self)
 
-    def process(self, chain, Permission:PermissionResource, solicitation:Solicitation, reply:Reply, **keyargs):
+    def process(self, Permission:PermissionResource, solicitation:Solicitation, reply:Reply, **keyargs):
         '''
-        @see: HandlerProcessor.process
+        @see: HandlerProcessorProceed.process
         
         Construct the gateways for permissions.
         '''
@@ -109,10 +113,14 @@ class GatewaysFromPermissions(HandlerProcessor):
         assert isinstance(reply, Reply), 'Invalid reply %s' % reply
         assert isinstance(solicitation.encoderPath, IEncoderPath), 'Invalid encoder path %s' % solicitation.encoderPath
         assert isinstance(solicitation.permissions, Iterable), 'Invalid permissions %s' % solicitation.permissions
-        assert callable(solicitation.provider), 'Invalid provider %s' % solicitation.provider
         
-        gateways = self.processGateways(solicitation.permissions, solicitation.provider, solicitation.encoderPath)
-        if reply.gateways is not None: reply.gateways = itertools.chain(reply.gateways, gateways)
+        if Solicitation.provider in solicitation and solicitation.provider is not None:
+            provider = solicitation.provider
+            assert callable(provider), 'Invalid provider %s' % provider
+        else: provider = None
+        
+        gateways = self.processGateways(solicitation.permissions, provider, solicitation.encoderPath)
+        if reply.gateways is not None: reply.gateways = chain(reply.gateways, gateways)
         else: reply.gateways = gateways
         
     # ----------------------------------------------------------------
@@ -137,7 +145,7 @@ class GatewaysFromPermissions(HandlerProcessor):
         
         @param permissions: Iterable(PermissionResource)
             The permissions to create the gateways for.
-        @param provider: callable
+        @param provider: callable|None
             The callable used in solving the authenticated values.
         @param encoder: IEncoderPath
             The encoder path to be used for the gateways resource paths and patterns.
@@ -157,7 +165,8 @@ class GatewaysFromPermissions(HandlerProcessor):
             pattern, types = processPattern(permission.path, permission.invoker, encoder, values)
             filters = self.processFilters(types, permission.filters, provider, encoder)
             
-            if PermissionResource.putHeaders in permission: putHeaders = permission.putHeaders
+            if PermissionResource.putHeaders in permission and permission.putHeaders is not None:
+                putHeaders = [self.separatorHeader.join(item) for item in permission.putHeaders.items()]
             else: putHeaders = None
             
             if PermissionResource.navigate in permission: navigate = permission.navigate
@@ -187,7 +196,7 @@ class GatewaysFromPermissions(HandlerProcessor):
             captured.
         @param filters: Iterable(Filter)
             The filters to process.
-        @param provider: callable
+        @param provider: callable|None
             The callable used in solving the authenticated values.
         @param encoder: IEncoderPath
             The encoder path to be used for the gateways resource paths and patterns.
@@ -224,7 +233,7 @@ class GatewaysFromPermissions(HandlerProcessor):
         
         @param rfilter: Filter
             The resource filter to process.
-        @param provider: callable
+        @param provider: callable|None
             The callable used in solving the authenticated values.
         @param marker: string
             The resource marker to place in the filter path, this marker is used to identify the group in the gateway pattern.
@@ -237,7 +246,6 @@ class GatewaysFromPermissions(HandlerProcessor):
         assert isinstance(rfilter.filter, IAclFilter), 'Invalid filter %s of %s' % (rfilter.filter, rfilter)
         typeService = typeFor(rfilter.filter)
         assert isinstance(typeService, TypeService), 'Invalid filter %s, is not a REST service' % rfilter.filter
-        assert callable(provider), 'Invalid authenticated provider %s' % provider
         assert isinstance(marker, str), 'Invalid marker %s' % marker
         assert isinstance(encoder, IEncoderPath), 'Invalid encoder path %s' % encoder
         
@@ -266,7 +274,10 @@ class GatewaysFromPermissions(HandlerProcessor):
                 assert indexAuth < indexRsc, 'Invalid path %s, improper order for types' % path
     
         assert isinstance(path, Path), 'Invalid path %s' % path
-        valueAuth = provider(rfilter.authenticated)
+        if provider:
+            assert callable(provider), 'Invalid authenticated provider %s' % provider
+            valueAuth = provider(rfilter.authenticated)
+        else: valueAuth = None
         if valueAuth is None:
             log.error('The filter service %s has not authenticated value for %s', typeService, rfilter.authenticated)
             return

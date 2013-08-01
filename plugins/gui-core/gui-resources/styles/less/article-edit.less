@@ -187,7 +187,7 @@ html, body.article-edit {
   section {
     header {
       visibility:hidden;
-      margin-bottom:5px;
+      margin-bottom: 3px;
       .edit-label {
         background: #c0c0c0;
         .border-radius(2px);
@@ -217,6 +217,9 @@ html, body.article-edit {
       }
     }
     &.article-title {
+      header {
+        font-family:Arial, Verdana, sans-serif !important;
+      }
       p {
         font-family: Georgia, serif;
         font-size:36px;
@@ -224,7 +227,7 @@ html, body.article-edit {
       }
     }
     &.article-short-text {
-      margin-bottom:10px;
+      margin-bottom:10px !important;
       p {
         font-size:26px;
         line-height: 28px;
@@ -235,6 +238,19 @@ html, body.article-edit {
       p {
         font-size:14px;
         line-height:20px;
+      }
+    }
+    .aloha-editable {
+      margin: -5px;
+      padding: 5px;
+      border: 1px solid #fff;
+      .border-radius(2px);
+      &:hover {
+        border-color:#e8e8e8;
+      }
+      &:focus {
+        outline:none;
+        border-color:#e8e8e8;
       }
     }
 
@@ -507,7 +523,7 @@ button:focus {
 }
 
 /* ALOHA */
-.editor-toolbar {
+.editor-toolbar-placeholder {
     position:fixed;
     z-index:100;
     top:@subnav-height + @topspace;
