@@ -16,6 +16,7 @@ from ally.container.ioc import injected
 from ally.container.support import setup
 from babel.messages.extract import extract_nothing, extract_python, \
     _strip_comment_tags, empty_msgid_warning, extract_javascript
+from internationalization.core.impl.extract_html import extract_html
 from babel.util import pathmatch
 from datetime import datetime
 from functools import partial
@@ -35,9 +36,9 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
-METHOD_MAP = [('**.py', 'python'), ('**.js', 'javascript'), ('**.html', 'javascript'), ('**.dust', 'javascript')]
+METHOD_MAP = [('**.py', 'python'), ('**.js', 'javascript'), ('**.html', 'html'), ('**.dust', 'html')]
 # A list of ``(pattern, method)`` tuples that maps of extraction method names to extended global patterns
-METHOD_EXTRACTOR = {'ignore': extract_nothing, 'python': extract_python, 'javascript': extract_javascript}
+METHOD_EXTRACTOR = {'ignore': extract_nothing, 'python': extract_python, 'javascript': extract_javascript, 'html': extract_html}
 # The modethod extractors to be used.
 
 KEYWORDS = {
