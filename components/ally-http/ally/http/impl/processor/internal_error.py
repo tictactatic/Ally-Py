@@ -99,12 +99,17 @@ class InternalErrorHandler(Handler):
         assert isinstance(error, Error), 'Invalid error execution %s' % error
         assert isinstance(response, Response), 'Invalid response %s' % response
         assert isinstance(responseCnt, ResponseContent), 'Invalid response content %s' % responseCnt
+        assert isinstance(error.exception, Exception), 'Invalid error exception %s' % error.exception
+        if error.isRetrying: return  # Maybe next time
+        
+        excInfo = (type(error.exception), error.exception, error.exception.__traceback__)
+        log.error('Exception occurred while processing the execution', exc_info=excInfo)
         
         # If there is an explanation for the error occurred, we do not need to make another one
         if responseCnt.source is not None: return
         
         ferror = StringIO()
-        traceback.print_exception(*error.excInfo, file=ferror)
+        traceback.print_exception(*excInfo, file=ferror)
         INTERNAL_ERROR.set(response)
         response.headers = dict(self.errorHeaders)
         responseCnt.source = convertToBytes(self.errorResponse(ferror), 'UTF-8', 'backslashreplace')

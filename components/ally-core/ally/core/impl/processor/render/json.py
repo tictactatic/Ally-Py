@@ -15,7 +15,7 @@ from ally.core.impl.index import ACTION_STREAM, ACTION_DISCARD, NAME_BLOCK, \
     ACTION_INJECT, Index, ACTION_NAME
 from ally.core.spec.resources import Converter
 from ally.core.spec.transform import IRender
-from ally.design.processor.attribute import requires
+from ally.design.processor.attribute import optional
 from ally.design.processor.context import Context
 from ally.indexing.spec.model import Block, Action
 from ally.indexing.spec.perform import skip, feed, feedValue, feedName, \
@@ -246,8 +246,8 @@ class Request(Context):
     '''
     The request context.
     '''
-    # ---------------------------------------------------------------- Requires
-    converterContent = requires(Converter)
+    # ---------------------------------------------------------------- Optional
+    converterContent = optional(Converter)
 
 # --------------------------------------------------------------------
 
@@ -268,7 +268,8 @@ class RenderJSONHandler(RenderBaseHandler):
     def process(self, chain, request:Context, **keyargs):
         if super().process(chain, **keyargs):
             assert isinstance(request, Request), 'Invalid request %s' % request
-            request.converterContent = ConverterJSON(request.converterContent)
+            if Request.converterContent in request:
+                request.converterContent = ConverterJSON(request.converterContent)
 
     def renderFactory(self, content):
         '''
@@ -401,7 +402,7 @@ class RenderJSON(IRender):
             content.length = self._outb.tell()
             self._outb.seek(0)
             content.source = self._outb
-            content.indexes = self._indexes
+            if Content.indexes in content: content.indexes = self._indexes
         
     # ----------------------------------------------------------------
 

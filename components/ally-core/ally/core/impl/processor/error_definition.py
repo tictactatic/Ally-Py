@@ -10,13 +10,13 @@ Provides the definitions based on error code.
 '''
 
 from ally.container.ioc import injected
-from ally.core.impl.processor.base import addError
+from ally.core.impl.processor.base import addError, ErrorResponse
 from ally.core.spec.definition import IVerifier
-from ally.design.processor.attribute import requires, defines
+from ally.design.processor.attribute import requires
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
-import itertools
 from ally.design.processor.resolvers import resolversFor
+import itertools
 
 # --------------------------------------------------------------------
 
@@ -40,16 +40,6 @@ class Request(Context):
     '''
     # ---------------------------------------------------------------- Required
     invoker = requires(Context)
-    
-class Response(Context):
-    '''
-    The response context.
-    '''
-    # ---------------------------------------------------------------- Defined
-    errorMessages = defines(list)
-    # ---------------------------------------------------------------- Required
-    code = requires(str)
-    isSuccess = requires(bool)
 
 # --------------------------------------------------------------------
 
@@ -77,7 +67,7 @@ class ErrorDefinitionHandler(HandlerProcessor):
             
         super().__init__(**resolvers)
 
-    def process(self, chain, register:Register, request:Request, response:Response, **keyargs):
+    def process(self, chain, register:Register, request:Request, response:ErrorResponse, **keyargs):
         '''
         @see: HandlerProcessor.process
         
@@ -85,7 +75,7 @@ class ErrorDefinitionHandler(HandlerProcessor):
         '''
         assert isinstance(register, Register), 'Invalid register %s' % register
         assert isinstance(request, Request), 'Invalid request %s' % request
-        assert isinstance(response, Response), 'Invalid response %s' % response
+        assert isinstance(response, ErrorResponse), 'Invalid response %s' % response
         
         if response.isSuccess is not False: return  # Not in error.
         if not response.code: return

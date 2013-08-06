@@ -9,8 +9,9 @@ Created on Jun 16, 2013
 Provides the setup for the decode processors.
 '''
 
-from .parsing_rendering import CATEGORY_CONTENT_XML
+from .parsing_rendering import CATEGORY_CONTENT_OBJECT, CATEGORY_CONTENT_XML
 from ally.container import ioc
+from ally.core.impl.processor.decoder.base import failureTargetExport
 from ally.core.impl.processor.decoder.content.definition_content import \
     DefinitionContentHandler
 from ally.core.impl.processor.decoder.content.model import ModelDecode
@@ -24,18 +25,17 @@ from ally.core.impl.processor.decoder.general.definition_create import \
 from ally.core.impl.processor.decoder.general.definition_index import \
     DefinitionIndexHandler
 from ally.core.impl.processor.decoder.general.dict_decode import DictDecode, \
-    DictItemDecode
+    DictItemDecode, dictItemDecodeExport
 from ally.core.impl.processor.decoder.general.list_decode import ListDecode
 from ally.core.impl.processor.decoder.general.mark_solved import \
     MarkSolvedHandler
-from ally.core.impl.processor.decoder.general.primitive import PrimitiveDecode
+from ally.core.impl.processor.decoder.general.primitive import PrimitiveDecode, \
+    primitiveDecodeExport
 from ally.core.impl.processor.decoder.option_slice import OptionSliceHandler
 from ally.core.impl.processor.render.xml import NAME_LIST_ITEM, NAME_DICT_ENTRY, \
     NAME_DICT_KEY, NAME_DICT_VALUE
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.handler import Handler
-from .parsing_rendering import CATEGORY_CONTENT_OBJECT
-from ally.design.processor.export import Publish
 
 # --------------------------------------------------------------------
 
@@ -60,11 +60,27 @@ def slice_with_total() -> bool:
 # --------------------------------------------------------------------
 
 @ioc.entity
+def assemblyDecodeExport() -> Assembly:
+    '''
+    The assembly containing the decoders exports.
+    '''
+    return Assembly('Decode export')
+
+@ioc.entity
 def assemblyDecode() -> Assembly:
     '''
     The assembly containing the decoders.
     '''
     return Assembly('Decode')
+
+# --------------------------------------------------------------------
+
+@ioc.entity
+def assemblyDecodeContentExport() -> Assembly:
+    '''
+    The assembly containing the decoders exports for content.
+    '''
+    return Assembly('Decode content export')
 
 @ioc.entity
 def assemblyDecodeContent() -> Assembly:
@@ -218,9 +234,6 @@ def definitionObjectCreate() -> Handler:
 @ioc.entity
 def definitionContentObject() -> Handler: return DefinitionContentHandler()
 
-@ioc.entity
-def publishContent() -> Publish: return Publish()
-
 # --------------------------------------------------------------------
 
 @ioc.before(assemblyDecodeListItem)
@@ -251,8 +264,16 @@ def updateAssemblyDecodeModel():
     
 @ioc.before(assemblyDecodeContent)
 def updateAssemblyDecodeContent():
-    assemblyDecodeContent().add(modelDecode(), markSolved(), publishContent())
+    assemblyDecodeContent().add(modelDecode(), markSolved())
+    
+@ioc.before(assemblyDecodeContentExport)
+def updateAssemblyDecodeContentExport():
+    assemblyDecodeContentExport().add(assemblyDecodeExport(), primitiveDecodeExport, dictItemDecodeExport)
 
 @ioc.before(assemblyDecode)
 def updateAssemblyDecode():
     assemblyDecode().add(optionSlice(), createContent())
+    
+@ioc.before(assemblyDecodeExport)
+def updateAssemblyDecodeExport():
+    assemblyDecodeExport().add(failureTargetExport)

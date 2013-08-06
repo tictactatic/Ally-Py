@@ -16,7 +16,8 @@ from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
 from ally.support.api.util_service import iterateCalls
 from ally.support.util_sys import locationStack
-from collections import Iterable, Callable
+from collections import Iterable
+from ally.support.util_spec import IDo
 
 # --------------------------------------------------------------------
 
@@ -42,10 +43,6 @@ class InvokerCall(Context):
     @rtype: string
     The unique id of the invoker.
     ''')
-    invoke = defines(Callable, doc='''
-    @rtype: Callable
-    The invoke used for handling the request.
-    ''')
     service = defines(TypeService, doc='''
     @rtype: TypeService
     The invoker service.
@@ -70,6 +67,10 @@ class InvokerCall(Context):
     @rtype: string
     The location string to localize the API call.
     ''')
+    doInvoke = defines(IDo, doc='''
+    @rtype: callable(*args, **keyargs) -> object
+    The invoke used for handling the request.
+    ''')
 
 # --------------------------------------------------------------------
 
@@ -92,7 +93,7 @@ class InvokerServiceHandler(HandlerProcessor):
         for implementation in register.services:
             service = typeFor(implementation)
             assert isinstance(service, TypeService), 'Invalid service implementation %s' % implementation
-            
+
             for call in iterateCalls(service):
                 assert isinstance(call, Call), 'Invalid call %s' % call
                 
@@ -102,11 +103,11 @@ class InvokerServiceHandler(HandlerProcessor):
                 invoker = Invoker()
                 assert isinstance(invoker, InvokerCall), 'Invalid invoker %s' % invoker
                 invoker.id = invokerId
-                invoker.invoke = getattr(implementation, call.name)
                 invoker.service = service
                 invoker.call = call
                 invoker.method = call.method
                 invoker.inputs = call.inputs
                 invoker.output = call.output
                 invoker.location = locationStack(getattr(service.clazz, call.name))
+                invoker.doInvoke = getattr(implementation, call.name)
                 register.invokers.append(invoker)

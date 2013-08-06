@@ -10,14 +10,14 @@ Module containing processors.
 '''
 
 from .branch import IBranch
-from .context import Context
+from .context import Context, create
 from .execution import Processing
-from .resolvers import merge, solve
+from .resolvers import checkIf, reportFor, merge, solve, resolverFor, \
+    resolversFor, extractContexts
 from .spec import AssemblyError, IProcessor, ContextMetaClass, ProcessorError, \
-    IReport
+    IReport, IResolver, LIST_UNAVAILABLE
 from .structure import restructureData, restructureResolvers
-from ally.design.processor.resolvers import resolverFor
-from ally.design.processor.spec import IResolver
+from ally.design.processor.spec import isNameForClass
 from ally.support.util_sys import locationStack, updateWrapper
 from collections import Iterable
 from inspect import ismethod, isfunction, getfullargspec
@@ -35,21 +35,16 @@ class Processor(IProcessor):
         '''
         Construct the processor for the provided context having the provided call.
         
-        @param contexts: dictionary{string, ContextMetaClass}
+        @param contexts: key arguments of ContextMetaClass or IResolver
             The contexts to be associated with the processor.
         @param call: callable
             The call of the processor.
         '''
         assert isinstance(contexts, dict), 'Invalid contexts %s' % contexts
         assert callable(call), 'Invalid call %s' % call
-        if __debug__:
-            for key, context in contexts.items():
-                assert isinstance(key, str), 'Invalid context name %s' % key
-                assert isinstance(context, (ContextMetaClass, IResolver)), 'Invalid context %s for %s' % (context, key)
 
-        self.contexts = contexts
+        self.contexts = resolversFor(contexts)
         self.call = call
-        self.exported = {}
 
     def register(self, sources, resolvers, extensions, calls, report):
         '''
@@ -59,12 +54,6 @@ class Processor(IProcessor):
         
         merge(resolvers, self.contexts)
         calls.append(self.call)
-    
-    def export(self, required, resolvers):
-        '''
-        @see: IProcessor.export
-        '''
-        merge(resolvers, self.exported)
         
     # ----------------------------------------------------------------
     
@@ -112,10 +101,8 @@ class Contextual(Processor):
                 if not isinstance(clazz, ContextMetaClass):
                     raise ProcessorError('Not a context class %s for argument %s, at:%s' % 
                                          (clazz, name, locationStack(self.function)))
-                if context is None: context = clazz
-                else:
-                    if not isinstance(context, IResolver): context = resolverFor(context)
-                    context = context.solve(resolverFor(clazz))
+                if context is None: context = resolverFor(clazz)
+                else: context = context.solve(resolverFor(clazz))
             if context is not None: contexts[name] = context
         
         super().__init__(contexts, function)
@@ -147,7 +134,7 @@ class Contextual(Processor):
         assert isinstance(arguments, (list, tuple)), 'Invalid arguments %s' % arguments
         assert isinstance(annotations, dict), 'Invalid annotations %s' % annotations
 
-        if len(arguments) > 2 and 'self' == arguments[0]: return arguments[2:], annotations
+        if len(arguments) > 2 and 'self' == arguments[0] and 'chain' == arguments[1]: return arguments[2:], annotations
         raise ProcessorError('Required function of form \'def processor(self, chain, contex:Context ...)\' for:%s' % 
                              locationStack(self.function))
     
@@ -204,19 +191,6 @@ class Brancher(Contextual):
         def wrapper(*args, **keyargs): self.call(*itertools.chain(args, processings), **keyargs)
         updateWrapper(wrapper, self.call)
         calls.append(wrapper)
-    
-    def export(self, required, resolvers):
-        '''
-        @see: IProcessor.export
-        '''
-        exported = super().export(required, resolvers)
-        for branch in self.branches:
-            assert isinstance(branch, IBranch), 'Invalid branch %s' % branch
-            exports = branch.export(required, resolvers)
-            if exports:
-                if exported is None: exported = {}
-                solve(exported, exports)
-        return exported
         
     # ----------------------------------------------------------------
         
@@ -266,19 +240,6 @@ class Composite(IProcessor):
         for processor in self.processors:
             assert isinstance(processor, IProcessor), 'Invalid processor %s' % processor
             processor.finalized(sources, resolvers, extensions, report)
-            
-    def export(self, required, resolvers):
-        '''
-        @see: IProcessor.export
-        '''
-        exported = None
-        for proc in self.processors:
-            assert isinstance(proc, IProcessor), 'Invalid processor %s' % proc
-            exports = proc.export(required, resolvers)
-            if exports:
-                if exported is None: exported = {}
-                solve(exported, exports)
-        return exported
         
     # ----------------------------------------------------------------
 
@@ -322,12 +283,12 @@ class Renamer(IProcessor):
         assert isinstance(calls, list), 'Invalid calls %s' % calls
         
         wsources = restructureResolvers(sources, self.mapping)
-        wcurrent = restructureResolvers(resolvers, self.mapping)
+        wresolvers = restructureResolvers(resolvers, self.mapping)
         wextensions = restructureResolvers(extensions, self.mapping)
         wcalls = []
-        self.processor.register(wsources, wcurrent, wextensions, wcalls, report)
+        self.processor.register(wsources, wresolvers, wextensions, wcalls, report)
         
-        merge(resolvers, restructureResolvers(wcurrent, self.mapping, True))
+        merge(resolvers, restructureResolvers(wresolvers, self.mapping, True))
         merge(extensions, restructureResolvers(wextensions, self.mapping, True))
         
         def wrapper(*args, **keyargs):
@@ -348,13 +309,6 @@ class Renamer(IProcessor):
         
         merge(resolvers, restructureResolvers(wresolvers, self.mapping, True))
         merge(extensions, restructureResolvers(wextensions, self.mapping, True))
-    
-    def export(self, required, resolvers):
-        '''
-        @see: IProcessor.exports
-        '''
-        exported = self.processor.export(required, restructureResolvers(resolvers, self.mapping))
-        if exported: return restructureResolvers(exported, self.mapping, True)
         
     # ----------------------------------------------------------------
 
@@ -362,6 +316,67 @@ class Renamer(IProcessor):
         if not isinstance(other, self.__class__): return False
         return self.processor == other.processor and self.mapping == other.mapping
 
+class Using(IProcessor):
+    '''
+    Implementation for @see: IProcessor that makes use of the provided context for the wrapped processors.
+    '''
+    
+    def __init__(self, processor, **contexts):
+        '''
+        Construct the processor that renames the context names for the provided processor.
+        
+        @param processor: IProcessor
+            Restructures the provided processor.
+        @param contexts: key arguments of ContextMetaClass or IResolver
+            The contexts to be used.
+        '''
+        assert isinstance(processor, IProcessor), 'Invalid processor %s' % processor
+        assert contexts, 'At least one context is required'
+        for name in contexts: assert isNameForClass(name), 'Only classes are allowed for using, invalid name %s' % name
+        
+        self.processor = processor
+        self.contexts = resolversFor(contexts)
+
+    def register(self, sources, resolvers, extensions, calls, report):
+        '''
+        @see: IProcessor.register
+        '''
+        assert isinstance(calls, list), 'Invalid calls %s' % calls
+        
+        names = set(self.contexts)
+        if not names.isdisjoint(sources) or not names.isdisjoint(resolvers) or not names.isdisjoint(extensions):
+            raise AssemblyError('The names \'%s\' are already present in current assembly' % ', '.join(names))
+    
+        solve(resolvers, self.contexts)
+        wcalls = []
+        self.processor.register(sources, resolvers, extensions, wcalls, report)
+        
+        using = extractContexts(sources, self.contexts)
+        solve(using, extractContexts(resolvers, self.contexts))
+        solve(using, extractContexts(extensions, self.contexts))
+        if checkIf(using, LIST_UNAVAILABLE):
+            raise AssemblyError('Using has unavailable attributes:%s' % reportFor(using, LIST_UNAVAILABLE))
+        
+        report.add(using)
+        
+        contexts = create(using)
+        def wrapper(*args, **keyargs):
+            keyargs.update(contexts)
+            for call in wcalls: call(*args, **keyargs)
+        calls.append(wrapper)
+        
+    def finalized(self, sources, resolvers, extensions, report):
+        '''
+        @see: IProcessor.finalized
+        '''
+        self.processor.finalized(sources, resolvers, extensions, report)
+        
+    # ----------------------------------------------------------------
+
+    def __eq__(self, other):
+        if not isinstance(other, self.__class__): return False
+        return self.processor == other.processor and self.mapping == other.mapping
+    
 class Structure(IProcessor):
     '''
     Implementation for @see: IProcessor that structure into a context other context(s).
@@ -424,25 +439,3 @@ class Structure(IProcessor):
     def __eq__(self, other):
         if not isinstance(other, self.__class__): return False
         return self.mapping == other.mapping
-
-# --------------------------------------------------------------------
-
-class Publisher(IProcessor):
-    '''
-    Processor used for publishing exported contexts.
-    '''
-    
-    def __init__(self, required):
-        '''
-        Construct the publisher.
-        
-        @param required: object
-            The required object to trigger the export.
-        '''
-        self.required = required
-        
-    def export(self, required, resolvers):
-        '''
-        @see: IProcessor.export
-        '''
-        if required == self.required: return dict(resolvers)

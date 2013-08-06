@@ -84,7 +84,7 @@ class BlockHandler(HandlerBranching):
         oblock = obtainJSON(processing, self.uri % id)
         if oblock is None: block = None
         else:
-            uri = oblock['actionList']['href']
+            uri = oblock['BlockAction']['href']
             oactions = obtainJSON(processing, uri)
             
             actions = []
@@ -104,15 +104,15 @@ class BlockHandler(HandlerBranching):
         if action is not None: return action
         
         oaction = obtainJSON(processing, uri)
-        operforms = obtainJSON(processing, oaction['performList']['href'])
+        operforms = obtainJSON(processing, oaction['ActionPerform']['href'])
 
         performs = []
         if operforms is not None:
             for operform in operforms['PerformList']:
                 performs.append(self._obtainPerform(processing, operform['href']))
             
-        action = Action(oaction['Name'], *performs, before=oaction.get('Before'), final=oaction['Final'] == 'True',
-                        rewind=oaction['Rewind'] == 'True')
+        action = Action(oaction['Name'], *performs, before=oaction.get('Before'), final=oaction['Final'] == True,
+                        rewind=oaction['Rewind'] == True)
         self._actionsByURI[uri] = action
         return action
     

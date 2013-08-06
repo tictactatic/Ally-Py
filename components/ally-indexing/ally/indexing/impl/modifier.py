@@ -44,7 +44,7 @@ class ModifierByIndex(IModifier):
         assert isinstance(processors, dict), 'Invalid processors %s' % processors
         assert isinstance(content, Content), 'Invalid content %s' % content
         assert isinstance(content.source, IInputStream), 'Invalid content source %s' % content.source
-        assert callable(content.decode), 'Invalid content decode %s' % content.decode
+        assert callable(content.doDecode), 'Invalid content decode %s' % content.doDecode
         assert isinstance(content.indexes, list), 'Invalid content indexes %s' % content.indexes
         assert isinstance(first, tuple), 'Invalid first defaults %s' % first
         assert isinstance(last, tuple), 'Invalid last defaults %s' % last
@@ -74,7 +74,7 @@ class ModifierByIndex(IModifier):
                 prepared = self._prepare(action)
                 if prepared:
                     byts = b''.join(self._process(action, prepared, {}, set()))
-                    return self._content.decode(byts)
+                    return self._content.doDecode(byts)
     
     def register(self, *names, value=None):
         '''
@@ -122,7 +122,7 @@ class ModifierByIndex(IModifier):
             for action, prepared in self._registered:
                 for pack in self._process(action, prepared, values, flags): yield pack
                 
-        self._content.source.close() # We need to ensure that we close the response source.
+        self._content.source.close()  # We need to ensure that we close the response source.
     
     def _prepare(self, action, value=None):
         '''
@@ -210,7 +210,7 @@ def iterateModified(alter, processors, content, *defaults):
         if isinstance(value, Content):
             assert isinstance(value, Content)
             if not isinstance(value.source, IInputStream): return
-            if not callable(value.decode) or not callable(value.encode): return
+            if not callable(value.doDecode) or not callable(value.doEncode): return
             if not value.indexes: return
             
         def do(content, values, flags):

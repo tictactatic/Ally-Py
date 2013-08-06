@@ -23,7 +23,7 @@ from ally.assemblage.http.impl.processor.node import RequestNodeHandler, \
 from ally.container import ioc
 from ally.container.error import SetupError
 from ally.design.processor.assembly import Assembly
-from ally.design.processor.handler import Handler, HandlerRenamer
+from ally.design.processor.handler import Handler, RenamerHandler
 from ally.http.impl.processor.forward import ForwardHTTPHandler
 from ally.http.impl.processor.header_parameter import HeaderParameterHandler, \
     HeaderParameterOptionsHandler
@@ -145,7 +145,7 @@ def indexProvider() -> Handler: return IndexProviderHandler()
 
 @ioc.entity
 def encodingProvider() -> Handler:
-    return HandlerRenamer(contentTypeResponseDecode(), 'response', ('responseCnt', 'content'))
+    return RenamerHandler(contentTypeResponseDecode(), 'response', ('responseCnt', 'content'))
 
 @ioc.entity
 def assembler() -> Handler:

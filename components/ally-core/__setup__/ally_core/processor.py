@@ -9,16 +9,17 @@ Created on Nov 24, 2011
 Provides the configurations for the processors used in handling the request.
 '''
 
-from .decode import publishContent
+from .decode import assemblyDecodeContentExport
 from .definition import errors
+from .encode import assemblyEncodeExport
 from .parsing_rendering import assemblyRendering, assemblyParsing, \
     blocksDefinitions
-from .resources import decoding
 from ally.container import ioc
 from ally.core.impl.processor.block_indexing import BlockIndexingHandler
 from ally.core.impl.processor.content import ContentHandler
 from ally.core.impl.processor.conversion_content import ConverterContentHandler
 from ally.core.impl.processor.error_definition import ErrorDefinitionHandler
+from ally.core.impl.processor.error_input import ErrorInputHandler
 from ally.core.impl.processor.invoking import InvokingHandler
 from ally.core.impl.processor.parsing import ParsingHandler
 from ally.core.impl.processor.render_encoder import RenderEncoderHandler
@@ -68,7 +69,7 @@ def converterContent() -> Handler:
 def parsing() -> Handler:
     b = ParsingHandler()
     b.charSetDefault = default_charset()
-    b.importDecoding = publishContent().importFrom(decoding())
+    b.decodeExportAssembly = assemblyDecodeContentExport()
     b.parsingAssembly = assemblyParsing()
     return b
 
@@ -79,7 +80,13 @@ def content() -> Handler: return ContentHandler()
 def invoking() -> Handler: return InvokingHandler()
 
 @ioc.entity
-def renderEncoder() -> Handler: return RenderEncoderHandler()
+def errorInput() -> Handler: return ErrorInputHandler()
+
+@ioc.entity
+def renderEncoder() -> Handler:
+    b = RenderEncoderHandler()
+    b.encodeExportAssembly = assemblyEncodeExport()
+    return b
 
 @ioc.entity
 def errorDefinition() -> Handler:

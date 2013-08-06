@@ -12,7 +12,8 @@ Provides the setup for the encode processors.
 from ..ally_core.encode import assemblyModelExtraEncode, updateAssemblyEncode, \
     assemblyEncode, propertyOfModelEncode, assemblyItemEncode, \
     updateAssemblyItemEncode, assemblyPropertyEncode, updateAssemblyPropertyEncode, \
-    modelPropertyEncode, modelEncode
+    modelPropertyEncode, modelEncode, updateAssemblyEncodeExport, \
+    assemblyEncodeExport
 from ..ally_core.parsing_rendering import blocksDefinitions
 from ally.container import ioc
 from ally.core.http.impl.index import BLOCKS_HTTP
@@ -21,11 +22,12 @@ from ally.core.http.impl.processor.encoder.accessible_paths import \
 from ally.core.http.impl.processor.encoder.model_path import \
     ModelPathAttributeEncode
 from ally.core.http.impl.processor.encoder.path_support import \
-    PathUpdaterSupportEncode
+    PathUpdaterSupportEncode, pathUpdaterSupportEncodeExport
 from ally.core.http.impl.processor.encoder.property_of_model_path import \
-    PropertyOfModelPathAttributeEncode
+    PropertyOfModelPathAttributeEncode, propertyOfModelPathAttributeEncodeExport
 from ally.core.http.impl.processor.encoder.property_reference import \
-    PropertyReferenceEncode
+    PropertyReferenceEncode, propertyReferenceEncodeExport
+from ally.core.impl.processor.encoder.property import propertyEncodeExport
 from ally.design.processor.handler import Handler
 
 # --------------------------------------------------------------------
@@ -68,6 +70,13 @@ def updateAssemblyItemEncodeWithPath():
 def updateAssemblyPropertyEncodeWithPath():
     assemblyPropertyEncode().add(propertyReferenceEncode(), propertyOfModelPathAttributeEncode(),
                                  before=propertyOfModelEncode())
+
+@ioc.after(updateAssemblyEncodeExport)
+def updateAssemblyEncodeExportForPath():
+    assemblyEncodeExport().add(propertyEncodeExport, pathUpdaterSupportEncodeExport, propertyReferenceEncodeExport,
+                               propertyOfModelPathAttributeEncodeExport)
+
+# --------------------------------------------------------------------
 
 @ioc.before(blocksDefinitions)
 def updateBlocksDefinitionsForURL():

@@ -14,7 +14,6 @@ from ally.support.util_sys import locationStack
 from collections import Iterable, deque
 import itertools
 import logging
-import sys
 
 # --------------------------------------------------------------------
 
@@ -280,13 +279,12 @@ class Execution:
             try: call(self, **self.arg.__dict__)
             except Abort: raise
             except Exception as e:
-                self._status = EXCEPTION
-                if self._handleError():
-                    log.exception('Exception occurred while processing the execution')
-                    return True
-                if isinstance(e, TypeError):
+                if isinstance(e, TypeError) and 'arguments' in str(e):
                     raise TypeError('A problem occurred while invoking with arguments %s, at:%s' % 
                                     (', '.join(self.arg.__dict__), locationStack(call)))
+
+                self._status = EXCEPTION
+                if self._handleError(e): return True
                 raise
             assert log.debug('Processing finalized \'%s\'', call) or True
             
@@ -316,11 +314,13 @@ class Execution:
     
     # ----------------------------------------------------------------
     
-    def _handleError(self):
+    def _handleError(self, exception):
         '''
         Handles the error that occurred while executing.
         !!! For internal use only.
         
+        @param exception: Exception
+            The exception that occurred.
         @return: boolean
             True if the error was handled and the error is not required to be propagated, False otherwise.
         '''
@@ -474,13 +474,13 @@ class Chain(Execution):
             
     # ----------------------------------------------------------------
     
-    def _handleError(self):
+    def _handleError(self, exception):
         '''
         @see: Execution._handleError
         '''
         if not self._errors: return False
         assert log.debug('Started error chain') or True
-        self._calls.appendleft(Error(self, sys.exc_info()))
+        self._calls.appendleft(Error(self, exception))
         return True
     
     def _handleFinalization(self):
@@ -498,25 +498,35 @@ class Error(Execution):
     '''
     A execution that contains a list of processors (callables) that are executed one by one that targets and error processing.
     '''
-    __slots__ = ('chain', 'excInfo')
+    __slots__ = ('chain', 'exception', '_retrying')
     
-    def __init__(self, chain, excInfo):
+    def __init__(self, chain, exception):
         '''
         Initializes the error execution with the processing to be executed.
         
         @param chain: Chain
             The chain that has the error. 
-        @param excInfo: (type, value, traceback)
-            The same tuple as @see: sys.exc_info()
+        @param exception: Exception
+            The exception that generated the error.
         '''
         assert isinstance(chain, Chain), 'Invalid chain %s' % chain
-        super().__init__(chain._errors, chain.arg)
+        assert isinstance(exception, Exception), 'Invalid exception %s' % exception
+        super().__init__(reversed(chain._errors), chain.arg)
         
         self.chain = chain
-        self.excInfo = excInfo
+        self.exception = exception
+        self._retrying = False
+    
+    isRetrying = property(lambda self: self._retrying, doc='''
+    @rtype: boolean
+    True if the error chained will retry execution.
+    ''')
         
     def retry(self):
         '''
         Retries to execute the chain where it left of after an exception occurred.
         '''
-        if self.chain._status == EXCEPTION: self.chain._status = 0
+        if not self._retrying:
+            self._retrying = True
+            self.chain._status = 0
+            

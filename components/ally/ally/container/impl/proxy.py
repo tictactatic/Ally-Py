@@ -148,7 +148,6 @@ class Execution:
     '''
     Provides the container for the execution of the proxied method.
     '''
-
     __slots__ = ('proxyCall', 'handlers', 'args', 'keyargs')
 
     def __init__(self, proxyCall, handlers, args, keyargs):

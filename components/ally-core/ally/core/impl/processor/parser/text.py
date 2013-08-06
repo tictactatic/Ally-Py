@@ -12,7 +12,7 @@ Provides the text parser processor handler.
 from . import base
 from .base import ParseBaseHandler, Target
 from ally.container.ioc import injected
-from ally.core.impl.processor.base import addFailure
+from ally.core.impl.processor.decoder.base import addFailure
 from ally.design.processor.attribute import requires
 from ally.support.util_io import IInputStream
 from ally.support.util_spec import IDo

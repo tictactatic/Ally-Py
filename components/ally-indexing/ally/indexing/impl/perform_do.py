@@ -56,13 +56,13 @@ def push(index, perform, value):
         assert isinstance(perform.name, str), 'Invalid perform name %s' % perform.name
         assert isinstance(content, Content), 'Invalid content %s' % content
         assert isinstance(content.source, ModifierStream), 'Invalid content source %s' % content.source
-        assert callable(content.decode), 'Invalid content decode %s' % content.decode
+        assert callable(content.doDecode), 'Invalid content decode %s' % content.doDecode
         assert isinstance(values, dict), 'Invalid values %s' % values
         
         stack = values.get(perform.name)
         if stack is None: stack = values[perform.name] = []
         nbytes = length(index, perform, content)
-        if nbytes > 0: stack.append(content.decode(content.source.read(nbytes)))
+        if nbytes > 0: stack.append(content.doDecode(content.source.read(nbytes)))
         else: stack.append(None)
     return do
 
@@ -128,7 +128,7 @@ def feed(index, perform, value):
         assert isinstance(content, Content), 'Invalid content %s' % content
         assert isinstance(content.source, ModifierStream), 'Invalid content source %s' % content.source
         assert isinstance(content.maximum, int), 'Invalid maximum package size %s' % content.maximum
-        assert callable(content.encode), 'Invalid content encode %s' % content.encode
+        assert callable(content.doEncode), 'Invalid content encode %s' % content.doEncode
         
         nbytes = length(index, perform, content)
         while nbytes > 0:
@@ -136,7 +136,7 @@ def feed(index, perform, value):
             else: pack = content.source.read(content.maximum)
             if pack == b'': return
             nbytes -= len(pack)
-            yield content.encode(pack)
+            yield content.doEncode(pack)
     return do
 
 @processor
@@ -149,9 +149,9 @@ def feedValue(index, perform, value):
         assert isinstance(content, Content), 'Invalid content %s' % content
         assert isinstance(perform, Perform), 'Invalid perform %s' % perform
         assert isinstance(perform.value, str), 'Invalid perform value %s' % perform.value
-        assert callable(content.encode), 'Invalid content encode %s' % content.encode
+        assert callable(content.doEncode), 'Invalid content encode %s' % content.doEncode
         
-        return content.encode(perform.value)
+        return content.doEncode(perform.value)
     return do
 
 @processor
@@ -165,10 +165,10 @@ def feedKey(index, perform, value):
         assert isinstance(perform, Perform), 'Invalid perform %s' % perform
         assert isinstance(perform.key, str), 'Invalid perform key %s' % perform.key
         assert isinstance(content, Content), 'Invalid content %s' % content
-        assert callable(content.encode), 'Invalid content encode %s' % content.encode
+        assert callable(content.doEncode), 'Invalid content encode %s' % content.doEncode
         
         value = index.values.get(perform.key)
-        if value is not None: return content.encode(value)
+        if value is not None: return content.doEncode(value)
     return do
     
 @processor
@@ -180,13 +180,13 @@ def feedName(index, perform, value):
         if not hasFlags(perform, flags): return
         assert isinstance(perform, Perform), 'Invalid perform %s' % perform
         assert isinstance(content, Content), 'Invalid content %s' % content
-        assert callable(content.encode), 'Invalid content encode %s' % content.encode
+        assert callable(content.doEncode), 'Invalid content encode %s' % content.doEncode
         assert isinstance(values, dict), 'Invalid values %s' % values
         
         stack = values.get(perform.name)
         if stack:
             assert isinstance(stack, list), 'Invalid stack %s' % stack
-            return content.encode(stack[-1])
+            return content.doEncode(stack[-1])
     return do
 
 @processor
@@ -199,25 +199,25 @@ def feedContent(index, perform, value):
     if isinstance(value, Content):
         assert isinstance(value, Content)
         if not isinstance(value.source, IInputStream): return
-        if not callable(value.decode) or not callable(value.encode): return
+        if not callable(value.doDecode) or not callable(value.doEncode): return
         
     def do(content, values, flags):
         if not hasFlags(perform, flags): return
         assert isinstance(perform, Perform), 'Invalid perform %s' % perform
         assert isinstance(content, Content), 'Invalid content %s' % content
         assert isinstance(content.maximum, int), 'Invalid maximum package size %s' % content.maximum
-        assert callable(content.encode), 'Invalid content encode %s' % content.encode
-        assert callable(content.decode), 'Invalid content decode %s' % content.decode
+        assert callable(content.doEncode), 'Invalid content encode %s' % content.doEncode
+        assert callable(content.doDecode), 'Invalid content decode %s' % content.doDecode
         
         if isinstance(value, str):
-            if perform.escapes: encode = escaped(content.decode, content.encode, perform.escapes)
-            else: encode = content.encode
+            if perform.escapes: encode = escaped(content.doDecode, content.doEncode, perform.escapes)
+            else: encode = content.doEncode
             yield encode(value)
         else:
             assert isinstance(value, Content)
             assert isinstance(value.source, IInputStream)
-            if perform.escapes: encode = escaped(value.decode, value.encode, perform.escapes)
-            else: encode = value.encode
+            if perform.escapes: encode = escaped(value.doDecode, value.doEncode, perform.escapes)
+            else: encode = value.doEncode
 
             while True:
                 pack = value.source.read(content.maximum)
@@ -315,28 +315,28 @@ def length(index, perform, content):
     
     return offset(index, perform) - content.source.tell()
 
-def escaped(decode, encode, escapes):
+def escaped(doDecode, doEncode, escapes):
     '''
     Provides the encode that escapes for content.
 
-    @param decode: callable(bytes) -> string
+    @param doDecode: callable(bytes) -> string
         The decoder that converts from the response encoding bytes to string.
-    @param encode: callable(bytes|string) -> bytes
+    @param doEncode: callable(bytes|string) -> bytes
         The encoder that converts from the source encoding or an arbitrary string to the expected encoding.
     @param escapes: dictionary{string: stirng}
         The escapes dictionary.
     @return: callable(string|bytes) -> bytes
         The encoder with escaping.
     '''
-    assert callable(decode), 'Invalid decode %s' % decode
-    assert callable(encode), 'Invalid encode %s' % encode
+    assert callable(doDecode), 'Invalid decode %s' % doDecode
+    assert callable(doEncode), 'Invalid encode %s' % doEncode
     assert isinstance(escapes, dict), 'Invalid escapes %s' % escapes
     assert escapes, 'No escapes provided'
     
     regex = re.compile('|'.join('(%s)' % re.escape(escaped) for escaped in escapes))
     replacer = lambda match: escapes[match.group(0)]
     def escape(content):
-        if not isinstance(content, str): content = decode(content)
+        if not isinstance(content, str): content = doDecode(content)
         content = regex.sub(replacer, content)
-        return encode(content)
+        return doEncode(content)
     return escape

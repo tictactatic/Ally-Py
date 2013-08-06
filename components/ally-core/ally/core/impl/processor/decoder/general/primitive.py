@@ -9,9 +9,8 @@ Created on Jun 17, 2013
 Provides the primitive types decoding.
 '''
 
+from ..base import ExportingTarget, FailureTarget, addFailure
 from ally.api.type import Type, Iter, Dict
-from ally.container.ioc import injected
-from ally.core.impl.processor.base import FailureTarget, addFailure
 from ally.core.spec.resources import Converter
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
@@ -46,14 +45,13 @@ class Target(FailureTarget):
     
 # --------------------------------------------------------------------
 
-@injected
+primitiveDecodeExport = ExportingTarget(Target)
+# Context export for primitive decode.
+
 class PrimitiveDecode(HandlerProcessor):
     '''
     Implementation for a handler that provides the primitive parameters values decoding.
     '''
-    
-    def __init__(self):
-        super().__init__(Target=Target)
         
     def process(self, chain, decoding:Decoding, **keyargs):
         '''

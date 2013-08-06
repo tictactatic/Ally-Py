@@ -10,8 +10,8 @@ API specifications for security right type.
 '''
 
 from .domain_security import modelSecurity
-from ally.api.config import service, call
-from ally.support.api.entity import Entity, IEntityNQService
+from ally.api.config import service
+from ally.support.api.entity_ided import Entity, IEntityNQService
 
 # --------------------------------------------------------------------
 
@@ -34,11 +34,5 @@ class IRightTypeService(IEntityNQService):
     '''
     Right type model service interface
     '''
-    
-    @call(webName='ByName')
-    def getByName(self, name:RightType.Name) -> RightType:
-        '''
-        Provides the right type based on a provided name.
-        '''
 
 # --------------------------------------------------------------------

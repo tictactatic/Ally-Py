@@ -9,7 +9,7 @@ Created on Jun 30, 2011
 Contains the codes to be used for the server responses.
 '''
 
-from ally.design.processor.attribute import defines
+from ally.design.processor.attribute import defines, definesIf
 from ally.design.processor.context import Context
 
 # --------------------------------------------------------------------
@@ -27,7 +27,7 @@ class CodedHTTP(Context):
     @rtype: integer
     The HTTP status code.
     ''')
-    isSuccess = defines(bool, doc='''
+    isSuccess = definesIf(bool, doc='''
     @rtype: boolean
     True if the context is in success mode, False otherwise.
     ''')
@@ -65,7 +65,7 @@ class CodeHTTP:
         assert isinstance(context, CodedHTTP), 'Invalid context %s' % context
         context.code = self.code
         context.status = self.status
-        context.isSuccess = self.isSuccess
+        if CodedHTTP.isSuccess in context: context.isSuccess = self.isSuccess
 
 def isSuccess(status):
     '''

@@ -10,11 +10,14 @@ Renders the response encoder.
 '''
 
 from ally.container.ioc import injected
+from ally.core.impl.processor.encoder.base import importSupport
 from ally.core.spec.transform import ITransfrom
+from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, optional
 from ally.design.processor.context import Context
-from ally.design.processor.handler import HandlerComposite
-from ally.design.processor.processor import Structure
+from ally.design.processor.handler import Handler, push
+from ally.design.processor.processor import Structure, Composite, Using, \
+    Contextual
 from ally.support.util_context import pushIn, cloneCollection
 from collections import Callable
 
@@ -44,22 +47,24 @@ class Response(Context):
     renderFactory = requires(Callable)
     obj = requires(object)
     isSuccess = requires(bool)
-
+    
 # --------------------------------------------------------------------
 
 @injected
-class RenderEncoderHandler(HandlerComposite):
+class RenderEncoderHandler(Handler):
     '''
     Implementation for a handler that renders the response content encoder.
     '''
     
+    encodeExportAssembly = Assembly
+    # The encode export assembly.
+    
     def __init__(self):
-        super().__init__(Structure(Support=('response', 'request')), Invoker=Invoker)
+        super().__init__(Using(Composite(push(Contextual(self.process), Invoker=Invoker),
+                            Structure(Support=('response', 'request'))), Support=importSupport(self.encodeExportAssembly)))
     
     def process(self, chain, request:Request, response:Response, responseCnt:Context, Support:Context, **keyargs):
         '''
-        @see: HandlerComposite.process
-        
         Process the encoder rendering.
         '''
         assert isinstance(request, Request), 'Invalid request %s' % request

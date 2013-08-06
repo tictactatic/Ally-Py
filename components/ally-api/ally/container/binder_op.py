@@ -10,14 +10,14 @@ Provides binding listener function to handle API operators validation.
 '''
 
 from ..api.config import INSERT, UPDATE
-from ..api.operator.type import TypeModel, TypeService, TypeProperty
-from ..api.type import typeFor, Call
-from ..exception import InputError, Ref
+from ..api.operator.type import TypeModel, TypeService, TypeProperty, \
+    typePropFor
+from ..api.type import Input, typeFor, Call
 from ..internationalization import _
 from ..support.api.util_service import iterateCalls
 from .impl.binder import bindListener, callListeners, registerProxyBinder, \
     bindBeforeListener, indexBefore, INDEX_DEFAULT, BindableSupport
-from ally.api.type import Input
+from ally.api.error import InputError
 from collections import Sized
 from functools import partial
 from inspect import isclass
@@ -175,7 +175,7 @@ def bindValidations(proxy, mappings=None):
 # --------------------------------------------------------------------
 # validation listener methods
 
-def onPropertyUnwanted(prop, obj, errors):
+def onPropertyUnwanted(prop, obj, errors, data):
     '''
     Validation for unwanted properties, whenever this validator is added will not allow the property to have a value on 
     the provided entity.
@@ -184,18 +184,21 @@ def onPropertyUnwanted(prop, obj, errors):
         The property name that is unwanted.
     @param obj: object
         The entity to check for the property value.
-    @param errors: list[Ref]
+    @param errors: list[string|Type]
         The list of errors.
+    @param data: dictionary{string: object}
+        The message data.
     '''
     assert isinstance(prop, str), 'Invalid property name %s' % prop
     assert obj is not None, 'None is not a valid object'
     assert isinstance(errors, list), 'Invalid errors list %s' % errors
 
     if getattr(obj.__class__, prop) in obj:
-        errors.append(Ref(_('No value expected'), ref=getattr(obj.__class__, prop)))
+        errors.append(_('No value expected'))
+        errors.append(typePropFor(obj, prop))
         return False
 
-def onPropertyRequired(prop, obj, errors):
+def onPropertyRequired(prop, obj, errors, data):
     '''
     Validation for required properties, whenever this validator is added will require the property to have a value on the
     provided entity.
@@ -206,18 +209,21 @@ def onPropertyRequired(prop, obj, errors):
         The model class of the object entity.
     @param obj: object
         The entity to check for the property value.
-    @param errors: list[Ref]
+    @param errors: list[string|Type]
         The list of errors.
+    @param data: dictionary{string: object}
+        The message data.
     '''
     assert isinstance(prop, str), 'Invalid property name %s' % prop
     assert obj is not None, 'None is not a valid object'
     assert isinstance(errors, list), 'Invalid errors list %s' % errors
 
     if not getattr(obj.__class__, prop) in obj:
-        errors.append(Ref(_('Expected a value'), ref=getattr(obj.__class__, prop)))
+        errors.append(_('Expected a value'))
+        errors.append(typePropFor(obj, prop))
         return False
 
-def onPropertyNone(prop, obj, errors):
+def onPropertyNone(prop, obj, errors, data):
     '''
     Validation for properties that are allowed not to have a value but if they have then the None value is not allowed.
     
@@ -227,18 +233,21 @@ def onPropertyNone(prop, obj, errors):
         The model class of the object entity.
     @param obj: object
         The entity to check for the property value.
-    @param errors: list[Ref]
+    @param errors: list[string|Type]
         The list of errors.
+    @param data: dictionary{string: object}
+        The message data.
     '''
     assert isinstance(prop, str), 'Invalid property name %s' % prop
     assert obj is not None, 'None is not a valid object'
     assert isinstance(errors, list), 'Invalid errors list %s' % errors
 
     if getattr(obj.__class__, prop) in obj and getattr(obj, prop) is None:
-        errors.append(Ref(_('Invalid value'), ref=getattr(obj.__class__, prop)))
+        errors.append(_('Invalid value'))
+        errors.append(typePropFor(obj, prop))
         return False
 
-def onPropertyMaxLength(length, prop, obj, errors):
+def onPropertyMaxLength(length, prop, obj, errors, data):
     '''
     Validation for properties that are allowed a maximum length for their value. If the property has a value and that
     value is of type @see: Sized it will be checked for the maximum lenght.
@@ -251,19 +260,23 @@ def onPropertyMaxLength(length, prop, obj, errors):
         The model class of the object entity.
     @param obj: object
         The entity to check for the property value.
-    @param errors: list[Ref]
+    @param errors: list[string|Type]
         The list of errors.
+    @param data: dictionary{string: object}
+        The message data.
     '''
     assert isinstance(length, int), 'Invalid length %s' % length
     assert isinstance(prop, str), 'Invalid property name %s' % prop
     assert obj is not None, 'None is not a valid object'
     assert isinstance(errors, list), 'Invalid errors list %s' % errors
+    assert isinstance(data, dict), 'Invalid data %s' % data
 
     if getattr(obj.__class__, prop) in obj:
         val = getattr(obj, prop)
         if isinstance(val, Sized) and len(val) > length:
-            errors.append(Ref(_('Maximum length allowed is %(maximum)i but got length %(provided)i') % 
-                              {'maximum':length, 'provided':len(val)}, ref=getattr(obj.__class__, prop)))
+            errors.append(_('Maximum length allowed is %(length_maximum)i but got length %(length_provided)i'))
+            errors.append(typePropFor(obj, prop))
+            data.update(length_maximum=length, length_provided=len(val))
             return False
 
 # --------------------------------------------------------------------
@@ -284,7 +297,7 @@ def onCallValidateModel(onInsert, positions, args, keyargs):
     '''
     assert isinstance(onInsert, bool), 'Invalid on insert flag %s' % onInsert
     assert isinstance(positions, dict), 'Invalid argument positions %s' % positions
-    errors = []
+    errors, data = [], {}
     for k, obj in enumerate(args):
         if obj is None: continue
         typ = positions.get(k)
@@ -293,12 +306,12 @@ def onCallValidateModel(onInsert, positions, args, keyargs):
         assert isinstance(typ, TypeModel), 'Invalid model type %s for index %s' % (typ, k)
         assert typ.isValid(obj), 'Invalid object %s for %s' % (obj, typ)
         if onInsert:
-            if callListeners(typ.clazz, EVENT_MODEL_INSERT, obj, errors):
+            if callListeners(typ.clazz, EVENT_MODEL_INSERT, obj, errors, data):
                 for name in typ.properties:
-                    callListeners(typ.clazz, EVENT_PROP_INSERT % name, name, obj, errors)
+                    callListeners(typ.clazz, EVENT_PROP_INSERT % name, name, obj, errors, data)
         else:
             if callListeners(typ.clazz, EVENT_MODEL_UPDATE, obj, errors):
                 for name in typ.properties:
-                    callListeners(typ.clazz, EVENT_PROP_UPDATE % name, name, obj, errors)
+                    callListeners(typ.clazz, EVENT_PROP_UPDATE % name, name, obj, errors, data)
 
-    if errors: raise InputError(*errors)
+    if errors: raise InputError(*errors, **data)

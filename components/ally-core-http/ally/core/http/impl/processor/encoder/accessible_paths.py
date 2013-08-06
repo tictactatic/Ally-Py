@@ -123,7 +123,7 @@ class EncoderAccessiblePath(ITransfrom):
         @see: ITransfrom.transform
         '''
         assert isinstance(target, IRender), 'Invalid target %s' % target
-        
+
         indexes = dict(indexBlock=NAME_BLOCK_REST, indexAttributesCapture={self.nameRef: ACTION_REFERENCE})
         for name, invoker in self.accessible.items():
             assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker

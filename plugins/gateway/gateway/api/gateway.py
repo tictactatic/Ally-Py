@@ -15,7 +15,7 @@ from ally.api.type import List, Iter, Dict
 # --------------------------------------------------------------------
 
 @model
-class GatewayHTTP:
+class Gateway:
     '''
     Provides the gateway data.
         Pattern -   contains the regex that needs to match with the requested URI. The pattern needs to produce, if is the
@@ -55,14 +55,6 @@ class GatewayHTTP:
     Navigate = str
     PutHeaders = Dict(str, str)
 
-# -------------------------------------------------------------------- 
-
-@model
-class Gateway(GatewayHTTP):
-    '''
-    The gateway general model
-    '''
-   
 # --------------------------------------------------------------------
 
 @service

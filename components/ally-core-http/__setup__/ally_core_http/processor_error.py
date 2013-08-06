@@ -52,4 +52,4 @@ def updateAssemblyErrorDelivery():
                                 errorPopulator(), errorExplain(), contentTypeResponseEncode(), contentLengthEncode(),
                                 allowEncode())
     if allow_method_override(): assemblyErrorDelivery().add(methodOverride(), before=acceptRequestDecode())
-    if read_from_params(): assemblyErrorDelivery().add(headerParameter(), after=internalError())
+    if read_from_params(): assemblyErrorDelivery().add(headerParameter(), after=injectorAssembly())

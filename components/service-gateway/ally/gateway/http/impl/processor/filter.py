@@ -16,22 +16,42 @@ from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Processing
 from ally.design.processor.handler import HandlerBranching
-from ally.gateway.http.spec.gateway import IRepository, Match, Gateway
+from ally.gateway.http.spec.gateway import IRepository
 from ally.http.spec.codes import FORBIDDEN_ACCESS, BAD_GATEWAY, CodedHTTP
+from ally.http.spec.headers import HeadersRequire
 from ally.support.http.util_dispatch import RequestDispatch, obtainJSON
+import logging
 
 # --------------------------------------------------------------------
 
-class Request(Context):
+log = logging.getLogger(__name__)
+
+# --------------------------------------------------------------------
+
+class Gateway(Context):
+    '''
+    The gateway context.
+    '''
+    # ---------------------------------------------------------------- Required
+    filters = requires(list)
+    
+class Match(Context):
+    '''
+    The match context.
+    '''
+    # ---------------------------------------------------------------- Required
+    gateway = requires(Context)
+    groupsURI = requires(tuple)
+    
+class Request(HeadersRequire):
     '''
     The request context.
     '''
     # ---------------------------------------------------------------- Required
     method = requires(str)
-    headers = requires(dict)
     uri = requires(str)
     repository = requires(IRepository)
-    match = requires(Match)
+    match = requires(Context)
     
 class Response(CodedHTTP):
     '''
@@ -53,7 +73,8 @@ class GatewayFilterHandler(HandlerBranching):
     
     def __init__(self):
         assert isinstance(self.assembly, Assembly), 'Invalid assembly %s' % self.assembly
-        super().__init__(Branch(self.assembly).using('requestCnt', 'response', 'responseCnt', request=RequestDispatch))
+        super().__init__(Branch(self.assembly).using('requestCnt', 'response', 'responseCnt', request=RequestDispatch),
+                         Gateway=Gateway, Match=Match)
 
     def process(self, chain, processing, request:Request, response:Response, **keyargs):
         '''
@@ -69,8 +90,6 @@ class GatewayFilterHandler(HandlerBranching):
         assert isinstance(match, Match), 'Invalid response match %s' % match
         assert isinstance(match.gateway, Gateway), 'Invalid gateway %s' % match.gateway
         
-        cache = request.repository.obtainCache('filters')
-        assert isinstance(cache, dict), 'Invalid cache %s' % cache
         if match.gateway.filters:
             for filterURI in match.gateway.filters:
                 assert isinstance(filterURI, str), 'Invalid filter %s' % filterURI
@@ -80,17 +99,15 @@ class GatewayFilterHandler(HandlerBranching):
                     response.text = 'Invalid filter URI \'%s\' for groups %s' % (filterURI, match.groupsURI)
                     return
                 
-                isAllowed = cache.get(filterURI)
-                if isAllowed is None:
-                    jobj, _status, text = obtainJSON(processing, filterURI, details=True)
-                    if jobj is None:
-                        BAD_GATEWAY.set(response)
-                        response.text = text
-                        return
-                    isAllowed = cache[filterURI] = jobj['HasAccess'] == 'True'
+                jobj, status, text = obtainJSON(processing, filterURI, details=True)
+                if jobj is None:
+                    log.error('Cannot fetch the filter from URI \'%s\', with response %s %s', request.uri, status, text)
+                    BAD_GATEWAY.set(response)
+                    response.text = text
+                    return
                 
-                if not isAllowed:
+                if jobj['HasAccess'] != True:
                     FORBIDDEN_ACCESS.set(response)
-                    request.match = request.repository.find(request.method, request.headers,
-                                                            request.uri, FORBIDDEN_ACCESS.status)
+                    request.match = request.repository.find(request.method, request.headers, request.uri,
+                                                            FORBIDDEN_ACCESS.status)
                     return

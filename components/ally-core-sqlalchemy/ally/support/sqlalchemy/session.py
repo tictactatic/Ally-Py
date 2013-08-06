@@ -11,13 +11,13 @@ Provides support for SQL alchemy automatic session handling.
 
 from ally.container.impl.proxy import IProxyHandler, Execution, \
     registerProxyHandler
-from ally.exception import DevelError
 from collections import deque
 from inspect import isgenerator
 from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.orm.session import Session
 from threading import current_thread
 import logging
+from ally.core.error import DevelError
 
 # --------------------------------------------------------------------
 

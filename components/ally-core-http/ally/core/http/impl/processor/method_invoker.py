@@ -17,10 +17,12 @@ from ally.core.spec.resources import Converter
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain
-from ally.design.processor.export import Import
-from ally.design.processor.handler import HandlerProcessor
+from ally.design.processor.handler import Handler, push
 from ally.http.spec.codes import METHOD_NOT_AVAILABLE, PATH_ERROR
 from ally.support.util_spec import IDo
+from ally.design.processor.assembly import Assembly
+from ally.design.processor.processor import Using, Contextual
+from ally.core.impl.processor.decoder.base import importTarget
 
 # --------------------------------------------------------------------
 
@@ -72,6 +74,10 @@ class TargetPath(Context):
     The target context.
     '''
     # ---------------------------------------------------------------- Defined
+    arg = defines(object, doc='''
+    @rtype: object
+    The ongoing chain arguments do decode the path based on.
+    ''')
     converter = defines(Converter, doc='''
     @rtype: Converter
     The converter to be used for decoding path.
@@ -82,25 +88,24 @@ class TargetPath(Context):
 # --------------------------------------------------------------------
 
 @injected
-class MethodInvokerHandler(HandlerProcessor):
+class MethodInvokerHandler(Handler):
     '''
     Implementation for a processor that validates if the request method (GET, POST, PUT, DELETE) is compatible
     with the resource node of the request, basically checks if the node has the invoke for the requested method.
     If the node has no invoke than this processor will provide an error response for the resource path node.
     '''
     
-    importDecoding = Import
-    # The decoding imports to be used for path.
+    decodeExportAssembly = Assembly
+    # The decode export assembly.
     
     def __init__(self):
-        assert isinstance(self.importDecoding, Import), 'Invalid import %s' % self.importDecoding
-        super().__init__(Node=Node, Invoker=Invoker, Decoding=Decoding)
-        self.importDecoding.useIn(self)
+        Target, arg = importTarget(self.decodeExportAssembly)
+        processor = push(Contextual(self.process), Node=Node, Invoker=Invoker, Decoding=Decoding)
+        if arg: push(processor, **arg)
+        super().__init__(Using(processor, Target=Target))
 
     def process(self, chain, request:Request, response:Response, Target:TargetPath, **keyargs):
         '''
-        @see: HandlerProcessor.process
-        
         Provide the invoker based on the request method to be used in getting the data for the response.
         '''
         assert isinstance(chain, Chain), 'Invalid chain %s' % chain

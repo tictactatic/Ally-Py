@@ -15,13 +15,21 @@ from ally.core.impl.processor.encoder.extension_attribute import \
     ExtensionAttributeEncode
 from ally.core.impl.processor.encoder.model import ModelEncode
 from ally.core.impl.processor.encoder.model_property import ModelPropertyEncode
-from ally.core.impl.processor.encoder.property import PropertyEncode
+from ally.core.impl.processor.encoder.property import PropertyEncode, \
+    propertyEncodeExport
 from ally.core.impl.processor.encoder.property_of_model import \
     PropertyOfModelEncode
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.handler import Handler
 
 # --------------------------------------------------------------------
+
+@ioc.entity
+def assemblyEncodeExport() -> Assembly:
+    '''
+    The assembly containing the encoders exports.
+    '''
+    return Assembly('Encode export')
 
 @ioc.entity
 def assemblyEncode() -> Assembly:
@@ -103,22 +111,26 @@ def extensionAttributeEncode() -> Handler:
 
 # --------------------------------------------------------------------
 
-@ioc.before(assemblyEncode)
-def updateAssemblyEncode():
-    assemblyEncode().add(extensionAttributeEncode(), collectionEncode(), modelEncode(), modelPropertyEncode())
-    
-@ioc.before(assemblyItemEncode)
-def updateAssemblyItemEncode():
-    assemblyItemEncode().add(modelEncode(), modelPropertyEncode())
+@ioc.before(assemblyPropertyPrimitiveEncode)
+def updateAssemblyPropertyPrimitiveEncode():
+    assemblyPropertyPrimitiveEncode().add(propertyEncode())
+
+@ioc.before(assemblyPropertyEncode)
+def updateAssemblyPropertyEncode():
+    assemblyPropertyEncode().add(propertyOfModelEncode(), assemblyPropertyPrimitiveEncode())
     
 @ioc.before(assemblyPropertyModelEncode)
 def updateAssemblyPropertyModelEncode():
     assemblyPropertyModelEncode().add(modelPropertyEncode())
-
-@ioc.before(assemblyPropertyPrimitiveEncode)
-def updateAssemblyPropertyPrimitiveEncode():
-    assemblyPropertyPrimitiveEncode().add(propertyEncode())
     
-@ioc.before(assemblyPropertyEncode)
-def updateAssemblyPropertyEncode():
-    assemblyPropertyEncode().add(propertyOfModelEncode(), assemblyPropertyPrimitiveEncode())
+@ioc.before(assemblyItemEncode)
+def updateAssemblyItemEncode():
+    assemblyItemEncode().add(modelEncode(), modelPropertyEncode())
+
+@ioc.before(assemblyEncode)
+def updateAssemblyEncode():
+    assemblyEncode().add(extensionAttributeEncode(), collectionEncode(), modelEncode(), modelPropertyEncode())
+    
+@ioc.before(assemblyEncodeExport)
+def updateAssemblyEncodeExport():
+    assemblyEncodeExport().add(propertyEncodeExport)

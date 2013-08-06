@@ -14,12 +14,16 @@ from ally.container import support, ioc
 from ally.container.support import nameInEntity
 from ally.design.processor.assembly import Assembly
 from gateway.core.impl.processor.default_gateway import RegisterDefaultGateways
+import re
+
+# --------------------------------------------------------------------
+
+asPattern = lambda rootURI: '^%s(?:/|(?=\\.)|$)(.*)' % re.escape(rootURI)
+# Make the root URI into a gateway pattern.
 
 # --------------------------------------------------------------------
 
 registerDefaultGateways = support.notCreated  # Just to avoid errors
-
-# --------------------------------------------------------------------
 
 SERVICES = 'gateway.api.**.I*Service'
 

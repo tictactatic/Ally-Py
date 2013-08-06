@@ -18,6 +18,7 @@ from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
 from ally.support.util_spec import IDo
+from ally.core.impl.processor.encoder.base import ExportingSupport
 
 # --------------------------------------------------------------------
 
@@ -43,6 +44,9 @@ class Support(Context):
     
 # --------------------------------------------------------------------
 
+propertyReferenceEncodeExport = ExportingSupport(Support)
+# The property reference support export.
+
 @injected
 class PropertyReferenceEncode(HandlerProcessor):
     '''
@@ -54,7 +58,7 @@ class PropertyReferenceEncode(HandlerProcessor):
     
     def __init__(self):
         assert isinstance(self.nameRef, str), 'Invalid reference name %s' % self.nameRef
-        super().__init__(Support=Support)
+        super().__init__()
         
     def process(self, chain, create:Create, **keyargs):
         '''

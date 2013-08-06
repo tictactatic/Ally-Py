@@ -9,11 +9,11 @@ Created on Jul 11, 2013
 Provides the model decoding.
 '''
 
+from ..base import addFailure
 from ally.api.operator.type import TypeProperty, TypeModel
 from ally.api.type import Iter, Boolean, Integer, Number, String, Time, Date, \
     DateTime, Type
 from ally.container.ioc import injected
-from ally.core.impl.processor.base import FailureTarget, addFailure
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.branch import Branch
@@ -80,7 +80,7 @@ class ModelDecode(HandlerBranching):
     def __init__(self):
         assert isinstance(self.decodeModelAssembly, Assembly), 'Invalid model decode assembly %s' % self.decodeModelAssembly
         assert isinstance(self.typeOrders, list), 'Invalid type orders %s' % self.typeOrders
-        super().__init__(Branch(self.decodeModelAssembly).included(), Target=FailureTarget)
+        super().__init__(Branch(self.decodeModelAssembly).included())
         
     def process(self, chain, processing, decoding:Decoding, **keyargs):
         '''

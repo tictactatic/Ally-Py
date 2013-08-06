@@ -16,13 +16,15 @@ from ally.api.type import Iter, Boolean, Integer, Number, String, Time, Date, \
     DateTime, typeFor
 from ally.container.ioc import injected
 from ally.core.impl.index import NAME_BLOCK
+from ally.core.impl.processor.encoder.base import createEncoderNamed, \
+    createEncoder
 from ally.core.impl.transform import TransfromWithSpecifiers
 from ally.core.spec.transform import ITransfrom, IRender
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires
 from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context
-from ally.design.processor.execution import Processing, Abort
+from ally.design.processor.execution import Abort
 from ally.design.processor.handler import HandlerBranching
 import logging
 
@@ -71,7 +73,6 @@ class ModelEncode(HandlerBranching):
         
         Create the model encoder.
         '''
-        assert isinstance(processing, Processing), 'Invalid processing %s' % processing
         assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
         assert isinstance(create, DefineEncoder), 'Invalid create %s' % create
         
@@ -81,24 +82,18 @@ class ModelEncode(HandlerBranching):
         # The type is not for a model, nothing to do, just move along
         assert isinstance(create.objType, TypeModel)
         
+        keyargs.update(invoker=invoker)
         extra, properties = None, []
         if not invoker.hideProperties:
             for prop in self.sortedTypes(create.objType):
                 assert isinstance(prop, TypeProperty), 'Invalid property type %s' % prop
-                arg = processing.executeWithAll(create=processing.ctx.create(objType=prop, name=prop.name),
-                                                invoker=invoker, **keyargs)
-                assert isinstance(arg.create, RequestEncoderNamed), 'Invalid create property %s' % arg.create
-                if arg.create.encoder is None:
+                encoder = createEncoderNamed(processing, prop.name, prop, **keyargs)
+                if encoder is None:
                     log.error('Cannot encode %s', prop)
                     raise Abort(create)
-                properties.append((prop.name, arg.create.encoder))
+                properties.append((prop.name, encoder))
         
-            if modelExtraProcessing:
-                assert isinstance(modelExtraProcessing, Processing), 'Invalid processing %s' % modelExtraProcessing
-                arg = modelExtraProcessing.execute(create=modelExtraProcessing.ctx.create(objType=create.objType),
-                                                   invoker=invoker, **keyargs)
-                assert isinstance(arg.create, RequestEncoder), 'Invalid create model extra %s' % arg.create
-                extra = arg.create.encoder
+            if modelExtraProcessing: extra = createEncoder(modelExtraProcessing, create.objType, **keyargs)
             
         create.encoder = EncoderModel(encoderName(create, create.objType.name), properties, extra, encoderSpecifiers(create))
 

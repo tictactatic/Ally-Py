@@ -22,16 +22,16 @@ log = logging.getLogger(__name__)
 # --------------------------------------------------------------------
 
 try:
-    from __setup__ import ally_assemblage # @UnusedImport
-    from __setup__ import ally_core_http # @UnusedImport
+    from __setup__ import ally_assemblage  # @UnusedImport
+    from __setup__ import ally_core_http  # @UnusedImport
 except ImportError: log.info('No assemblage service available, thus no need to publish the assemblage data')
 else:
     from __setup__.ally_assemblage.processor import assemblage_indexes_uri
-    from __setup__.ally_core_http.processor import root_uri_resources
+    from __setup__.ally_core_http.server import root_uri_resources
     
     @ioc.replace(assemblage_indexes_uri)
     def assemblage_indexes_uri_internal():
         '''
         The assemblage indexes URI.
         '''
-        return root_uri_resources() % (DOMAIN + nameForModel(Block) + '/%s')
+        return ''.join((root_uri_resources(), '/', DOMAIN, nameForModel(Block), '/%s'))

@@ -87,6 +87,7 @@ class Context(metaclass=ContextMetaClass):
     The base context class, this class needs to be inherited by all classes that need to behave like a data context definition
     only, no objects for this contexts can be created.
     '''
+    __slots__ = ()
     __definer__ = definerContext
 
     @classmethod
@@ -114,11 +115,9 @@ class Object(metaclass=ContextMetaClass):
     The base object context class, this class needs to be inherited by all classes that need to behave like a data context that
     can have object created.
     '''
+    __slots__ = ()
     __definer__ = definerObject
     __subclasshook__ = Context.__subclasshook__
-    
-    _contained = WeakSet()
-    _uncontained = WeakSet()
     
     def __init__(self, **keyargs):
         '''
@@ -128,7 +127,7 @@ class Object(metaclass=ContextMetaClass):
 
     def __getattr__(self, name):
         '''
-        Assigned to the context whenever the application is in not in debug mode and there is no need to perform validations.
+        Assigned to the context whenever the application is not in debug mode and there is no need to perform validations.
         '''
         if name in self.__attributes__: return None
         raise AttributeError('Unknown attribute \'%s\'' % name)
@@ -142,13 +141,20 @@ class Object(metaclass=ContextMetaClass):
         '''
         attribute = attributeOf(attribute)
         if attribute is None: return False
-        if attribute in self.__class__._contained: return True
-        if attribute in self.__class__._uncontained: return False
+        contained, uncontained = self.__class__.__dict__.get('_contained'), self.__class__.__dict__.get('_uncontained')
+        if contained and attribute in contained: return True
+        if uncontained and attribute in uncontained: return False
         assert isinstance(attribute, IAttribute)
         if attribute.isIn(self.__class__):
-            self.__class__._contained.add(attribute)
+            if contained is None:
+                contained = WeakSet()
+                setattr(self.__class__, '_contained', contained)
+            contained.add(attribute)
             return True
-        self.__class__._uncontained.add(attribute)
+        if uncontained is None:
+            uncontained = WeakSet()
+            setattr(self.__class__, '_uncontained', uncontained)
+        uncontained.add(attribute)
         return False
     
     def __str__(self):

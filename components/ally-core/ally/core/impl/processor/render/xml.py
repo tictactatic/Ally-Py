@@ -323,7 +323,7 @@ class RenderXML(XMLGenerator, IRender):
             content.length = self._outb.tell()
             self._outb.seek(0)
             content.source = self._outb
-            content.indexes = self._indexes
+            if Content.indexes in content: content.indexes = self._indexes
         
     # ----------------------------------------------------------------
     

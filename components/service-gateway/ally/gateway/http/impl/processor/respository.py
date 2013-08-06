@@ -12,22 +12,16 @@ Provides the gateway repository processor.
 from ally.container.ioc import injected
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import defines
+from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context
-from ally.design.processor.execution import Processing, Chain
-from ally.design.processor.handler import HandlerBranchingProceed
-from ally.design.processor.processor import Using
+from ally.design.processor.execution import Processing
+from ally.design.processor.handler import HandlerBranching
 from ally.gateway.http.spec.gateway import IRepository, RepositoryJoined
-from ally.http.spec.codes import BAD_GATEWAY, isSuccess
-from ally.http.spec.server import RequestHTTP, ResponseHTTP, ResponseContentHTTP, \
-    HTTP_GET, HTTP, HTTP_OPTIONS
-from ally.support.util import immut
-from ally.support.util_io import IInputStream
-from io import BytesIO
+from ally.http.spec.codes import BAD_GATEWAY, CodedHTTP
+from ally.http.spec.server import HTTP_OPTIONS
+from ally.support.http.util_dispatch import RequestDispatch, obtainJSON
 from sched import scheduler
 from threading import Thread
-from urllib.parse import urlparse, parse_qsl
-import codecs
-import json
 import logging
 import re
 import time
@@ -92,43 +86,27 @@ class Request(Context):
     The request context.
     '''
     # ---------------------------------------------------------------- Defined
-    repository = defines(IRepository)
+    repository = defines(IRepository, doc='''
+    @rtype: IRepository
+    The repository to be used for finding matches.
+    ''')
     
-class Response(Context):
+class Response(CodedHTTP):
     '''
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    code = defines(str)
-    status = defines(int)
-    isSuccess = defines(bool)
     text = defines(str)
 
 # --------------------------------------------------------------------
 
-class RequestGateway(RequestHTTP):
-    '''
-    The request gateway context.
-    '''
-    # ---------------------------------------------------------------- Defined
-    accTypes = defines(list)
-    accCharSets = defines(list)
-
-# --------------------------------------------------------------------
-
 @injected
-class GatewayRepositoryHandler(HandlerBranchingProceed):
+class GatewayRepositoryHandler(HandlerBranching):
     '''
     Implementation for a handler that provides the gateway repository by using REST data received from either internal or
     external server. The Gateway structure is defined as in the @see: gateway-http plugin.
     '''
     
-    scheme = HTTP
-    # The scheme to be used in fetching the Gateway objects.
-    mimeTypeJson = 'json'
-    # The json mime type to be sent for the gateway requests.
-    encodingJson = 'utf-8'
-    # The json encoding to be sent for the gateway requests.
     uri = str
     # The URI used in fetching the gateways.
     cleanupInterval = float
@@ -137,18 +115,16 @@ class GatewayRepositoryHandler(HandlerBranchingProceed):
     # The assembly to be used in processing the request for the gateways.
     
     def __init__(self):
-        assert isinstance(self.scheme, str), 'Invalid scheme %s' % self.scheme
-        assert isinstance(self.mimeTypeJson, str), 'Invalid json mime type %s' % self.mimeTypeJson
-        assert isinstance(self.encodingJson, str), 'Invalid json encoding %s' % self.encodingJson
         assert isinstance(self.uri, str), 'Invalid URI %s' % self.uri
         assert isinstance(self.cleanupInterval, int), 'Invalid cleanup interval %s' % self.cleanupInterval
         assert isinstance(self.assembly, Assembly), 'Invalid assembly %s' % self.assembly
-        super().__init__(Using(self.assembly, request=RequestGateway).sources('requestCnt', 'response', 'responseCnt'))
+        super().__init__(Branch(self.assembly).using('requestCnt', 'response', 'responseCnt', request=RequestDispatch))
         self.initialize()
 
-    def process(self, processing, request:Request, response:Response, Gateway:GatewayRepository, Match:MatchRepository, **keyargs):
+    def process(self, chain, processing, request:Request, response:Response,
+                Gateway:GatewayRepository, Match:MatchRepository, **keyargs):
         '''
-        @see: HandlerBranchingProceed.process
+        @see: HandlerBranching.process
         
         Obtains the repository.
         '''
@@ -159,67 +135,17 @@ class GatewayRepositoryHandler(HandlerBranchingProceed):
         assert issubclass(Match, MatchRepository), 'Invalid match class %s' % Match
         
         if not self._repository:
-            robj, status, text = self.obtainGateways(processing, self.uri)
-            if robj is None or not isSuccess(status):
-                log.info('Cannot fetch the gateways from URI \'%s\', with response %s %s', self.uri, status, text)
-                response.code, response.status, response.isSuccess = BAD_GATEWAY
+            jobj, status, text = obtainJSON(processing, self.uri, details=True)
+            if jobj is None:
+                log.error('Cannot fetch the gateways from URI \'%s\', with response %s %s', self.uri, status, text)
+                BAD_GATEWAY.set(response)
                 response.text = text
                 return
-            assert 'GatewayList' in robj, 'Invalid objects %s, not GatewayList' % robj
-            self._repository = Repository([self.populate(Identifier(Gateway()), obj) for obj in robj['GatewayList']], Match)
+            assert 'GatewayList' in jobj, 'Invalid objects %s, not GatewayList' % jobj
+            self._repository = Repository([self.populate(Identifier(Gateway()), obj) for obj in jobj['GatewayList']], Match)
             
         if request.repository: request.repository = RepositoryJoined(request.repository, self._repository)
         else: request.repository = self._repository
-        
-    # ----------------------------------------------------------------
-   
-    def obtainGateways(self, processing, uri):
-        '''
-        Get the gateway objects representation.
-        
-        @param processing: Processing
-            The processing used for delivering the request.
-        @param uri: string
-            The URI to call, parameters are allowed.
-        @return: tuple(dictionary{...}|None, integer, string)
-            A tuple containing as the first position the gateway objects representation, None if the gateways cannot be fetched,
-            on the second position the response status and on the last position the response text.
-        '''
-        assert isinstance(processing, Processing), 'Invalid processing %s' % processing
-        assert isinstance(uri, str), 'Invalid URI %s' % uri
-        
-        request = processing.ctx.request()
-        assert isinstance(request, RequestGateway), 'Invalid request %s' % request
-        
-        url = urlparse(uri)
-        request.scheme, request.method = self.scheme, HTTP_GET
-        request.headers = {}
-        request.uri = url.path.lstrip('/')
-        request.parameters = parse_qsl(url.query, True, False)
-        request.accTypes = [self.mimeTypeJson]
-        request.accCharSets = [self.encodingJson]
-        
-        chain = Chain(processing)
-        chain.process(request=request, requestCnt=processing.ctx.requestCnt(),
-                      response=processing.ctx.response(), responseCnt=processing.ctx.responseCnt()).doAll()
-
-        response, responseCnt = chain.arg.response, chain.arg.responseCnt
-        assert isinstance(response, ResponseHTTP), 'Invalid response %s' % response
-        assert isinstance(responseCnt, ResponseContentHTTP), 'Invalid response content %s' % responseCnt
-        
-        if ResponseHTTP.text in response and response.text: text = response.text
-        elif ResponseHTTP.code in response and response.code: text = response.code
-        else: text = None
-        if ResponseContentHTTP.source not in responseCnt or responseCnt.source is None or not isSuccess(response.status):
-            return None, response.status, text
-        
-        if isinstance(responseCnt.source, IInputStream):
-            source = responseCnt.source
-        else:
-            source = BytesIO()
-            for bytes in responseCnt.source: source.write(bytes)
-            source.seek(0)
-        return json.load(codecs.getreader(self.encodingJson)(source)), response.status, text
 
     # ----------------------------------------------------------------
     
@@ -274,21 +200,21 @@ class GatewayRepositoryHandler(HandlerBranchingProceed):
             assert isinstance(pattern, str), 'Invalid pattern %s' % pattern
             identifier.pattern = re.compile(pattern)
         
-        headers = obj.get('Headers', immut()).get('Headers')
+        headers = obj.get('Headers')
         if headers:
             assert isinstance(headers, list), 'Invalid headers %s' % headers
             if __debug__:
                 for header in headers: assert isinstance(header, str), 'Invalid header value %s' % header
             identifier.headers.extend(re.compile(header) for header in headers)
         
-        methods = obj.get('Methods', immut()).get('Methods')
+        methods = obj.get('Methods')
         if methods:
             assert isinstance(methods, list), 'Invalid methods %s' % methods
             if __debug__:
                 for method in methods: assert isinstance(method, str), 'Invalid method value %s' % method
             identifier.methods.update(method.upper() for method in methods)
             
-        errors = obj.get('Errors', immut()).get('Errors')
+        errors = obj.get('Errors')
         if errors:
             assert isinstance(errors, list), 'Invalid errors %s' % errors
             for error in errors:
@@ -298,7 +224,7 @@ class GatewayRepositoryHandler(HandlerBranchingProceed):
         gateway = identifier.gateway
         assert isinstance(gateway, GatewayRepository), 'Invalid gateway %s' % gateway
         
-        gateway.filters = obj.get('Filters', immut()).get('Filters')
+        gateway.filters = obj.get('Filters')
         if __debug__ and gateway.filters:
             assert isinstance(gateway.filters, list), 'Invalid filters %s' % gateway.filters
             for item in gateway.filters: assert isinstance(item, str), 'Invalid filter value %s' % item
@@ -312,7 +238,7 @@ class GatewayRepositoryHandler(HandlerBranchingProceed):
         gateway.navigate = obj.get('Navigate')
         assert not gateway.navigate or isinstance(gateway.navigate, str), 'Invalid navigate %s' % gateway.navigate
         
-        putHeaders = obj.get('PutHeaders', immut()).get('PutHeaders')
+        putHeaders = obj.get('PutHeaders')
         if putHeaders:
             assert isinstance(putHeaders, list), 'Invalid put headers %s' % putHeaders
             if __debug__:
@@ -350,7 +276,7 @@ class Repository(IRepository):
     '''
     The gateways repository.
     '''
-    __slots__ = ('_identifiers', '_cache', '_Match')
+    __slots__ = ('_identifiers', '_Match')
     
     def __init__(self, identifiers, Match):
         '''
@@ -364,7 +290,6 @@ class Repository(IRepository):
         
         self._identifiers = identifiers
         self._Match = Match
-        self._cache = {}
         
     def find(self, method=None, headers=None, uri=None, error=None):
         '''
@@ -387,14 +312,6 @@ class Repository(IRepository):
         # We need to remove auxiliar methods
         allowed.discard(HTTP_OPTIONS)
         return allowed
-        
-    def obtainCache(self, identifier):
-        '''
-        @see: IRepository.obtainCache
-        '''
-        cache = self._cache.get(identifier)
-        if cache is None: cache = self._cache[identifier] = {}
-        return cache
 
     # ----------------------------------------------------------------
     

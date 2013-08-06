@@ -12,11 +12,12 @@ Provides the forwarding processor.
 from ally.container.ioc import injected
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires
+from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Processing, Chain
 from ally.design.processor.handler import HandlerBranching
-from ally.design.processor.processor import Included
 from ally.gateway.http.spec.gateway import IRepository
+from ally.http.spec.headers import HeadersRequire
 from urllib.parse import urlparse, parse_qsl
 import logging
 
@@ -42,13 +43,12 @@ class Match(Context):
     gateway = requires(Context)
     groupsURI = requires(tuple)
     
-class Request(Context):
+class Request(HeadersRequire):
     '''
     Context for request. 
     '''
     # ---------------------------------------------------------------- Required
     uri = requires(str)
-    headers = requires(dict)
     parameters = requires(list)
     match = requires(Context)
 
@@ -65,10 +65,9 @@ class GatewayForwardHandler(HandlerBranching):
     
     def __init__(self):
         assert isinstance(self.assembly, Assembly), 'Invalid assembly %s' % self.assembly
-        super().__init__(Included(self.assembly))
+        super().__init__(Branch(self.assembly).using('response', 'responseCnt').included(), Gateway=Gateway, Match=Match)
 
-    #TODO: Gabriel: Move Gateway, Match in __init__ after refactoring.
-    def process(self, chain, processing, request:Request, Gateway:Gateway, Match:Match, **keyargs):
+    def process(self, chain, processing, request:Request, **keyargs):
         '''
         @see: HandlerBranching.process
         
@@ -77,10 +76,8 @@ class GatewayForwardHandler(HandlerBranching):
         assert isinstance(chain, Chain), 'Invalid chain %s' % chain
         assert isinstance(processing, Processing), 'Invalid processing %s' % processing
         assert isinstance(request, Request), 'Invalid request %s' % request
-        if not request.match:
-            # No forwarding if there is no match on response
-            chain.proceed()
-            return  
+        if not request.match: return
+        # No forwarding if there is no match on response
         
         assert isinstance(request.repository, IRepository), 'Invalid request repository %s' % request.repository
         match = request.match
@@ -91,7 +88,8 @@ class GatewayForwardHandler(HandlerBranching):
             uri = match.gateway.navigate.replace('*', request.uri)
             try: uri = uri.format(None, *match.groupsURI)
             except IndexError:
-                raise Exception('Invalid navigate URI \'%s\' for groups %s' % (match.gateway.navigate, match.groupsURI))
+                log.exception('Invalid navigate URI \'%s\' for groups %s' % (match.gateway.navigate, match.groupsURI))
+                return
             url = urlparse(uri)
             request.uri = url.path.lstrip('/')
             parameters = parse_qsl(url.query, True, False)
@@ -101,9 +99,5 @@ class GatewayForwardHandler(HandlerBranching):
         if match.gateway.putHeaders: request.headers.update(match.gateway.putHeaders)
         
         assert log.debug('Forwarding request to \'%s\'', request.uri) or True
-        # TODO: Gabriel, this is a temporary fix, we need to provide a handler that properly handles the response and response content
-        # isolation.
-        nresponse = chain.arg.response.__class__()
-        nresponseCnt = chain.arg.responseCnt.__class__()
-        chain.update(response=nresponse, responseCnt=nresponseCnt)
+        chain.process(response=processing.ctx.response(), responseCnt=processing.ctx.responseCnt())
         chain.branch(processing)

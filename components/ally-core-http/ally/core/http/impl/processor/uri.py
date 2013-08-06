@@ -11,7 +11,7 @@ Provides the URI request node handler.
 
 from ally.core.http.impl.processor.base import ErrorResponseHTTP
 from ally.core.impl.processor.base import addError
-from ally.design.processor.attribute import requires, defines
+from ally.design.processor.attribute import requires, defines, definesIf
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
 from ally.http.spec.codes import PATH_FOUND, PATH_NOT_FOUND, MISSING_SLASH
@@ -46,15 +46,15 @@ class Request(Context):
     The request context.
     '''
     # ---------------------------------------------------------------- Defined
-    node = defines(Context, doc='''
+    node = definesIf(Context, doc='''
     @rtype: Context
     The node corresponding to the request.
     ''')
-    nodeValues = defines(dict, doc='''
+    nodeValues = definesIf(dict, doc='''
     @rtype: dictionary{Context: string}
     A dictionary containing the path values indexed by the node.
     ''')
-    extension = defines(str, doc='''
+    extension = definesIf(str, doc='''
     @rtype: string
     The extension of the requested URI.
     ''')
@@ -100,15 +100,17 @@ class URIHandler(HandlerProcessor):
         i = paths[-1].rfind('.') if len(paths) > 0 else -1
         if i < 0:
             clearExtension = True
-            request.extension = None
+            extension = None
         else:
             clearExtension = i == 0
-            request.extension = paths[-1][i + 1:].lower()
+            extension = paths[-1][i + 1:].lower()
             paths[-1] = paths[-1][0:i]
         
         paths = [unquote(p) for p in paths if p]
 
-        if request.extension: responseCnt.type = request.extension
+        if extension:
+            if Request.extension in request: request.extension = extension
+            responseCnt.type = request.extension
         
         node = register.root
         for k, path in enumerate(paths):
@@ -117,15 +119,16 @@ class URIHandler(HandlerProcessor):
             if node.childByName:
                 if path not in node.childByName:
                     PATH_NOT_FOUND.set(response)
-                    addError(response, 'Instead of \'%(item)s\' or before it is expected: %(names)s',
+                    addError(response, 'Instead of \'%(item)s\' or before it is expected one of: %(names)s',
                              item=path, names=sorted(node.childByName))
                     return
                 node = node.childByName[path]
                 continue
             
             if node.child:
-                if request.nodeValues is None: request.nodeValues = {}
-                request.nodeValues[node] = path
+                if Request.nodeValues in request:
+                    if request.nodeValues is None: request.nodeValues = {}
+                    request.nodeValues[node] = path
                 node = node.child
                 continue
             
@@ -149,4 +152,4 @@ class URIHandler(HandlerProcessor):
                 
         assert log.debug('Found resource for URI %s', request.uri) or True
         PATH_FOUND.set(response)
-        request.node = node
+        if Request.node in request: request.node = node

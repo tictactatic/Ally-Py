@@ -9,15 +9,17 @@ Created on Jun 1, 2012
 Provides the configurations for the resources.
 '''
 
+from ..ally_core.encode import assemblyEncodeExport
 from ..ally_core.resources import processMethod, updateAssemblyAssembler, \
     assemblyAssembler
+from .encode import updateAssemblyEncodeExportForPath
 from ally.container import ioc
 from ally.core.http.impl.processor.assembler.conflict_replace import \
     ConflictReplaceHandler
 from ally.core.http.impl.processor.assembler.conflict_resolve import \
     ConflictResolveHandler
 from ally.core.http.impl.processor.assembler.encoding_path import \
-    EncodingPathHandler
+    EncodingPathHandler, encodingPathExport
 from ally.core.http.impl.processor.assembler.invoker_node import \
     InvokerNodeHandler
 from ally.core.http.impl.processor.assembler.invoker_resources import \
@@ -97,3 +99,7 @@ def updateAssemblyAssemblerForHTTPCore():
                             pathDomain(), pathWebName(), invokerResources(), invokerNode(), conflictReplace(),
                             conflictResolve(), pathSlash(), pathGetModel(), pathGetAccesible(), assemblerScheme(),
                             encodingPath(), after=processMethod())
+
+@ioc.after(updateAssemblyEncodeExportForPath)
+def updateAssemblyEncodeExportForEncodingPath():
+    assemblyEncodeExport().add(encodingPathExport)

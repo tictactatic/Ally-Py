@@ -13,6 +13,7 @@ from ally.api.operator.type import TypeModel, TypePropertyContainer
 from ally.api.type import Type
 from ally.container.ioc import injected
 from ally.core.http.impl.index import NAME_BLOCK_REST, ACTION_REFERENCE
+from ally.core.impl.processor.encoder.base import ExportingSupport
 from ally.core.spec.transform import ISpecifier, ITransfrom
 from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
@@ -63,6 +64,9 @@ class Support(Context):
        
 # --------------------------------------------------------------------
 
+propertyOfModelPathAttributeEncodeExport = ExportingSupport(Support)
+# The property of model support export.
+
 @injected
 class PropertyOfModelPathAttributeEncode(HandlerProcessor):
     '''
@@ -74,7 +78,7 @@ class PropertyOfModelPathAttributeEncode(HandlerProcessor):
     
     def __init__(self):
         assert isinstance(self.nameRef, str), 'Invalid reference name %s' % self.nameRef
-        super().__init__(Invoker=Invoker, Support=Support)
+        super().__init__(Invoker=Invoker)
         
     def process(self, chain, node:Node, create:Create, **keyargs):
         '''

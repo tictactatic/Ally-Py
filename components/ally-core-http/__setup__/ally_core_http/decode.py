@@ -11,7 +11,7 @@ Provides the setup for the decode processors.
 
 from ..ally_core.decode import assemblyDecode, updateAssemblyDecode, \
     primitiveDecode, definitionIndex, markSolved, updateAssemblyDecodeModel, \
-    assemblyDecodeModel, propertyOfModelDecode
+    assemblyDecodeModel, propertyOfModelDecode, assemblyDecodeExport
 from ally.container import ioc
 from ally.core.http.impl.processor.decoder.create_parameter import \
     CreateParameterHandler
@@ -31,8 +31,9 @@ from ally.core.impl.processor.decoder.general.definition_create import \
     DefinitionCreateHandler
 from ally.core.impl.processor.decoder.general.explode import ExplodeDecode
 from ally.core.impl.processor.decoder.general.list_decode import ListDecode
+from ally.core.impl.processor.decoder.general.primitive import \
+    primitiveDecodeExport
 from ally.design.processor.assembly import Assembly
-from ally.design.processor.export import Publish
 from ally.design.processor.handler import Handler
 
 # --------------------------------------------------------------------
@@ -41,6 +42,13 @@ CATEGORY_PARAMETER = 'parameter'
 # The name of the parameters category.
 
 # --------------------------------------------------------------------
+
+@ioc.entity
+def assemblyDecodeParameterExport() -> Assembly:
+    '''
+    The assembly containing the decoders for parameters export.
+    '''
+    return Assembly('Decode parameter export')
 
 @ioc.entity
 def assemblyDecodeParameter() -> Assembly:
@@ -71,6 +79,13 @@ def assemblyDecodeListItem() -> Assembly:
     return Assembly('Decode parameter list item')
 
 # --------------------------------------------------------------------
+
+@ioc.entity
+def assemblyDecodePathExport() -> Assembly:
+    '''
+    The assembly containing the decoders for path items export.
+    '''
+    return Assembly('Decode path export')
 
 @ioc.entity
 def assemblyDecodePath() -> Assembly:
@@ -128,9 +143,6 @@ def definitionCreate() -> Handler:
 @ioc.entity
 def definitionParameter() -> Handler: return DefinitionParameterHandler()
 
-@ioc.entity
-def publishParameter() -> Publish: return Publish()
-
 # --------------------------------------------------------------------
 
 @ioc.entity
@@ -141,9 +153,6 @@ def createPath() -> Handler:
 
 @ioc.entity
 def injectedPathDecode() -> Handler: return InjectedPathDecode()
-
-@ioc.entity
-def publishPath() -> Publish: return Publish()
 
 # --------------------------------------------------------------------
 
@@ -160,22 +169,30 @@ def updateAssemblyDecodeQuery():
 def updateAssemblyDecodeParameter():
     assemblyDecodeParameter().add(optionDecode(), queryDecode(), orderDecode(), primitiveDecode(), listDecode(),
                                   definitionCreate(), explodeDecode(), indexParameter(), definitionParameter(),
-                                  definitionIndex(), markSolved(), publishParameter())
+                                  definitionIndex(), markSolved())
     
 @ioc.before(assemblyDecodeOrder)
 def updateAssemblyDecodeOrder():
     assemblyDecodeOrder().add(primitiveDecode(), listDecode(), definitionCreate(), explodeDecode(), indexParameter(),
-                              definitionParameter(), definitionIndex(), publishParameter())
-    
+                              definitionParameter(), definitionIndex())
+
+@ioc.before(assemblyDecodeParameterExport)
+def updateAssemblyDecodeParameterExport():
+    assemblyDecodeParameterExport().add(assemblyDecodeExport(), primitiveDecodeExport)
+
 # --------------------------------------------------------------------
 
 @ioc.before(assemblyDecodePath)
 def updateAssemblyDecodePath():
-    assemblyDecodePath().add(primitiveDecode(), publishPath())
+    assemblyDecodePath().add(primitiveDecode())
     
 @ioc.after(updateAssemblyDecodeModel)
 def updateAssemblyDecodeModelForPath():
     assemblyDecodeModel().add(injectedPathDecode(), after=propertyOfModelDecode())
+
+@ioc.before(assemblyDecodePathExport)
+def updateAssemblyDecodePathExport():
+    assemblyDecodePathExport().add(assemblyDecodeExport(), primitiveDecodeExport)
 
 # --------------------------------------------------------------------
 

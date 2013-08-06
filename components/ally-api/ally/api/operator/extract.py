@@ -236,9 +236,9 @@ def processGenericType(forType, generic):
     assert isinstance(forType, Type), 'Invalid type %s' % type
     assert isinstance(generic, dict), 'Invalid generic %s' % generic
 
-    if isinstance(forType, TypeProperty):
+    if isinstance(forType, TypeProperty) and isinstance(forType.parent, TypeModel):
         assert isinstance(forType, TypeProperty)
-        assert isinstance(forType.parent, TypeModel), 'Only allowed model type properties, got %s' % forType
+        assert isinstance(forType.parent, TypeModel)
         modelClass = generic.get(forType.parent.clazz)
         if modelClass is not None:
             newModel = typeFor(modelClass)

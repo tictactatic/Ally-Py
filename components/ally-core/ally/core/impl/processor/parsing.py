@@ -11,6 +11,7 @@ Provides the parsing chain processors.
 
 from ally.container.ioc import injected
 from ally.core.impl.processor.base import ErrorResponse, addError
+from ally.core.impl.processor.decoder.base import importTarget
 from ally.core.spec.codes import ENCODING_UNKNOWN
 from ally.core.spec.resources import Converter
 from ally.design.processor.assembly import Assembly
@@ -18,10 +19,10 @@ from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain, Processing, CONSUMED
-from ally.design.processor.handler import HandlerBranching
+from ally.design.processor.handler import push, Handler
+from ally.design.processor.processor import Brancher, Using
 from ally.support.util_spec import IDo
 import codecs
-from ally.design.processor.export import Import
 
 # --------------------------------------------------------------------
 
@@ -74,7 +75,7 @@ class TargetContent(Context):
 # --------------------------------------------------------------------
 
 @injected
-class ParsingHandler(HandlerBranching):
+class ParsingHandler(Handler):
     '''
     Implementation for a processor that provides the parsing based on contained parsers. If a parser
     processor is successful in the parsing process it has to stop the chain execution.
@@ -82,24 +83,23 @@ class ParsingHandler(HandlerBranching):
 
     charSetDefault = str
     # The default character set to be used if none provided for the content.
-    importDecoding = Import
-    # The decoding imports to be used for content parsing.
+    decodeExportAssembly = Assembly
+    # The decode export assembly.
     parsingAssembly = Assembly
     # The parsers processors, if a processor is successful in the parsing process it has to stop the chain execution.
 
     def __init__(self):
         assert isinstance(self.charSetDefault, str), 'Invalid default character set %s' % self.charSetDefault
-        assert isinstance(self.importDecoding, Import), 'Invalid import %s' % self.importDecoding
         assert isinstance(self.parsingAssembly, Assembly), 'Invalid parsers assembly %s' % self.parsingAssembly
-        super().__init__(Branch(self.parsingAssembly).included(('decoding', 'Decoding'), ('target', 'Target')).included(),
-                         Invoker=Invoker)
-        self.importDecoding.useIn(self)
+        Target, arg = importTarget(self.decodeExportAssembly)
+        processor = push(Brancher(self.process, Branch(self.parsingAssembly).
+                                  included(('decoding', 'Decoding'), ('target', 'Target')).included()), Invoker=Invoker)
+        if arg: push(processor, **arg)
+        super().__init__(Using(processor, Target=Target))
 
     def process(self, chain, processing, request:Request, requestCnt:RequestContent, response:ErrorResponse,
                 responseCnt:ResponseContent, Target:TargetContent, **keyargs):
         '''
-        @see: HandlerBranching.process
-        
         Parse the request content.
         '''
         assert isinstance(chain, Chain), 'Invalid processors chain %s' % chain

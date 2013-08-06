@@ -107,7 +107,7 @@ def notCreated():
     '''
     Function that just raises a SetupError for when an expected entity created by 'createEntitySetup' is not present. 
     '''
-    raise SetupError('No entity created for this name by \'createEntitySetup\' function')
+    raise SetupError('No entity created for this by \'createEntitySetup\' function')
 
 def createEntitySetup(*classes, module=None, wire=True, dispatch=True, nameEntity=nameEntity, nameInEntity=nameInEntity):
     '''

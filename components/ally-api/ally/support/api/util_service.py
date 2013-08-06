@@ -17,6 +17,7 @@ from ally.api.type import typeFor
 from ally.type_legacy import Iterable, Iterator
 from collections import Sized
 from itertools import chain
+from types import TracebackType
 import re
 
 # --------------------------------------------------------------------
@@ -151,6 +152,49 @@ def isAvailableIn(container, name, type):
 
 # --------------------------------------------------------------------
 
+def getModelId(obj):
+    '''
+    Provides the objects model property id, this means that the object needs to be a model type container.
+    
+    @param obj: object
+        The object to provide the id value for.
+    @return: object
+        The property id value.
+    '''
+    model = typeFor(obj)
+    assert isinstance(model, TypeModel), 'Invalid model object %s' % obj
+    assert isinstance(model.propertyId, TypeProperty), 'Invalid model %s with property id %s' % (model, model.propertyId)
+    return getattr(obj, model.propertyId.name)
+
+def callsOf(stack):
+    '''
+    Provides the call types for the provided stack object.
+    
+    @param stack: Exception|traceback
+        The exception or trace back object to extract the calls from.
+    @return: list[TypeCall]
+        The calls from the stack.
+    '''
+    if isinstance(stack, Exception):
+        assert isinstance(stack, Exception)
+        tb = stack.__traceback__
+    else: tb = stack
+    assert isinstance(tb, TracebackType), 'Invalid trace back %s' % tb
+    
+    calls = []
+    while tb:
+        instance = tb.tb_frame.f_locals.get('self')
+        if instance is not None:
+            service = typeFor(instance)
+            if isinstance(service, TypeService):
+                assert isinstance(service, TypeService)
+                call = service.calls.get(tb.tb_frame.f_code.co_name)
+                if call: calls.append(call)
+        tb = tb.tb_next
+    return calls
+
+# --------------------------------------------------------------------
+
 def copy(src, dest, exclude=()):
     '''
     Copies the container properties from the object source to object destination, attention only the common properties from
@@ -161,7 +205,7 @@ def copy(src, dest, exclude=()):
         The source to copy from.
     @param dest: container object
         The destination to copy to.
-    @param exclude: list[string]|tuple(string)
+    @param exclude: list[string]|tuple(string)|set(string)
         A list of properties names to exclude from copy.
     @return: container object
         Returns the destination object.

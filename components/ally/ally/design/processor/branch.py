@@ -48,19 +48,6 @@ class IBranch(metaclass=abc.ABCMeta):
         @return: Processing|None
             The branch processing, None if the branching is not able to provide a valid processing.
         ''' 
-    
-    @abc.abstractmethod
-    def export(self, required, resolvers):
-        '''
-        The branch exports.
-        
-        @param required: object
-            The object identifying the required exports.
-        @param resolvers: dictionary{string: IResolver}
-            The exported resolvers.
-        @return: dictionary{string: IResolver}|None
-            The exported resolvers for the required verb.
-        '''
 
 class WithAssembly(IBranch):
     '''
@@ -82,19 +69,6 @@ class WithAssembly(IBranch):
         @see: IBranch.name
         '''
         return self._assembly.name
-    
-    def export(self, required, resolvers):
-        '''
-        @see: IBranch.export
-        '''
-        exported = None
-        for proc in self._assembly.processors:
-            assert isinstance(proc, IProcessor), 'Invalid processor %s' % proc
-            exports = proc.export(required, resolvers)
-            if exports:
-                if exported is None: exported = {}
-                solve(exported, exports)
-        return exported
     
     # ----------------------------------------------------------------
     
@@ -131,6 +105,7 @@ class Routing(WithAssembly):
         
         self._usingContexts = {}
         self._usingNames = set()
+        self._excluded = set()
         
     def using(self, *names, **contexts):
         '''
@@ -138,7 +113,7 @@ class Routing(WithAssembly):
         
         @param names: arguments[string]
             The contexts names to be used rather then routed.
-        @param contexts: key arguments{string, ContextMetaClass}
+        @param contexts: key arguments of ContextMetaClass or IResolver
             The contexts to be used rather then routed.
         @return: self
             This branch for chaining purposes.
@@ -154,6 +129,21 @@ class Routing(WithAssembly):
         self._usingNames.update(names)
         
         return self
+    
+    def excluded(self, *names):
+        '''
+        Register the context names required to be excluded from the routing.
+        
+        @param names: arguments[string]
+            The contexts names to be excluded.
+        @return: self
+            This branch for chaining purposes.
+        '''
+        assert names, 'At least a name is required'
+        if __debug__:
+            for name in names: assert isinstance(name, str), 'Invalid only name %s' % name
+        self._excluded.update(names)
+        return self
         
     def process(self, sources, resolvers, extensions, report):
         '''
@@ -167,6 +157,7 @@ class Routing(WithAssembly):
         
         try:
             rresolvers, rextensions = dict(resolvers), {}
+            if self._excluded: extractContexts(rresolvers, self._excluded)
             calls = self._processAssembly(sources, rresolvers, rextensions, report)
             
         except: raise AssemblyError('Cannot process Routing for \'%s\'' % self.name())
@@ -276,7 +267,7 @@ class Branch(WithAssembly):
         assert isinstance(report, IReport), 'Invalid report %s' % report
         
         report = report.open('Branch \'%s\'' % self.name())
-        
+
         sourcesForInclude, sourcesForUsing, resolversForUsing = dict(sources), dict(sources), dict(resolvers)
         unames, inames, iall = set(), set(), False
         bsources, sourcesUsing = {}, {}
@@ -316,7 +307,7 @@ class Branch(WithAssembly):
         if not calls: return  # No calls for assembly
         
         try:
-            uresolvers = solve(extractResolvers(bresolvers, unames, reversed=True), sourcesUsing, joined=False)
+            uresolvers = solve(extractResolvers(bresolvers, unames, reversed=True), sourcesUsing)
             if checkIf(uresolvers, LIST_UNAVAILABLE):
                 raise AssemblyError('Using for \'%s\' has unavailable attributes:%s' % 
                                     (self.name(), reportFor(uresolvers, LIST_UNAVAILABLE)))
@@ -339,7 +330,7 @@ class Branch(WithAssembly):
             if iall:
                 solve(iresolvers, bresolvers)
                 solve(iextensions, bextensions)
-            
+        
             solve(resolvers, iresolvers)
             solve(extensions, iextensions)
             return Processing(calls, contexts)

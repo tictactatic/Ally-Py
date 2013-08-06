@@ -54,8 +54,6 @@ INSERT = 1 << 2
 UPDATE = 1 << 3
 DELETE = 1 << 4
 
-# The default limit
-LIMIT_DEFAULT = 30
 
 # The function name to method mapping.
 NAME_TO_METHOD = {

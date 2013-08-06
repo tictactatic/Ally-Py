@@ -11,11 +11,10 @@ Provides support for SQL alchemy mapper that is able to link the alchemy with RE
 
 from abc import ABCMeta
 from ally.api.operator.descriptor import Reference
-from ally.api.operator.type import TypeModel
+from ally.api.operator.type import TypeModel, typePropFor
 from ally.api.type import typeFor
 from ally.container.binder_op import INDEX_PROP
 from ally.container.impl.binder import indexAfter
-from ally.exception import Ref
 from ally.internationalization import _
 from ally.support.sqlalchemy.session import openSession
 from functools import partial
@@ -180,7 +179,7 @@ def registerValidation(mapped, exclude=None):
     @return: Property
         The property id of the model.
     '''
-    #TODO: Gabriel: Make the validation based on concrete models in such a way that the front end can use it.
+    # TODO: Gabriel: Make the validation based on concrete models in such a way that the front end can use it.
     # also get rid of binders, create better objects with more information to validate.
     
 #    assert isclass(mapped), 'Invalid class %s' % mapped
@@ -271,7 +270,7 @@ def tableFor(mapped):
 
 # --------------------------------------------------------------------
 
-def onPropertyUnique(mapped, prop, obj, errors):
+def onPropertyUnique(mapped, prop, obj, errors, data):
     '''
     Validation of a sql alchemy unique property.
     
@@ -281,8 +280,10 @@ def onPropertyUnique(mapped, prop, obj, errors):
         The property name to be checked if unique.
     @param obj: object
         The entity to check for the property value.
-    @param errors: list[Ref]
+    @param errors: list[string|Type]
         The list of errors.
+    @param data: dictionary{string: object}
+        The message data.
     '''
     assert isclass(mapped), 'Invalid class %s' % mapped
     assert isinstance(prop, str), 'Invalid property name %s' % prop
@@ -291,16 +292,15 @@ def onPropertyUnique(mapped, prop, obj, errors):
 
     propRef = getattr(mapped, prop)
     if propRef in obj:
-        try:
-            db = openSession().query(mapped).filter(propRef == getattr(obj, prop)).one()
-        except NoResultFound:
-            return
+        try: db = openSession().query(mapped).filter(propRef == getattr(obj, prop)).one()
+        except NoResultFound: return
         propId = typeFor(mapped).container.propertyId
         if getattr(obj, propId) != getattr(db, propId):
-            errors.append(Ref(_('Already an entry with this value'), ref=propRef))
+            errors.append(_('Already an entry with this value'))
+            errors.append(typePropFor(mapped, prop))
             return False
 
-def onPropertyForeignKey(mapped, foreignColumn, prop, obj, errors):
+def onPropertyForeignKey(mapped, foreignColumn, prop, obj, errors, data):
     '''
     Validation of a sql alchemy fpreign key property.
     
@@ -309,11 +309,13 @@ def onPropertyForeignKey(mapped, foreignColumn, prop, obj, errors):
     @param foreignColumn: Column
         The foreign column used for checking.
     @param prop: string
-        The property name tthat contains the foreign key.
+        The property name that contains the foreign key.
     @param obj: object
         The entity to check for the property value.
-    @param errors: list[Ref]
+    @param errors: list[string|Type]
         The list of errors.
+    @param data: dictionary{string: object}
+        The message data.
     '''
     assert isclass(mapped), 'Invalid class %s' % mapped
     assert isinstance(foreignColumn, Column), 'Invalid foreign column %s' % foreignColumn
@@ -327,7 +329,8 @@ def onPropertyForeignKey(mapped, foreignColumn, prop, obj, errors):
         if val is not None:
             count = openSession().query(foreignColumn).filter(foreignColumn == val).count()
             if count == 0:
-                errors.append(Ref(_('Unknown foreign id'), ref=propRef))
+                errors.append(_('Unknown foreign id'))
+                errors.append(typePropFor(mapped, prop))
                 return False
 
 # --------------------------------------------------------------------

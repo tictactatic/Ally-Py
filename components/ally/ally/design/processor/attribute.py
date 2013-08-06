@@ -411,10 +411,10 @@ class Resolver(IResolver):
             if ownSpec is None: specifications[name] = spec
             elif ownSpec.status & DEFINED:
                 assert isinstance(ownSpec, Specification), 'Invalid specification %s' % ownSpec
-                specifications[name] = self.mergeSpecification(ownSpec, spec, definedIn=spec.definedIn)
+                specifications[name] = self.mergeSpecification(ownSpec, spec)
             else:
                 if spec.definedIn is not None and ownSpec.definedIn is not None:
-                    specifications[name] = self.mergeSpecification(spec, ownSpec, definedIn=ownSpec.definedIn)
+                    specifications[name] = self.mergeSpecification(spec, ownSpec)
                 else:
                     specifications[name] = self.mergeSpecification(spec, ownSpec)
         

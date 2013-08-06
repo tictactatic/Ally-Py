@@ -9,6 +9,7 @@ Created on Jul 26, 2013
 Provides the dictionary decoding.
 '''
 
+from ..base import FailureTarget, addFailure, ExportingTarget
 from ally.api.type import Type, Dict
 from ally.container.ioc import injected
 from ally.design.processor.assembly import Assembly
@@ -20,7 +21,6 @@ from ally.design.processor.execution import Processing, Abort
 from ally.design.processor.handler import HandlerBranching
 from ally.support.util_spec import IDo
 import logging
-from ally.core.impl.processor.base import FailureTarget, addFailure
 
 # --------------------------------------------------------------------
 
@@ -70,7 +70,7 @@ class DictDecode(HandlerBranching):
     
     def __init__(self):
         assert isinstance(self.dictItemAssembly, Assembly), 'Invalid item assembly %s' % self.dictItemAssembly
-        super().__init__(Branch(self.dictItemAssembly).included(), Target=FailureTarget)
+        super().__init__(Branch(self.dictItemAssembly).included())
 
     def process(self, chain, processing, decoding:Decoding, **keyargs):
         '''
@@ -199,6 +199,9 @@ class TargetItem(FailureTarget):
     ''')
 
 # --------------------------------------------------------------------
+    
+dictItemDecodeExport = ExportingTarget(TargetItem)
+# Context export for dictionary item decode.
 
 @injected
 class DictItemDecode(HandlerBranching):
@@ -214,8 +217,7 @@ class DictItemDecode(HandlerBranching):
     def __init__(self):
         assert isinstance(self.itemKeyAssembly, Assembly), 'Invalid key assembly %s' % self.dictKeyAssembly
         assert isinstance(self.itemValueAssembly, Assembly), 'Invalid value assembly %s' % self.dictValueAssembly
-        super().__init__(Branch(self.itemKeyAssembly).included(), Branch(self.itemValueAssembly).included(),
-                         Target=TargetItem)
+        super().__init__(Branch(self.itemKeyAssembly).included(), Branch(self.itemValueAssembly).included())
 
     def process(self, chain, processingKey, processingValue, decoding:DecodingItem, **keyargs):
         '''

@@ -22,11 +22,11 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
-try: from .. import ally_gateway # @UnusedImport
+try: from .. import ally_gateway  # @UnusedImport
 except ImportError: log.info('No gateway service available, no need to patch it')
 else: 
-    from ..ally_gateway.server import gatewayRouter, server_provide_gateway, GATEWAY_EXTERNAL, GATEWAY_INTERNAL, \
-    updateAssemblyServerForGatewayExternal
+    from ..ally_gateway.server import gatewayRouter, server_provide_gateway, updateAssemblyServerForGatewayExternal
+    from ..ally_gateway.processor import GATEWAY_EXTERNAL, GATEWAY_INTERNAL
     
     @ioc.after(updateAssemblyForward)
     def updateAssemblyForwardForGateway():
@@ -38,7 +38,7 @@ else:
         if server_provide_gateway() == GATEWAY_EXTERNAL and server_provide_assemblage() == ASSEMBLAGE_EXTERNAL:
             assemblyServer().remove(gatewayRouter())
 
-    try: from .. import ally_core_http # @UnusedImport
+    try: from .. import ally_core_http  # @UnusedImport
     except ImportError:
         @ioc.before(assemblyForward)
         def updateAssemblyForwardForGatewayInternal():

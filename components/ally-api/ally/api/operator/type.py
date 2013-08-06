@@ -11,7 +11,7 @@ Provides the operator types.
 
 from ..type import Type, Call, typeFor, TypeClass
 from ally.api.type import Input
-from inspect import ismethod
+from inspect import ismethod, isclass
 
 # --------------------------------------------------------------------
 
@@ -397,3 +397,23 @@ class TypeService(TypeClass):
         
         self.calls = {}
 
+# --------------------------------------------------------------------
+
+def typePropFor(obj, prop):
+    '''
+    Provides the property type of the container object.
+    
+    @param obj: object|class
+        The class or container object to extract the type.
+    @param prop: string
+        The property name to extract the type for.
+    @return: TypeProperty|None
+        The obtained property type or None if there is not type.
+    '''
+    assert isinstance(prop, str), 'Invalid property %s' % prop
+    if isclass(obj): clazz = obj
+    else: clazz = obj.__class__
+    container = typeFor(clazz)
+    if isinstance(container, TypeContainer):
+        assert isinstance(container, TypeContainer)
+        return container.properties.get(prop)

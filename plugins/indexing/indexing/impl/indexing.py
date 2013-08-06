@@ -10,6 +10,7 @@ Provides the implementation for indexing data.
 '''
 
 from ..api.indexing import IIndexingService, Block, Action, Perform
+from ally.api.error import InvalidIdError
 from ally.container import wire
 from ally.container.ioc import injected
 from ally.container.support import setup
@@ -17,9 +18,7 @@ from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Processing
-from ally.exception import InputError
 from ally.indexing.spec import model
-from ally.internationalization import _
 from collections import OrderedDict
 
 # --------------------------------------------------------------------
@@ -70,7 +69,7 @@ class AssemblageMarkerService(IIndexingService):
         assert isinstance(blockId, int), 'Invalid block id %s' % blockId
         self._process()
         block = self._blocksById.get(blockId)
-        if block is None: raise InputError(_('Invalid block id'))
+        if block is None: raise InvalidIdError()
         return block
     
     def getAction(self, actionId):
@@ -80,7 +79,7 @@ class AssemblageMarkerService(IIndexingService):
         assert isinstance(actionId, int), 'Invalid action id %s' % actionId
         self._process()
         action = self._actionsById.get(actionId)
-        if action is None: raise InputError(_('Invalid action id'))
+        if action is None: raise InvalidIdError()
         return action
     
     def getPerform(self, performId):
@@ -90,7 +89,7 @@ class AssemblageMarkerService(IIndexingService):
         assert isinstance(performId, int), 'Invalid perform id %s' % performId
         self._process()
         perform = self._performsById.get(performId)
-        if perform is None: raise InputError(_('Invalid perform id'))
+        if perform is None: raise InvalidIdError()
         return perform
         
     def getBlocks(self):

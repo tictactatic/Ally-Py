@@ -9,10 +9,10 @@ Created on Jul 24, 2013
 Provides the properties of model decoding.
 '''
 
+from ..base import addFailure
 from ally.api.operator.type import TypeProperty, TypeModel
 from ally.api.type import Type
 from ally.container.ioc import injected
-from ally.core.impl.processor.base import FailureTarget, addFailure
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import defines, requires
 from ally.design.processor.branch import Branch
@@ -77,7 +77,7 @@ class PropertyOfModelDecode(HandlerBranching):
     def __init__(self):
         assert isinstance(self.decodePropertyAssembly, Assembly), \
         'Invalid property decode assembly %s' % self.decodePropertyAssembly
-        super().__init__(Branch(self.decodePropertyAssembly).included(), Target=FailureTarget)
+        super().__init__(Branch(self.decodePropertyAssembly).included())
         
     def process(self, chain, processing, decoding:Decoding, **keyargs):
         '''

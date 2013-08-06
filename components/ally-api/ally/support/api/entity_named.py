@@ -6,7 +6,7 @@ Created on May 2, 2012
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
 
-General specifications for the entities API that poses a string Key identifier.
+General specifications for the entities API that poses a string Name identifier.
 '''
 
 from ally.api.config import model, query, service, call
@@ -14,12 +14,12 @@ from ally.api.type import Iter
 
 # --------------------------------------------------------------------
 
-@model(id='Key')
+@model(id='Name')
 class Entity:
     '''
-    Provides the basic container for an entity that has a Key as the identifier.
+    Provides the basic container for an entity that has a Name as the identifier.
     '''
-    Key = str
+    Name = str
 
 # --------------------------------------------------------------------
 
@@ -39,13 +39,12 @@ class IEntityGetService:
     '''
 
     @call
-    def getByKey(self, key:Entity.Key) -> Entity:
+    def getById(self, name:Entity.Name) -> Entity:
         '''
-        Provides the entity based on the key.
+        Provides the entity based on the name.
         
-        @param key: string
-            The key of the entity to find.
-        @raise InputError: If the key is not valid. 
+        @param name: string
+            The name of the entity to find.
         '''
 
 @service
@@ -55,30 +54,29 @@ class IEntityFindService:
     '''
 
     @call
-    def getAll(self, offset:int=None, limit:int=None) -> Iter(Entity):
+    def getAll(self, **options:SliceAndTotal) -> Iter(Entity.Name):
         '''
         Provides the entities.
         
-        @param offset: integer
-            The offset to retrieve the entities from.
-        @param limit: integer
-            The limit of entities to retrieve.
+        @param options: @see: SliceAndTotal
+            The options to fetch the entities with.
         '''
 
 @service
 class IEntityQueryService:
+    '''
+    Provides the entity find service based on a query.
+    '''
 
     @call
-    def getAll(self, offset:int=None, limit:int=None, q:QEntity=None) -> Iter(Entity):
+    def getAll(self, q:QEntity=None, **options:SliceAndTotal) -> Iter(Entity.Name):
         '''
         Provides the entities searched by the provided query.
         
-        @param offset: integer
-            The offset to retrieve the entities from.
-        @param limit: integer
-            The limit of entities to retrieve.
-        @param q: QEntity
+        @param q: QEntity|None
             The query to search by.
+        @param options: @see: SliceAndTotal
+            The options to fetch the entities with.
         '''
 
 @service
@@ -88,19 +86,18 @@ class IEntityCRUDService:
     '''
 
     @call
-    def insert(self, entity:Entity) -> Entity.Key:
+    def insert(self, entity:Entity) -> Entity.Name:
         '''
         Insert the entity.
         
         @param entity: Entity
             The entity to be inserted.
-        
-        @return: The key assigned to the entity
-        @raise InputError: If the entity is not valid. 
+        @return: string
+            The name assigned to the entity
         '''
 
     @call
-    def update(self, entity:Entity) -> None:
+    def update(self, entity:Entity):
         '''
         Update the entity.
         
@@ -109,14 +106,14 @@ class IEntityCRUDService:
         '''
 
     @call
-    def delete(self, key:Entity.Key) -> bool:
+    def delete(self, name:Entity.Name) -> bool:
         '''
         Delete the entity for the provided key.
         
-        @param key: integer
-            The key of the entity to be deleted.
-            
-        @return: True if the delete is successful, false otherwise.
+        @param name: string
+            The name of the entity to be deleted.
+        @return: boolean
+            True if the delete is successful, false otherwise.
         '''
 
 @service

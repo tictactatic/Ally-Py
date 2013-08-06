@@ -10,12 +10,14 @@ Provides the content disposition header decoding.
 '''
 
 from ally.container.ioc import injected
+from ally.core.http.impl.processor.base import ErrorResponseHTTP
 from ally.core.http.spec.headers import CONTENT_DISPOSITION, \
     CONTENT_DISPOSITION_ATTR_FILENAME
+from ally.core.impl.processor.base import addError
 from ally.design.processor.attribute import defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
-from ally.http.spec.codes import HEADER_ERROR, CodedHTTP
+from ally.http.spec.codes import HEADER_ERROR
 from ally.http.spec.headers import HeadersRequire
 
 # --------------------------------------------------------------------
@@ -38,13 +40,12 @@ class RequestContent(Context):
     The content disposition attributes.
     ''')
 
-class Response(CodedHTTP):
+class Response(ErrorResponseHTTP):
     '''
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
     text = defines(str)
-    errorMessage = defines(str)
 
 # --------------------------------------------------------------------
 
@@ -70,8 +71,8 @@ class ContentDispositionDecodeHandler(HandlerProcessor):
                 if response.isSuccess is False: return  # Skip in case the response is in error
                 HEADER_ERROR.set(response)
                 response.text = 'Invalid \'%s\'' % CONTENT_DISPOSITION.name
-                response.errorMessage = 'Invalid value \'%s\' for header \'%s\''\
-                ', expected only one value entry' % (value, CONTENT_DISPOSITION.name)
+                addError('Invalid value \'%(value)s\' for header \'%(header)s\', expected only one value entry',
+                         value=value, header=CONTENT_DISPOSITION.name)
                 return
             value, attributes = value[0]
             requestCnt.disposition = value

@@ -48,17 +48,6 @@ class IRepository(metaclass=abc.ABCMeta):
         @return: set(string)
             The list of allowed methods.
         '''
-    
-    @abc.abstractmethod
-    def obtainCache(self, identifier):
-        '''
-        Obtains the cache dictionary for the provided identifier.
-        
-        @param identifier: object
-            The identifier used for identifying the cache.
-        @return: dictionary{...}
-            The cache dictionary, if none available for the identifier then one will be created.
-        '''
         
 # --------------------------------------------------------------------
 
@@ -103,9 +92,3 @@ class RepositoryJoined(IRepository):
             assert isinstance(repository, IRepository), 'Invalid repository %s' % repository
             allowed.update(repository.allowsFor(headers, uri))
         return allowed
-        
-    def obtainCache(self, identifier):
-        '''
-        @see: IRepository.obtainCache
-        '''
-        return self._repositories[0].obtainCache(identifier)

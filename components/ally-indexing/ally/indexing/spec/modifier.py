@@ -20,36 +20,36 @@ class Content:
     '''
     The content data, this can be extended for additional informations.
     '''
-    __slots__ = ('source', 'encode', 'decode', 'indexes', 'maximum')
+    __slots__ = ('source', 'indexes', 'maximum', 'doEncode', 'doDecode')
     
-    def __init__(self, source, encode=None, decode=None, indexes=None, maximum=1024):
+    def __init__(self, source, indexes=None, maximum=1024, doEncode=None, doDecode=None):
         '''
         Construct the data content with indexes.
         
         @param source: IInputStream
             The source of the content.
-        @param encode: callable(bytes|string) -> bytes|None
-            The encoder that converts from the source encoding or an arbitrary string to the expected encoding.
-        @param decode: callable(bytes) -> string|None
-            The decoder that converts from the response encoding bytes to string.
         @param indexes: list[Index]|None
             The indexes for the stream.
         @param maximum: integer
             The maximum bytes package size.
+        @param doEncode: callable(bytes|string) -> bytes|None
+            The encoder that converts from the source encoding or an arbitrary string to the expected encoding.
+        @param doDecode: callable(bytes) -> string|None
+            The decoder that converts from the response encoding bytes to string.
         '''
         assert isinstance(source, IInputStream), 'Invalid source stream %s' % source
-        assert encode is None or callable(encode), 'Invalid encode %s' % encode
-        assert decode is None or callable(decode), 'Invalid decode %s' % decode
         assert isinstance(maximum, int), 'Invalid maximum %s' % maximum
+        assert doEncode is None or callable(doEncode), 'Invalid do encode %s' % doEncode
+        assert doDecode is None or callable(doDecode), 'Invalid do decode %s' % doDecode
         if __debug__:
             if indexes:
                 assert isinstance(indexes, list), 'Invalid indexes %s' % indexes
                 for index in indexes: assert isinstance(index, Index), 'Invalid index %s' % index
         self.source = ModifierStream(source)
-        self.encode = encode
-        self.decode = decode
         self.indexes = indexes
         self.maximum = maximum
+        self.doEncode = doEncode
+        self.doDecode = doDecode
 
 # --------------------------------------------------------------------
 

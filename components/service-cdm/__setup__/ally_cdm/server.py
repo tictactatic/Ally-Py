@@ -28,9 +28,11 @@ def server_provide_content():
     return True
 
 @ioc.config
-def server_pattern_content():
-    ''' The pattern used for matching the rest content paths in HTTP URL's'''
-    return '^content(?:/|(?=\\.)|$)(.*)'
+def root_uri_content():
+    '''
+    The pattern used for matching the content paths in HTTP URL's
+    '''
+    return 'content'
 
 # --------------------------------------------------------------------
 
@@ -38,7 +40,7 @@ def server_pattern_content():
 def contentRouter() -> Handler:
     b = RoutingByPathHandler()
     b.assembly = assemblyContent()
-    b.pattern = server_pattern_content()
+    b.rootURI = root_uri_content()
     return b
 
 # We need to make sure that if the CDM is deployed with the gateway that the CDM has priority over the gateway.

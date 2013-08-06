@@ -10,7 +10,7 @@ Provides the text base encoder processor handler.
 '''
 
 from ally.container.ioc import injected
-from ally.design.processor.attribute import requires, defines
+from ally.design.processor.attribute import requires, defines, definesIf
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain
 from ally.design.processor.handler import HandlerProcessor
@@ -30,7 +30,7 @@ class Response(Context):
     The response context.
     '''
     # ---------------------------------------------------------------- Defined
-    renderFactory = defines(Callable, doc='''
+    renderFactory = definesIf(Callable, doc='''
     @rtype: callable(Content, markers=None) -> IRender
     The renderer factory to be used for the response content, it receives as the first argument the content to render in
     and as the second argument is an optional one and provides the markers to be used in the rendering indexing, if not
@@ -44,7 +44,7 @@ class Content(Context):
     # ---------------------------------------------------------------- Defined
     source = defines(IInputStream)
     length = defines(int)
-    indexes = defines(list, doc='''
+    indexes = definesIf(list, doc='''
     @rtype: list[Index]
     The indexes list.
     ''')
@@ -70,11 +70,11 @@ class RenderBaseHandler(HandlerProcessor):
     # The dictionary{string:string} containing as a key the content types specific for this encoder and as a value
     # the content type to set on the response, if None will use the key for the content type response.
 
-    def __init__(self, response=Response, responseCnt=ResponseContent, **contexts):
+    def __init__(self, **contexts):
         assert isinstance(self.contentTypes, dict), 'Invalid content types %s' % self.contentTypes
-        super().__init__(response=response, responseCnt=responseCnt, **contexts)
+        super().__init__(**contexts)
 
-    def process(self, chain, response:Context, responseCnt:Context, **keyargs):
+    def process(self, chain, response:Response, responseCnt:ResponseContent, **keyargs):
         '''
         @see: HandlerProcessor.process
         
@@ -93,7 +93,7 @@ class RenderBaseHandler(HandlerProcessor):
                 assert log.debug('Normalized content type \'%s\' to \'%s\'', responseCnt.type, contentType) or True
                 responseCnt.type = contentType
 
-            response.renderFactory = self.renderFactory
+            if Response.renderFactory in response: response.renderFactory = self.renderFactory
             chain.cancel()  # We need to stop the chain if we have been able to provide the encoding
             return True
 

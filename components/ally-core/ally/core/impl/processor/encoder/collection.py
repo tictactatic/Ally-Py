@@ -13,11 +13,12 @@ from .base import RequestEncoder, DefineEncoder, encoderSpecifiers
 from ally.api.operator.type import TypeModel, TypeProperty
 from ally.api.type import Iter
 from ally.container.ioc import injected
+from ally.core.impl.processor.encoder.base import createEncoder
 from ally.core.impl.transform import TransfromWithSpecifiers
 from ally.core.spec.transform import ITransfrom, IRender
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.branch import Branch
-from ally.design.processor.execution import Processing, Abort
+from ally.design.processor.execution import Abort
 from ally.design.processor.handler import HandlerBranching
 from collections import Iterable
 import logging
@@ -50,7 +51,6 @@ class CollectionEncode(HandlerBranching):
         
         Create the collection encoder.
         '''
-        assert isinstance(processing, Processing), 'Invalid processing %s' % processing
         assert isinstance(create, DefineEncoder), 'Invalid create %s' % create
         
         if create.encoder is not None: return 
@@ -73,12 +73,11 @@ class CollectionEncode(HandlerBranching):
             assert isinstance(model, TypeModel), 'Invalid model %s' % model
             name = self.nameMarkedList % model.name
         
-        arg = processing.executeWithAll(create=processing.ctx.create(objType=itemType), **keyargs)
-        assert isinstance(arg.create, RequestEncoder), 'Invalid create item %s' % arg.create
-        if arg.create.encoder is None:
+        encoder = createEncoder(processing, itemType, **keyargs)
+        if encoder is None:
             log.error('Cannot encode collection item %s', itemType)
             raise Abort(create)
-        create.encoder = EncoderCollection(name, arg.create.encoder, encoderSpecifiers(create))
+        create.encoder = EncoderCollection(name, encoder, encoderSpecifiers(create))
 
 # --------------------------------------------------------------------
 

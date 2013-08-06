@@ -9,6 +9,7 @@ Created on Jul 19, 2013
 Provides the invoker decoding.
 '''
 
+from ..decoder.base import ExportingTarget
 from ally.api.type import Input, Type
 from ally.container.ioc import injected
 from ally.design.processor.assembly import Assembly
@@ -16,7 +17,7 @@ from ally.design.processor.attribute import requires, defines
 from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Processing, Abort
-from ally.design.processor.handler import HandlerBranching, export
+from ally.design.processor.handler import HandlerBranching
 from ally.support.util_spec import IDo
 import logging
 
@@ -101,6 +102,9 @@ class Request(Context):
           
 # --------------------------------------------------------------------
 
+decodingExport = ExportingTarget(Target, request=Request)
+# Context export for primitive decode.
+
 @injected
 class DecodingHandler(HandlerBranching):
     '''
@@ -114,8 +118,7 @@ class DecodingHandler(HandlerBranching):
         assert isinstance(self.decodeAssembly, Assembly), 'Invalid decode assembly %s' % self.decodeAssembly
         super().__init__(Branch(self.decodeAssembly).using(create=Create).
                          included(('node', 'Node'), ('invoker', 'Invoker')).included(),
-                         Invoker=Invoker, Target=Target)
-        export(self, request=Request)
+                         Invoker=Invoker)
 
     def process(self, chain, processing, register:Register, Decoding:DecodingRequest, **keyargs):
         '''

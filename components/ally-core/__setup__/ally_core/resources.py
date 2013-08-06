@@ -9,11 +9,13 @@ Created on Nov 24, 2011
 Provides the configurations for the resources.
 '''
 
-from .decode import assemblyDecode
+from .decode import assemblyDecode, assemblyDecodeExport, \
+    updateAssemblyDecodeExport
 from .definition import definitions
 from .encode import assemblyEncode
 from ally.container import ioc
-from ally.core.impl.processor.assembler.decoding import DecodingHandler
+from ally.core.impl.processor.assembler.decoding import DecodingHandler, \
+    decodingExport
 from ally.core.impl.processor.assembler.definition import DefinitionHandler
 from ally.core.impl.processor.assembler.encoding import EncodingHandler
 from ally.core.impl.processor.assembler.injector_assembly import \
@@ -34,6 +36,15 @@ import logging
 # --------------------------------------------------------------------
 
 log = logging.getLogger(__name__)
+
+# --------------------------------------------------------------------
+
+@ioc.entity
+def assemblyAssembler() -> Assembly:
+    '''
+    The assembly containing the handlers to be used in the assembly of invokers into the root node.
+    '''
+    return Assembly('Assemblers')
 
 # --------------------------------------------------------------------
 
@@ -83,20 +94,15 @@ def definition() -> Handler:
 
 # --------------------------------------------------------------------
 
-@ioc.entity
-def assemblyAssembler() -> Assembly:
-    '''
-    The assembly containing the handlers to be used in the assembly of invokers into the root node.
-    '''
-    return Assembly('Assemblers')
-
-# --------------------------------------------------------------------
-
 @ioc.before(assemblyAssembler)
 def updateAssemblyAssembler():
     assemblyAssembler().add(invokerService(), processMethod(), decoding(), encoding(), assemblerContent(),
                             validateSolved(), validateHints(), definition())
 
+@ioc.after(updateAssemblyDecodeExport)
+def updateAssemblyDecodeExportForDecoding():
+    assemblyDecodeExport().add(decodingExport)
+    
 # --------------------------------------------------------------------
 
 @ioc.start(priority=ioc.PRIORITY_FINAL)

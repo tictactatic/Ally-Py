@@ -13,6 +13,7 @@ from .base import RequestEncoderNamed
 from ally.api.operator.type import TypeExtension, TypeProperty
 from ally.api.type import typeFor, Iter
 from ally.container.ioc import injected
+from ally.core.impl.processor.encoder.base import createEncoderNamed
 from ally.core.spec.transform import ITransfrom, ISpecifier, IRender
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import defines, optional
@@ -101,10 +102,9 @@ class AttributesExtension(ISpecifier):
             properties = self.propertiesByType[ext] = []
             for name, prop in ext.properties.items():
                 assert isinstance(prop, TypeProperty), 'Invalid property %s' % prop
-                arg = self.processing.execute(create=self.processing.ctx.create(objType=prop, name=name))
-                assert isinstance(arg.create, RequestEncoderNamed), 'Invalid create property %s' % arg.create
-                if arg.create.encoder is None: log.error('Cannot encode %s of %s', prop, ext)
-                else: properties.append((name, arg.create.encoder))
+                encoder = createEncoderNamed(self.processing, name, prop)
+                if encoder is None: log.error('Cannot encode %s of %s', prop, ext)
+                else: properties.append((name, encoder))
         else: properties = self.propertiesByType[ext]
         
         attributes = specifications.get('attributes')

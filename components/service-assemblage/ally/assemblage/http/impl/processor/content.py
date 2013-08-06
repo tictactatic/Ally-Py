@@ -22,11 +22,11 @@ from ally.http.spec.headers import remove
 from ally.http.spec.server import RequestHTTP, ResponseHTTP, HTTP_GET, \
     ResponseContentHTTP
 from ally.support.util_io import StreamOnIterable, IInputStream
-from collections import Callable, Iterable
-from functools import partial
+from collections import Iterable
 from urllib.parse import urlsplit, parse_qsl
 import codecs
 import logging
+from ally.support.util_spec import IDo
 
 # --------------------------------------------------------------------
 
@@ -53,7 +53,7 @@ class Assemblage(Context):
     @rtype: Content
     The main response content.
     ''')
-    requestHandler = defines(Callable, doc='''
+    doRequest = defines(IDo, doc='''
     @rtype: callable(string, list[tuple(string, string)]) -> Content
     The request handler that takes as arguments the URL and parameters to process the request and returns the content.
     ''')
@@ -75,11 +75,11 @@ class ContentResponse(Context):
     @rtype: IInputStream
     The content input stream source.
     ''')
-    decode = defines(Callable, doc='''
+    doDecode = defines(IDo, doc='''
     @rtype: callable(bytes) -> string
     The decoder that converts from the response encoding bytes to string.
     ''')
-    encode = defines(Callable, doc='''
+    doEncode = defines(IDo, doc='''
     @rtype: callable(bytes|string) -> bytes
     The encoder that converts from the source encoding or an arbitrary string to the expected response encoding.
     ''')
@@ -112,7 +112,8 @@ class ContentHandler(HandlerBranching):
         assert isinstance(self.charSetDefault, str), 'Invalid default character set %s' % self.charSetDefault
         assert isinstance(self.encodingError, str), 'Invalid encoding error %s' % self.encodingError
         assert isinstance(self.innerHeadersRemove, list), 'Invalid inner headers remove %s' % self.innerHeadersRemove
-        super().__init__(Routing(self.assemblyForward).using('request', 'requestCnt', 'response', 'responseCnt'),
+        super().__init__(Routing(self.assemblyForward).using('request', 'requestCnt', 'response', 'responseCnt').
+                         excluded('assemblage', 'Content'),
                          Branch(self.assemblyContent).included('response', 'assemblage', ('content', 'Content')))
 
     def process(self, chain, processingForward, processingContent, request:Request, requestCnt:Context, response:Context,
@@ -157,7 +158,7 @@ class ContentHandler(HandlerBranching):
         if content.charSet: _data.charSet = codecs.lookup(content.charSet).name
         else: _data.charSet = codecs.lookup(self.charSetDefault).name
         assemblage.main = self.populate(_data, content, response, responseCnt)
-        assemblage.requestHandler = partial(self.handler, _data)
+        assemblage.doRequest = self.createRequest(_data)
         del final.arg._data
         
     # --------------------------------------------------------------------
@@ -190,8 +191,8 @@ class ContentHandler(HandlerBranching):
         
         if content.charSet: charSet = codecs.lookup(content.charSet).name
         else: charSet = codecs.lookup(self.charSetDefault).name
-        content.encode = partial(self.encode, data, charSet)
-        content.decode = partial(str, encoding=charSet, errors=self.encodingError)
+        content.doEncode = self.createEncode(data, charSet)
+        content.doDecode = self.createDecode(charSet)
         
         if not isSuccess(response.status):
             content.errorStatus = response.status
@@ -200,70 +201,86 @@ class ContentHandler(HandlerBranching):
         
         return content
             
-    def encode(self, data, charSet, content):
+    def createEncode(self, data, charSet):
         '''
-        Encoder the provided bytes.
+        Create the encoder.
         
         @param data: Data
             The data to use for encode.
         @param charSet: string
             The character set that the bytes are encoded in.
-        @param content: bytes|string
-            The bytes to encode.
-        @return: bytes
-            The encoded bytes.
         '''
         assert isinstance(data, Data), 'Invalid data %s' % data
         assert isinstance(data.assemblage, Assemblage), 'Invalid assemblage %s' % data.assemblage
         assert isinstance(data.charSet, str), 'Invalid assemblage character set %s' % data.charSet
         assert isinstance(charSet, str), 'Invalid character set %s' % charSet
-        
-        if isinstance(content, str): return content.encode(data.charSet, self.encodingError)
-        else:
-            if data.charSet == charSet: return content
-            return str(content, charSet).encode(data.charSet, self.encodingError)
+        def doEncode(content):
+            '''
+            Do encode for the provided bytes.
+            '''
+            if isinstance(content, str): return content.encode(data.charSet, self.encodingError)
+            else:
+                if data.charSet == charSet: return content
+                return str(content, charSet).encode(data.charSet, self.encodingError)
+        return doEncode
     
-    def handler(self, data, url, parameters=None):
+    def createDecode(self, charSet):
         '''
-        Handles the requests.
+        Create the decoder.
+        
+        @param charSet: string
+            The character set that the bytes are encoded in.
+        '''
+        assert isinstance(charSet, str), 'Invalid character set %s' % charSet
+        def doDecode(content):
+            '''
+            Do encode for the provided bytes.
+            '''
+            return str(content, encoding=charSet, errors=self.encodingError)
+        return doDecode
+    
+    def createRequest(self, data):
+        '''
+        Create the requests handler.
         
         @param data: Data
             The data to use for dispatching the request.
-        @param url: string
-            The requested URL.
-        @param parameters: list[tuple(string, string)]|None
-            The list of parameters for the request.
         '''
         assert isinstance(data, Data), 'Invalid data %s' % data
         assert isinstance(data.Content, ContextMetaClass), 'Invalid content class %s' % data.Content
         assert isinstance(data.assemblage, Assemblage), 'Invalid assemblage %s' % data.assemblage
-        assert isinstance(url, str), 'Invalid URL %s' % url
-        assert parameters is None or isinstance(parameters, list), 'Invalid parameters %s' % parameters
-        
-        request = data.Request()
-        assert isinstance(request, RequestHTTP), 'Invalid request %s' % request
-        
-        rurl = urlsplit(url)
-        
-        params = parse_qsl(rurl.query, True, False)
-        if parameters: params.extend(parameters)
-        
-        request.scheme = data.scheme
-        request.method = HTTP_GET
-        request.headers = dict(data.headers)
-        request.uri = rurl.path.lstrip('/')
-        request.parameters = params
-        
-        proc = data.processingForward
-        assert isinstance(proc, Processing), 'Invalid processing %s' % proc
-        argf = proc.executeWithAll(request=request, requestCnt=data.RequestContent(), response=data.Response(),
-                                   responseCnt=data.ResponseContent())
-        
-        proc = data.processingContent
-        assert isinstance(proc, Processing), 'Invalid processing %s' % proc
-        argc = proc.executeWithAll(response=argf.response, assemblage=data.assemblage, content=data.Content())
-                
-        return self.populate(data, argc.content, argf.response, argf.responseCnt)
+        def doRequest(url, parameters=None):
+            '''
+            Do request.
+            '''
+            assert isinstance(url, str), 'Invalid URL %s' % url
+            assert parameters is None or isinstance(parameters, list), 'Invalid parameters %s' % parameters
+            
+            request = data.Request()
+            assert isinstance(request, RequestHTTP), 'Invalid request %s' % request
+            
+            rurl = urlsplit(url)
+            
+            params = parse_qsl(rurl.query, True, False)
+            if parameters: params.extend(parameters)
+            
+            request.scheme = data.scheme
+            request.method = HTTP_GET
+            request.headers = dict(data.headers)
+            request.uri = rurl.path.lstrip('/')
+            request.parameters = params
+            
+            proc = data.processingForward
+            assert isinstance(proc, Processing), 'Invalid processing %s' % proc
+            argf = proc.executeWithAll(request=request, requestCnt=data.RequestContent(), response=data.Response(),
+                                       responseCnt=data.ResponseContent())
+            
+            proc = data.processingContent
+            assert isinstance(proc, Processing), 'Invalid processing %s' % proc
+            argc = proc.executeWithAll(response=argf.response, assemblage=data.assemblage, content=data.Content())
+                    
+            return self.populate(data, argc.content, argf.response, argf.responseCnt)
+        return doRequest
 
 # --------------------------------------------------------------------
 

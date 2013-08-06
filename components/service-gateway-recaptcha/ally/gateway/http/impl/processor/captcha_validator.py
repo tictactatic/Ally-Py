@@ -14,13 +14,12 @@ from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Processing, Chain
-from ally.design.processor.handler import HandlerBranchingProceed
 from ally.design.processor.processor import Using
 from ally.gateway.http.impl.processor import respository
 from ally.gateway.http.spec.gateway import IRepository
 from ally.http.spec.codes import isSuccess, INVALID_AUTHORIZATION
 from ally.http.spec.server import HTTP, RequestHTTP, RequestContentHTTP, \
-    ResponseHTTP, ResponseContentHTTP, HTTP_POST, IDecoderHeader
+    ResponseHTTP, ResponseContentHTTP, HTTP_POST
 from ally.support.util_io import IInputStream
 from collections import Iterable
 from io import BytesIO

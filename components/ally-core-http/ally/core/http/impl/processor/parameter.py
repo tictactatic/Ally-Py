@@ -13,12 +13,14 @@ from ally.container.ioc import injected
 from ally.core.http.impl.processor.base import ErrorResponseHTTP
 from ally.core.http.spec.codes import PARAMETER_ILLEGAL, PARAMETER_INVALID
 from ally.core.impl.processor.base import addError
+from ally.core.impl.processor.decoder.base import importTarget
 from ally.core.spec.resources import Converter
+from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain
-from ally.design.processor.export import Import
-from ally.design.processor.handler import HandlerProcessor
+from ally.design.processor.handler import Handler, push
+from ally.design.processor.processor import Contextual, Using
 from ally.support.util_context import findFirst
 from ally.support.util_spec import IDo
 
@@ -77,23 +79,22 @@ class TargetParameter(Context):
 # --------------------------------------------------------------------
 
 @injected
-class ParameterHandler(HandlerProcessor):
+class ParameterHandler(Handler):
     '''
     Implementation for a processor that provides the transformation of parameters into arguments.
     '''
     
-    importDecoding = Import
-    # The decoding imports to be used for parameters.
+    decodeExportAssembly = Assembly
+    # The decode export assembly.
 
     def __init__(self):
-        assert isinstance(self.importDecoding, Import), 'Invalid import %s' % self.importDecoding
-        super().__init__(Invoker=Invoker, Decoding=Decoding, Definition=Definition)
-        self.importDecoding.useIn(self)
+        Target, arg = importTarget(self.decodeExportAssembly)
+        processor = push(Contextual(self.process), Invoker=Invoker, Decoding=Decoding, Definition=Definition)
+        if arg: push(processor, **arg)
+        super().__init__(Using(processor, Target=Target))
 
     def process(self, chain, request:Request, response:ErrorResponseHTTP, Target:TargetParameter, **keyargs):
         '''
-        @see: HandlerProcessor.process
-        
         Process the parameters into arguments.
         '''
         assert isinstance(chain, Chain), 'Invalid chain %s' % chain

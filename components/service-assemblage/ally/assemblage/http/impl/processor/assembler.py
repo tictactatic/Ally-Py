@@ -19,7 +19,8 @@ from ally.indexing.impl.modifier import iterateModified
 from ally.indexing.spec.modifier import Content, IAlter, IModifier
 from ally.support.util_context import asData
 from ally.support.util_io import IInputStream
-from collections import Callable, Iterable
+from ally.support.util_spec import IDo
+from collections import Iterable
 import logging
 
 # --------------------------------------------------------------------
@@ -56,8 +57,8 @@ class Assemblage(Context):
     '''
     # ---------------------------------------------------------------- Required
     requestNode = requires(RequestNode)
-    requestHandler = requires(Callable)
     main = requires(object)
+    doRequest = requires(IDo)
 
 class ContentModifiable(Context):
     '''
@@ -65,9 +66,9 @@ class ContentModifiable(Context):
     '''
     # ---------------------------------------------------------------- Required
     source = requires(IInputStream)
-    encode = requires(Callable)
-    decode = requires(Callable)
     indexes = requires(list)
+    doEncode = requires(IDo)
+    doDecode = requires(IDo)
     
 class ContentResponse(ContentModifiable):
     '''
@@ -111,7 +112,7 @@ class AssemblerHandler(HandlerProcessor, IAlter):
             chain.cancel()
             return
         
-        content = ContentAssembly(assemblage.requestHandler, assemblage.requestNode, False,
+        content = ContentAssembly(assemblage.doRequest, assemblage.requestNode, False,
                                   maximum=self.maximumPackSize, **asData(assemblage.main, ContentModifiable))
         responseCnt.source = iterateModified(self, self.doProcessors, content, ACTION_STREAM)
         
@@ -141,7 +142,7 @@ class AssemblerHandler(HandlerProcessor, IAlter):
             check = modifier.fetch(ACTION_CHECK_CLOB)
             if not check: return  # Is probably and indexed reference so without requests we continue.
             
-        response = content.requestHandler(reference, bnode.parameters)
+        response = content.doRequest(reference, bnode.parameters)
         assert isinstance(response, ContentResponse), 'Invalid content %s' % response
         if response.errorStatus is not None:
             assert log.debug('Error %s %s for %s', response.errorStatus, response.errorText, reference) or True
@@ -149,7 +150,7 @@ class AssemblerHandler(HandlerProcessor, IAlter):
             modifier.register(ACTION_ERROR_MESSAGE, value=response.errorText)
             return
         
-        icontent = ContentAssembly(content.requestHandler, bnode, True,
+        icontent = ContentAssembly(content.doRequest, bnode, True,
                                    maximum=content.maximum, **asData(response, ContentModifiable))
         modifier.register(ACTION_INJECT, value=icontent)
     
@@ -159,13 +160,13 @@ class ContentAssembly(Content):
     '''
     @see: Content extension to provide additional assemblage information.
     '''
-    __slots__ = ('requestHandler', 'node', 'isTrimmed')
+    __slots__ = ('doRequest', 'node', 'isTrimmed')
     
-    def __init__(self, requestHandler, node, isTrimmed=True, **keyargs):
+    def __init__(self, doRequest, node, isTrimmed=True, **keyargs):
         '''
         Construct the content assembly.
         
-        @param requestHandler: callable
+        @param doRequest: callable
             The request handler.
         @param node: RequestNode
             The requested nodes for the content.
@@ -173,11 +174,11 @@ class ContentAssembly(Content):
             Flag indicating that the content should be trimmed of unrequested blocks.
         @see: Content.__init__
         '''
-        assert callable(requestHandler), 'Invalid request handler %s' % requestHandler
+        assert callable(doRequest), 'Invalid do request handler %s' % doRequest
         assert isinstance(node, RequestNode), 'Invalid node %s' % node
         assert isinstance(isTrimmed, bool), 'Invalid is trimmed flag %s' % isTrimmed
         super().__init__(**keyargs)
         
-        self.requestHandler = requestHandler
+        self.doRequest = doRequest
         self.node = node
         self.isTrimmed = isTrimmed

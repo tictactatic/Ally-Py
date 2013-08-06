@@ -11,13 +11,14 @@ Provides the configurations for the processors used in handling the request.
 
 from ..ally_core.definition import descriptions
 from ..ally_core.processor import converter, invoking, rendering, content, \
-    renderEncoder, converterContent, blockIndexing, errorDefinition, parsing
-from ..ally_core.resources import decoding, injectorAssembly
+    renderEncoder, converterContent, blockIndexing, errorDefinition, parsing, \
+    errorInput
+from ..ally_core.resources import injectorAssembly
 from ..ally_http.processor import acceptRequestDecode, encoderPath, \
     contentLengthDecode, contentLengthEncode, methodOverride, allowEncode, \
     contentTypeRequestDecode, contentTypeResponseEncode, methodOverrideAllow, \
     internalError
-from .decode import publishParameter, publishPath
+from .decode import assemblyDecodeParameterExport, assemblyDecodePathExport
 from ally.container import ioc
 from ally.core.http.impl.processor.content_index import \
     ContentIndexEncodeHandler
@@ -92,7 +93,7 @@ def contentDispositionDecode() -> Handler: return ContentDispositionDecodeHandle
 @ioc.entity
 def methodInvoker() -> Handler:
     b = MethodInvokerHandler()
-    b.importDecoding = publishPath().importFrom(decoding())
+    b.decodeExportAssembly = assemblyDecodePathExport()
     return b
 
 # --------------------------------------------------------------------
@@ -121,7 +122,7 @@ def scheme() -> Handler: return SchemeHandler()
 @ioc.entity
 def parameter() -> Handler:
     b = ParameterHandler()
-    b.importDecoding = publishParameter().importFrom(decoding())
+    b.decodeExportAssembly = assemblyDecodeParameterExport()
     return b
 
 @ioc.entity
@@ -173,19 +174,20 @@ def assemblyBlocks() -> Assembly:
     return Assembly('Blocks')
 
 # --------------------------------------------------------------------
-
+    
 @ioc.before(headersCustom)
 def updateHeadersCustom():
     if allow_method_override(): headersCustom().add(METHOD_OVERRIDE.name)
 
 @ioc.before(assemblyResources)
 def updateAssemblyResources():
-    assemblyResources().add(internalError(), injectorAssembly(), converterPath(), uri(), methodInvoker(),
-                            contentTypeRequestDecode(), contentLengthDecode(), acceptRequestDecode(), converterContent(),
-                            rendering(), multipart(), parsing(),
-                            content(), parameter(), scheme(), invoking(), encoderPath(),
-                            renderEncoder(), status(), errorDefinition(), errorExplain(),
-                            contentIndexEncode(), contentTypeResponseEncode(), contentLengthEncode(), allowEncode()
+    assemblyResources().add(internalError(), injectorAssembly(), converterPath(), uri(),
+                            methodInvoker(), contentTypeRequestDecode(), contentLengthDecode(), acceptRequestDecode(),
+                            converterContent(), rendering(), multipart(),
+                            parsing(), content(), parameter(), scheme(), invoking(),
+                            errorInput(), encoderPath(), renderEncoder(), status(),
+                            errorDefinition(), errorExplain(), contentIndexEncode(), contentTypeResponseEncode(),
+                            contentLengthEncode(), allowEncode()
                             )
     
     if allow_method_override():

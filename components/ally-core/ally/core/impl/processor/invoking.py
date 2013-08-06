@@ -10,16 +10,16 @@ Provides the invoking handler.
 '''
 
 from ally.api.config import GET, INSERT, UPDATE, DELETE
+from ally.api.error import InputError
 from ally.api.type import Input, Call
-from ally.core.impl.processor.base import ErrorResponse, addError
+from ally.core.error import DevelError
 from ally.core.spec.codes import INPUT_ERROR, INSERT_ERROR, INSERT_SUCCESS, \
-    UPDATE_SUCCESS, UPDATE_ERROR, DELETE_SUCCESS, DELETE_ERROR
+    UPDATE_SUCCESS, UPDATE_ERROR, DELETE_SUCCESS, DELETE_ERROR, Coded
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
-from ally.exception import DevelError, InputError
 from ally.support.api.util_service import isModelId
-from collections import Callable
+from ally.support.util_spec import IDo
 import logging
 
 # --------------------------------------------------------------------
@@ -33,12 +33,12 @@ class Invoker(Context):
     The invoker context.
     '''
     # ---------------------------------------------------------------- Required
-    invoke = requires(Callable)
     call = requires(Call)
     method = requires(int)
     inputs = requires(tuple)
     namedArguments = requires(set)
     location = requires(str)
+    doInvoke = requires(IDo)
         
 class Request(Context):
     '''
@@ -48,7 +48,7 @@ class Request(Context):
     invoker = requires(Context)
     arguments = requires(dict)
 
-class Response(ErrorResponse):
+class Response(Coded):
     '''
     The response context.
     '''
@@ -56,6 +56,10 @@ class Response(ErrorResponse):
     obj = defines(object, doc='''
     @rtype: object
     The response object.
+    ''')
+    errorInput = defines(InputError, doc='''
+    @rtype: InputError
+    The input error that occurred while invoking.
     ''')
 
 # --------------------------------------------------------------------
@@ -91,9 +95,9 @@ class InvokingHandler(HandlerProcessor):
 
         invoker = request.invoker
         assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
-        if invoker.invoke is None or invoker.call is None: return  # No invoke to process
+        if invoker.doInvoke is None or invoker.call is None: return  # No invoke to process
         
-        assert callable(invoker.invoke), 'Invalid invoker invoke %s' % invoker.invoke
+        assert isinstance(invoker.doInvoke, IDo), 'Invalid invoker invoke %s' % invoker.doInvoke
         callBack = self.invokeCallBack.get(invoker.method)
         assert callBack is not None, 'Cannot process invoker, at:%s' % invoker.location
         assert isinstance(invoker.call, Call), 'Invalid invoker call %s' % invoker.call
@@ -119,18 +123,16 @@ class InvokingHandler(HandlerProcessor):
             
             if isKeyArg: keyargs[inp.name] = value
             else: args.append(value)
-        
         try:
-            value = invoker.invoke(*args, **keyargs)
+            value = invoker.doInvoke(*args, **keyargs)
             assert log.debug('Successful on calling with arguments %s and key arguments %s, at:%s', invoker,
                              args, keyargs, invoker.location) or True
 
             callBack(invoker, value, response)
         except InputError as e:
             assert isinstance(e, InputError)
-            # TODO: Gabriel: Make a proper error handling.
             INPUT_ERROR.set(response)
-            addError(response, str(e))
+            response.errorInput = e
             assert log.debug('User input exception: %s', e, exc_info=True) or True
 
     # ----------------------------------------------------------------

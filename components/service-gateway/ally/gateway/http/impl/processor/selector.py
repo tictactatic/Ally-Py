@@ -9,22 +9,21 @@ Created on Feb 8, 2013
 Provides the gateway repository selector processor.
 '''
 
-from ally.container.ioc import injected
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
 from ally.gateway.http.spec.gateway import IRepository
 from ally.http.spec.codes import PATH_NOT_FOUND, METHOD_NOT_AVAILABLE, CodedHTTP
+from ally.http.spec.headers import HeadersRequire
 
 # --------------------------------------------------------------------
 
-class Request(Context):
+class Request(HeadersRequire):
     '''
     The request context.
     '''
     # ---------------------------------------------------------------- Required
     method = requires(str)
-    headers = requires(dict)
     uri = requires(str)
     repository = requires(IRepository)
     # ---------------------------------------------------------------- Defined
@@ -39,7 +38,6 @@ class Response(CodedHTTP):
 
 # --------------------------------------------------------------------
 
-@injected
 class GatewaySelectorHandler(HandlerProcessor):
     '''
     Implementation for a handler that provides the gateway repository selector. This handler will pick the appropriate gateway

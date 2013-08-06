@@ -9,7 +9,8 @@ Created on May 26, 2011
 General specifications for the entities API that poses an integer Id identifier.
 '''
 
-from ally.api.config import model, query, service, call, LIMIT_DEFAULT
+from ally.api.config import model, query, service, call
+from ally.api.option import SliceAndTotal # @UnusedImport
 from ally.api.type import Iter
 
 # --------------------------------------------------------------------
@@ -45,7 +46,6 @@ class IEntityGetService:
         
         @param id: integer
             The id of the entity to find.
-        @raise InputError: If the id is not valid. 
         '''
 
 @service
@@ -55,34 +55,29 @@ class IEntityFindService:
     '''
 
     @call
-    def getAll(self, offset:int=None, limit:int=LIMIT_DEFAULT, detailed:bool=True) -> Iter(Entity):
+    def getAll(self, **options:SliceAndTotal) -> Iter(Entity.Id):
         '''
         Provides the entities.
         
-        @param offset: integer
-            The offset to retrieve the entities from.
-        @param limit: integer
-            The limit of entities to retrieve.
-        @param detailed: boolean
-            If true will present the total count, limit and offset for the partially returned collection.
+        @param options: @see: SliceAndTotal
+            The options to fetch the entities with.
         '''
 
 @service
 class IEntityQueryService:
+    '''
+    Provides the entity find service based on a query.
+    '''
 
     @call
-    def getAll(self, offset:int=None, limit:int=LIMIT_DEFAULT, detailed:bool=True, q:QEntity=None) -> Iter(Entity):
+    def getAll(self, q:QEntity=None, **options:SliceAndTotal) -> Iter(Entity.Id):
         '''
         Provides the entities searched by the provided query.
         
-        @param offset: integer
-            The offset to retrieve the entities from.
-        @param limit: integer
-            The limit of entities to retrieve.
-        @param detailed: boolean
-            If true will present the total count, limit and offset for the partially returned collection.
-        @param q: QEntity
+        @param q: QEntity|None
             The query to search by.
+        @param options: @see: SliceAndTotal
+            The options to fetch the entities with.
         '''
 
 @service
@@ -98,9 +93,8 @@ class IEntityCRUDService:
         
         @param entity: Entity
             The entity to be inserted.
-        
-        @return: The id assigned to the entity
-        @raise InputError: If the entity is not valid. 
+        @return: integer
+            The id assigned to the entity
         '''
 
     @call
@@ -119,8 +113,8 @@ class IEntityCRUDService:
         
         @param id: integer
             The id of the entity to be deleted.
-            
-        @return: True if the delete is successful, false otherwise.
+        @return: boolean
+            True if the delete is successful, false otherwise.
         '''
 
 @service

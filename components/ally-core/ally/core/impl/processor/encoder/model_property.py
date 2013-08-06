@@ -9,17 +9,19 @@ Created on Mar 18, 2013
 Provides the model property encoder.
 '''
 
-from .base import RequestEncoderNamed, DefineEncoder, encoderSpecifiers, encoderName
+from .base import RequestEncoderNamed, DefineEncoder, encoderSpecifiers, \
+    encoderName
 from ally.api.operator.type import TypeModel, TypeProperty
 from ally.container.ioc import injected
+from ally.core.impl.index import NAME_BLOCK
+from ally.core.impl.processor.encoder.base import createEncoderNamed
 from ally.core.impl.transform import TransfromWithSpecifiers
 from ally.core.spec.transform import ITransfrom, IRender
-from ally.core.impl.index import NAME_BLOCK
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires
 from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context
-from ally.design.processor.execution import Processing, Abort
+from ally.design.processor.execution import Abort
 from ally.design.processor.handler import HandlerBranching
 import logging
 
@@ -58,7 +60,6 @@ class ModelPropertyEncode(HandlerBranching):
         
         Create the model property encoder.
         '''
-        assert isinstance(processing, Processing), 'Invalid processing %s' % processing
         assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
         assert isinstance(create, DefineEncoder), 'Invalid create %s' % create
         
@@ -73,12 +74,10 @@ class ModelPropertyEncode(HandlerBranching):
         assert isinstance(prop.parent, TypeModel)
         
         if not invoker.hideProperties:
-            arg = processing.executeWithAll(create=processing.ctx.create(objType=prop, name=prop.name), **keyargs)
-            assert isinstance(arg.create, RequestEncoderNamed), 'Invalid create property %s' % arg.create
-            if arg.create.encoder is None:
+            encoder = createEncoderNamed(processing, prop.name, prop, **keyargs)
+            if encoder is None:
                 log.error('Cannot encode %s', prop)
                 raise Abort(create)
-            encoder = arg.create.encoder
         else: encoder = None
         
         create.encoder = EncoderModelProperty(encoderName(create, prop.parent.name), encoder, encoderSpecifiers(create))

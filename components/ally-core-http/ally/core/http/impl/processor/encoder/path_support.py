@@ -10,11 +10,11 @@ Provides the path support.
 '''
 
 from ally.api.operator.type import TypeModel, TypeProperty
-from ally.container.ioc import injected
 from ally.core.spec.transform import ITransfrom
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
+from ally.core.impl.processor.encoder.base import ExportingSupport
 
 # --------------------------------------------------------------------
 
@@ -59,14 +59,16 @@ class Support(Context):
     
 # --------------------------------------------------------------------
 
-@injected
+pathUpdaterSupportEncodeExport = ExportingSupport(Support)
+# The path updater support export.
+
 class PathUpdaterSupportEncode(HandlerProcessor):
     '''
     Implementation for a handler that provides the models paths update when in a collection.
     '''
     
     def __init__(self):
-        super().__init__(Invoker=Invoker, Element=Element, Support=Support)
+        super().__init__(Invoker=Invoker, Element=Element)
         
     def process(self, chain, create:Create, node:Node, **keyargs):
         '''

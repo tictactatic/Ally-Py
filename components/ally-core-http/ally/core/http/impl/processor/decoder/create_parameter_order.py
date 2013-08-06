@@ -12,6 +12,7 @@ Provides the queries ascending and descending order criteria decoding.
 from .create_parameter import Parameter
 from ally.api.type import List, Type
 from ally.container.ioc import injected
+from ally.core.impl.processor.decoder.base import addFailure
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.branch import Branch
@@ -19,7 +20,6 @@ from ally.design.processor.context import Context
 from ally.design.processor.execution import Processing
 from ally.design.processor.handler import HandlerBranching
 from ally.support.util_spec import IDo
-from ally.core.impl.processor.base import FailureTarget, addFailure
 
 # --------------------------------------------------------------------
 
@@ -79,7 +79,7 @@ class CreateParameterOrderDecode(HandlerBranching):
         assert isinstance(self.decodeOrderAssembly, Assembly), \
         'Invalid order decode assembly %s' % self.decodeOrderAssembly
         super().__init__(Branch(self.decodeOrderAssembly).using(parameter=Parameter).
-                         included(('decoding', 'Decoding')).included(), Target=FailureTarget)
+                         included(('decoding', 'Decoding')).included())
         
     def process(self, chain, processing, create:Create, Decoding:DecodingOrder, Definition:DefinitionOrder, **keyargs):
         '''

@@ -9,9 +9,9 @@ Created on Jul 15, 2013
 Provides the list decoding.
 '''
 
+from ..base import addFailure
 from ally.api.type import List, Type
 from ally.container.ioc import injected
-from ally.core.impl.processor.base import FailureTarget, addFailure
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import defines, requires
 from ally.design.processor.branch import Branch
@@ -66,8 +66,8 @@ class ListDecode(HandlerBranching):
     
     def __init__(self):
         assert isinstance(self.listItemAssembly, Assembly), 'Invalid list item assembly %s' % self.listItemAssembly
-        super().__init__(Branch(self.listItemAssembly).included(), Target=FailureTarget)
-
+        super().__init__(Branch(self.listItemAssembly).included())
+        
     def process(self, chain, processing, decoding:Decoding, **keyargs):
         '''
         @see: HandlerBranching.process

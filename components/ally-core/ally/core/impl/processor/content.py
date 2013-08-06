@@ -40,15 +40,16 @@ class Invoker(Context):
     The invoker context.
     '''
     # ---------------------------------------------------------------- Required
-    hasContent = requires(bool)
+    inputContent = requires(Input)
         
 class Request(Context):
     '''
     The request context.
     '''
+    # ---------------------------------------------------------------- Defined
+    arguments = defines(dict)
     # ---------------------------------------------------------------- Required
     invoker = requires(Context)
-    arguments = requires(dict)
 
 class RequestContentData(Context):
     '''
@@ -74,9 +75,9 @@ class InvokerAssembler(Context):
     The invoker context.
     '''
     # ---------------------------------------------------------------- Defined
-    hasContent = defines(bool, doc='''
-    @rtype: boolean
-    Flag indicating that the content argument is required for invoker.
+    inputContent = defines(Input, doc='''
+    @rtype: Input
+    The input that expects the stream content.
     ''')
     solved = defines(set)
     # ---------------------------------------------------------------- Required
@@ -109,14 +110,15 @@ class ContentHandler(HandlerProcessor):
         if request.invoker is None: return  # No invoker to provide the scheme for
         
         assert isinstance(request.invoker, Invoker), 'Invalid invoker %s' % request.invoker
-        if not request.invoker.hasContent: return  # No scheme required
+        if not request.invoker.inputContent: return  # No scheme required
+        assert isinstance(request.invoker.inputContent, Input), 'Invalid input %s' % request.invoker.inputContent
         
         if requestCnt is None or requestCnt.source is None: return CONTENT_EXPECTED.set(response)
         assert isinstance(requestCnt, RequestContent), 'Invalid request content %s' % requestCnt
         assert isinstance(requestCnt.source, IInputStream), 'Invalid request content source %s' % requestCnt.source
         
         if request.arguments is None: request.arguments = {}
-        request.arguments[self.contentType] = ContentData(requestCnt)
+        request.arguments[request.invoker.inputContent.name] = ContentData(requestCnt)
 
 # --------------------------------------------------------------------
 
@@ -158,7 +160,7 @@ class AssemblerContentHandler(HandlerProcessor):
             elif inpContent:
                 if invoker.solved is None: invoker.solved = set()
                 invoker.solved.add(inpContent.name)
-                invoker.hasContent = True
+                invoker.inputContent = True
                 
         if aborted: raise Abort(*aborted)
 

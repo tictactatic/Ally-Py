@@ -224,18 +224,6 @@ class IProcessor:
         @param report: IReport
             The report to be used in the registration process.
         '''
-    
-    def export(self, required, resolvers):
-        '''
-        The processor exports.
-        
-        @param required: object
-            The object identifying the required exports.
-        @param resolvers: dictionary{string: IResolver}
-            The exported resolvers.
-        @return: dictionary{string: IResolver}|None
-            The exported resolvers for the required verb.
-        '''
         
 # --------------------------------------------------------------------
 

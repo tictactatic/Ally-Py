@@ -11,7 +11,7 @@ Provides the primitive properties encoder.
 
 from ally.api.operator.type import TypeProperty
 from ally.api.type import Iter, Type, Dict
-from ally.container.ioc import injected
+from ally.core.impl.processor.encoder.base import ExportingSupport
 from ally.core.spec.resources import Converter
 from ally.core.spec.transform import ITransfrom, IRender
 from ally.design.processor.attribute import requires, defines
@@ -43,14 +43,13 @@ class Support(Context):
     
 # --------------------------------------------------------------------
 
-@injected
+propertyEncodeExport = ExportingSupport(Support)
+# The property support export.
+
 class PropertyEncode(HandlerProcessor):
     '''
     Implementation for a handler that provides the primitive properties values encoding.
     '''
-    
-    def __init__(self):
-        super().__init__(Support=Support)
         
     def process(self, chain, create:Create, **keyargs):
         '''

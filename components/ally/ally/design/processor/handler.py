@@ -13,10 +13,9 @@ from .assembly import Container
 from .branch import Routing
 from .context import Context
 from .execution import Chain
-from .processor import Composite, Contextual, Brancher, Renamer, Processor
-from .resolvers import resolverFor, solve, resolversFor
-from .spec import ContextMetaClass, IProcessor, ProcessorError, IResolver
-from ally.support.util_sys import locationStack
+from .processor import Composite, Contextual, Brancher, Renamer
+from .resolvers import resolverFor
+from .spec import ContextMetaClass, IProcessor, IResolver
 import abc
 
 # --------------------------------------------------------------------
@@ -162,7 +161,7 @@ class RoutingHandler(HandlerBranching):
         '''
         assert isinstance(chain, Chain), 'Invalid chain %s' % chain
         chain.route(processing)
-            
+
 # --------------------------------------------------------------------
 
 def push(container, **contexts):
@@ -195,29 +194,9 @@ def push(container, **contexts):
                     if isinstance(clazz, IResolver): context = clazz
                     else: context = resolverFor(clazz)
                 else: context = context.solve(clazz if isinstance(clazz, IResolver) else resolverFor(clazz))
+        else: context = context if isinstance(context, IResolver) else resolverFor(context)
         
-        assert isinstance(context, (ContextMetaClass, IResolver)), 'Invalid context class %s' % context
-        if name in processor.contexts and processor.contexts[name] is not Context:
-            raise ProcessorError('There is already a context for name \'%s\ in:%s' % (name, locationStack(processor.function)))
-        processor.contexts[name] = context
-    return container
-
-def export(container, **contexts):
-    '''
-    Used in order to indicate the exported contexts.
-    
-    @param handler: Container|Processor
-        The handler or processor to publish the export to.
-    @param contexts: dictionary{string: ContextMetaClass|IResolver}
-        The context classes or resolvers to export.
-    @return: Container|Contextual
-        The same container.
-    '''
-    if isinstance(container, Processor): processor = container
-    elif isinstance(container, Container):
-        assert isinstance(container, Container)
-        assert len(container.processors) == 1, 'Container %s, is required to have only one processor' % container
-        processor = container.processors[0]
-    assert isinstance(processor, Processor), 'Invalid processor %s' % processor
-    solve(processor.exported, resolversFor(contexts))
+        assert isinstance(context, IResolver), 'Invalid context resolver %s' % context
+        if name in processor.contexts: processor.contexts[name] = context.solve(processor.contexts[name])
+        else: processor.contexts[name] = context
     return container
