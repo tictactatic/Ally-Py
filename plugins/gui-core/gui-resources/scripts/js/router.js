@@ -19,6 +19,13 @@ define(['backbone'], function(Backbone) {
             if (!this.hasRoute) {
                 this.hasRoute = Backbone.history.loadUrl();
             }
+        },
+
+        /**
+         * Reload route for current fragment
+         */
+        reload: function() {
+            Backbone.history.loadUrl();
         }
     };
 
