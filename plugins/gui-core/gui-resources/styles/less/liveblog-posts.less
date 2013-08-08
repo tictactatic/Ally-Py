@@ -643,7 +643,7 @@ overrides
 .collabs {
 	bottom: 0;
     padding: 0 12px 30px 0;
-    top: 80px !important;
+    top: 0;
     left:0;
     right:13px;
     z-index:2;
@@ -1719,7 +1719,6 @@ overrides
 	.border-radius(0 0 5px 5px);
 }
 .chainblogs {
-	top: 190px !important;
 	bottom: 0;
 	padding: 0 12px 30px 0;
 	left: 0;
@@ -1727,21 +1726,27 @@ overrides
 	z-index: 2;
 }
 
-.sms-results-holder, .comments-results-holder {
+ .sms-results-holder, .comments-results-holder {
 	position: absolute;
-	top: 150px !important;
+	top: 0px;
 	bottom: 30px;
-	padding: 0 12px 5px 0;
+	padding: 0;
 	left: 0;
-	right: 13px;
+	right: 0px;
 	z-index: 2;
 	overflow: hidden;
 	overflow-y: auto;
+	.alert {
+		margin-top: 0 !important;
+	}
 }
 .comments-results-holder {
-	top: 100px !important;
 	margin-top: 0 !important;
 }
+.sms-results-holder {
+	padding: 0 12px 30px 0;
+}
+
 .ads-header {
 	h4 {
 		margin:6px 0 5px 0;
@@ -1756,12 +1761,12 @@ overrides
 	border-color: #c4e3e9;
 	p {
 		margin-bottom:3px;
-		.feed-info {
-			white-space: nowrap;
-			overflow: hidden;
-			text-overflow: ellipsis;
-			height:21px;
-			margin-bottom:0;
+		&.feed-info {
+			.label {
+				margin-bottom: 3px;
+				display: inline-block;
+				padding-top: 2px;
+			}
 		}
 	}
 	.feed-info .label, .new-results.label {
