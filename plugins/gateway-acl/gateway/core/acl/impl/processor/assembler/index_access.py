@@ -53,6 +53,10 @@ class AccessNode(Context):
     @rtype: string
     The access pattern.
     ''')
+    path = defines(tuple, doc='''
+    @rtype: tuple(string|Context)
+    The access tuple composed of string elements and nodes for user input.
+    ''')
     permissions = defines(dict, doc='''
     @rtype: dictionary{string: Context}
     The access permissions indexed by method.
@@ -105,14 +109,18 @@ class IndexAccessHandler(HandlerProcessor):
                 if register.access is None: register.access = {}
                 if register.accessMethods is None: register.accessMethods = set()
                 
-                pattern = '/'.join(path)
+                pattern = '/'.join(el if isinstance(el, str) else self.propertyMark for el in path)
                 name = '{0:0>8x}'.format(binascii.crc32(pattern.encode(), 0)).upper()
                 
                 access = register.access.get(name)
-                if access is None: access = register.access[name] = Access(pattern=pattern)
-                assert isinstance(access, AccessNode), 'Invalid access %s' % access
-                assert pattern == access.pattern, \
-                'Invalid pattern \'%s\' with pattern \'%s\' for name \'%s\'' % (pattern, access.pattern, name)
+                if access is None: access = register.access[name] = Access(pattern=pattern, path=path)
+                else:
+                    assert isinstance(access, AccessNode), 'Invalid access %s' % access
+                    assert pattern == access.pattern, \
+                    'Invalid pattern \'%s\' with pattern \'%s\' for name \'%s\'' % (pattern, access.pattern, name)
+                    assert path == access.path, \
+                    'Invalid path \'%s\' with path \'%s\' for name \'%s\'' % (path, access.path, name)
+                    
                 if access.permissions is None: access.permissions = {}
                 
                 for method, invoker in node.invokers.items():
@@ -123,4 +131,4 @@ class IndexAccessHandler(HandlerProcessor):
             if node.childByName:
                 for cname, cnode in node.childByName.items(): stack.append((path + (cname,), cnode))
             if node.child:
-                stack.append((path + (self.propertyMark,), node.child))
+                stack.append((path + (node,), node.child))

@@ -13,7 +13,6 @@ from ..plugin.registry import registerService
 from ally.container import support, ioc
 from ally.container.support import nameInEntity
 from ally.design.processor.assembly import Assembly
-from gateway.core.impl.processor.default_gateway import RegisterDefaultGateways
 import re
 
 # --------------------------------------------------------------------
@@ -23,17 +22,17 @@ asPattern = lambda rootURI: '^%s(?:/|(?=\\.)|$)(.*)' % re.escape(rootURI)
 
 # --------------------------------------------------------------------
 
-registerDefaultGateways = support.notCreated  # Just to avoid errors
+registerDefaultGateways = registerMethodOverride = support.notCreated  # Just to avoid errors
 
 SERVICES = 'gateway.api.**.I*Service'
 
-support.createEntitySetup('gateway.impl.**.*', RegisterDefaultGateways)
+support.createEntitySetup('gateway.impl.**.*', 'gateway.core.impl.**.*')
 support.listenToEntities(SERVICES, listeners=registerService)
 support.loadAllEntities(SERVICES)
 
 # --------------------------------------------------------------------
 
-default_gateways = ioc.entityOf(nameInEntity(RegisterDefaultGateways, 'default_gateways'))
+default_gateways = ioc.entityOf(nameInEntity(registerDefaultGateways, 'default_gateways'))
 
 @ioc.config
 def full_access_ips():
@@ -54,7 +53,7 @@ def assemblyAnonymousGateways() -> Assembly:
 
 @ioc.before(assemblyAnonymousGateways)
 def updateAssemblyAnonymousGateways():
-    assemblyAnonymousGateways().add(registerDefaultGateways())
+    assemblyAnonymousGateways().add(registerDefaultGateways(), registerMethodOverride())
     
 @ioc.before(default_gateways)
 def updateDefaultGatewaysForFullAccess():

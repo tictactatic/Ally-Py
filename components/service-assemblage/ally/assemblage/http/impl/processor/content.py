@@ -14,8 +14,7 @@ from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.branch import Routing, Branch
 from ally.design.processor.context import Context
-from ally.design.processor.execution import Chain, Processing, Execution, \
-    FILL_ALL
+from ally.design.processor.execution import Chain, Processing, Execution
 from ally.design.processor.handler import HandlerBranching
 from ally.design.processor.spec import ContextMetaClass
 from ally.http.spec.codes import isSuccess
@@ -42,6 +41,7 @@ class Request(Context):
     The request context.
     '''
     # ---------------------------------------------------------------- Required
+    clientIP = requires(str)
     scheme = requires(str)
     headers = requires(dict)
     
@@ -113,7 +113,7 @@ class ContentHandler(HandlerBranching):
         assert isinstance(self.charSetDefault, str), 'Invalid default character set %s' % self.charSetDefault
         assert isinstance(self.encodingError, str), 'Invalid encoding error %s' % self.encodingError
         assert isinstance(self.innerHeadersRemove, list), 'Invalid inner headers remove %s' % self.innerHeadersRemove
-        super().__init__(Routing(self.assemblyForward).using('request', 'requestCnt', 'response', 'responseCnt').
+        super().__init__(Routing(self.assemblyForward).using('requestCnt', 'response', 'responseCnt', request=RequestHTTP).
                          excluded('assemblage', 'Content'),
                          Branch(self.assemblyContent).included('response', 'assemblage', ('content', 'Content')))
 
@@ -132,12 +132,13 @@ class ContentHandler(HandlerBranching):
         assert issubclass(Content, ContentResponse), 'Invalid content class %s' % Content
         
         data = Data()
+        data.keyargs = keyargs
         data.assemblage = assemblage
         data.processingForward, data.processingContent = processingForward, processingContent
         data.Request, data.RequestContent = request.__class__, requestCnt.__class__
         data.Response, data.ResponseContent = response.__class__, responseCnt.__class__
         data.Content = Content
-        data.scheme, data.headers = request.scheme, dict(request.headers)
+        data.clientIP, data.scheme, data.headers = request.clientIP, request.scheme, dict(request.headers)
         
         remove(data.headers, self.innerHeadersRemove)
         
@@ -265,20 +266,18 @@ class ContentHandler(HandlerBranching):
             params = parse_qsl(rurl.query, True, False)
             if parameters: params.extend(parameters)
             
-            request.scheme = data.scheme
-            request.method = HTTP_GET
+            request.clientIP, request.scheme, request.method = data.clientIP, data.scheme, HTTP_GET
             request.headers = dict(data.headers)
-            request.uri = rurl.path.lstrip('/')
-            request.parameters = params
+            request.uri, request.parameters = rurl.path.lstrip('/'), params
             
             proc = data.processingForward
             assert isinstance(proc, Processing), 'Invalid processing %s' % proc
-            argf = proc.execute(FILL_ALL, request=request, requestCnt=data.RequestContent(), response=data.Response(),
-                                responseCnt=data.ResponseContent())
+            argf = proc.execute(request=request, requestCnt=data.RequestContent(), response=data.Response(),
+                                responseCnt=data.ResponseContent(), **data.keyargs)
             
             proc = data.processingContent
             assert isinstance(proc, Processing), 'Invalid processing %s' % proc
-            argc = proc.execute(FILL_ALL, response=argf.response, assemblage=data.assemblage, content=data.Content())
+            argc = proc.execute(response=argf.response, assemblage=data.assemblage, content=data.Content())
                     
             return self.populate(data, argc.content, argf.response, argf.responseCnt)
         return doRequest
@@ -289,10 +288,11 @@ class Data:
     '''
     The data container used in processing.
     '''
-    __slots__ = ('assemblage', 'processingForward', 'processingContent', 'Response', 'ResponseContent', 'Request',
-                 'RequestContent', 'Content', 'scheme', 'headers', 'charSet')
+    __slots__ = ('keyargs', 'assemblage', 'processingForward', 'processingContent', 'Response', 'ResponseContent', 'Request',
+                 'RequestContent', 'Content', 'clientIP', 'scheme', 'headers', 'charSet')
     if False:
         # Just for auto complete.
+        keyargs = dict  # The chain key arguments in which the request is handled
         assemblage = Assemblage  # The assemblage containing data to use for content populating.
         processingForward = Processing  # The processing used for solving the request.
         processingContent = Processing  # The assembly to be used in handling the content.
@@ -301,6 +301,7 @@ class Data:
         Request = ContextMetaClass  # The request context.
         RequestContent = ContextMetaClass  # The request content context.
         Content = ContextMetaClass  # The content context class used in constructing the returned objects.
+        clientIP = str  # The client IP used for inner requests.
         scheme = str  # The scheme used for inner requests.
         headers = dict  # The headers to be used for inner requests.
         charSet = str  # The character set that the response need to be encoded in.

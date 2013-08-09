@@ -61,8 +61,7 @@ class ProcessGroup(HandlerProcessor):
     acl_groups = {
               'Anonymous': 'This group contains the services that can be accessed by anyone',
               }; wire.config('acl_groups', doc='''
-    The allow access pattern place holders that are placed where a identifier is expected. 
-    ''')
+    The allow access pattern place holders that are placed where a identifier is expected.''')
     
     def __init__(self):
         assert isinstance(self.acl_groups, dict), 'Invalid acl groups %s' % self.acl_groups
