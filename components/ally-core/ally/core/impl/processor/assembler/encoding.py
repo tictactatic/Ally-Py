@@ -16,7 +16,7 @@ from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context
-from ally.design.processor.execution import Processing, Abort
+from ally.design.processor.execution import Processing, Abort, FILL_ALL
 from ally.design.processor.handler import HandlerBranching
 from ally.support.api.util_service import isModelId
 import logging
@@ -96,6 +96,7 @@ class EncodingHandler(HandlerBranching):
         aborted = []
         for invoker in register.invokers:
             assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
+            assert invoker.node, 'Invalid invoker %s with no node' % invoker
             
             if invoker.invokerGet:
                 if invoker.isCollection:
@@ -104,8 +105,8 @@ class EncodingHandler(HandlerBranching):
                     invoker.hideProperties = True
                 elif isModelId(invoker.output): invoker.hideProperties = True
             
-            try: arg = processing.executeWithAll(create=processing.ctx.create(objType=invoker.output),
-                                                 node=invoker.node, invoker=invoker, **keyargs)
+            try: arg = processing.execute(FILL_ALL, create=processing.ctx.create(objType=invoker.output),
+                                          node=invoker.node, invoker=invoker, **keyargs)
             except Abort:
                 log.error('Cannot use because cannot create encoder for %s, at:%s', invoker.output, invoker.location)
                 aborted.append(invoker)

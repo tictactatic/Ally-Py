@@ -18,6 +18,8 @@ from ally.api.type import List, Iter, Dict
 class Gateway:
     '''
     Provides the gateway data.
+        Clients -   contains the client IPs or names regexes that needs to match in order to validate the gateway, if
+                    none is provided then the gateway applies to all.
         Pattern -   contains the regex that needs to match with the requested URI. The pattern needs to produce, if is the
                     case, capturing groups that can be used by the Filters or Navigate.
         Headers -   The headers to be filtered in order to validate the navigation. The headers are provided as regexes that
@@ -45,6 +47,7 @@ class Gateway:
                     for navigate URI, the parameters will be appended to the actual parameters.
         PutHeaders -The headers to be put on the forwarded requests.
     '''
+    Clients = List(str)
     Pattern = str
     Headers = List(str)
     Methods = List(str)

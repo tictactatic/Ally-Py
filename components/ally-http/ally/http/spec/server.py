@@ -35,6 +35,10 @@ class RequestHTTP(Context):
     Context for HTTP request data. 
     '''
     # ---------------------------------------------------------------- Defined
+    clientIP = definesIf(str, doc='''
+    @rtype: string
+    The client IP that made the request.
+    ''')
     scheme = defines(str, doc='''
     @rtype: string
     The scheme URI protocol name to be used for the response.

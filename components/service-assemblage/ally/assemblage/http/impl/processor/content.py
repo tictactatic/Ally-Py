@@ -14,7 +14,8 @@ from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.branch import Routing, Branch
 from ally.design.processor.context import Context
-from ally.design.processor.execution import Chain, Processing, Execution
+from ally.design.processor.execution import Chain, Processing, Execution, \
+    FILL_ALL
 from ally.design.processor.handler import HandlerBranching
 from ally.design.processor.spec import ContextMetaClass
 from ally.http.spec.codes import isSuccess
@@ -22,11 +23,11 @@ from ally.http.spec.headers import remove
 from ally.http.spec.server import RequestHTTP, ResponseHTTP, HTTP_GET, \
     ResponseContentHTTP
 from ally.support.util_io import StreamOnIterable, IInputStream
+from ally.support.util_spec import IDo
 from collections import Iterable
 from urllib.parse import urlsplit, parse_qsl
 import codecs
 import logging
-from ally.support.util_spec import IDo
 
 # --------------------------------------------------------------------
 
@@ -272,12 +273,12 @@ class ContentHandler(HandlerBranching):
             
             proc = data.processingForward
             assert isinstance(proc, Processing), 'Invalid processing %s' % proc
-            argf = proc.executeWithAll(request=request, requestCnt=data.RequestContent(), response=data.Response(),
-                                       responseCnt=data.ResponseContent())
+            argf = proc.execute(FILL_ALL, request=request, requestCnt=data.RequestContent(), response=data.Response(),
+                                responseCnt=data.ResponseContent())
             
             proc = data.processingContent
             assert isinstance(proc, Processing), 'Invalid processing %s' % proc
-            argc = proc.executeWithAll(response=argf.response, assemblage=data.assemblage, content=data.Content())
+            argc = proc.execute(FILL_ALL, response=argf.response, assemblage=data.assemblage, content=data.Content())
                     
             return self.populate(data, argc.content, argf.response, argf.responseCnt)
         return doRequest

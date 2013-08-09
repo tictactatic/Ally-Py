@@ -27,6 +27,7 @@ class Register(Context):
     The register context.
     '''
     # ---------------------------------------------------------------- Required
+    invokers = requires(list)
     exclude = requires(set)
     nodes = requires(list)
     hintsCall = requires(dict)
@@ -35,9 +36,22 @@ class Invoker(Context):
     '''
     The invoker context.
     '''
+    # ---------------------------------------------------------------- Defined
+    node = defines(Context, doc='''
+    @rtype: Context
+    The invoker node.
+    ''')
     # ---------------------------------------------------------------- Required
+    path = requires(list)
     location = requires(str)
-    
+
+class Element(Context):
+    '''
+    The element context.
+    '''
+    # ---------------------------------------------------------------- Required
+    name = requires(str)
+       
 class Node(Context):
     '''
     The node context.
@@ -56,7 +70,7 @@ class ConflictResolveHandler(HandlerProcessor):
     '''
     
     def __init__(self):
-        super().__init__(Node=Node, Invoker=Invoker)
+        super().__init__(Invoker=Invoker, Element=Element, Node=Node)
 
     def process(self, chain, register:Register, **keyargs):
         '''
@@ -78,18 +92,21 @@ class ConflictResolveHandler(HandlerProcessor):
                 if not invokers: continue
                 assert isinstance(invokers, list), 'Invalid invokers %s' % invokers
                 if len(invokers) > 1:
-                    locations = []
+                    locations, address = [], None
                     for invoker in invokers:
                         assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
+                        if address is None and invoker.path: address = '/'.join(el.name or '*' for el in invoker.path)
                         locations.append(invoker.location)
                     aborted.extend(invokers)
                     
                     if reported.isdisjoint(locations):
-                        log.error('Cannot use invokers because they have the same web address, at:%s', ''.join(locations))
+                        log.error('Cannot use invokers because they have the same web address \'%s\', at:%s',
+                                  address, ''.join(locations))
                         reported.update(locations)
                 else:
                     if node.invokers is None: node.invokers = {}
                     node.invokers[methodHTTP] = invokers[0]
+                    invokers[0].node = node
                     
         if aborted and register.hintsCall:
             available = []
@@ -97,3 +114,4 @@ class ConflictResolveHandler(HandlerProcessor):
                 available.append('\t%s: %s' % (hname, register.hintsCall[hname]))
             log.error('In order to make the invokers available please use one of the call hints:\n%s', '\n'.join(available))
             raise Abort(*aborted)
+        

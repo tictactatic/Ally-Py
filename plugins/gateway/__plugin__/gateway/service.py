@@ -35,6 +35,14 @@ support.loadAllEntities(SERVICES)
 
 default_gateways = ioc.entityOf(nameInEntity(RegisterDefaultGateways, 'default_gateways'))
 
+@ioc.config
+def full_access_ips():
+    '''
+    A list that contains the IPs that have full unrestricted access to the REST server.
+    The IP can be provided as: 127.0.0.1 or 127.*.*.*
+    '''
+    return []
+
 # --------------------------------------------------------------------
 
 @ioc.entity
@@ -47,3 +55,15 @@ def assemblyAnonymousGateways() -> Assembly:
 @ioc.before(assemblyAnonymousGateways)
 def updateAssemblyAnonymousGateways():
     assemblyAnonymousGateways().add(registerDefaultGateways())
+    
+@ioc.before(default_gateways)
+def updateDefaultGatewaysForFullAccess():
+    ips = []
+    for ip in full_access_ips():
+        ip = '\.'.join(mark.replace('*', '\d+') for mark in ip.split('.'))
+        ips.append(ip)
+    if ips:
+        default_gateways().append({
+                                   'Clients': ips,
+                                   'Pattern': '(.*)',
+                                   })

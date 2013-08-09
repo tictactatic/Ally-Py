@@ -11,7 +11,7 @@ directly related to a node.
 '''
 
 from ally.api.operator.extract import inheritedTypesFrom
-from ally.api.operator.type import TypeModel
+from ally.api.operator.type import TypeModel, TypeProperty
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
@@ -34,8 +34,15 @@ class Invoker(Context):
     # ---------------------------------------------------------------- Required
     node = requires(Context)
     target = requires(TypeModel)
-    isCollection = requires(bool)
     isModel = requires(bool)
+    path = requires(list)
+    
+class Element(Context):
+    '''
+    The element context.
+    '''
+    # ---------------------------------------------------------------- Required
+    property = requires(TypeProperty)
 
 class Node(Context):
     '''
@@ -44,6 +51,7 @@ class Node(Context):
     # ---------------------------------------------------------------- Required
     invokers = requires(dict)
     invokersGet = requires(dict)
+    child = requires(Context)
     childByName = requires(dict)
     # ---------------------------------------------------------------- Defined
     invokersAccessible = defines(list, doc='''
@@ -59,7 +67,7 @@ class PathGetAccesibleHandler(HandlerProcessor):
     '''
     
     def __init__(self):
-        super().__init__(Invoker=Invoker, Node=Node)
+        super().__init__(Invoker=Invoker, Element=Element, Node=Node)
 
     def process(self, chain, register:Register, **keyargs):
         '''
@@ -70,67 +78,79 @@ class PathGetAccesibleHandler(HandlerProcessor):
         assert isinstance(register, Register), 'Invalid register %s' % register
         if not register.nodes: return  # No nodes to process
         
-        # We find first the direct accessible paths
-        stack = deque()
         for current in register.nodes:
             assert isinstance(current, Node), 'Invalid node %s' % current
-            
-            self.pushAvailable('', current, stack)
-            if not stack: continue
-            
-            if current.invokersAccessible is None: current.invokersAccessible = []
-            while stack:
-                name, node = stack.popleft()
-                assert isinstance(node, Node)
+        
+            for name, node in self.iterAvailable(current):
                 if node.invokers and HTTP_GET in node.invokers:
+                    if current.invokersAccessible is None: current.invokersAccessible = []
                     current.invokersAccessible.append((name, node.invokers[HTTP_GET]))
-                
-                self.pushAvailable(name, node, stack)
-
+           
     # ----------------------------------------------------------------
     
-    def pushAvailable(self, name, node, stack):
+    def iterAvailable(self, node):
         '''
-        Pushes the available nodes to the provided stack.
+        Iterates all the available nodes for node.
         '''
-        assert isinstance(name, str), 'Invalid name %s' % name
         assert isinstance(node, Node), 'Invalid node %s' % node
-        assert isinstance(stack, deque), 'Invalid stack %s' % stack
-        
-        if node.childByName: stack.extend((''.join((name, cname)), cnode) for cname, cnode in node.childByName.items())
-        
-        if not node.invokers or not node.invokersGet: return
-        
-        invoker = node.invokers.get(HTTP_GET)
-        if not invoker: return
-        assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
-    
-        if not invoker.isCollection and invoker.isModel and invoker.target:
-            assert isinstance(invoker.target, TypeModel), 'Invalid target %s' % invoker.target
+        target = None
+        if node.invokers and HTTP_GET in node.invokers:
+            invoker = node.invokers[HTTP_GET]
+            assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
+            if invoker.isModel and invoker.target: target = invoker.target
             
-            self.pushAvailableForProperties(name, node, invoker.target, stack)
-                
-            for parent in inheritedTypesFrom(invoker.target.clazz, TypeModel):
+        if target:
+            for cname, cnode in self.iterTarget('', node, target): yield cname, cnode
+        
+        for cname, cnode in self.iterChildByName('', node):
+            yield cname, cnode
+            if target:
+                for cname, cnode in self.iterTarget(cname, cnode, target): yield cname, cnode
+        
+        if target and node.invokersGet:
+            for parent in inheritedTypesFrom(target.clazz, TypeModel):
                 assert isinstance(parent, TypeModel), 'Invalid parent %s' % parent
                 if not parent.propertyId: continue
-                nodeParent = node.invokersGet.get(parent.propertyId)
-                if nodeParent: self.pushAvailableForProperties(name, nodeParent, parent, stack)
+                propInvoker = node.invokersGet.get(parent.propertyId)
+                if propInvoker and propInvoker.node:
+                    assert isinstance(propInvoker, Invoker), 'Invalid invoker %s' % propInvoker
+                    for cname, cnode in self.iterTarget('', propInvoker.node, parent): yield cname, cnode
     
-    def pushAvailableForProperties(self, name, node, model, stack):
+    def iterTarget(self, name, node, target):
         '''
-        Pushes the available nodes based on paths found by properties.
+        Iterates all the nodes that are made available by properties in the target.
+        '''
+        assert isinstance(target, TypeModel), 'Invalid target model %s' % target
+        assert isinstance(node, Node), 'Invalid node %s' % node
+        if not node.child: return
+        assert isinstance(node.child, Node), 'Invalid node %s' % node.child
+        for cname, cnode in self.iterChildByName(name, node.child):
+            assert isinstance(cnode, Node), 'Invalid node %s' % cnode
+            if not cnode.invokers or not HTTP_GET in cnode.invokers: continue
+            invoker = cnode.invokers[HTTP_GET]
+            assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
+            for el in reversed(invoker.path):
+                assert isinstance(el, Element), 'Invalid element %s' % el
+                if el.property:
+                    assert isinstance(el.property, TypeProperty), 'Invalid property %s' % el.property
+                    if el.property.parent == target and el.property.name in target.properties:
+                        yield cname, cnode
+                        for cname, cnode in self.iterChildByName(cname, cnode): yield cname, cnode
+                    break
+    
+    def iterChildByName(self, name, node):
+        '''
+        Iterates all the nodes that are directly available under the child by name attribute in the node.
         '''
         assert isinstance(name, str), 'Invalid name %s' % name
-        assert isinstance(node, Node), 'Invalid node %s' % node
-        assert isinstance(model, TypeModel), 'Invalid model %s' % model
-        assert isinstance(stack, deque), 'Invalid stack %s' % stack
-        
-        for prop in model.properties.values():
-            invokerByProp = node.invokersGet.get(prop)
-            if not invokerByProp: continue
-            assert isinstance(invokerByProp, Invoker), 'Invalid invoker %s' % invokerByProp
-            if not invokerByProp.node or invokerByProp.node == node: continue
-            assert isinstance(invokerByProp.node, Node), 'Invalid node %s' % invokerByProp.node
-            if not invokerByProp.node.childByName: continue
-            stack.extend((''.join((name, cname)), cnode) for cname, cnode in invokerByProp.node.childByName.items())
+        stack = deque()
+        stack.append((name, node))
+        while stack:
+            name, node = stack.popleft()
+            assert isinstance(node, Node), 'Invalid node %s' % node
+            if not node.childByName: continue
+            for cname, cnode in node.childByName.items():
+                cname = ''.join((name, cname))
+                yield cname, cnode
+                stack.append((cname, cnode))
             

@@ -12,7 +12,7 @@ thread serving requests one at a time).
 
 from ally.container.ioc import injected
 from ally.design.processor.assembly import Assembly
-from ally.design.processor.execution import Processing
+from ally.design.processor.execution import Processing, FILL_ALL
 from ally.http.spec.server import RequestHTTP, ResponseHTTP, RequestContentHTTP, \
     ResponseContentHTTP, HTTP_GET, HTTP_POST, HTTP_PUT, HTTP_DELETE, HTTP_OPTIONS, \
     HTTP
@@ -83,6 +83,7 @@ class RequestHandler(BaseHTTPRequestHandler):
         assert isinstance(request, RequestHTTP), 'Invalid request %s' % request
         assert isinstance(requestCnt, RequestContentHTTP), 'Invalid request content %s' % requestCnt
         
+        if RequestHTTP.clientIP in request: request.clientIP = self.client_address[0]
         url = urlparse(self.path)
         request.scheme, request.method = HTTP, method.upper()
         request.uri = url.path.lstrip('/')
@@ -91,7 +92,7 @@ class RequestHandler(BaseHTTPRequestHandler):
         
         if RequestContentHTTP.source in requestCnt: requestCnt.source = keepOpen(self.rfile)
 
-        arg = proc.executeWithAll(request=request, requestCnt=requestCnt)
+        arg = proc.execute(FILL_ALL, request=request, requestCnt=requestCnt)
         response, responseCnt = arg.response, arg.responseCnt
         assert isinstance(response, ResponseHTTP), 'Invalid response %s' % response
         assert isinstance(responseCnt, ResponseContentHTTP), 'Invalid response content %s' % responseCnt

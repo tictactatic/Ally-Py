@@ -19,9 +19,19 @@ import logging
 
 log = logging.getLogger(__name__)
 
-CONSUMED = 1 << 1  # Flag indicating if the chain is consumed.
-CANCELED = 1 << 2  # Flag indicating if the chain is canceled.
-EXCEPTION = 1 << 3  # Flag indicating if the chain is in exception.
+CONSUMED = 'chain consumed'  # Flag indicating if the chain is consumed.
+CANCELED = 'chain canceled'  # Flag indicating if the chain is canceled.
+EXCEPTION = 'exception in chain'  # Flag indicating if the chain is in exception.
+FLAGS_STATUS = frozenset((CONSUMED, CANCELED, EXCEPTION))  # All the status flags.
+
+FILL_CLASSES = 'fill in chain classes' 
+# Flag indicating if the chain should fill in the classes, is done only if the context name start with a capital letter
+# then the class is provided as a value
+FILL_VALUES = 'fill in chain values' 
+# Flag indicating if the chain should fill in the values, is done only if the context names starts with a lower case
+# then an instance is created for the class and used as a value.
+FILL_ALL = 'fill all in chain'  # Flag indicating if the chain should fill in the values and classes.
+FLAGS_FILL = frozenset((FILL_CLASSES, FILL_VALUES, FILL_ALL))  # All the fill flags.
 
 # --------------------------------------------------------------------
 
@@ -127,52 +137,18 @@ class Processing:
         '''
         Executes the processing in a chain with the provided arguments.
         
-        @param flags: arguments[integer]
+        @param flags: arguments[string]
             The flags to associate the execution with.
         @param keyargs: key arguments
             The key arguments that will be processed.
         @return: object|tuple(boolean, object)
-            The chain processed arguments, if any flag is provided it will return the execution status
+            The chain processed arguments, if any status flag is provided it will return the execution status
             and the processed arguments
         '''
-        chain = Chain(self, False, **keyargs)
-        if flags:
-            combined = 0
-            for flag in flags:
-                assert isinstance(flag, int), 'Invalid flag %s' % flag
-                combined |= flag
-            ret = chain.execute(combined)
+        chain = Chain(self, *flags, **keyargs)
+        if not FLAGS_STATUS.isdisjoint(flags):
+            ret = chain.execute(*flags)
             return ret, chain.arg
-
-        chain.execute()
-        return chain.arg
-    
-    def executeWithAll(self, *flags, **keyargs):
-        '''
-        Executes the processing in a chain with the provided arguments and automatically fills in the arguments that are not
-        provided but required by the processing.
-        The provided arguments with the rest of the contexts that the processing has. The fill in 
-        process is done when a context name is not present in the provided arguments, the value added is being as follows:
-            - if the context name start with a capital letter then the class is provided as a value
-            - if the context names starts with a lower case then an instance is created for the class and used as a value.
-        
-        @param flags: arguments[integer]
-            The flags to associate the execution with.
-        @param keyargs: key arguments
-            The key arguments that will be processed.
-        @return: object|tuple(boolean, object)
-            The chain processed arguments, if any flag is provided it will return the execution status
-            and the processed arguments
-        '''
-        chain = Chain(self, True, **keyargs)
-        if flags:
-            combined = 0
-            for flag in flags:
-                assert isinstance(flag, int), 'Invalid flag %s' % flag
-                combined |= flag
-            ret = chain.execute(combined)
-            return ret, chain.arg
-        
         chain.execute()
         return chain.arg
     
@@ -228,7 +204,7 @@ class Execution:
         '''
         self._calls = deque()
         self.arg = Execution.Arg() if arg is None else arg
-        self._status = 0
+        self._status = None
 
         if isinstance(processing, Processing):
             assert isinstance(processing, Processing)
@@ -255,7 +231,7 @@ class Execution:
         @return: this execution
             This execution for chaining purposes.
         '''
-        assert self._status == 0, 'Execution cannot process'
+        assert self._status is None, 'Execution cannot process'
         for arg in itertools.chain(args, (keyargs,)):
             if isinstance(arg, Execution.Arg): arg = arg.__dict__
             assert isinstance(arg, dict), 'Invalid argument %s' % arg
@@ -273,7 +249,7 @@ class Execution:
             if self._calls[0].do(): return True
             self._calls.popleft()
         
-        if self._calls and self._status == 0:
+        if self._calls and self._status is None:
             call = self._calls.popleft()
             assert log.debug('Processing %s', call) or True
             try: call(self, **self.arg.__dict__)
@@ -288,28 +264,27 @@ class Execution:
                 raise
             assert log.debug('Processing finalized \'%s\'', call) or True
             
-        if self._status == 0:
+        if self._status is None:
             if self._calls: return True
             self._status = CONSUMED
         if self._handleFinalization(): return True
         return False
     
-    def execute(self, flag=None):
+    def execute(self, *flags):
         '''
         Executes the remaining processes using and returns True for the provided flags, otherwise return False.
         
-        @param flag: integer|None
-            Flag dictating when this method should return True.
+        @param flags: arguments[string]
+            Flags dictating when this method should return True.
         @return: boolean
             False if if one of the provided flags matches the execution, True otherwise.
         '''
-        assert self._status == 0, 'Execution cannot process'
-        assert flag is None or isinstance(flag, int), 'Invalid flag %s' % flag
+        assert self._status is None, 'Execution cannot process'
         
         while True:
             if not self.do(): break
             
-        if flag and self._status & flag: return True
+        if flags and self._status in flags: return True
         return False
     
     # ----------------------------------------------------------------
@@ -342,13 +317,13 @@ class Chain(Execution):
     '''
     __slots__ = ('_errors', '_finalizers')
 
-    def __init__(self, processing, fillIn, **keyargs):
+    def __init__(self, processing, *fill, **keyargs):
         '''
         Initializes the chain with the processing to be executed.
         @see: Execution.__init__
         
-        @param fillIn: boolean
-            If True updates the provided arguments with the rest of the contexts that the processing has. The fill in 
+        @param fill: arguments[string]
+            The fill in flags indicating the chain fill in. The fill in 
             process is done when a context name is not present in the provided arguments, the value added is being as follows:
                 - if the context name start with a capital letter then the class is provided as a value
                 - if the context names starts with a lower case then an instance is created for the class and used as a value.
@@ -359,12 +334,15 @@ class Chain(Execution):
         self._errors = []
         self._finalizers = []
         
-        if fillIn:
+        if fill:
             assert isinstance(processing, Processing), 'Invalid processing %s for fill in' % processing
+            fillClasses, fillValues = FILL_CLASSES in fill, FILL_VALUES in fill
+            if FILL_ALL in fill: fillClasses = fillValues = True
             for name, clazz in processing.contexts:
                 if name not in keyargs and not name in self.arg.__dict__:
-                    if isNameForClass(name): keyargs[name] = clazz
-                    else: keyargs[name] = clazz()
+                    if isNameForClass(name):
+                        if fillClasses: keyargs[name] = clazz
+                    elif fillValues: keyargs[name] = clazz()
         
         if keyargs: self.process(**keyargs)
     
@@ -380,8 +358,8 @@ class Chain(Execution):
             The same wing chain.
         '''
         assert isinstance(chain, Chain), 'Invalid chain %s' % chain
-        assert self._status == 0, 'Execution cannot wing'
-        assert chain._status == 0, 'Execution cannot wing to %s' % chain
+        assert self._status is None, 'Execution cannot wing'
+        assert chain._status is None, 'Execution cannot wing to %s' % chain
         self._calls.appendleft(chain)
         return chain
     
@@ -397,7 +375,7 @@ class Chain(Execution):
         @return: Chain
             The branching chain.
         '''
-        assert self._status == 0, 'Execution cannot branch'
+        assert self._status is None, 'Execution cannot branch'
         bchain = Chain(processing, False, _arg=self.arg)
         self._calls.appendleft(bchain)
         return bchain
@@ -413,7 +391,7 @@ class Chain(Execution):
         @return: this chain
             This chain for chaining purposes.
         '''
-        assert self._status == 0, 'Execution cannot route'
+        assert self._status is None, 'Execution cannot route'
         self._calls.clear()
         
         if isinstance(processing, Processing):
@@ -432,7 +410,7 @@ class Chain(Execution):
         '''
         Cancels the execution of this chain.
         '''
-        if self._status == 0:
+        if self._status is None:
             self._calls.clear()
             self._status = CANCELED
         
@@ -445,7 +423,7 @@ class Chain(Execution):
             The processing to be handled at the chain finalization. Attention the order in which the processors are provided
             is critical since one processor is responsible for delegating to the next.
         '''
-        assert self._status == 0, 'Execution cannot be altered'
+        assert self._status is None, 'Execution cannot be altered'
         if isinstance(processing, Processing):
             assert isinstance(processing, Processing)
             self._errors.extend(processing.calls)
@@ -463,7 +441,7 @@ class Chain(Execution):
             The processing to be handled at the chain finalization. Attention the order in which the processors are provided
             is critical since one processor is responsible for delegating to the next.
         '''
-        assert self._status == 0, 'Execution cannot be altered'
+        assert self._status is None, 'Execution cannot be altered'
         if isinstance(processing, Processing):
             assert isinstance(processing, Processing)
             self._finalizers.extend(processing.calls)
@@ -528,5 +506,5 @@ class Error(Execution):
         '''
         if not self._retrying:
             self._retrying = True
-            self.chain._status = 0
+            self.chain._status = None
             

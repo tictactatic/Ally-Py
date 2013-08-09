@@ -15,17 +15,21 @@ from collections import Iterable
 
 # --------------------------------------------------------------------
 
-def namesOf(clazz):
+def attributesOf(context, withAttrs=False):
     '''
-    Provides the context attributes names.
+    Provides the context attributes names and attributes.
     
-    @param clazz: ContextMetaClass
-        The context class to provide the attributes names for.
-    @return: set(string)
-        The attribute names.
+    @param context: ContextMetaClass|Context
+        The context or context class to provide the attributes names for.
+    @param withAttrs: boolean
+        Flag indicating that the attributes should be iterated also.
+    @return: set(string)|Iterable(tuple(string, IAttribute))
+        The set with attribute names if 'withAttrs' flag is False otherwise an iterable with the names and attribute.
     '''
-    assert isinstance(clazz, ContextMetaClass)
-    return set(clazz.__attributes__)
+    if isinstance(context, Context): context = context.__class__
+    assert isinstance(context, ContextMetaClass), 'Invalid context %s' % context
+    if withAttrs: return context.__attributes__.items()
+    return set(context.__attributes__)
 
 def asData(context, *classes):
     '''
@@ -49,9 +53,25 @@ def asData(context, *classes):
 
     return data
 
+def hasAttribute(context, name):
+    '''
+    Checks if the context has an attribute for name.
+    
+    @param context: ContextMetaClass|Context
+        The context or context class to check the attribute for.
+    @param name: string
+        The attribute name to check.
+    @return: boolean
+        True if the context has the attribute, False otherwise.
+    '''
+    if isinstance(context, Context): context = context.__class__
+    assert isinstance(context, ContextMetaClass), 'Invalid context %s' % context
+    assert isinstance(name, str), 'Invalid name %s' % name
+    return name in context.__attributes__
+
 # --------------------------------------------------------------------
 
-def pushIn(dest, *srcs, interceptor=None, exclude=None):
+def pushIn(dest, *srcs, interceptor=None, exclude=None, only=None):
     '''
     Pushes in the destination context data from the source context(s).
     
@@ -64,6 +84,8 @@ def pushIn(dest, *srcs, interceptor=None, exclude=None):
         An interceptor callable to be called before setting the value on the destination.
     @param exclude: string|ContextMetaClass|Iterable(string|ContextMetaClass)|None
         The attribute(s) of ContextMetaClass to be excluded from the push.
+    @param only: string|ContextMetaClass|Iterable(string|ContextMetaClass)|None
+        The attribute(s) of ContextMetaClass to be pushed only.
     @return: object
         The destination context after copy.
     '''
@@ -84,7 +106,20 @@ def pushIn(dest, *srcs, interceptor=None, exclude=None):
                     excludes.add(name)
     else: excludes = frozenset()
     
-    for name in dest.__attributes__:
+    if only is not None:
+        attributes = set(dest.__attributes__)
+        if isinstance(only, ContextMetaClass): attributes.intersection_update(only.__attributes__) 
+        elif isinstance(only, str): attributes.intersection_update((only,))
+        else:
+            assert isinstance(only, Iterable), 'Invalid only %s' % only
+            for name in only:
+                if isinstance(name, ContextMetaClass): attributes.intersection_update(name.__attributes__)
+                else:
+                    assert isinstance(name, str), 'Invalid only name %s' % name
+                    attributes.intersection_update((name,))
+    else: attributes = dest.__attributes__
+    
+    for name in attributes:
         if name in excludes: continue
         found = False
         for src in srcs:

@@ -161,10 +161,17 @@ class Object(metaclass=ContextMetaClass):
         '''
         Assigned to the context as the __str__ method.
         '''
-        namesValues = ((name, getattr(self, name)) for name, attr in self.__attributes__.items() if attr in self)
-        attrs = ', '.join('%s=%s' % (name, 'Context' if isinstance(value, Context) else value)
-                          for name, value in namesValues)
-        return '%s(%s)' % (self.__class__.__name__, attrs)
+        def asString(value):
+            if isinstance(value, Context): return value.__class__.__name__
+            elif isinstance(value, tuple): return '(%s)' % ','.join(asString(val) for val in value)
+            elif isinstance(value, list): return '[%s]' % ','.join(asString(val) for val in value)
+            elif isinstance(value, set): return '{%s}' % ','.join(asString(val) for val in value)
+            elif isinstance(value, dict): return '{%s}' % ','.join('%s:%s' % (asString(key), asString(val))
+                                                                   for key, val in value.items())
+            return str(value)
+        
+        return '%s(%s)' % (self.__class__.__name__, ', '.join('%s=%s' % (name, asString(getattr(self, name)))
+                                                              for name, attr in self.__attributes__.items() if attr in self))
 
 # --------------------------------------------------------------------
 

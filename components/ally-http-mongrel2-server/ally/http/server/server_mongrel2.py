@@ -12,7 +12,7 @@ Provides the mongrel2 web server support.
 from ..support import tnetstrings
 from ally.container.ioc import injected
 from ally.design.processor.assembly import Assembly
-from ally.design.processor.execution import Processing
+from ally.design.processor.execution import Processing, FILL_ALL
 from ally.http.spec.server import RequestHTTP, ResponseHTTP, RequestContentHTTP, \
     ResponseContentHTTP, HTTP
 from ally.support.util_io import IInputStream, IClosable
@@ -72,6 +72,7 @@ class RequestHandler:
         assert isinstance(request, RequestHTTP), 'Invalid request %s' % request
         assert isinstance(requestCnt, RequestContentHTTP), 'Invalid request content %s' % requestCnt
         
+        if RequestHTTP.clientIP in request: request.clientIP = req.headers.pop('x-forwarded-for')
         request.scheme, request.method = self.scheme, req.headers.pop('METHOD').upper()
         request.uri = req.path.lstrip('/')
         if RequestHTTP.headers in request: request.headers = dict(req.headers)
@@ -81,7 +82,7 @@ class RequestHandler:
             if isinstance(request.body, IInputStream): requestCnt.source = request.body
             else: requestCnt.source = BytesIO(request.body)
         
-        arg = proc.executeWithAll(request=request, requestCnt=requestCnt)
+        arg = proc.execute(FILL_ALL, request=request, requestCnt=requestCnt)
         response, responseCnt = arg.response, arg.responseCnt
         assert isinstance(response, ResponseHTTP), 'Invalid response %s' % response
         assert isinstance(responseCnt, ResponseContentHTTP), 'Invalid response content %s' % responseCnt

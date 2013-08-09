@@ -11,14 +11,14 @@ Provides aid contexts and support functions that are generally used.
 
 from ally.api.type import Type
 from ally.core.spec.transform import ITransfrom
+from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines, optional, \
     definesIf
 from ally.design.processor.context import Context
-from ally.design.processor.execution import Processing
+from ally.design.processor.execution import Processing, FILL_ALL
 from ally.design.processor.handler import HandlerProcessor
 from ally.design.processor.resolvers import resolverFor
 from ally.design.processor.spec import IResolver
-from ally.design.processor.assembly import Assembly
 
 # --------------------------------------------------------------------
 # The create contexts.
@@ -82,7 +82,7 @@ def createEncoder(processing, objType, **keyargs):
     assert isinstance(create, RequestEncoder), 'Invalid create %s' % create
     if RequestEncoder.objType in create: create.objType = objType
     
-    arg = processing.executeWithAll(create=create, **keyargs)
+    arg = processing.execute(FILL_ALL, create=create, **keyargs)
     assert isinstance(arg.create, RequestEncoder), 'Invalid create %s' % arg.create
     return arg.create.encoder
 
@@ -108,7 +108,7 @@ def createEncoderNamed(processing, name, objType, **keyargs):
     assert isinstance(create, RequestEncoderNamed), 'Invalid create %s' % create
     if RequestEncoderNamed.objType in create: create.objType = objType
     
-    arg = processing.executeWithAll(create=create, **keyargs)
+    arg = processing.execute(FILL_ALL, create=create, **keyargs)
     assert isinstance(arg.create, RequestEncoderNamed), 'Invalid create %s' % arg.create
     return arg.create.encoder
 
@@ -188,7 +188,7 @@ def importSupport(exportAssembly):
     assert isinstance(exportAssembly, Assembly), 'Invalid export assembly %s' % exportAssembly
     processing = exportAssembly.create(export=RequestExport)
     assert isinstance(processing, Processing), 'Invalid processing %s' % processing
-    arg = processing.executeWithAll()
+    arg = processing.execute(FILL_ALL)
     assert isinstance(arg.export, RequestExport), 'Invalid export %s' % arg.export
     assert isinstance(arg.export.Support, IResolver), 'Invalid resolver %s' % arg.export.Support
     return arg.export.Support

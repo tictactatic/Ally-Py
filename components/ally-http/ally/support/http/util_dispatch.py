@@ -10,7 +10,7 @@ Provides request dispatching support.
 '''
 
 from ally.design.processor.attribute import defines
-from ally.design.processor.execution import Processing
+from ally.design.processor.execution import Processing, FILL_ALL
 from ally.http.spec.codes import isSuccess
 from ally.http.spec.server import HTTP, RequestHTTP, ResponseContentHTTP, \
     ResponseHTTP, HTTP_GET, HTTP_OPTIONS
@@ -58,7 +58,7 @@ def obtainOPTIONS(processing, uri, scheme=HTTP):
     request.uri = urlparse(uri).path.lstrip('/')
     request.parameters = []
     
-    arg = processing.executeWithAll(request=request)
+    arg = processing.execute(FILL_ALL, request=request)
     response, responseCnt = arg.response, arg.responseCnt
     assert isinstance(response, ResponseHTTP), 'Invalid response %s' % response
     assert isinstance(responseCnt, ResponseContentHTTP), 'Invalid response content %s' % responseCnt
@@ -110,7 +110,7 @@ def obtainJSON(processing, uri, details=False, scheme=HTTP, mimeTypeJson='json',
     request.accTypes = [mimeTypeJson]
     request.accCharSets = [encodingJson]
     
-    arg = processing.executeWithAll(request=request)
+    arg = processing.execute(FILL_ALL, request=request)
     response, responseCnt = arg.response, arg.responseCnt
     assert isinstance(response, ResponseHTTP), 'Invalid response %s' % response
     assert isinstance(responseCnt, ResponseContentHTTP), 'Invalid response content %s' % responseCnt

@@ -90,22 +90,22 @@ class PathWebNameHandler(HandlerProcessor):
             if not invoker.call: continue  # No call to process hints on.
             if not invoker.path: continue  # No path to append the web name to.
             assert isinstance(invoker.call, Call), 'Invalid call %s' % invoker.call
+            if not self.hintName in invoker.call.hints: continue
             
-            if self.hintName in invoker.call.hints:
-                webName = invoker.call.hints[self.hintName]
-                if not isinstance(webName, str) or not re.match('\w+$', webName):
-                    log.error('Cannot use because invalid web name \'%s\', can only contain alpha numeric characters at:%s',
-                              webName, invoker.location)
-                    aborted.append(invoker)
+            webName = invoker.call.hints[self.hintName]
+            if not isinstance(webName, str) or not re.match('\w+$', webName):
+                log.error('Cannot use because invalid web name \'%s\', can only contain alpha numeric characters at:%s',
+                          webName, invoker.location)
+                aborted.append(invoker)
+                break
+            
+            for el in reversed(invoker.path):
+                assert isinstance(el, Element), 'Invalid element %s' % el
+                if el.name:
+                    el.name = '%s%s' % (webName, el.name)
                     break
-                
-                for el in reversed(invoker.path):
-                    assert isinstance(el, Element), 'Invalid element %s' % el
-                    if el.name:
-                        el.name = '%s%s' % (webName, el.name)
-                        break
-                else:
-                    assert isinstance(register.doSuggest, IDo), 'Invalid do suggest %s' % register.doSuggest
-                    register.doSuggest('Could not process the web name at:%s', invoker.location)
+            else:
+                assert isinstance(register.doSuggest, IDo), 'Invalid do suggest %s' % register.doSuggest
+                register.doSuggest('Could not process the web name at:%s', invoker.location)
 
         if aborted: raise Abort(*aborted)                    

@@ -10,61 +10,28 @@ API specifications for service access.
 '''
 
 from .domain_acl import modelACL
-from ally.api.config import service, call, query, INSERT
-from ally.api.criteria import AsLikeOrdered, AsEqualOrdered
-from ally.api.type import Iter
+from ally.api.config import service, call
+from ally.support.api.entity_named import Entity, IEntityGetService, IEntityFindService
 
 # --------------------------------------------------------------------
 
-@modelACL(id='Name')
-class Group:
+@modelACL
+class Access(Entity):
     '''
-    Defines the group of ACL access,
+    Defines an access entry based on a URI pattern.
     '''
-    Name = str
-    Description = str
-
-@modelACL(id='Id')
-class Access:
-    '''
-    Defines an access entry based on a URI pattern and method.
-    '''
-    Id = int
     Pattern = str
-    Method = str
 
 # --------------------------------------------------------------------
 
-@query(Access)
-class QAccess:
-    '''
-    Query for access entities.
-    '''
-    pattern = AsLikeOrdered
-    method = AsEqualOrdered
-
-# --------------------------------------------------------------------
-
-@service
-class IAccessService:
+@service((Entity, Access))
+class IAccessService(IEntityGetService, IEntityFindService):
     '''
     The ACL access service provides the means of setting up the access control layer for services.
     '''
     
-    @call
-    def getGroups(self) -> Iter(Group):
+    #TODO: Gabriel: remove
+    @call(filter='Dummy filter')
+    def isDummyFilter(self, access:Access) -> bool:
         '''
-        Provides all the ACL groups.
-        '''
-    
-    @call(method=INSERT)
-    def allow(self, name:Group.Name, access:Access) -> Access.Id:
-        '''
-        Setup access for the provided access data.
-        '''
-        
-    @call
-    def remove(self, name:Group, id:Access) -> bool:
-        '''
-        Removes the access for the provided id.
         '''

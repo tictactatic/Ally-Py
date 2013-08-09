@@ -106,7 +106,8 @@ class URIHandler(HandlerProcessor):
             extension = paths[-1][i + 1:].lower()
             paths[-1] = paths[-1][0:i]
         
-        paths = [unquote(p) for p in paths if p]
+        paths = [unquote(p) for p in paths]
+        if not paths[-1]: paths.pop()
 
         if extension:
             if Request.extension in request: request.extension = extension

@@ -31,7 +31,6 @@ class Register(Context):
     # ---------------------------------------------------------------- Defined
     hintsCall = definesIf(dict)
     # ---------------------------------------------------------------- Required
-    exclude = requires(set)
     nodes = requires(list)
 
 class Node(Context):
@@ -123,9 +122,10 @@ class ConflictReplaceHandler(HandlerProcessor):
                             log.error('Cannot use invokers because the replace hints are circular among them, at:%s',
                                       ''.join(locations))
                             reported.update(locations)
-                        aborted.append(invoker)
+                        aborted.extend(invokers)
                     else:
-                        for invoker, replaces in solving: invokers.remove(invoker)
-                        invokers.extend(byService.values())
+                        solved = set(byService)
+                        for invoker, replaces in solving:
+                            if invoker not in solved: aborted.append(invoker)
 
         if aborted: raise Abort(*aborted)

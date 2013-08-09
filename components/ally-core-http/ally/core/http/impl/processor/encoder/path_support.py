@@ -24,6 +24,7 @@ class Node(Context):
     '''
     # ---------------------------------------------------------------- Required
     invokersGet = requires(dict)
+    invokersAccessible = requires(list)
     
 class Invoker(Context):
     '''
@@ -81,28 +82,41 @@ class PathUpdaterSupportEncode(HandlerProcessor):
         
         if create.encoder is None: return 
         # There is no encoder to provide path update for.
-        if not node.invokersGet: return
+        if not node.invokersAccessible and not node.invokersGet: return
         # No get invokers to support.
         
         if isinstance(create.objType, TypeModel):
             assert isinstance(create.objType, TypeModel)
-            properties = create.objType.properties.values()
+            properties = set(create.objType.properties.values())
         elif isinstance(create.objType, TypeProperty):
-            properties = (create.objType,)
+            properties = set()
+            properties.add(create.objType)
         else: return  # The type is not for a path updater, nothing to do, just move along
-        assert isinstance(node.invokersGet, dict), 'Invalid get invokers %s' % node.invokersGet
         
         elements = []
-        for prop in properties:
-            invoker = node.invokersGet.get(prop)
-            if not invoker: continue
-            assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
-            
-            for el in reversed(invoker.path):
-                assert isinstance(el, Element), 'Invalid element %s' % el
-                if el.property == prop:
-                    elements.append(el)
-                    break
+        
+        if node.invokersGet:
+            assert isinstance(node.invokersGet, dict), 'Invalid get invokers %s' % node.invokersGet
+            for prop in properties:
+                invoker = node.invokersGet.get(prop)
+                if not invoker: continue
+                assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
+                
+                for el in reversed(invoker.path):
+                    assert isinstance(el, Element), 'Invalid element %s' % el
+                    if el.property == prop:
+                        elements.append(el)
+                        break
+                    
+        if node.invokersAccessible:
+            assert isinstance(node.invokersAccessible, list), 'Invalid accessible invokers %s' % node.invokersAccessible
+            for _name, invoker in node.invokersAccessible:
+                assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
+                for el in reversed(invoker.path):
+                    assert isinstance(el, Element), 'Invalid element %s' % el
+                    if el.property in properties:
+                        elements.append(el)
+                        break
         
         if elements:
             create.encoder = EncoderPathUpdater(create.encoder, elements, isinstance(create.objType, TypeModel))

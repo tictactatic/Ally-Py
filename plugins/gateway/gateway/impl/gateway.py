@@ -16,7 +16,7 @@ from ally.container.support import setup
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires
 from ally.design.processor.context import Context
-from ally.design.processor.execution import Processing
+from ally.design.processor.execution import Processing, FILL_ALL
 from collections import Iterable
 
 # --------------------------------------------------------------------
@@ -56,7 +56,7 @@ class GatewayService(IGatewayService):
         proc = self._processing
         assert isinstance(proc, Processing), 'Invalid processing %s' % proc
         
-        reply = proc.executeWithAll().reply
+        reply = proc.execute(FILL_ALL).reply
         assert isinstance(reply, Reply), 'Invalid reply %s' % reply
         if Reply.gateways not in reply: return ()
         return reply.gateways

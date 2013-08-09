@@ -57,9 +57,9 @@ DELETE = 1 << 4
 
 # The function name to method mapping.
 NAME_TO_METHOD = {
-                  '(^get[\w]*$)|(^find[\w]*$)':GET,
+                  '(^get[\w]*$)|(^find[\w]*$)|(^is[\w]*$)':GET,
                   '(^insert[\w]*$)|(^persist[\w]*$)':INSERT,
-                  '(^update[\w]*$)|(^merge[\w]*$)':UPDATE,
+                  '(^update[\w]*$)|(^merge[\w]*$)|(^add[\w]*$)':UPDATE,
                   '(^delete[\w]*$)|(^remove[\w]*$)':DELETE
                   }
 

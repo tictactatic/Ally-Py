@@ -11,10 +11,11 @@ Provides the paths based on id property inputs.
 
 from ally.api.operator.type import TypeProperty, TypeModel
 from ally.api.type import Input
-from ally.design.processor.attribute import requires, defines
+from ally.design.processor.attribute import requires, defines, attribute
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
-from ally.support.util_context import pushIn, cloneCollection
+from ally.support.util_context import attributesOf, hasAttribute
+from ally.support.util_spec import IDo
 import itertools
 
 # --------------------------------------------------------------------
@@ -28,9 +29,15 @@ class Register(Context):
     @rtype: dictionary{TypeModel: set(TypeModel)}
     The model relations, as a key the model that depends on the models found in the value set.
     ''')
+    doCopyElement = attribute(IDo, doc='''
+    @rtype: callable(destination:Context, source:Context, exclude:set=None) -> Context
+    On the first position the destination element to copy to and on the second position the source to copy from, returns
+    the destination element. Accepts also a named argument containing a set of attributes names to exclude.
+    ''')
     # ---------------------------------------------------------------- Required
     invokers = requires(list)
     exclude = requires(set)
+    doCopyInvoker = requires(IDo)
     
 class InvokerOnInput(Context):
     '''
@@ -82,11 +89,14 @@ class PathInputHandler(HandlerProcessor):
         Provides the paths based on property id inputs.
         '''
         assert isinstance(register, Register), 'Invalid register %s' % register
-        assert issubclass(Invoker, InvokerOnInput), 'Invalid invoker %s' % Invoker
+        assert issubclass(Invoker, InvokerOnInput), 'Invalid invoker class %s' % Invoker
         assert issubclass(Element, ElementInput), 'Invalid element %s' % Element
         
         if not register.invokers: return  # No invoker to process
         assert isinstance(register.invokers, list), 'Invalid invokers %s' % register.invokers
+        
+        register.doCopyElement = self.doCopyElement
+        register.doCopyInvoker = self.createCopyInvoker(register.doCopyInvoker, register)
 
         if register.relations is None: register.relations = {}
         ninvokers = []
@@ -109,10 +119,10 @@ class PathInputHandler(HandlerProcessor):
             if optional:
                 combinations = (itertools.combinations(optional, i) for i in range(1, len(optional) + 1))
                 for extra in itertools.chain(*combinations):
-                    invokerId = '%s(%s)' % (invoker.id, ','.join(inp.name for inp in extra))
+                    invokerId = '(%s mandatory for %s)' % (invoker.id, ','.join(inp.name for inp in extra))
                     if invokerId in register.exclude: continue
             
-                    ninvoker = pushIn(Invoker(), invoker, interceptor=cloneCollection)
+                    ninvoker = register.doCopyInvoker(Invoker(), invoker)
                     ninvoker.id = invokerId
                     elementsFor.append((ninvoker, itertools.chain(mandatory, extra)))
                     ninvokers.append(ninvoker)
@@ -125,3 +135,48 @@ class PathInputHandler(HandlerProcessor):
                     invoker.path.append(Element(input=inp, property=inp.type))
                  
         register.invokers.extend(ninvokers)
+        
+    # ----------------------------------------------------------------
+    
+    def createCopyInvoker(self, doCopy, register):
+        '''
+        Create the invoker do copy.
+        '''
+        assert isinstance(doCopy, IDo), 'Invalid do copy %s' % doCopy
+        assert isinstance(register, Register), 'Invalid register %s' % register
+        def doCopyInvoker(destination, source, exclude=None):
+            '''
+            Do copy the invoker.
+            '''
+            assert isinstance(destination, InvokerOnInput), 'Invalid destination %s' % destination
+            assert isinstance(source, InvokerOnInput), 'Invalid source %s' % source
+            assert exclude is None or isinstance(exclude, set), 'Invalid exclude %s' % exclude
+            
+            if not exclude or 'path' not in exclude:
+                if destination.path is None and source.path is not None:
+                    assert isinstance(register.doCopyElement, IDo), 'Invalid do copy %s' % register.doCopyElement
+                    destination.path = [register.doCopyElement(el.__class__(), el) for el in source.path]
+            return doCopy(destination, source, exclude)
+        
+        return doCopyInvoker
+
+    def doCopyElement(self, destination, source, exclude=None):
+        '''
+        Do copy the element.
+        '''
+        assert isinstance(destination, ElementInput), 'Invalid destination %s' % destination
+        assert isinstance(source, ElementInput), 'Invalid source %s' % source
+        assert exclude is None or isinstance(exclude, set), 'Invalid exclude %s' % exclude
+        
+        for name in attributesOf(destination):
+            if exclude and name in exclude: continue
+            value = getattr(destination, name)
+            if value is not None: continue
+            if not hasAttribute(source, name): continue
+            value = getattr(source, name)
+            if value is None: continue
+            if isinstance(value, (set, list, dict, Context)):
+                raise Exception('Cannot copy \'%s\' with value \'%s\'' % (name, value))
+            setattr(destination, name, value)
+        
+        return destination

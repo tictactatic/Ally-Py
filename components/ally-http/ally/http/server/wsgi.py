@@ -11,7 +11,7 @@ Provides the WSGI web server support.
 
 from ally.container.ioc import injected
 from ally.design.processor.assembly import Assembly
-from ally.design.processor.execution import Processing
+from ally.design.processor.execution import Processing, FILL_ALL
 from ally.http.spec.server import RequestHTTP, ResponseHTTP, RequestContentHTTP, \
     ResponseContentHTTP
 from ally.support.util_io import IInputStream, readGenerator
@@ -84,7 +84,7 @@ class RequestHandler:
 
         if RequestContentHTTP.source in requestCnt: requestCnt.source = context.get('wsgi.input')
 
-        arg = proc.executeWithAll(request=request, requestCnt=requestCnt)
+        arg = proc.execute(FILL_ALL, request=request, requestCnt=requestCnt)
         response, responseCnt = arg.response, arg.responseCnt
         assert isinstance(response, ResponseHTTP), 'Invalid response %s' % response
         assert isinstance(responseCnt, ResponseContentHTTP), 'Invalid response content %s' % responseCnt

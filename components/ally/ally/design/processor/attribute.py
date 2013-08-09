@@ -17,6 +17,7 @@ from ally.support.util_sys import locationStack
 from collections import Iterable
 from inspect import isclass
 import logging
+from ally.support.util import FlagSet
 
 # --------------------------------------------------------------------
 
@@ -230,24 +231,18 @@ class Resolver(IResolver):
         '''
         @see: IResolver.list
         '''
-        flags, attributes = set(flags), {}
+        flags, attributes = FlagSet(flags), {}
         
         listed = False
-        try: flags.remove(LIST_UNAVAILABLE)
-        except KeyError: pass
-        else:
+        if flags.checkOnce(LIST_UNAVAILABLE):
             listed = True
             for name, spec in self.specifications.items():
                 assert isinstance(spec, Specification), 'Invalid specification %s' % spec
                 if spec.status == REQUIRED: attributes[name] = None
+        
+        listClasses = flags.checkOnce(LIST_CLASSES)
                 
-        try: flags.remove(LIST_CLASSES)
-        except KeyError: listClasses = False
-        else: listClasses = True
-                
-        try: flags.remove(LIST_UNUSED)
-        except KeyError: pass
-        else:
+        if flags.checkOnce(LIST_UNUSED):
             listed = True
             for name, spec in self.specifications.items():
                 assert isinstance(spec, Specification), 'Invalid specification %s' % spec
@@ -273,14 +268,11 @@ class Resolver(IResolver):
         '''
         @see: IResolver.create
         '''
-        flags = set(flags)
+        flags = FlagSet(flags)
         
         attributes = {}
-        try: flags.remove(CREATE_DEFINITION)
-        except KeyError:
-            attributes = self.createDescriptors(self.specifications)
-        else:
-            attributes = self.createDefinitions(self.specifications)
+        if flags.checkOnce(CREATE_DEFINITION): attributes = self.createDefinitions(self.specifications)
+        else: attributes = self.createDescriptors(self.specifications)
 
         assert not flags, 'Unknown flags: %s' % ', '.join(flags)
         return attributes

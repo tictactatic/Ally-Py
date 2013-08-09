@@ -18,6 +18,8 @@ from ally.design.processor.handler import HandlerProcessor, Handler
 from collections import Iterable
 from gateway.api.gateway import Gateway
 import itertools
+from inspect import getdoc
+from ally.support.api.util_service import namesFor
 
 # --------------------------------------------------------------------
 
@@ -41,42 +43,8 @@ class RegisterDefaultGateways(HandlerProcessor):
     '''
     
     default_gateways = []; wire.config('default_gateways', doc='''
-    The default gateways that are available for any unauthorized access. This is a list of dictionaries that are allowed
-    the following keys:
-        Pattern -   a string value:
-                    contains the regex that needs to match with the requested URI. The pattern needs to produce, if is the
-                    case, capturing groups that can be used by the Filters or Navigate.
-        Headers -   a list of strings:
-                    the headers to be filtered in order to validate the navigation. Even though this might look specific for
-                    http they actually can be used for any meta data that accompanies a request, it depends mostly on the
-                    gateway interpretation. The headers are provided as regexes that need to be matched. In case of headers
-                    that are paired as name and value the regex will receive the matching string as 'Name:Value', the name
-                    is not allowed to contain ':'. At least one header needs to match to consider the navigation valid.
-        Methods -   a list of strings:
-                    the list of allowed methods for the request, if no method is provided then all methods are considered
-                    valid. At least one method needs to match to consider the navigation valid.
-        Filters -   a list of strings:
-                    contains a list of URIs that need to be called in order to allow the gateway Navigate. The filters are
-                    allowed to have place holders of form '{1}' or '{2}' ... '{n}' where n is the number of groups obtained
-                    from the Pattern, the place holders will be replaced with their respective group value. All filters
-                    need to return a True value in order to allow the gateway Navigate.
-        Errors -    a list of integers:
-                    the list of errors codes that are considered to be handled by this Gateway entry, if no error is provided
-                    then it means the entry is not solving any error navigation. At least one error needs to match in order
-                    to consider the navigation valid.
-        Host -      a string value:
-                    the host where the request needs to be resolved, if not provided the request will be delegated to the
-                    default host.
-        Protocol -  a string value:
-                    the protocol to be used in the communication with the server that handles the request, if not provided
-                    the request will be delegated using the default protocol.
-        Navigate -  a string value:
-                    a pattern like string of forms like '*', 'resources/*' or 'redirect/Model/{1}'. The pattern is allowed to
-                    have place holders and also the '*' which stands for the actual called URI, also parameters are allowed
-                    for navigate URI, the parameters will override the actual parameters.
-        PutHeaders -The headers to be put on the forwarded requests. The values are provided as 'Name:Value', the name is
-                    not allowed to contain ':'.
-    ''')
+    The default gateways that are available for any unauthorized access. %s
+    ''' % getdoc(Gateway))
     
     def __init__(self):
         '''
@@ -113,11 +81,14 @@ def gatewayFrom(config):
     assert isinstance(config, dict), 'Invalid gateway configuration %s' % config
     if __debug__: keys = set()
     gateway = Gateway()
-    for key in ('Pattern', 'Headers', 'Methods', 'Filters', 'Errors', 'Host', 'Protocol', 'Navigate'):
+    for key in namesFor(Gateway):
         value = config.get(key)
         if value is not None:
             if __debug__:
-                if key == 'Pattern': assert isinstance(value, str), 'Invalid Pattern %s' % value
+                if key == 'Clients':
+                    assert isinstance(value, list), 'Invalid Clients %s' % value
+                    for item in value: assert isinstance(item, str), 'Invalid Client value %s' % item
+                elif key == 'Pattern': assert isinstance(value, str), 'Invalid Pattern %s' % value
                 elif key == 'Headers':
                     assert isinstance(value, list), 'Invalid Headers %s' % value
                     for item in value: assert isinstance(item, str), 'Invalid Headers value %s' % item

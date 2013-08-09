@@ -12,7 +12,7 @@ Provides the asyncore web server based on the python build in http server and as
 from ally.container.ioc import injected
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import optional
-from ally.design.processor.execution import Chain, Processing
+from ally.design.processor.execution import Chain, Processing, FILL_ALL
 from ally.http.spec.server import RequestHTTP, ResponseHTTP, RequestContentHTTP, \
     ResponseContentHTTP, HTTP
 from ally.support.util_io import IInputStream, IClosable
@@ -284,13 +284,14 @@ class RequestHandler(dispatcher, BaseHTTPRequestHandler):
         assert isinstance(request, RequestHTTP), 'Invalid request %s' % request
         assert isinstance(requestCnt, RequestContentHTTP), 'Invalid request content %s' % requestCnt
         
+        if RequestHTTP.clientIP in request: request.clientIP = self.client_address[0]
         url = urlparse(self.path)
         request.scheme, request.method = HTTP, method.upper()
         request.uri = url.path.lstrip('/')
         if RequestHTTP.headers in request: request.headers = dict(self.headers)
         if RequestHTTP.parameters in request: request.parameters = parse_qsl(url.query, True, False)
 
-        chain = Chain(proc, True, request=request, requestCnt=requestCnt)
+        chain = Chain(proc, FILL_ALL, request=request, requestCnt=requestCnt)
         chain.onFinalize(self._processRespond)
         
         if RequestContentHTTPAsyncore.contentRequired in requestCnt:

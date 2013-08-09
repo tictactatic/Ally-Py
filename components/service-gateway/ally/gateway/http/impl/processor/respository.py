@@ -11,7 +11,7 @@ Provides the gateway repository processor.
 
 from ally.container.ioc import injected
 from ally.design.processor.assembly import Assembly
-from ally.design.processor.attribute import defines
+from ally.design.processor.attribute import defines, requires
 from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Processing
@@ -90,6 +90,8 @@ class Request(Context):
     @rtype: IRepository
     The repository to be used for finding matches.
     ''')
+    # ---------------------------------------------------------------- Required
+    clientIP = requires(str)
     
 class Response(CodedHTTP):
     '''
@@ -134,7 +136,7 @@ class GatewayRepositoryHandler(HandlerBranching):
         assert issubclass(Gateway, GatewayRepository), 'Invalid gateway class %s' % Gateway
         assert issubclass(Match, MatchRepository), 'Invalid match class %s' % Match
         
-        if not self._repository:
+        if self._identifiers is None:
             jobj, status, text = obtainJSON(processing, self.uri, details=True)
             if jobj is None:
                 log.error('Cannot fetch the gateways from URI \'%s\', with response %s %s', self.uri, status, text)
@@ -142,10 +144,11 @@ class GatewayRepositoryHandler(HandlerBranching):
                 response.text = text
                 return
             assert 'GatewayList' in jobj, 'Invalid objects %s, not GatewayList' % jobj
-            self._repository = Repository([self.populate(Identifier(Gateway()), obj) for obj in jobj['GatewayList']], Match)
+            self._identifiers = [self.populate(Identifier(Gateway()), obj) for obj in jobj['GatewayList']]
             
-        if request.repository: request.repository = RepositoryJoined(request.repository, self._repository)
-        else: request.repository = self._repository
+        repository = Repository(request.clientIP, self._identifiers, Match)
+        if request.repository: request.repository = RepositoryJoined(request.repository, repository)
+        else: request.repository = repository
 
     # ----------------------------------------------------------------
     
@@ -153,7 +156,7 @@ class GatewayRepositoryHandler(HandlerBranching):
         '''
         Initialize the repository.
         '''
-        self._repository = None
+        self._identifiers = None
         self.startCleanupThread('Cleanup gateways thread')
    
     def startCleanupThread(self, name):
@@ -176,7 +179,7 @@ class GatewayRepositoryHandler(HandlerBranching):
         '''
         Performs the cleanup for gateways.
         '''
-        self._repository = None
+        self._identifiers = None
     
     # ----------------------------------------------------------------
     
@@ -195,6 +198,13 @@ class GatewayRepositoryHandler(HandlerBranching):
         assert isinstance(identifier, Identifier), 'Invalid identifier %s' % identifier
         assert isinstance(obj, dict), 'Invalid object %s' % obj
         
+        clients = obj.get('Clients')
+        if clients:
+            assert isinstance(clients, list), 'Invalid clients %s' % clients
+            if __debug__:
+                for client in clients: assert isinstance(client, str), 'Invalid client value %s' % client
+            identifier.clients.extend(re.compile(client) for client in clients)
+            
         pattern = obj.get('Pattern')
         if pattern:
             assert isinstance(pattern, str), 'Invalid pattern %s' % pattern
@@ -255,7 +265,7 @@ class Identifier:
     '''
     Class that maps the gateway identifier.
     '''
-    __slots__ = ('gateway', 'pattern', 'headers', 'errors', 'methods')
+    __slots__ = ('gateway', 'clients', 'pattern', 'headers', 'errors', 'methods')
     
     def __init__(self, gateway):
         '''
@@ -267,6 +277,7 @@ class Identifier:
         assert isinstance(gateway, GatewayRepository), 'Invalid gateway %s' % gateway
         self.gateway = gateway
         
+        self.clients = []
         self.pattern = None
         self.headers = []
         self.errors = set()
@@ -276,18 +287,20 @@ class Repository(IRepository):
     '''
     The gateways repository.
     '''
-    __slots__ = ('_identifiers', '_Match')
+    __slots__ = ('_clientIP', '_identifiers', '_Match')
     
-    def __init__(self, identifiers, Match):
+    def __init__(self, clientIP, identifiers, Match):
         '''
         Construct the gateways repository based on the provided dictionary object.
         
         @param identifiers: list[Identifier]
             The identifiers to be used by the repository.
         '''
+        assert isinstance(clientIP, str), 'Invalid client IP %s' % clientIP
         assert isinstance(identifiers, list), 'Invalid identifiers %s' % identifiers
         assert issubclass(Match, MatchRepository), 'Invalid match class %s' % Match
         
+        self._clientIP = clientIP
         self._identifiers = identifiers
         self._Match = Match
         
@@ -297,6 +310,12 @@ class Repository(IRepository):
         '''
         for identifier in self._identifiers:
             assert isinstance(identifier, Identifier), 'Invalid identifier %s' % identifier
+            
+            if identifier.clients:
+                for client in identifier.clients:
+                    if client.match(self._clientIP): break
+                else: return
+                
             groupsURI = self._macth(identifier, method, headers, uri, error)
             if groupsURI is not None: return self._Match(gateway=identifier.gateway, groupsURI=groupsURI)
         

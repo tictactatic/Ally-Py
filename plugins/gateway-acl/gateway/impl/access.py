@@ -9,40 +9,13 @@ Created on Aug 6, 2013
 Implementation for the ACL access.
 '''
 
-from ..api.access import IAccessService, Access
-from ally.api.error import InputError
+from ..api.access import Access, IAccessService
+from ..core.acl.spec import IACLManagement
+from ally.api.error import InvalidIdError
 from ally.container import wire
 from ally.container.ioc import injected
 from ally.container.support import setup
-from ally.design.processor.assembly import Assembly
-from ally.design.processor.attribute import defines, requires
-from ally.design.processor.context import Context
-from ally.design.processor.execution import Processing, CONSUMED
-from ally.internationalization import _
-
-# --------------------------------------------------------------------
-
-class Allow(Context):
-    '''
-    The allow context.
-    '''
-    # ---------------------------------------------------------------- Defined
-    group = defines(str, doc='''
-    @rtype: string
-    The access group to allow the access for.
-    ''')
-    pattern = defines(str, doc='''
-    @rtype: string
-    The URI pattern to allow access for.
-    ''')
-    method = defines(str, doc='''
-    @rtype: string
-    The HTTP method name to allow access for.
-    ''')
-    # ---------------------------------------------------------------- Required
-    id = requires(str)
-    suggestion = requires(tuple)
-    methodsAllowed = requires(set)
+from ally.support.api.util_service import processCollection
 
 # --------------------------------------------------------------------
 
@@ -50,45 +23,28 @@ class Allow(Context):
 @setup(IAccessService, name='accessService')
 class AccessService(IAccessService):
     '''
-    Implementation for @see: IAccessService that provides the ACL access setup support.
+    Implementation for @see: IAccessService that provides the ACL access support.
     '''
     
-    assemblyManageAccess = Assembly; wire.entity('assemblyManageAccess')
-    # The assembly to be used for managing access.
+    aclManagement = IACLManagement; wire.entity('aclManagement')
     
     def __init__(self):
-        assert isinstance(self.assemblyManageAccess, Assembly), 'Invalid assembly manage access %s' % self.assemblyManageAccess
-        self._manage = self.assemblyManageAccess.create(allow=Allow)
+        assert isinstance(self.aclManagement, IACLManagement), 'Invalid ACL management %s' % self.aclManagement
     
-    def getGroups(self):
+    def getById(self, name):
         '''
-        @see: IAccessService.getGroups
+        @see: IAccessService.getById
         '''
-        
-    def allow(self, name, access):
+        access = self.aclManagement.get(Access, forName=name)
+        if not access: raise InvalidIdError()
+        return access
+    
+    def getAll(self, **options):
         '''
-        @see: IAccessService.allow
+        @see: IAccessService.getAll
         '''
-        assert isinstance(name, str), 'Invalid name %s' % name
-        assert isinstance(access, Access), 'Invalid access %s' % access
-        
-        manage = self._manage
-        assert isinstance(manage, Processing), 'Invalid processing %s' % manage
-        
-        done, arg = manage.execute(CONSUMED, allow=manage.ctx.allow(group=name, pattern=access.Pattern, method=access.Method))
-        assert isinstance(arg.allow, Allow), 'Invalid allow %s' % arg.allow
-        if done:
-            # TODO: remove
-            print(arg.allow.id)
-        elif arg.allow.methodsAllowed:
-            raise InputError(_('Only allowed methods %(methods)s'), Access.Method, methods=sorted(arg.allow.methodsAllowed))
-        elif arg.allow.suggestion:
-            msg, data = arg.allow.suggestion
-            raise InputError(msg, Access.Pattern, **data)
-        else:
-            raise InputError(_('Invalid pattern'), Access.Pattern)
-            
-    def remove(self, name, id):
-        '''
-        @see: IAccessService.remove
-        '''
+        return processCollection(sorted(self.aclManagement.get(Access.Name, forAll=True) or ()), **options)
+    
+    # TODO: remove    
+    def isDummyFilter(self, id):
+        return False

@@ -9,14 +9,14 @@ Created on Aug 5, 2013
 Provides aid contexts and support functions that are generally used.
 '''
 
+from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import defines, requires
 from ally.design.processor.context import Context
+from ally.design.processor.execution import Processing, FILL_ALL
 from ally.design.processor.handler import HandlerProcessor
 from ally.design.processor.resolvers import resolverFor, resolversFor, solve
 from ally.design.processor.spec import IResolver
 from collections import Iterable
-from ally.design.processor.assembly import Assembly
-from ally.design.processor.execution import Processing
 
 # --------------------------------------------------------------------
 
@@ -125,7 +125,7 @@ def importTarget(exportAssembly):
     assert isinstance(exportAssembly, Assembly), 'Invalid export assembly %s' % exportAssembly
     processing = exportAssembly.create(export=RequestExport)
     assert isinstance(processing, Processing), 'Invalid processing %s' % processing
-    arg = processing.executeWithAll()
+    arg = processing.execute(FILL_ALL)
     assert isinstance(arg.export, RequestExport), 'Invalid export %s' % arg.export
     assert isinstance(arg.export.Target, IResolver), 'Invalid resolver %s' % arg.export.Target
     return arg.export.Target, arg.export.arg

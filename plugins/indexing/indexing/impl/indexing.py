@@ -17,7 +17,7 @@ from ally.container.support import setup
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires
 from ally.design.processor.context import Context
-from ally.design.processor.execution import Processing
+from ally.design.processor.execution import Processing, FILL_ALL
 from ally.indexing.spec import model
 from collections import OrderedDict
 
@@ -127,7 +127,7 @@ class AssemblageMarkerService(IIndexingService):
         proc = self._processingBlocks
         assert isinstance(proc, Processing), 'Invalid processing %s' % proc
         
-        blocks = proc.executeWithAll().blocks
+        blocks = proc.execute(FILL_ALL).blocks
         assert isinstance(blocks, Blocks), 'Invalid blocks %s' % blocks
         assert isinstance(blocks.blocks, dict), 'Invalid blocks %s' % blocks.blocks
         

@@ -13,13 +13,14 @@ from ally.container.ioc import injected
 from ally.design.processor.assembly import Assembly, log
 from ally.design.processor.attribute import defines, requires
 from ally.design.processor.context import Context, create
-from ally.design.processor.execution import Processing, Chain, Abort
+from ally.design.processor.execution import Processing, Chain, Abort, FILL_ALL
 from ally.design.processor.handler import Handler
 from ally.design.processor.report import ReportUnused
 from ally.design.processor.resolvers import resolversFor, solve, checkIf, \
     reportFor, merge
 from ally.design.processor.spec import IProcessor, LIST_UNAVAILABLE, \
     AssemblyError, IResolver, LIST_UNUSED, LIST_CLASSES
+from ally.support.util import FlagSet
 from ally.support.util_spec import IDo
 from collections import Iterable
 
@@ -112,13 +113,20 @@ class InjectorAssemblyHandler(Handler, IProcessor):
         assert isinstance(resolvers, dict), 'Invalid resolvers %s' % resolvers
         assert isinstance(extensions, dict), 'Invalid extensions %s' % extensions
         
-        solve(self.resolvers, {name: resolver.wrapped for name, resolver in sources.items()
-                               if isinstance(resolver, ResolverWrapper)}, joined=False)
-        solve(self.resolvers, {name: resolver.wrapped for name, resolver in resolvers.items()
-                               if isinstance(resolver, ResolverWrapper)}, joined=False)
-        solve(self.resolvers, {name: resolver.wrapped for name, resolver in extensions.items()
-                               if isinstance(resolver, ResolverWrapper)}, joined=False)
-       
+        solve(self.resolvers, self.filter(sources))
+        solve(self.resolvers, self.filter(resolvers))
+        solve(self.resolvers, self.filter(extensions))
+        
+    def filter(self, resolvers):
+        '''
+        Filters the provided resolvers.
+        '''
+        assert isinstance(resolvers, dict), 'Invalid resolvers %s' % resolvers
+        extracted = {name: resolver.wrapped if isinstance(resolver, ResolverWrapper) else resolver
+                     for name, resolver in resolvers.items() if name in self.resolvers}
+        for name in extracted: resolvers.pop(name, None)
+        return extracted
+
     # ----------------------------------------------------------------
     
     def registerServices(self, services):
@@ -154,7 +162,7 @@ class InjectorAssemblyHandler(Handler, IProcessor):
             register = self.processing.ctx.register(services=iter(services),
                                                   exclude=exclude, doSuggest=lambda *args: suggestions.append(args))
             try:
-                self.assembled = self.processing.executeWithAll(register=register)
+                self.assembled = self.processing.execute(FILL_ALL, register=register)
                 break
             except Abort as e:
                 assert isinstance(e, Abort)
@@ -216,12 +224,10 @@ class ResolverWrapper(IResolver):
         '''
         @see: IResolver.list
         '''
-        flags = set(flags)
-        try: flags.remove(LIST_UNUSED)
-        except KeyError: return self.wrapped.list(*flags)
+        flags = FlagSet(flags)
+        if not flags.checkOnce(LIST_UNUSED): return self.wrapped.list(*flags)
         if LIST_UNAVAILABLE in flags: return self.wrapped.list(*flags)
-        try: flags.remove(LIST_CLASSES)
-        except KeyError: pass
+        flags.discard(LIST_CLASSES)
         assert not flags, 'Unknown flags: %s' % ', '.join(flags)
         return {}
         

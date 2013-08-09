@@ -15,9 +15,10 @@ from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
 from ally.support.api.util_service import iterateCalls
+from ally.support.util_spec import IDo
 from ally.support.util_sys import locationStack
 from collections import Iterable
-from ally.support.util_spec import IDo
+from ally.support.util_context import attributesOf, hasAttribute
 
 # --------------------------------------------------------------------
 
@@ -29,6 +30,11 @@ class Register(Context):
     invokers = defines(list, doc='''
     @rtype: list[Context]
     The invokers created based on the services.
+    ''')
+    doCopyInvoker = defines(IDo, doc='''
+    @rtype: callable(destination:Context, source:Context, exclude:set=None) -> Context
+    On the first position the destination invoker to copy to and on the second position the source to copy from, returns
+    the destination invoker. Accepts also a named argument containing a set of attributes names to exclude.
     ''')
     # ---------------------------------------------------------------- Required
     services = requires(Iterable)
@@ -111,3 +117,28 @@ class InvokerServiceHandler(HandlerProcessor):
                 invoker.location = locationStack(getattr(service.clazz, call.name))
                 invoker.doInvoke = getattr(implementation, call.name)
                 register.invokers.append(invoker)
+        
+        if register.invokers: register.doCopyInvoker = self.doCopyInvoker
+
+    # ----------------------------------------------------------------
+    
+    def doCopyInvoker(self, destination, source, exclude=None):
+        '''
+        Do copy the invoker.
+        '''
+        assert isinstance(destination, InvokerCall), 'Invalid destination %s' % destination
+        assert isinstance(source, InvokerCall), 'Invalid source %s' % source
+        assert exclude is None or isinstance(exclude, set), 'Invalid exclude %s' % exclude
+        
+        for name in attributesOf(destination):
+            if exclude and name in exclude: continue
+            value = getattr(destination, name)
+            if value is not None: continue
+            if not hasAttribute(source, name): continue
+            value = getattr(source, name)
+            if value is None: continue
+            if isinstance(value, (set, list, dict, Context)):
+                raise Exception('Cannot copy \'%s\' with value \'%s\'' % (name, value))
+            setattr(destination, name, value)
+        
+        return destination

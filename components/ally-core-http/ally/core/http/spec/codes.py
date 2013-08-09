@@ -9,9 +9,9 @@ Created on Jun 1, 2012
 Contains the codes to be used for the HTTP server responses.
 '''
 
-from ally.core.spec.codes import ENCODING_UNKNOWN, CONTENT_BAD, CONTENT_ILLEGAL, \
-    CONTENT_MISSING, CONTENT_EXPECTED, DECODING_FAILED, INPUT_ERROR, DELETE_ERROR, \
-    DELETE_SUCCESS, UPDATE_ERROR, UPDATE_SUCCESS, INSERT_ERROR, INSERT_SUCCESS
+from ally.core.spec.codes import ENCODING_UNKNOWN, CONTENT_BAD, CONTENT_MISSING, \
+    CONTENT_EXPECTED, DECODING_FAILED, INPUT_ERROR, DELETE_ERROR, DELETE_SUCCESS, \
+    UPDATE_ERROR, UPDATE_SUCCESS, INSERT_ERROR, INSERT_SUCCESS
 from ally.http.spec.codes import CodeHTTP
 
 # --------------------------------------------------------------------
@@ -20,7 +20,6 @@ from ally.http.spec.codes import CodeHTTP
 CODE_TO_STATUS = {
                   ENCODING_UNKNOWN.code: 400,  # HTTP code 400 Bad Request
                   CONTENT_BAD.code: 400,  # HTTP code 400 Bad Request
-                  CONTENT_ILLEGAL.code: 400,  # HTTP code 400 Bad Request
                   CONTENT_MISSING.code: 400,  # HTTP code 400 Bad Request
                   CONTENT_EXPECTED.code: 400,  # HTTP code 400 Bad Request
                   DECODING_FAILED.code: 400,  # HTTP code 400 Bad Request

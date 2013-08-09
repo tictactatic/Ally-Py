@@ -180,6 +180,33 @@ class immut(dict):
         except AttributeError: self.__hash__value = hash(tuple(p for p in self.items()))
         return self.__hash__value
 
+class FlagSet(set):
+    '''
+    Extension of a set that provides easy management for string flags.
+    '''
+    __slots__ = ()
+    
+    def __init__(self, flags):
+        super().__init__(flags)
+        if __debug__:
+            for flag in self: assert isinstance(flag, str), 'Invalid flag %s' % flag
+                
+    def checkOnce(self, flag):
+        '''
+        Checks if the provided flag is in this flag set after the check the flag will get removed.
+        
+        @param flag: string
+            The flag to check.
+        @return: boolean
+            True if the flag was contained, False otherwise.
+        '''
+        assert isinstance(flag, str), 'Invalid flag %s' % flag
+        try: self.remove(flag)
+        except KeyError: return False
+        return True
+
+# --------------------------------------------------------------------
+
 def firstOf(coll):
     '''
     Provides the first element from the provided collection.

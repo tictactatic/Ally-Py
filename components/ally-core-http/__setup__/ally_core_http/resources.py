@@ -24,6 +24,8 @@ from ally.core.http.impl.processor.assembler.invoker_node import \
     InvokerNodeHandler
 from ally.core.http.impl.processor.assembler.invoker_resources import \
     InvokerResourcesHandler
+from ally.core.http.impl.processor.assembler.invoker_shadow import \
+    InvokerShadowHandler, ConflictShadowHandler, RequiredShadowHandler
 from ally.core.http.impl.processor.assembler.method_http import \
     MethodHTTPHandler
 from ally.core.http.impl.processor.assembler.path_domain import \
@@ -56,6 +58,12 @@ def pathInput() -> Handler: return PathInputHandler()
 def pathUpdate() -> Handler: return PathUpdateHandler()
 
 @ioc.entity
+def invokerShadow() -> Handler: return InvokerShadowHandler()
+
+@ioc.entity
+def conflictShadow() -> Handler: return ConflictShadowHandler()
+
+@ioc.entity
 def pathTarget() -> Handler: return PathTargetHandler()
 
 @ioc.entity
@@ -86,6 +94,9 @@ def pathGetModel() -> Handler: return PathGetModelHandler()
 def pathGetAccesible() -> Handler: return PathGetAccesibleHandler()
 
 @ioc.entity
+def requiredShadow() -> Handler: return RequiredShadowHandler()
+
+@ioc.entity
 def assemblerScheme() -> Handler: return AssemblerSchemeHandler()
 
 @ioc.entity
@@ -95,10 +106,10 @@ def encodingPath() -> Handler: return EncodingPathHandler()
 
 @ioc.after(updateAssemblyAssembler)
 def updateAssemblyAssemblerForHTTPCore():
-    assemblyAssembler().add(methodHTTP(), pathInput(), pathUpdate(), pathTarget(),
-                            pathDomain(), pathWebName(), invokerResources(), invokerNode(), conflictReplace(),
-                            conflictResolve(), pathSlash(), pathGetModel(), pathGetAccesible(), assemblerScheme(),
-                            encodingPath(), after=processMethod())
+    assemblyAssembler().add(methodHTTP(), pathInput(), pathUpdate(), invokerShadow(), pathTarget(),
+                            pathDomain(), pathWebName(), invokerResources(), invokerNode(), conflictShadow(),
+                            conflictReplace(), conflictResolve(), pathSlash(), pathGetModel(), pathGetAccesible(),
+                            requiredShadow(), assemblerScheme(), encodingPath(), after=processMethod())
 
 @ioc.after(updateAssemblyEncodeExportForPath)
 def updateAssemblyEncodeExportForEncodingPath():

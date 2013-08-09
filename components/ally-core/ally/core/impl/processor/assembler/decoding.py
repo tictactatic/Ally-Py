@@ -16,7 +16,7 @@ from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context
-from ally.design.processor.execution import Processing, Abort
+from ally.design.processor.execution import Processing, Abort, FILL_ALL
 from ally.design.processor.handler import HandlerBranching
 from ally.support.util_spec import IDo
 import logging
@@ -39,6 +39,7 @@ class Invoker(Context):
     The invoker context.
     '''
     # ---------------------------------------------------------------- Required
+    node = requires(Context)
     inputs = requires(tuple)
     solved = requires(set)
     location = requires(str)
@@ -135,6 +136,7 @@ class DecodingHandler(HandlerBranching):
         keyargs.update(register=register, Decoding=Decoding)
         for invoker in register.invokers:
             assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
+            assert invoker.node, 'Invalid invoker %s with no node' % invoker
             
             if invoker.inputs:
                 decodings = []
@@ -154,7 +156,7 @@ class DecodingHandler(HandlerBranching):
 
                 if decodings:
                     keyargs.update(node=invoker.node, invoker=invoker)
-                    try: processing.executeWithAll(create=processing.ctx.create(decodings=decodings), **keyargs)
+                    try: processing.execute(FILL_ALL, create=processing.ctx.create(decodings=decodings), **keyargs)
                     except Abort:
                         log.error('Cannot use because there is no valid decoder for %s, at:%s',
                                   decoding.input, invoker.location)

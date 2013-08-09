@@ -10,6 +10,7 @@ General specifications for the entities API that poses a string Name identifier.
 '''
 
 from ally.api.config import model, query, service, call
+from ally.api.option import SliceAndTotal # @UnusedImport
 from ally.api.type import Iter
 
 # --------------------------------------------------------------------

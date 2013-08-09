@@ -13,7 +13,7 @@ from ally.container.ioc import injected
 from ally.design.processor.attribute import defines
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
-from ally.support.util_context import namesOf, pushIn
+from ally.support.util_context import attributesOf, pushIn
 
 # --------------------------------------------------------------------
 
@@ -59,7 +59,7 @@ class DefinitionHandler(HandlerProcessor):
     def __init__(self):
         assert isinstance(self.definitions, list), 'Invalid definitions %s' % self.definitions
         if __debug__:
-            keys = namesOf(DefinitionPopulate)
+            keys = attributesOf(DefinitionPopulate)
             for data in self.definitions:
                 assert isinstance(data, dict), 'Invalid definition data %s' % data
                 assert keys.issuperset(data), 'The available data keys are %s, invalid %s' % (', '.join(keys), data) 

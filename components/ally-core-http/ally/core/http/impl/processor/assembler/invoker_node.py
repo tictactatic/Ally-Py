@@ -187,6 +187,7 @@ class InvokerNodeHandler(HandlerProcessor):
                 if node.invokers is None: node.invokers = {invoker.methodHTTP: invoker}
                 elif node.conflicts and invoker.methodHTTP in node.conflicts:
                     node.conflicts[invoker.methodHTTP].append(invoker)
+                    continue
                 elif invoker.methodHTTP in node.invokers:
                     if node.conflicts is None: node.conflicts = {}
                     conflicts = node.conflicts.get(invoker.methodHTTP)
@@ -196,5 +197,5 @@ class InvokerNodeHandler(HandlerProcessor):
                     continue
                 else: node.invokers[invoker.methodHTTP] = invoker
                 invoker.node = node
-        
+                
         if aborted: raise Abort(*aborted)

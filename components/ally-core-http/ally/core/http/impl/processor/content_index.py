@@ -15,7 +15,7 @@ from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires
 from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context
-from ally.design.processor.execution import Processing
+from ally.design.processor.execution import Processing, FILL_ALL
 from ally.design.processor.handler import HandlerBranching
 from ally.http.spec.headers import HeadersDefines, CONTENT_INDEX
 from ally.indexing.spec.model import Block
@@ -108,7 +108,7 @@ class ContentIndexEncodeHandler(HandlerBranching):
         assert isinstance(responseCnt.indexes, list), 'Invalid indexes %s' % responseCnt.indexes
         
         if self.blocks is None:
-            blocks = processing.executeWithAll().blocks
+            blocks = processing.execute(FILL_ALL).blocks
             assert isinstance(blocks, Blocks), 'Invalid blocks %s' % blocks
             assert isinstance(blocks.blocks, dict), 'Invalid blocks %s' % blocks.blocks
             self.blocks = blocks.blocks

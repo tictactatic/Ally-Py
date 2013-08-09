@@ -321,7 +321,7 @@ def processQuery(collection, clazz, query, fetcher=None):
 
     return filtered
 
-def processCollection(collection, clazz, query=None, fetcher=None, offset=0, limit=None, withTotal=False):
+def processCollection(collection, clazz=None, query=None, fetcher=None, offset=0, limit=None, withTotal=False):
     '''
     Process the collection based on the provided parameters.
     

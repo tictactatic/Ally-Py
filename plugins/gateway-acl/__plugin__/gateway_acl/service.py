@@ -9,25 +9,38 @@ Created on Jan 9, 2012
 Contains the services for acl gateway.
 '''
     
-from __setup__.ally_core.resources import injectorAssembly
+from __setup__.ally_core.resources import injectorAssembly, assemblyAssembler, \
+    processMethod
+from __setup__.ally_core_http.resources import \
+    updateAssemblyAssemblerForHTTPCore
 from ally.container import ioc, support
 from ally.design.processor.assembly import Assembly
 
 # --------------------------------------------------------------------
 
-findAllowInvoker = support.notCreated  # Just to avoid errors
+# The assembler processors
+processFilter = indexAccess = support.notCreated  # Just to avoid errors
 
-support.createEntitySetup('gateway.core.acl.impl.processor.**.*')
+# The management processors
+processGroup = alterMethod = alterFilter = getAccess = getMethod = getFilter = support.notCreated  # Just to avoid errors
+
+support.createEntitySetup('gateway.core.acl.impl.**.*')
 
 # --------------------------------------------------------------------
 
 @ioc.entity
-def assemblyManageAccess() -> Assembly:
-    ''' The assembly used for managing the access'''
-    return Assembly('ACL manage access')
+def assemblyACLManagement() -> Assembly:
+    ''' The assembly used for ACL management'''
+    return Assembly('ACL management')
 
 # --------------------------------------------------------------------
 
-@ioc.before(assemblyManageAccess)
-def updateAssemblyManageAccess():
-    assemblyManageAccess().add(injectorAssembly(), findAllowInvoker())
+@ioc.before(assemblyACLManagement)
+def updateAssemblyACLManagement():
+    assemblyACLManagement().add(injectorAssembly(), processGroup(), alterMethod(), alterFilter(),
+                                getAccess(), getMethod(), getFilter())
+        
+@ioc.after(updateAssemblyAssemblerForHTTPCore)
+def updateAssemblyAssemblerForFilter():
+    assemblyAssembler().add(processFilter(), before=processMethod())
+    assemblyAssembler().add(indexAccess())

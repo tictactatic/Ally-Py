@@ -28,8 +28,9 @@ class Register(Context):
     The register context.
     '''
     # ---------------------------------------------------------------- Defined
-    invokers = requires(list)
     hintsModel = definesIf(dict)
+    # ---------------------------------------------------------------- Required
+    invokers = requires(list)
     
 class Invoker(Context):
     '''
@@ -37,6 +38,7 @@ class Invoker(Context):
     '''
     # ---------------------------------------------------------------- Defined
     path = defines(list)
+    # ---------------------------------------------------------------- Required
     location = requires(str)
     
 class ElementDomain(Context):
