@@ -9,7 +9,6 @@ Created on Aug 8, 2013
 Implementation for the ACL method access.
 '''
 
-from ..api.group import Group
 from ..api.method import IMethodService, Method
 from ..core.acl.spec import IACLManagement
 from ally.api.error import InvalidIdError
@@ -36,30 +35,12 @@ class MethodService(IMethodService):
         @see: IMethodService.getById
         '''
         assert isinstance(name, str), 'Invalid method name %s' % name
-        method = self.aclManagement.get(Method, forName=name)
+        method = self.aclManagement.get(Method, forMethod=name)
         if not method: raise InvalidIdError()
         return method
         
-    def getMethods(self, access=None, group=None, **options):
+    def getMethods(self, access=None):
         '''
         @see: IMethodService.getMethods
         '''
-        return sorted(self.aclManagement.get(Method.Name, forAccess=access, forGroup=group, forAll=True) or ())
-    
-    def getGroups(self, access, method):
-        '''
-        @see: IMethodService.getGroups
-        '''
-        return sorted(self.aclManagement.get(Group.Name, forAccess=access, forMethod=method) or ())
-        
-    def addMethod(self, access, group, method):
-        '''
-        @see: IMethodService.addMethod
-        '''
-        return self.aclManagement.add(Method, access=access, group=group, method=method)
-        
-    def removeMethod(self, access, group, method):
-        '''
-        @see: IMethodService.removeMethod
-        '''
-        return self.aclManagement.remove(Method, access=access, group=group, method=method)
+        return sorted(self.aclManagement.get(Method.Name, forAccess=access) or ())

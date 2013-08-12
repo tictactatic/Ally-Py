@@ -11,7 +11,7 @@ Indexes the access invokers.
 
 from ally.container.ioc import injected
 from ally.container.support import setup
-from ally.design.processor.attribute import requires, defines
+from ally.design.processor.attribute import requires, defines, attribute
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor, Handler
 from collections import deque
@@ -24,7 +24,7 @@ class Register(Context):
     The register context.
     '''
     # ---------------------------------------------------------------- Defined
-    access = defines(dict, doc='''
+    accesses = defines(dict, doc='''
     @rtype: dictionary{string: Context}
     The access indexed by the access name.
     ''')
@@ -35,41 +35,53 @@ class Register(Context):
     # ---------------------------------------------------------------- Required
     root = requires(Context)
 
-class Node(Context):
+class Invoker(Context):
     '''
     The invoker context.
+    '''
+    # ---------------------------------------------------------------- Defined
+    access = attribute(Context, doc='''
+    @rtype: Context
+    The access for the invoker.
+    ''')
+    # ---------------------------------------------------------------- Required
+    shadowOf = requires(Context)
+    
+class Node(Context):
+    '''
+    The node context.
     '''
     # ---------------------------------------------------------------- Required
     invokers = requires(dict)
     child = requires(Context)
     childByName = requires(dict)
     
-class AccessNode(Context):
+class ACLAccessNode(Context):
     '''
-    The access context.
+    The ACL access context.
     '''
     # ---------------------------------------------------------------- Defined
     pattern = defines(str, doc='''
     @rtype: string
     The access pattern.
     ''')
-    path = defines(tuple, doc='''
-    @rtype: tuple(string|Context)
-    The access tuple composed of string elements and nodes for user input.
+    path = defines(list, doc='''
+    @rtype: list[string|Context]
+    The access path list composed of string elements and nodes for user input.
     ''')
-    permissions = defines(dict, doc='''
+    methods = defines(dict, doc='''
     @rtype: dictionary{string: Context}
-    The access permissions indexed by method.
+    The access methods indexed by method name.
     ''')
     
-class PermissionInvoker(Context):
+class ACLMethodInvoker(Context):
     '''
-    The permission context.
+    The ACL method context.
     '''
     # ---------------------------------------------------------------- Defined
     invoker = defines(Context, doc='''
     @rtype: Context
-    The permission invoker.
+    The method invoker.
     ''')
     
 # --------------------------------------------------------------------
@@ -86,49 +98,71 @@ class IndexAccessHandler(HandlerProcessor):
     
     def __init__(self):
         assert isinstance(self.propertyMark, str), 'Invalid property mark %s' % self.propertyMark
-        super().__init__(Node=Node)
+        super().__init__(Invoker=Invoker, Node=Node)
 
-    def process(self, chain, register:Register, Access:AccessNode, Permission:PermissionInvoker, **keyargs):
+    def process(self, chain, register:Register, ACLAccess:ACLAccessNode, ACLMethod:ACLMethodInvoker, **keyargs):
         '''
         @see: HandlerProcessor.process
         
         Indexes the access invokers by name.
         '''
         assert isinstance(register, Register), 'Invalid register %s' % register
-        assert issubclass(Access, AccessNode), 'Invalid access class %s' % Access
-        assert issubclass(Permission, PermissionInvoker), 'Invalid permission class %s' % Permission
+        assert issubclass(ACLAccess, ACLAccessNode), 'Invalid access class %s' % ACLAccess
+        assert issubclass(ACLMethod, ACLMethodInvoker), 'Invalid method class %s' % ACLMethod
         if not register.root: return  # No root to process
         
-        stack = deque()
-        stack.append(((), register.root))
+        stack, shadows = deque(), []
+        stack.append(([], register.root))
         while stack:
             path, node = stack.popleft()
             assert isinstance(node, Node), 'Invalid node %s' % node
             if node.invokers:
                 assert isinstance(node.invokers, dict), 'Invalid invokers %s' % node.invokers
-                if register.access is None: register.access = {}
+                if register.accesses is None: register.accesses = {}
                 if register.accessMethods is None: register.accessMethods = set()
                 
                 pattern = '/'.join(el if isinstance(el, str) else self.propertyMark for el in path)
                 name = '{0:0>8x}'.format(binascii.crc32(pattern.encode(), 0)).upper()
                 
-                access = register.access.get(name)
-                if access is None: access = register.access[name] = Access(pattern=pattern, path=path)
+                access = register.accesses.get(name)
+                if access is None: access = register.accesses[name] = ACLAccess(pattern=pattern, path=path)
                 else:
-                    assert isinstance(access, AccessNode), 'Invalid access %s' % access
+                    assert isinstance(access, ACLAccessNode), 'Invalid access %s' % access
                     assert pattern == access.pattern, \
                     'Invalid pattern \'%s\' with pattern \'%s\' for name \'%s\'' % (pattern, access.pattern, name)
                     assert path == access.path, \
-                    'Invalid path \'%s\' with path \'%s\' for name \'%s\'' % (path, access.path, name)
+                    'Invalid path \'%s\' with path \'%s\' for \'%s\'' % (path, access.path, pattern)
                     
-                if access.permissions is None: access.permissions = {}
+                if access.methods is None: access.methods = {}
                 
                 for method, invoker in node.invokers.items():
-                    assert method not in access.permissions, 'Already a permission for \'%s\' at %s' % (method, name)
-                    access.permissions[method] = Permission(invoker=invoker)
+                    assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
+                    if invoker.shadowOf:
+                        shadows.append((access, method, invoker))
+                        continue
+                    assert method not in access.methods, 'Already a method for \'%s\' at %s' % (method, pattern)
+                    assert invoker.access is None, 'Invoker %s already has access %s' % invoker.access
+                    
+                    invoker.access = access
+                    access.methods[method] = ACLMethod(invoker=invoker)
                     register.accessMethods.add(method)
             
             if node.childByName:
-                for cname, cnode in node.childByName.items(): stack.append((path + (cname,), cnode))
+                for cname, cnode in node.childByName.items():
+                    cpath = list(path)
+                    cpath.append(cname)
+                    stack.append((cpath, cnode))
             if node.child:
-                stack.append((path + (node,), node.child))
+                cpath = list(path)
+                cpath.append(node)
+                stack.append((cpath, node.child))
+                
+        for access, method, shadow in shadows:
+            assert isinstance(access, ACLAccessNode), 'Invalid access %s' % access
+            assert isinstance(shadow, Invoker), 'Invalid invoker %s' % shadow
+            assert isinstance(shadow.shadowOf, Invoker), 'Invalid invoker %s' % shadow.shadowOf
+            assert isinstance(shadow.shadowOf.access, ACLAccessNode), 'Invalid access %s' % shadow.shadowOf.access
+            assert method not in access.methods, 'Already a method for \'%s\' at %s' % (method, access.pattern)
+            
+            access.methods[method] = shadow.shadowOf.access.methods[method]
+            

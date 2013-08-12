@@ -35,7 +35,8 @@ class AccessService(IAccessService):
         '''
         @see: IAccessService.getById
         '''
-        access = self.aclManagement.get(Access, forName=name)
+        assert isinstance(name, str), 'Invalid name %s' % name
+        access = self.aclManagement.get(Access, forAccess=name)
         if not access: raise InvalidIdError()
         return access
     
@@ -43,7 +44,7 @@ class AccessService(IAccessService):
         '''
         @see: IAccessService.getAll
         '''
-        return processCollection(sorted(self.aclManagement.get(Access.Name, forAll=True) or ()), **options)
+        return processCollection(sorted(self.aclManagement.get(Access.Name) or ()), **options)
     
     # TODO: remove    
     def isDummyFilter(self, id):

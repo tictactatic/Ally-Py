@@ -11,10 +11,11 @@ Implementation for the ACL groups.
 
 from ..api.group import IGroupService, Group
 from ..core.acl.spec import IACLManagement
+from ally.api.error import InvalidIdError
 from ally.container import wire
 from ally.container.ioc import injected
 from ally.container.support import setup
-from ally.api.error import InvalidIdError
+from ally.support.api.util_service import processCollection
 
 # --------------------------------------------------------------------
 
@@ -35,12 +36,33 @@ class GroupService(IGroupService):
         @see: IGroupService.getById
         '''
         assert isinstance(name, str), 'Invalid group name %s' % name
-        group = self.aclManagement.get(Group, forName=name)
+        group = self.aclManagement.get(Group, forGroup=name)
         if not group: raise InvalidIdError()
         return group
     
-    def getGroups(self, access=None):
+    def getAll(self, **options):
         '''
-        @see: IGroupService.getGroups
+        @see: IGroupService.getAll
         '''
-        return sorted(self.aclManagement.get(Group.Name, forAccess=access, forAll=True) or ())
+        return processCollection(sorted(self.aclManagement.get(Group.Name) or ()), **options)
+    
+    def getAllowed(self, access, method):
+        '''
+        @see: IGroupService.getAllowed
+        '''
+        assert isinstance(access, str), 'Invalid access name %s' % access
+        assert isinstance(method, str), 'Invalid method name %s' % method
+        return sorted(self.aclManagement.get(Group.Name, forAccess=access, forMethod=method) or ())
+    
+    def addGroup(self, access, method, group):
+        '''
+        @see: IGroupService.addGroup
+        '''
+        return self.aclManagement.add(Group, forAccess=access, forMethod=method, forGroup=group)
+        
+    def removeGroup(self, access, method, group):
+        '''
+        @see: IGroupService.removeGroup
+        '''
+        return self.aclManagement.remove(Group, forAccess=access, forMethod=method, forGroup=group)
+

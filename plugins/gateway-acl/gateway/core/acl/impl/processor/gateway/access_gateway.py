@@ -38,7 +38,7 @@ class Register(Context):
     The register context.
     '''
     # ---------------------------------------------------------------- Required
-    access = requires(dict)
+    accesses = requires(dict)
 
 class Node(Context):
     '''
@@ -47,20 +47,20 @@ class Node(Context):
     # ---------------------------------------------------------------- Required
     type = requires(Type)
     
-class Access(Context):
+class ACLAccess(Context):
     '''
-    The access context.
+    The ACL access context.
     '''
     # ---------------------------------------------------------------- Required
-    path = requires(tuple)
-    permissions = requires(dict)
+    path = requires(list)
+    methods = requires(dict)
 
-class Permission(Context):
+class ACLMethod(Context):
     '''
-    The permission context.
+    The ACL method context.
     '''
     # ---------------------------------------------------------------- Required
-    allowed = requires(dict)
+    allowed = requires(set)
     invoker = requires(Context)
     
 # --------------------------------------------------------------------
@@ -84,7 +84,7 @@ class RegisterAccessGateways(HandlerProcessor):
         assert isinstance(self.root_uri, str), 'Invalid root uri %s' % self.root_uri
         assert isinstance(self.acl_groups, list), 'Invalid acl groups %s' % self.acl_groups
         assert self.acl_groups, 'At least an acl group is required'
-        super().__init__(Node=Node, Access=Access, Permission=Permission)
+        super().__init__(Node=Node, ACLAccess=ACLAccess, ACLMethod=ACLMethod)
         
         self._groups = set(self.acl_groups)
     
@@ -96,20 +96,20 @@ class RegisterAccessGateways(HandlerProcessor):
         '''
         assert isinstance(reply, Reply), 'Invalid reply %s' % reply
         assert isinstance(register, Register), 'Invalid register %s' % register
-        if not register.access: return
-        assert isinstance(register.access, dict), 'Invalid register access %s' % register.access
+        if not register.accesses: return
+        assert isinstance(register.accesses, dict), 'Invalid register accesses %s' % register.accesses
         
         gateways = []
-        for access in register.access.values():
-            assert isinstance(access, Access), 'Invalid access %s' % access
-            if not access.permissions: continue
-            assert isinstance(access.permissions, dict), 'Invalid permissions %s' % access.permissions
+        for access in register.accesses.values():
+            assert isinstance(access, ACLAccess), 'Invalid access %s' % access
+            if not access.methods: continue
+            assert isinstance(access.methods, dict), 'Invalid methods %s' % access.methods
             
             methods = []
-            for method, permission in access.permissions.items():
-                assert isinstance(permission, Permission), 'Invalid permission %s' % permission
-                if not permission.allowed or self._groups.isdisjoint(permission.allowed): continue
-                methods.append(method)
+            for name, method in access.methods.items():
+                assert isinstance(method, ACLMethod), 'Invalid method %s' % method
+                if not method.allowed or self._groups.isdisjoint(method.allowed): continue
+                methods.append(name)
             
             if methods:
                 gateway = Gateway()

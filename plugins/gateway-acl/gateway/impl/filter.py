@@ -35,7 +35,8 @@ class FilterService(IFilterService):
         '''
         @see: IFilterService.getById
         '''
-        filter = self.aclManagement.get(Filter, name)
+        assert isinstance(name, str), 'Invalid name %s' % name
+        filter = self.aclManagement.get(Filter, forFilter=name)
         if not filter: raise InvalidIdError()
         return filter
         
@@ -43,23 +44,26 @@ class FilterService(IFilterService):
         '''
         @see: IFilterService.getAll
         '''
-        return processCollection(self.aclManagement.get(Filter.Name, forAll=True), **options)
+        return processCollection(self.aclManagement.get(Filter.Name), **options)
     
-    def getFilters(self, access, group=None, method=None):
+    def getFilters(self, access, method, group):
         '''
         @see: IFilterService.getFilters
         '''
-        return sorted(self.aclManagement.get(Filter.Name, forAccess=access, forGroup=group, forMethod=method) or ())
+        assert isinstance(access, str), 'Invalid access name %s' % access
+        assert isinstance(method, str), 'Invalid method name %s' % method
+        assert isinstance(group, str), 'Invalid group name %s' % group
+        return sorted(self.aclManagement.get(Filter.Name, forAccess=access, forMethod=method, forGroup=group) or ())
     
-    def addFilter(self, access, group, method, filter):
+    def addFilter(self, access, method, group, filter):
         '''
         @see: IFilterService.addFilter
         '''
-        return self.aclManagement.add(Filter, access=access, group=group, method=method, filter=filter)
+        return self.aclManagement.add(Filter, forAccess=access, forMethod=method, forGroup=group, forFilter=filter)
         
-    def removeFilter(self, access, group, method, filter):
+    def removeFilter(self, access, method, group, filter):
         '''
         @see: IFilterService.removeFilter
         '''
-        return self.aclManagement.remove(Filter, access=access, group=group, method=method, filter=filter)
+        return self.aclManagement.remove(Filter, forAccess=access, forMethod=method, forGroup=group, forFilter=filter)
         

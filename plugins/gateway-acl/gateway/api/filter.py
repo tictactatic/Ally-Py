@@ -42,19 +42,19 @@ class IFilterService(IEntityGetService, IEntityFindService):
     '''
     
     @call
-    def getFilters(self, access:Access, group:Group=None, method:Method=None) -> Iter(Filter.Name):
+    def getFilters(self, access:Access, method:Method, group:Group) -> Iter(Filter.Name):
         '''
-        Provides the available filters.
+        Provides the group filters.
         '''
     
     @call
-    def addFilter(self, access:Access.Name, group:Group.Name, method:Method.Name, filter:Filter.Name) -> bool:
+    def addFilter(self, access:Access.Name, method:Method.Name, group:Group.Name, filter:Filter.Name) -> bool:
         '''
         Adds the filter for the access group.
         '''
         
     @call
-    def removeFilter(self, access:Access, group:Group, method:Method, filter:Filter) -> bool:
+    def removeFilter(self, access:Access, method:Method, group:Group, filter:Filter) -> bool:
         '''
         Removes the filter for the access group.
         '''

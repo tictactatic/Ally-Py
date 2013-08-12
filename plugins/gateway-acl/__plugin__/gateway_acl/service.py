@@ -14,7 +14,7 @@ from ..gateway.service import registerMethodOverride, \
 from __setup__.ally_core.resources import injectorAssembly, assemblyAssembler, \
     processMethod, register
 from __setup__.ally_core_http.resources import \
-    updateAssemblyAssemblerForHTTPCore
+    updateAssemblyAssemblerForHTTPCore, conflictResolve
 from __setup__.ally_core_http.server import root_uri_resources
 from ally.container import ioc, support
 from ally.design.processor.assembly import Assembly
@@ -22,13 +22,13 @@ from ally.design.processor.assembly import Assembly
 # --------------------------------------------------------------------
 
 # The assembler processors
-processFilter = indexAccess = support.notCreated  # Just to avoid errors
+processFilter = indexAccess = filterTarget = support.notCreated  # Just to avoid errors
 
 # The gateway processors
 registerAccessGateways = support.notCreated  # Just to avoid errors
 
 # The management processors
-processGroup = alterMethod = alterFilter = getAccess = getMethod = getFilter = support.notCreated  # Just to avoid errors
+handleAccess = handleMethod = handleGroup = handleFilter = support.notCreated  # Just to avoid errors
 
 support.createEntitySetup('gateway.core.acl.impl.**.*')
 
@@ -56,29 +56,39 @@ def updateAssemblyAnonymousGatewaysForAcl():
 @ioc.after(updateAssemblyAssemblerForHTTPCore)
 def updateAssemblyAssemblerForAcl():
     assemblyAssembler().add(processFilter(), before=processMethod())
+    assemblyAssembler().add(filterTarget(), after=conflictResolve())
     assemblyAssembler().add(indexAccess())
 
 @ioc.before(assemblyACLManagement)
 def updateAssemblyACLManagement():
-    assemblyACLManagement().add(injectorAssembly(), processGroup(), alterMethod(), alterFilter(),
-                                getAccess(), getMethod(), getFilter())
+    assemblyACLManagement().add(injectorAssembly(), handleAccess(), handleMethod(), handleGroup(), handleFilter())
 
 # TODO: Gabriel: rmove test data
 @ioc.start
 def capture():
-    global methodService
+    global groupService, filterService
     from __plugin__.gateway import service
     from ally.container.support import entityFor
-    from gateway.api.method import IMethodService
-    methodService = entityFor(IMethodService, group=service)
+    from gateway.api.group import IGroupService
+    from gateway.api.filter import IFilterService
+    groupService = entityFor(IGroupService, group=service)
+    filterService = entityFor(IFilterService, group=service)
 
 @ioc.after(register)
 def samples():
-    from gateway.api.method import IMethodService
-    assert isinstance(methodService, IMethodService)
-    methodService.addMethod('00000000', 'Anonymous', 'GET')
-    methodService.addMethod('9780F2D6', 'Anonymous', 'GET')
-    methodService.addMethod('0CAF856D', 'Anonymous', 'GET')
+    from gateway.api.group import IGroupService
+    from gateway.api.filter import IFilterService
+    assert isinstance(groupService, IGroupService)
+    print('ADDED:', groupService.addGroup('00000000', 'GET', 'Anonymous'), ':/')
+    print('ADDED:', groupService.addGroup('D4A00B30', 'GET', 'Anonymous'), ':ACL/Access/*/Method/*')
     
-    methodService.addMethod('D4CC4FC5', 'Anonymous', 'GET')
-    methodService.addMethod('D4CC4FC5', 'Anonymous', 'PUT')
+#    methodService.addMethod('00000000', 'Anonymous', 'GET')
+#    methodService.addMethod('9780F2D6', 'Anonymous', 'GET')
+#    methodService.addMethod('0CAF856D', 'Anonymous', 'GET')
+#    
+#    methodService.addMethod('D4CC4FC5', 'Anonymous', 'GET')
+#    methodService.addMethod('D4CC4FC5', 'Anonymous', 'PUT')
+
+    assert isinstance(filterService, IFilterService)
+    print('FILTERED:', filterService.addFilter('00000000', 'GET', 'Anonymous', 'Dummy filter'), ':/')
+    print('FILTERED:', filterService.addFilter('D4A00B30', 'GET', 'Anonymous', 'Dummy filter'), ':ACL/Access/*/Method/*')

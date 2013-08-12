@@ -13,19 +13,25 @@ import abc
 
 # --------------------------------------------------------------------
 
+ACTION_GET = 'get'  # The get value action.
+ACTION_ADD = 'add'  # The add action.
+ACTION_DEL = 'delete'  # The delete action.
+
+# --------------------------------------------------------------------
+
 class IACLManagement(metaclass=abc.ABCMeta):
     '''
     API that used for fetching the mapped action context for a given action id.
     '''
     
     @abc.abstractmethod
-    def get(self, target, **forData):
+    def get(self, target, **data):
         '''
         Gets the value for the target based on the provided for data.
         
         @param target: object
             The target to get the value for.
-        @param forData: key arguments
+        @param data: key arguments
             For data key arguments to be used for fetching the names.
         @return: object
             The value for the provided arguments.
@@ -54,7 +60,5 @@ class IACLManagement(metaclass=abc.ABCMeta):
         @param data: key arguments
             For data key arguments to be used for removing.
         @return: boolean
-            True if the remvoing has been done successfully, False otherwise.
+            True if the removing has been done successfully, False otherwise.
         '''
-
-# --------------------------------------------------------------------

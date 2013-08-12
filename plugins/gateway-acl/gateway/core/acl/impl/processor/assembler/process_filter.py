@@ -45,31 +45,39 @@ class Invoker(Context):
     The invoker context.
     '''
     # ---------------------------------------------------------------- Defined
-    path = defines(list)
+    path = defines(list, doc='''
+    @rtype: list[Context]
+    The starting path elements for filter.
+    ''')
     # ---------------------------------------------------------------- Required
     call = requires(Call)
     method = requires(int)
-    inputs = requires(tuple)
     output = requires(Type)
     location = requires(str)
-    
-class FilterInvoker(Context):
-    '''
-    The filter context.
-    '''
-    # ---------------------------------------------------------------- Defined
-    invokers = defines(list, doc='''
-    @rtype: list[Context]
-    The invoker contexts associated with the filter.
-    ''')
     
 class ElementFilter(Context):
     '''
     The element context.
     '''
     # ---------------------------------------------------------------- Defined
-    name = defines(str)
-    model = defines(TypeModel)
+    name = defines(str, doc='''
+    @rtype: string
+    The element name.
+    ''')
+    model = defines(TypeModel, doc='''
+    @rtype: TypeModel
+    The model represented by the element.
+    ''')
+        
+class ACLFilterInvoker(Context):
+    '''
+    The ACL filter context.
+    '''
+    # ---------------------------------------------------------------- Defined
+    invokers = defines(list, doc='''
+    @rtype: list[Context]
+    The invoker contexts associated with the filter.
+    ''')
     
 # --------------------------------------------------------------------
 
@@ -99,14 +107,14 @@ class ProcessFilterHandler(HandlerProcessor):
         'Invalid type property allowed %s' % self.typePropertyAllowed
         super().__init__(Invoker=Invoker)
 
-    def process(self, chain, register:Register, Filter:FilterInvoker, Element:ElementFilter, **keyargs):
+    def process(self, chain, register:Register, ACLFilter:ACLFilterInvoker, Element:ElementFilter, **keyargs):
         '''
         @see: HandlerProcessor.process
         
         Process the filter calls.
         '''
         assert isinstance(register, Register), 'Invalid register %s' % register
-        assert issubclass(Filter, FilterInvoker), 'Invalid filter class %s' % Filter
+        assert issubclass(ACLFilter, ACLFilterInvoker), 'Invalid filter class %s' % ACLFilter
         assert issubclass(Element, ElementFilter), 'Invalid path element %s' % Element
         if not register.invokers: return
         
@@ -146,8 +154,8 @@ class ProcessFilterHandler(HandlerProcessor):
             
             if register.filters is None: register.filters = {}
             filter = register.filters.get(filterName)
-            if filter is None: filter = register.filters[filterName] = Filter()
-            assert isinstance(filter, FilterInvoker), 'Invalid filter %s' % filter
+            if filter is None: filter = register.filters[filterName] = ACLFilter()
+            assert isinstance(filter, ACLFilterInvoker), 'Invalid filter %s' % filter
             
             if filter.invokers is None: filter.invokers = []
             filter.invokers.append(invoker)

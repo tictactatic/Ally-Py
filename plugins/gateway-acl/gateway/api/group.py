@@ -11,9 +11,11 @@ API specifications for access group.
 
 from .access import Access
 from .domain_acl import modelACL
+from .method import Method
 from ally.api.config import service, call
 from ally.api.type import Iter
-from ally.support.api.entity_named import Entity, IEntityGetService
+from ally.support.api.entity_named import Entity, IEntityGetService, \
+    IEntityFindService
 
 # --------------------------------------------------------------------
 
@@ -27,13 +29,25 @@ class Group(Entity):
 # --------------------------------------------------------------------
 
 @service((Entity, Group))
-class IGroupService(IEntityGetService):
+class IGroupService(IEntityGetService, IEntityFindService):
     '''
     The ACL access group service provides the groups for organizing the accesses.
     '''
+        
+    @call
+    def getAllowed(self, access:Access.Name, method:Method) -> Iter(Group.Name):
+        '''
+        Provides the allowed groups for method in access.
+        '''
     
     @call
-    def getGroups(self, access:Access=None) -> Iter(Group.Name):
+    def addGroup(self, access:Access.Name, method:Method.Name, group:Group.Name) -> bool:
         '''
-        Provides the available filters.
+        Adds a new group for the access method.
+        '''
+        
+    @call
+    def removeGroup(self, access:Access, method:Method, group:Group) -> bool:
+        '''
+        Removes the group for the access method.
         '''
