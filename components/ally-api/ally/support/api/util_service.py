@@ -45,7 +45,7 @@ def namesFor(container):
         The iterator containing the properties names
     '''
     ctype = typeFor(container)
-    assert isinstance(ctype, TypeContainer), 'Invalid query %s' % ctype
+    assert isinstance(ctype, TypeContainer), 'Invalid container %s' % container
     return iter(ctype.properties)
 
 def nameFor(property):
@@ -195,7 +195,42 @@ def callsOf(stack):
 
 # --------------------------------------------------------------------
 
-def copy(src, dest, exclude=()):
+def equalContainer(ainstance, oinstance, exclude=()):
+    '''
+    Checks if the values for the provided instances are equal, this means that all properties except the ones in exclude
+    need to be equal.
+    
+    @param ainstance: container object
+        A container instance to check.
+    @param oinstance: container object
+        The other instance to check.
+    @param exclude: list[string]|tuple(string)|set(string)
+        A list of properties names to exclude from equal check.
+    @return: boolean
+        True if the instances are equal, False otherwise.
+    '''
+    assert ainstance is not None and oinstance is not None, 'Invalid instances %s, %s' % (ainstance, oinstance)
+    atype, otype = typeFor(ainstance), typeFor(oinstance)
+    assert isinstance(atype, TypeContainer), 'Invalid container %s' % ainstance
+    assert isinstance(otype, TypeContainer), 'Invalid container %s' % oinstance
+    
+    if atype != otype:
+        properties = set(atype.properties)
+        properties.symmetric_difference_update(otype.properties)
+        properties.difference_update(exclude)
+        if properties: return False  # It means that they are properties that are not accounted for in one of the containers.
+        
+    for name, aprop in atype.properties.items():
+        if name in exclude: continue
+        oprop = otype.properties[name]
+        if aprop not in ainstance:
+            if oprop in oinstance: return False
+        else:
+            if oprop not in oinstance: return False
+            if getattr(ainstance, name) != getattr(oinstance, name): return False
+    return True
+
+def copyContainer(src, dest, exclude=()):
     '''
     Copies the container properties from the object source to object destination, attention only the common properties from
     source and destination will be transfered, the rest of properties will be ignored.
@@ -209,13 +244,12 @@ def copy(src, dest, exclude=()):
         A list of properties names to exclude from copy.
     @return: container object
         Returns the destination object.
-    @raise ValueError: If the common properties are not compatible by type.
     '''
     assert src is not None, 'A source object is required'
     properites = set(namesFor(dest))
+    properites.difference_update(exclude)
     for name, prop in iterateFor(src):
         if name not in properites: continue
-        if name in exclude: continue
         if prop in src: setattr(dest, name, getattr(src, name))
     return dest
 

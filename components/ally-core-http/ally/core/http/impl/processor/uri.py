@@ -50,7 +50,7 @@ class Request(Context):
     @rtype: Context
     The node corresponding to the request.
     ''')
-    nodeValues = definesIf(dict, doc='''
+    nodesValues = definesIf(dict, doc='''
     @rtype: dictionary{Context: string}
     A dictionary containing the path values indexed by the node.
     ''')
@@ -127,9 +127,9 @@ class URIHandler(HandlerProcessor):
                 continue
             
             if node.child:
-                if Request.nodeValues in request:
-                    if request.nodeValues is None: request.nodeValues = {}
-                    request.nodeValues[node] = path
+                if Request.nodesValues in request:
+                    if request.nodesValues is None: request.nodesValues = {}
+                    request.nodesValues[node] = path
                 node = node.child
                 continue
             

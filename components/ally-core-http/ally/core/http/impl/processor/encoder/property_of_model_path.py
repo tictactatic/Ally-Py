@@ -57,7 +57,7 @@ class Support(Context):
     The support context.
     '''
     # ---------------------------------------------------------------- Defined
-    nodeValues = defines(dict, doc='''
+    nodesValues = defines(dict, doc='''
     @rtype: dictionary{Context: object}
     The values used in constructing the paths indexed by corresponding node.
     ''')
@@ -131,8 +131,8 @@ class AttributesPath(ISpecifier):
         @see: ISpecifier.populate
         '''
         assert isinstance(support, Support), 'Invalid support %s' % support
-        if support.nodeValues is None: support.nodeValues = {}
-        support.nodeValues[self.invoker.node.parent] = obj
+        if support.nodesValues is None: support.nodesValues = {}
+        support.nodesValues[self.invoker.node.parent] = obj
         
         attributes = specifications.get('attributes')
         if attributes is None: attributes = specifications['attributes'] = {}

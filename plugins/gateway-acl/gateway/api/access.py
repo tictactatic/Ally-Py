@@ -23,15 +23,21 @@ class Access(Entity):
     Pattern = str
 
 # --------------------------------------------------------------------
-
+from security.api.right import Right
 @service((Entity, Access))
 class IAccessService(IEntityGetService, IEntityFindService):
     '''
     The ACL access service provides the means of setting up the access control layer for services.
     '''
     
-    #TODO: Gabriel: remove
-    @call(filter='Dummy filter')
-    def isDummyFilter(self, access:Access) -> bool:
+    
+    # TODO: Gabriel: remove
+    @call(filter='Filter1')
+    def isDummy1Filter(self, right:Right) -> bool:
+        '''
+        '''
+    
+    @call(webName='Second', filter='Filter2')
+    def isDummy2Filter(self, right:Right) -> bool:
         '''
         '''

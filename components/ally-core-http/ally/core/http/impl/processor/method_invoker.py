@@ -60,7 +60,7 @@ class Request(Context):
     # ---------------------------------------------------------------- Required
     method = requires(str)
     node = requires(Context)
-    nodeValues = requires(dict)
+    nodesValues = requires(dict)
     converterPath = requires(Converter)
 
 class Response(ErrorResponseHTTP):
@@ -125,7 +125,7 @@ class MethodInvokerHandler(Handler):
             METHOD_NOT_AVAILABLE.set(response)
             return
         
-        if not request.nodeValues: return
+        if not request.nodesValues: return
         assert isinstance(request.invoker, Invoker), 'Invalid invoker %s' % request.invoker
         if not request.invoker.decodingsPath: return
         
@@ -135,7 +135,7 @@ class MethodInvokerHandler(Handler):
         for node, decoding in request.invoker.decodingsPath.items():
             assert isinstance(decoding, Decoding), 'Invalid decoding %s' % decoding
             assert isinstance(decoding.doDecode, IDo), 'Invalid do decode %s' % decoding.doDecode
-            decoding.doDecode(target, request.nodeValues[node])
+            decoding.doDecode(target, request.nodesValues[node])
             
         if target.failures:
             PATH_ERROR.set(response)

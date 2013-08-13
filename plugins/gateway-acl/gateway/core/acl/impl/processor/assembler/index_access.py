@@ -9,6 +9,7 @@ Created on Aug 8, 2013
 Indexes the access invokers.
 '''
 
+from ally.api.operator.type import TypeProperty
 from ally.container.ioc import injected
 from ally.container.support import setup
 from ally.design.processor.attribute import requires, defines, attribute
@@ -45,7 +46,16 @@ class Invoker(Context):
     The access for the invoker.
     ''')
     # ---------------------------------------------------------------- Required
+    path = requires(list)
     shadowOf = requires(Context)
+
+class Element(Context):
+    '''
+    The element context.
+    '''
+    # ---------------------------------------------------------------- Required
+    node = requires(Context)
+    property = requires(TypeProperty)
     
 class Node(Context):
     '''
@@ -79,9 +89,13 @@ class ACLMethodInvoker(Context):
     The ACL method context.
     '''
     # ---------------------------------------------------------------- Defined
-    invoker = defines(Context, doc='''
+    invoker = attribute(Context, doc='''
     @rtype: Context
     The method invoker.
+    ''')
+    nodesProperties = defines(dict, doc='''
+    @rtype: dictionary{Context: TypeProperty}
+    The property types indexed by node contexts that are found in the access path.
     ''')
     
 # --------------------------------------------------------------------
@@ -93,12 +107,8 @@ class IndexAccessHandler(HandlerProcessor):
     Implementation for a processor that indexes the access invokers by name.
     '''
     
-    propertyMark = '*'
-    # The mark to place instead of property elements.
-    
     def __init__(self):
-        assert isinstance(self.propertyMark, str), 'Invalid property mark %s' % self.propertyMark
-        super().__init__(Invoker=Invoker, Node=Node)
+        super().__init__(Invoker=Invoker, Element=Element, Node=Node)
 
     def process(self, chain, register:Register, ACLAccess:ACLAccessNode, ACLMethod:ACLMethodInvoker, **keyargs):
         '''
@@ -111,7 +121,7 @@ class IndexAccessHandler(HandlerProcessor):
         assert issubclass(ACLMethod, ACLMethodInvoker), 'Invalid method class %s' % ACLMethod
         if not register.root: return  # No root to process
         
-        stack, shadows = deque(), []
+        stack, methods, shadows = deque(), [], []
         stack.append(([], register.root))
         while stack:
             path, node = stack.popleft()
@@ -121,7 +131,7 @@ class IndexAccessHandler(HandlerProcessor):
                 if register.accesses is None: register.accesses = {}
                 if register.accessMethods is None: register.accessMethods = set()
                 
-                pattern = '/'.join(el if isinstance(el, str) else self.propertyMark for el in path)
+                pattern = '/'.join(el if isinstance(el, str) else '*' for el in path)
                 name = '{0:0>8x}'.format(binascii.crc32(pattern.encode(), 0)).upper()
                 
                 access = register.accesses.get(name)
@@ -146,6 +156,8 @@ class IndexAccessHandler(HandlerProcessor):
                     invoker.access = access
                     access.methods[method] = ACLMethod(invoker=invoker)
                     register.accessMethods.add(method)
+                
+                methods.extend(access.methods.values())
             
             if node.childByName:
                 for cname, cnode in node.childByName.items():
@@ -166,3 +178,13 @@ class IndexAccessHandler(HandlerProcessor):
             
             access.methods[method] = shadow.shadowOf.access.methods[method]
             
+        for method in methods:
+            assert isinstance(method, ACLMethodInvoker), 'Invalid method %s' % method
+            assert isinstance(method.invoker, Invoker), 'Invalid invoker %s' % method.invoker
+            
+            if method.nodesProperties is None: method.nodesProperties = {}
+            for el in method.invoker.path:
+                assert isinstance(el, Element), 'Invalid element %s' % el
+                if not el.property: continue
+                assert isinstance(el.node, Node), 'Invalid element node %s' % el.node
+                method.nodesProperties[el.node] = el.property

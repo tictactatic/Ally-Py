@@ -53,7 +53,7 @@ class Support(Context):
     The support context.
     '''
     # ---------------------------------------------------------------- Defined
-    nodeValues = defines(dict, doc='''
+    nodesValues = defines(dict, doc='''
     @rtype: dictionary{Context: object}
     The values used in constructing the paths indexed by corresponding node.
     ''')
@@ -145,12 +145,12 @@ class EncoderPathUpdater(ITransfrom):
         @see: ITransfrom.transform
         '''
         assert isinstance(support, Support), 'Invalid support %s' % support
-        if support.nodeValues is None: support.nodeValues = {}
+        if support.nodesValues is None: support.nodesValues = {}
 
         for el in self.elements:
             assert isinstance(el, Element), 'Invalid element %s' % el
             assert isinstance(el.property, TypeProperty), 'Invalid property %s' % el.property
-            if self.isModel: support.nodeValues[el.node] = getattr(value, el.property.name)
-            else: support.nodeValues[el.node] = value
+            if self.isModel: support.nodesValues[el.node] = getattr(value, el.property.name)
+            else: support.nodesValues[el.node] = value
         
         self.encoder.transform(value, target, support)

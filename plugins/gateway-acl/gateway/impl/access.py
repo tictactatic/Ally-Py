@@ -47,5 +47,11 @@ class AccessService(IAccessService):
         return processCollection(sorted(self.aclManagement.get(Access.Name) or ()), **options)
     
     # TODO: remove    
-    def isDummyFilter(self, id):
-        return False
+    def isDummy1Filter(self, id):
+        print(id)
+        return id == '00000000'
+    
+    # TODO: remove    
+    def isDummy2Filter(self, id):
+        print(id)
+        return id == '2036D140'

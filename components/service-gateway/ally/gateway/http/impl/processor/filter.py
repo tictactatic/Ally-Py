@@ -91,23 +91,26 @@ class GatewayFilterHandler(HandlerBranching):
         assert isinstance(match.gateway, Gateway), 'Invalid gateway %s' % match.gateway
         
         if match.gateway.filters:
-            for filterURI in match.gateway.filters:
-                assert isinstance(filterURI, str), 'Invalid filter %s' % filterURI
-                try: filterURI = filterURI.format(None, *match.groupsURI)
-                except IndexError:
-                    BAD_GATEWAY.set(response)
-                    response.text = 'Invalid filter URI \'%s\' for groups %s' % (filterURI, match.groupsURI)
-                    return
-                
-                jobj, status, text = obtainJSON(processing, filterURI, details=True)
-                if jobj is None:
-                    log.error('Cannot fetch the filter from URI \'%s\', with response %s %s', request.uri, status, text)
-                    BAD_GATEWAY.set(response)
-                    response.text = text
-                    return
-                
-                if jobj['HasAccess'] != True:
+            for filterGroup in match.gateway.filters:
+                assert isinstance(filterGroup, list), 'Invalid filter group %s' % filterGroup
+                for filterURI in filterGroup:
+                    assert isinstance(filterURI, str), 'Invalid filter %s' % filterURI
+                    try: filterURI = filterURI.format(None, *match.groupsURI)
+                    except IndexError:
+                        BAD_GATEWAY.set(response)
+                        response.text = 'Invalid filter URI \'%s\' for %s' % (filterURI, match.groupsURI)
+                        return
+                    
+                    jobj, status, text = obtainJSON(processing, filterURI, details=True)
+                    if jobj is None:
+                        log.error('Cannot fetch the filter from URI \'%s\', with response %s %s', request.uri, status, text)
+                        BAD_GATEWAY.set(response)
+                        response.text = text
+                        return
+                    
+                    if jobj['IsAllowed'] == True: break
+                    
+                else:
                     FORBIDDEN_ACCESS.set(response)
-                    request.match = request.repository.find(request.method, request.headers, request.uri,
-                                                            FORBIDDEN_ACCESS.status)
+                    request.match = request.repository.find(request.method, request.headers, request.uri, FORBIDDEN_ACCESS.status)
                     return

@@ -29,6 +29,13 @@ class Register(Context):
     # ---------------------------------------------------------------- Required
     filters = requires(dict)
     
+class ACLAccess(Context):
+    '''
+    The ACL access context.
+    '''
+    # ---------------------------------------------------------------- Required
+    path = requires(list)
+    
 class ACLMethod(Context):
     '''
     The ACL method context.
@@ -40,6 +47,8 @@ class ACLMethod(Context):
     the filter context and on the second the access path node that they are filtering. The values dictionaries are
     indexed by the allowed group name.
     ''')
+    # ---------------------------------------------------------------- Required
+    nodesProperties = requires(dict)
 
 class ACLFilter(Context):
     '''
@@ -60,6 +69,7 @@ class Solicit(Context):
     # ---------------------------------------------------------------- Required
     action = requires(str)
     target = requires(object)
+    access = requires(Context)
     method = requires(Context)
     forGroup = requires(str)
     forFilter = requires(str)
@@ -73,7 +83,7 @@ class HandleFilter(HandlerProcessor):
     '''
     
     def __init__(self):
-        super().__init__(ACLMethod=ACLMethod, ACLFilter=ACLFilter)
+        super().__init__(ACLAccess=ACLAccess, ACLMethod=ACLMethod, ACLFilter=ACLFilter)
 
     def process(self, chain, register:Register, solicit:Solicit, **keyargs):
         '''
@@ -121,15 +131,29 @@ class HandleFilter(HandlerProcessor):
             
             if not solicit.method or not solicit.forGroup or not solicit.forFilter: return chain.cancel()
             assert isinstance(solicit.method, ACLMethod), 'Invalid method %s' % solicit.method
+            assert isinstance(solicit.access, ACLAccess), 'Invalid access %s' % solicit.access
             
             if solicit.action == ACTION_ADD:
-                filter = register.filters[solicit.forFilter]
-                assert isinstance(filter, ACLFilter), 'Invalid filter %s' % filter
+                aclFilter = register.filters[solicit.forFilter]
+                assert isinstance(aclFilter, ACLFilter), 'Invalid filter %s' % aclFilter
+                assert isinstance(aclFilter.targetProperty, TypeProperty), \
+                'Invalid target property %s' % aclFilter.targetProperty
+                assert isinstance(solicit.method.nodesProperties, dict), \
+                'Invalid nodes properties %s' % solicit.method.nodesProperties
+                
+                nodes = []
+                for el in solicit.access.path:
+                    if not isinstance(el, str):
+                        prop = solicit.method.nodesProperties.get(el)
+                        if prop == aclFilter.targetProperty: nodes.append(el)
+                
+                if not nodes: return chain.cancel()
+                if len(nodes) > 1: return chain.cancel() #TODO: Gabriel: implement filter pattern.
                 
                 if solicit.method.filters is None: solicit.method.filters = {}
                 filters = solicit.method.filters.get(solicit.forGroup)
                 if filters is None: filters = solicit.method.filters[solicit.forGroup] = {}
-                filters[solicit.forFilter] = (filter, None)  # TODO: add node
+                filters[solicit.forFilter] = (aclFilter, nodes[0])
             else:
                 if not solicit.method.filters or solicit.forGroup not in solicit.method.filters: return chain.cancel()
                 filters = solicit.method.filters[solicit.forGroup]

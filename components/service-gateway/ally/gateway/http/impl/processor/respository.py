@@ -38,12 +38,12 @@ class GatewayRepository(Context):
     '''
     # ---------------------------------------------------------------- Defined
     filters = defines(list, doc='''
-    @rtype: list[string]
-    Contains a list of URIs that need to be called in order to allow the gateway Navigate. The filters are
+    @rtype: list[list[string]]
+    Contains a list of grouped URIs that need to be called in order to allow the gateway Navigate. The filters are
     allowed to have place holders of form '{1}' or '{2}' ... '{n}' where n is the number of groups obtained
-    from the Pattern, the place holders will be replaced with their respective group value. All filters
-    need to return a True value in order to allow the gateway Navigate, also parameters are allowed
-    for filter URI.
+    from the Pattern, the place holders will be replaced with their respective group value. All groups of filters
+    need to return a True value in order to allow the gateway Navigate, also pre populated parameters are allowed
+    for filter URI. If any filter in the group returns true it means the group is true.
     ''')
 #    host = defines(str, doc='''
 #    @rtype: string
@@ -234,10 +234,13 @@ class GatewayRepositoryHandler(HandlerBranching):
         gateway = identifier.gateway
         assert isinstance(gateway, GatewayRepository), 'Invalid gateway %s' % gateway
         
-        gateway.filters = obj.get('Filters')
-        if __debug__ and gateway.filters:
-            assert isinstance(gateway.filters, list), 'Invalid filters %s' % gateway.filters
-            for item in gateway.filters: assert isinstance(item, str), 'Invalid filter value %s' % item
+        filters = obj.get('Filters')
+        if filters:
+            assert isinstance(filters, list), 'Invalid filters %s' % filters
+            gateway.filters = []
+            for item in filters:
+                assert isinstance(item, str), 'Invalid filter value %s' % item
+                gateway.filters.append(item.split('|'))
                 
 #        gateway.host = obj.get('Host')
 #        assert not gateway.host or isinstance(gateway.host, str), 'Invalid host %s' % gateway.host

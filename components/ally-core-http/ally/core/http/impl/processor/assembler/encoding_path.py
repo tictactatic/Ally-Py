@@ -67,7 +67,7 @@ class Support(Context):
     extension = optional(str)
     rootURI = optional(str)
     converterPath = optional(Converter)
-    nodeValues = optional(dict)
+    nodesValues = optional(dict)
     doEncodePath = optional(IDo)
         
 # --------------------------------------------------------------------
@@ -131,11 +131,11 @@ class EncodingPathHandler(HandlerProcessor):
                     assert isinstance(support, Support), 'Invalid support %s' % support
                     assert Support.converterPath in support, 'Converter required in %s' % support
                     assert isinstance(support.converterPath, Converter), 'Invalid converter %s' % support.converterPath
-                    assert Support.nodeValues in support, 'Node values required in %s' % support
-                    assert isinstance(support.nodeValues, dict), 'Invalid node values %s' % support.nodeValues
+                    assert Support.nodesValues in support, 'Node values required in %s' % support
+                    assert isinstance(support.nodesValues, dict), 'Invalid node values %s' % support.nodesValues
                     
-                    assert el in support.nodeValues, 'No value could be found for %s' % el
-                    value = support.nodeValues[el]
+                    assert el in support.nodesValues, 'No value could be found for %s' % el
+                    value = support.nodesValues[el]
                     if not isinstance(value, str): value = support.converterPath.asString(value, el.type)
                     path.append(quote(value, safe=''))
             

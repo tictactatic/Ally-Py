@@ -57,9 +57,9 @@ class ACLFilter(Context):
     @rtype: TypeProperty
     The target property of the filter.
     ''')
-    targets = defines(list, doc='''
-    @rtype: list[Context]
-    The list of target node contexts.
+    targets = defines(set, doc='''
+    @rtype: set(Context)
+    The set of target node contexts.
     ''')
     # ---------------------------------------------------------------- Required
     invokers = requires(list)
@@ -86,30 +86,29 @@ class FilterTargetHandler(HandlerProcessor):
         if not register.filters: return
         
         aborted = []
-        for filter in register.filters.values():
-            assert isinstance(filter, ACLFilter), 'Invalid filter %s' % filter
+        for aclFilter in register.filters.values():
+            assert isinstance(aclFilter, ACLFilter), 'Invalid filter %s' % aclFilter
             invalid = False
-            for invoker in filter.invokers:
+            for invoker in aclFilter.invokers:
                 assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
                 for el in invoker.path:
                     assert isinstance(el, Element), 'Invalid element %s' % el
                     if el.property:
-                        if filter.targetProperty is None: filter.targetProperty = el.property
-                        elif filter.targetProperty != el.property:
+                        if aclFilter.targetProperty is None: aclFilter.targetProperty = el.property
+                        elif aclFilter.targetProperty != el.property:
                             invalid = True
                             break
-                        else:
-                            if filter.targets is None: filter.targets = []
-                            filter.targets.append(el.node)
+                        if aclFilter.targets is None: aclFilter.targets = set()
+                        aclFilter.targets.add(el.node)
                             
-            if invalid or not filter.targetProperty:
+            if invalid or not aclFilter.targetProperty:
                 if invalid:
                     log.error('Cannot use filters because they have incompatible inputs, at:%s',
-                              ''.join(invoker.location for invoker in filter.invokers))
+                              ''.join(invoker.location for invoker in aclFilter.invokers))
                 else:
                     log.error('Cannot use filters because they have no target property, at:%s',
-                              ''.join(invoker.location for invoker in filter.invokers))
-                aborted.extend(filter.invokers)
+                              ''.join(invoker.location for invoker in aclFilter.invokers))
+                aborted.extend(aclFilter.invokers)
                 continue
         
         if aborted: raise Abort(*aborted)

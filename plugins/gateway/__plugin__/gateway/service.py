@@ -22,7 +22,7 @@ asPattern = lambda rootURI: '^%s(?:/|(?=\\.)|$)(.*)' % re.escape(rootURI)
 
 # --------------------------------------------------------------------
 
-registerDefaultGateways = registerMethodOverride = support.notCreated  # Just to avoid errors
+registerDefaultGateways = gatewayMethodMerge = registerMethodOverride = support.notCreated  # Just to avoid errors
 
 SERVICES = 'gateway.api.**.I*Service'
 
@@ -53,7 +53,7 @@ def assemblyAnonymousGateways() -> Assembly:
 
 @ioc.before(assemblyAnonymousGateways)
 def updateAssemblyAnonymousGateways():
-    assemblyAnonymousGateways().add(registerDefaultGateways(), registerMethodOverride())
+    assemblyAnonymousGateways().add(registerDefaultGateways(), gatewayMethodMerge(), registerMethodOverride())
     
 @ioc.before(default_gateways)
 def updateDefaultGatewaysForFullAccess():

@@ -153,11 +153,11 @@ class ProcessFilterHandler(HandlerProcessor):
             invoker.output = self.typePropertyAllowed
             
             if register.filters is None: register.filters = {}
-            filter = register.filters.get(filterName)
-            if filter is None: filter = register.filters[filterName] = ACLFilter()
-            assert isinstance(filter, ACLFilterInvoker), 'Invalid filter %s' % filter
+            aclFilter = register.filters.get(filterName)
+            if aclFilter is None: aclFilter = register.filters[filterName] = ACLFilter()
+            assert isinstance(aclFilter, ACLFilterInvoker), 'Invalid filter %s' % aclFilter
             
-            if filter.invokers is None: filter.invokers = []
-            filter.invokers.append(invoker)
+            if aclFilter.invokers is None: aclFilter.invokers = []
+            aclFilter.invokers.append(invoker)
         
         if aborted: raise Abort(*aborted)

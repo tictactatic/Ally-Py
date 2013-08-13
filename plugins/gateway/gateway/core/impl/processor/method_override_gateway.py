@@ -1,22 +1,22 @@
 '''
 Created on Feb 21, 2013
 
-@package: support acl
+@package: gateway
 @copyright: 2012 Sourcefabric o.p.s.
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
 
-Processor that adds default Gateway objects.
+Processor that adds method override to Gateway objects, basically support for @see: MethodOverrideHandler.
 '''
 
 from ally.container import wire
 from ally.container.ioc import injected
 from ally.container.support import setup
-from ally.design.processor.attribute import defines
+from ally.design.processor.attribute import requires
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor, Handler
 from ally.http.spec.server import HTTP_DELETE, HTTP_POST, HTTP_GET, HTTP_PUT
-from ally.support.api.util_service import copy
+from ally.support.api.util_service import copyContainer, nameFor
 from collections import Iterable
 from gateway.api.gateway import Gateway
 
@@ -26,11 +26,8 @@ class Reply(Context):
     '''
     The reply context.
     '''
-    # ---------------------------------------------------------------- Defined
-    gateways = defines(Iterable, doc='''
-    @rtype: Iterable(Gateway)
-    The gateways to have the override method gateways populated.
-    ''')
+    # ---------------------------------------------------------------- Required
+    gateways = requires(Iterable)
 
 # --------------------------------------------------------------------
 
@@ -49,6 +46,9 @@ class RegisterMethodOverride(HandlerProcessor):
                         }; wire.config('methods_override', doc='''
     A dictionary containing as a key the overrided method and as a value the methods that are overriden.
     ''')
+                        
+    excluded = set([nameFor(Gateway.Methods)])
+    # The excluded properties from the method override copy.
     
     def __init__(self):
         '''
@@ -68,18 +68,10 @@ class RegisterMethodOverride(HandlerProcessor):
         assert isinstance(reply, Reply), 'Invalid reply %s' % reply
         if reply.gateways is None: return
         
-        reply.gateways = self.register(reply.gateways)
-            
-    # ----------------------------------------------------------------
-            
-    def register(self, gateways):
-        '''
-        Register the method override gateways based on the provided gateways.
-        '''
-        assert isinstance(gateways, Iterable), 'Invalid gateways %s' % gateways
-        for gateway in gateways:
+        gateways, indexed = [], {}
+        for gateway in reply.gateways:
             assert isinstance(gateway, Gateway), 'Invalid gateway %s' % gateway
-            yield gateway
+            gateways.append(gateway)
             if not gateway.Methods: continue
             
             methods, overrides = set(), set()
@@ -93,9 +85,45 @@ class RegisterMethodOverride(HandlerProcessor):
             if methods.union(overrides).issubset(gateway.Methods): continue
                 
             ogateway = Gateway()
-            copy(gateway, ogateway, exclude=('Methods',))
-            ogateway.Methods = list(overrides)
-            if Gateway.Headers not in ogateway: ogateway.Headers = []
+            copyContainer(gateway, ogateway, exclude=self.excluded)
+            ogateway.Methods = sorted(overrides)
+            if ogateway.Headers is None: ogateway.Headers = []
             for method in methods:
                 ogateway.Headers.append(self.pattern_xmethod_override % method)
-            yield ogateway
+            
+            byPattern = indexed.get(ogateway.Pattern)
+            if byPattern is None: byPattern = indexed[ogateway.Pattern] = []
+            byPattern.append((overrides, ogateway))
+        
+        if indexed: reply.gateways = self.iterOverrides(gateways, indexed)
+        else: reply.gateways = gateways
+            
+    # ----------------------------------------------------------------
+            
+    def iterOverrides(self, gateways, indexed):
+        '''
+        Iterates the gateways and overrides.
+        '''
+        assert isinstance(gateways, Iterable), 'Invalid gateways %s' % gateways
+        assert isinstance(indexed, dict), 'Invalid indexed %s' % indexed
+        for gateway in gateways:
+            assert isinstance(gateway, Gateway), 'Invalid gateway %s' % gateway
+            if gateway.Methods:
+                byPattern = indexed.get(gateway.Pattern)
+                if byPattern:
+                    assert isinstance(byPattern, list), 'Invalid by pattern %s' % byPattern
+                    k = 0
+                    while k < len(byPattern):
+                        overrides, ogateway = byPattern[k]
+                        k += 1
+                        assert isinstance(overrides, set), 'Invalid overrides %s' % overrides
+                        if not overrides.isdisjoint(gateway.Methods):
+                            yield ogateway
+                            k -= 1
+                            del byPattern[k]
+                    if not byPattern: indexed.pop(gateway.Pattern)
+            
+            yield gateway
+            
+        for byPattern in indexed.values():
+            for _overrides, ogateway in byPattern: yield ogateway

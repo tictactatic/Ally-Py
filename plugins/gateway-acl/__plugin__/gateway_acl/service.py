@@ -9,7 +9,7 @@ Created on Jan 9, 2012
 Contains the services for acl gateway.
 '''
     
-from ..gateway.service import registerMethodOverride, \
+from ..gateway.service import gatewayMethodMerge, \
     updateAssemblyAnonymousGateways, assemblyAnonymousGateways
 from __setup__.ally_core.resources import injectorAssembly, assemblyAssembler, \
     processMethod, register
@@ -18,6 +18,8 @@ from __setup__.ally_core_http.resources import \
 from __setup__.ally_core_http.server import root_uri_resources
 from ally.container import ioc, support
 from ally.design.processor.assembly import Assembly
+from ally.design.processor.handler import Handler
+from gateway.core.acl.impl.processor.gateway.root_uri import RootURIHandler
 
 # --------------------------------------------------------------------
 
@@ -25,7 +27,7 @@ from ally.design.processor.assembly import Assembly
 processFilter = indexAccess = filterTarget = support.notCreated  # Just to avoid errors
 
 # The gateway processors
-registerAccessGateways = support.notCreated  # Just to avoid errors
+accessPermission = filterPermission = registerPermissionGateways = support.notCreated  # Just to avoid errors
 
 # The management processors
 handleAccess = handleMethod = handleGroup = handleFilter = support.notCreated  # Just to avoid errors
@@ -41,17 +43,18 @@ def assemblyACLManagement() -> Assembly:
 
 # --------------------------------------------------------------------
 
-@ioc.before(registerAccessGateways)
-def configureRegisterAccessGateways():
-    from gateway.core.acl.impl.processor.gateway.access_gateway import RegisterAccessGateways
-    if isinstance(registerAccessGateways(), RegisterAccessGateways):
-        # TODO: Gabriel: see in the future for a better link between configurations
-        # We set the root URI configuration
-        registerAccessGateways().root_uri = root_uri_resources()
+@ioc.entity
+def rootURI() -> Handler:
+    b = RootURIHandler()
+    b.rootURI = root_uri_resources()
+    return b
+
+# --------------------------------------------------------------------
 
 @ioc.after(updateAssemblyAnonymousGateways)
 def updateAssemblyAnonymousGatewaysForAcl():
-    assemblyAnonymousGateways().add(injectorAssembly(), registerAccessGateways(), before=registerMethodOverride())
+    assemblyAnonymousGateways().add(injectorAssembly(), rootURI(), accessPermission(), filterPermission(),
+                                    registerPermissionGateways(), before=gatewayMethodMerge())
     
 @ioc.after(updateAssemblyAssemblerForHTTPCore)
 def updateAssemblyAssemblerForAcl():
@@ -63,7 +66,7 @@ def updateAssemblyAssemblerForAcl():
 def updateAssemblyACLManagement():
     assemblyACLManagement().add(injectorAssembly(), handleAccess(), handleMethod(), handleGroup(), handleFilter())
 
-# TODO: Gabriel: rmove test data
+# TODO: Gabriel: remove test data
 @ioc.start
 def capture():
     global groupService, filterService
@@ -79,16 +82,10 @@ def samples():
     from gateway.api.group import IGroupService
     from gateway.api.filter import IFilterService
     assert isinstance(groupService, IGroupService)
-    print('ADDED:', groupService.addGroup('00000000', 'GET', 'Anonymous'), ':/')
-    print('ADDED:', groupService.addGroup('D4A00B30', 'GET', 'Anonymous'), ':ACL/Access/*/Method/*')
-    
-#    methodService.addMethod('00000000', 'Anonymous', 'GET')
-#    methodService.addMethod('9780F2D6', 'Anonymous', 'GET')
-#    methodService.addMethod('0CAF856D', 'Anonymous', 'GET')
-#    
-#    methodService.addMethod('D4CC4FC5', 'Anonymous', 'GET')
-#    methodService.addMethod('D4CC4FC5', 'Anonymous', 'PUT')
+    print('ADDED:', groupService.addGroup('9F86DD04', 'GET', 'Anonymous'), 'GET:Security/Right/*')
+    print('ADDED:', groupService.addGroup('9F86DD04', 'DELETE', 'Anonymous'), 'DELETE:Security/Right/*')
 
     assert isinstance(filterService, IFilterService)
-    print('FILTERED:', filterService.addFilter('00000000', 'GET', 'Anonymous', 'Dummy filter'), ':/')
-    print('FILTERED:', filterService.addFilter('D4A00B30', 'GET', 'Anonymous', 'Dummy filter'), ':ACL/Access/*/Method/*')
+    print('FILTERED:', filterService.addFilter('9F86DD04', 'GET', 'Anonymous', 'Filter1'), 'GET:Security/Right/*')
+    print('FILTERED:', filterService.addFilter('9F86DD04', 'GET', 'Anonymous', 'Filter2'), 'GET:Security/Right/*')
+    print('FILTERED:', filterService.addFilter('9F86DD04', 'DELETE', 'Anonymous', 'Filter1'), 'DELETE:Security/Right/*')

@@ -28,11 +28,12 @@ class Gateway:
                     the navigation valid.
         Methods -   The list of allowed methods for the request, if no method is provided then all methods are considered
                     valid. At least one method needs to match to consider the navigation valid.
-        Filters -   contains a list of URIs that need to be called in order to allow the gateway Navigate. The filters are
+        Filters -   contains a list of grouped URIs that need to be called in order to allow the gateway Navigate. The filters are
                     allowed to have place holders of form '{1}' or '{2}' ... '{n}' where n is the number of groups obtained
-                    from the Pattern, the place holders will be replaced with their respective group value. All filters
-                    need to return a True value in order to allow the gateway Navigate, also parameters are allowed
-                    for filter URI.
+                    from the Pattern, the place holders will be replaced with their respective group value. All groups of filters
+                    need to return a True value in order to allow the gateway Navigate, also pre populated parameters are allowed
+                    for filter URI. The filters in a group entry are separated by '|', if any filter in the group returns true
+                    it means the group is true.
         Errors -    The list of errors codes that are considered to be handled by this Gateway entry, if no error is provided
                     then it means the entry is not solving any error navigation. At least one error needs to match in order
                     to consider the navigation valid. The gateways that solve errors will receive also parameters for error
