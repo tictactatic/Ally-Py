@@ -6,7 +6,7 @@ Created on Jan 28, 2013
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
 
-API specifications for gateway data.
+API specifications for gateway.
 '''
 
 from ally.api.config import model, service, call
@@ -64,11 +64,11 @@ class Gateway:
 @service
 class IGatewayService:
     '''
-    The gateway service that provides the anonymous accesses.
+    The gateway service that provides the anonymous gateways.
     '''
 
     @call
     def getAnonymous(self) -> Iter(Gateway):
         '''
-        Get the gateway options that apply for an anonymous accesses.
+        Get the gateways that apply for an anonymous access.
         '''

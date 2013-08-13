@@ -9,21 +9,17 @@ Created on Dec 21, 2012
 RBAC implementation for roles.
 '''
 
-from ally.api.extension import IterPart
+from ..api.rbac import IRoleService, QRole
+from ..core.spec import IRbacService
+from ..meta.rbac import RoleMapped
+from ..meta.rbac_intern import RbacRight
 from ally.container import wire
 from ally.container.ioc import injected
 from ally.container.support import setup
-from ally.exception import InputError, Ref
-from ally.internationalization import _
-from ally.support.sqlalchemy.util_service import buildQuery, buildLimits
+from ally.support.sqlalchemy.util_service import buildQuery, iterateCollection
 from security.api.right import QRight
 from security.meta.right import RightMapped
-from security.rbac.api.rbac import IRoleService, QRole, Role
-from security.rbac.core.spec import IRbacService
-from security.rbac.meta.rbac import RoleMapped
-from security.rbac.meta.rbac_intern import RbacRight
 from sql_alchemy.impl.entity import EntityServiceAlchemy
-from sqlalchemy.orm.exc import NoResultFound
 
 # --------------------------------------------------------------------
     
@@ -45,33 +41,27 @@ class RoleServiceAlchemy(EntityServiceAlchemy, IRoleService):
         '''
         @see: IRoleService.getByName
         '''
-        try: return self.session().query(RoleMapped).filter(RoleMapped.Name == name).one()
-        except NoResultFound: raise InputError(Ref(_('Unknown name'), ref=Role.Name))
+        return self.session().query(RoleMapped).filter(RoleMapped.Name == name).one()
     
-    def getRoles(self, roleId, offset=None, limit=None, detailed=False, q=None):
+    def getRoles(self, roleId, q=None, **options):
         '''
         @see: IRoleService.getRoles
         '''
-        sql = self.rbacService.rolesForRbacSQL(roleId, self.session().query(RoleMapped))
-        if detailed:
-            entities, total = self._getAllWithCount(None, q, offset, limit, sql)
-            return IterPart(entities, total, offset, limit)
-        return self._getAll(filter, q, offset, limit, sql)
+        sqlQuery = self.rbacService.rolesForRbacSQL(roleId, self.session().query(RoleMapped.Id))
+        if q is not None:
+            assert isinstance(q, QRole), 'Invalid query %s' % q
+            sqlQuery = buildQuery(sqlQuery, q, RoleMapped)
+        return iterateCollection(sqlQuery, **options)
     
-    def getRights(self, roleId, offset=None, limit=None, detailed=False, q=None):
+    def getRights(self, roleId, q=None, **options):
         '''
         @see: IRoleService.getRights
         '''
-        if limit == 0: entities = ()
-        else: entities = None
-        if detailed or entities is None:
-            sql = self.rbacService.rightsForRbacSQL(roleId)
-            if q:
-                assert isinstance(q, QRight), 'Invalid query %s' % q
-                sql = buildQuery(sql, q, RightMapped)
-            if entities is None: entities = buildLimits(sql, offset, limit).all()
-            if detailed: return IterPart(entities, sql.count(), offset, limit)
-        return entities
+        sqlQuery = self.rbacService.rightsForRbacSQL(roleId, self.session().query(RightMapped.Id))
+        if q is not None:
+            assert isinstance(q, QRight), 'Invalid query %s' % q
+            sqlQuery = buildQuery(sqlQuery, q, RightMapped)
+        return iterateCollection(sqlQuery, **options)
     
     def insert(self, role):
         '''
@@ -87,9 +77,9 @@ class RoleServiceAlchemy(EntityServiceAlchemy, IRoleService):
         '''
         self.rbacService.assignRole(roleId, toRoleId)
 
-    def unassignRole(self, toRoleId, roleId):
+    def removeRole(self, toRoleId, roleId):
         '''
-        @see: IRoleService.unassignRole
+        @see: IRoleService.removeRole
         '''
         return self.rbacService.unassignRole(roleId, toRoleId)
     
@@ -101,9 +91,9 @@ class RoleServiceAlchemy(EntityServiceAlchemy, IRoleService):
         if sql.count() > 0: return  # The right is already mapped to role
         self.session().add(RbacRight(rbac=roleId, right=rightId))
         
-    def unassignRight(self, roleId, rightId):
+    def removeRight(self, roleId, rightId):
         '''
-        @see: IRoleService.unassignRole
+        @see: IRoleService.removeRight
         '''
         sql = self.session().query(RbacRight).filter(RbacRight.rbac == roleId).filter(RbacRight.right == rightId)
         return sql.delete() > 0

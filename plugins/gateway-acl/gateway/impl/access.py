@@ -10,13 +10,27 @@ Implementation for the ACL access.
 '''
 
 from ..api.access import Access, IAccessService
-from ..core.acl.spec import IACLManagement
 from ally.api.error import InvalidIdError
 from ally.container import wire
 from ally.container.ioc import injected
 from ally.container.support import setup
+from ally.design.processor.assembly import Assembly
+from ally.design.processor.attribute import defines
 from ally.support.api.util_service import processCollection
+from gateway.core.acl.impl.base import RequireSolicit, getSolicit
 
+# --------------------------------------------------------------------
+
+class Solicit(RequireSolicit):
+    '''
+    The solicit context.
+    '''
+    # ---------------------------------------------------------------- Defined
+    forAccess = defines(str, doc='''
+    @rtype: string
+    The access name to get.
+    ''')
+    
 # --------------------------------------------------------------------
 
 @injected
@@ -26,17 +40,20 @@ class AccessService(IAccessService):
     Implementation for @see: IAccessService that provides the ACL access support.
     '''
     
-    aclManagement = IACLManagement; wire.entity('aclManagement')
+    assemblyAccessManagement = Assembly; wire.entity('assemblyAccessManagement')
+    # The assembly to be used for managing access.
     
     def __init__(self):
-        assert isinstance(self.aclManagement, IACLManagement), 'Invalid ACL management %s' % self.aclManagement
+        assert isinstance(self.assemblyAccessManagement, Assembly), \
+        'Invalid assembly management %s' % self.assemblyAccessManagement
+        self._manage = self.assemblyAccessManagement.create(solicit=Solicit)
     
     def getById(self, name):
         '''
         @see: IAccessService.getById
         '''
         assert isinstance(name, str), 'Invalid name %s' % name
-        access = self.aclManagement.get(Access, forAccess=name)
+        access = getSolicit(self._manage, Access, forAccess=name)
         if not access: raise InvalidIdError()
         return access
     
@@ -44,7 +61,7 @@ class AccessService(IAccessService):
         '''
         @see: IAccessService.getAll
         '''
-        return processCollection(sorted(self.aclManagement.get(Access.Name) or ()), **options)
+        return processCollection(sorted(getSolicit(self._manage, Access.Name) or ()), **options)
     
     # TODO: remove    
     def isDummy1Filter(self, id):

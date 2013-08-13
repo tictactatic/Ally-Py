@@ -23,7 +23,7 @@ class Access(Entity):
     Pattern = str
 
 # --------------------------------------------------------------------
-from security.api.right import Right
+from security.rbac.api.rbac import Role
 @service((Entity, Access))
 class IAccessService(IEntityGetService, IEntityFindService):
     '''
@@ -33,11 +33,11 @@ class IAccessService(IEntityGetService, IEntityFindService):
     
     # TODO: Gabriel: remove
     @call(filter='Filter1')
-    def isDummy1Filter(self, right:Right) -> bool:
+    def isDummy1Filter(self, role:Role) -> bool:
         '''
         '''
     
-    @call(webName='Second', filter='Filter2')
-    def isDummy2Filter(self, right:Right) -> bool:
-        '''
-        '''
+#    @call(webName='Second', filter='Filter2')
+#    def isDummy2Filter(self, right:Right) -> bool:
+#        '''
+#        '''

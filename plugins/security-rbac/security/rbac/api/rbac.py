@@ -10,10 +10,11 @@ API specifications for RBAC right.
 '''
 
 from .domain_rbac import modelRbac
-from ally.api.config import query, service, call, UPDATE, DELETE
+from ally.api.config import query, service, call
 from ally.api.criteria import AsLikeOrdered
+from ally.api.option import SliceAndTotal  # @UnusedImport
 from ally.api.type import Iter
-from ally.support.api.entity import Entity, QEntity, IEntityService
+from ally.support.api.entity_ided import Entity, QEntity, IEntityService
 from security.api.right import Right, QRight
 
 # --------------------------------------------------------------------
@@ -56,37 +57,37 @@ class IRoleService(IEntityService):
         '''
     
     @call(webName='Sub')
-    def getRoles(self, roleId:Role, offset:int=None, limit:int=None, detailed:bool=True, q:QRole=None) -> Iter(Role):
+    def getRoles(self, roleId:Role, q:QRole=None, **options:SliceAndTotal) -> Iter(Role.Id):
         '''
         Provides the roles searched by the provided query.
         '''
         
     @call
-    def getRights(self, roleId:Role, offset:int=None, limit:int=None, detailed:bool=True, q:QRight=None) -> Iter(Right):
+    def getRights(self, roleId:Role, q:QRight=None, **options:SliceAndTotal) -> Iter(Right.Id):
         '''
         Provides the rights for the provided role id searched by the query.
         '''
     
-    @call(method=UPDATE, webName='Sub')
+    @call(webName='Sub')
     def assignRole(self, toRoleId:Role.Id, roleId:Role.Id):
         '''
         Assign to the role the other role. 
         '''
     
-    @call(method=DELETE, webName='Sub')
-    def unassignRole(self, toRoleId:Role.Id, roleId:Role.Id) -> bool:
+    @call(webName='Sub')
+    def removeRole(self, toRoleId:Role.Id, roleId:Role.Id) -> bool:
         '''
-        Unassign from the role the other role. 
+        Remove from the role the other role. 
         '''
         
-    @call(method=UPDATE)
+    @call
     def assignRight(self, roleId:Role.Id, rightId:Right.Id):
         '''
         Assign to the role the right. 
         '''
     
-    @call(method=DELETE)
-    def unassignRight(self, roleId:Role.Id, rightId:Right.Id) -> bool:
+    @call
+    def removeRight(self, roleId:Role.Id, rightId:Right.Id) -> bool:
         '''
-        Unassign from the role the right. 
+        Remove from the role the right. 
         '''

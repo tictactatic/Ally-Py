@@ -9,13 +9,13 @@ Created on Aug 8, 2013
 Process the method handling.
 '''
 
+from ..base import ACTION_GET
 from ally.container.support import setup
-from ally.design.processor.attribute import requires, defines
+from ally.design.processor.attribute import requires, defines, definesIf
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain
 from ally.design.processor.handler import HandlerProcessor, Handler
 from gateway.api.method import Method
-from gateway.core.acl.spec import ACTION_GET
 import itertools
 
 # --------------------------------------------------------------------
@@ -43,7 +43,7 @@ class Solicit(Context):
     @rtype: object
     The value required.
     ''')
-    method = defines(Context, doc='''
+    method = definesIf(Context, doc='''
     @rtype: Context
     The method that is targeted by 'forMethod'.
     ''')
@@ -80,8 +80,9 @@ class HandleMethod(HandlerProcessor):
                 assert isinstance(solicit.access, ACLAccess), 'Invalid ACL access %s' % solicit.access
                 if not solicit.access.methods: return chain.cancel()
                 assert isinstance(solicit.access.methods, dict), 'Invalid access methods %s' % solicit.access.methods
-                solicit.method = solicit.access.methods.get(solicit.forMethod)
-                if not solicit.method: return chain.cancel()
+                method = solicit.access.methods.get(solicit.forMethod)
+                if not method: return chain.cancel()
+                if Solicit.method in solicit: solicit.method = method
         
         if solicit.action != ACTION_GET: return
         if solicit.target not in (Method, Method.Name): return

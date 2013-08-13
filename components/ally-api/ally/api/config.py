@@ -59,7 +59,7 @@ DELETE = 1 << 4
 NAME_TO_METHOD = {
                   '(^get[\w]*$)|(^find[\w]*$)|(^is[\w]*$)':GET,
                   '(^insert[\w]*$)|(^persist[\w]*$)':INSERT,
-                  '(^update[\w]*$)|(^merge[\w]*$)|(^add[\w]*$)':UPDATE,
+                  '(^update[\w]*$)|(^merge[\w]*$)|(^add[\w]*$)|(^assign[\w]*$)':UPDATE,
                   '(^delete[\w]*$)|(^remove[\w]*$)':DELETE
                   }
 

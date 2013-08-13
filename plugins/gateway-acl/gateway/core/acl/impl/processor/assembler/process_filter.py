@@ -49,6 +49,10 @@ class Invoker(Context):
     @rtype: list[Context]
     The starting path elements for filter.
     ''')
+    isFilter = defines(bool, doc='''
+    @rtype: boolean
+    True if the invoker is a filter.
+    ''')
     # ---------------------------------------------------------------- Required
     call = requires(Call)
     method = requires(int)
@@ -151,6 +155,7 @@ class ProcessFilterHandler(HandlerProcessor):
             if invoker.path is None: invoker.path = []
             invoker.path.insert(0, Element(name=self.typeModelAllowed.name, model=self.typeModelAllowed))
             invoker.output = self.typePropertyAllowed
+            invoker.isFilter = True
             
             if register.filters is None: register.filters = {}
             aclFilter = register.filters.get(filterName)

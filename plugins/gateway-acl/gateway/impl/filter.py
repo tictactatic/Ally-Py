@@ -9,14 +9,29 @@ Created on Aug 7, 2013
 Implementation for the ACL filters.
 '''
 
+from . import group
 from ..api.filter import Filter, IFilterService
-from ..core.acl.spec import IACLManagement
 from ally.api.error import InvalidIdError
 from ally.container import wire
 from ally.container.ioc import injected
 from ally.container.support import setup
+from ally.design.processor.assembly import Assembly
+from ally.design.processor.attribute import defines
 from ally.support.api.util_service import processCollection
+from gateway.core.acl.impl.base import getSolicit, addSolicit, remSolicit
 
+# --------------------------------------------------------------------
+
+class Solicit(group.Solicit):
+    '''
+    The solicit context.
+    '''
+    # ---------------------------------------------------------------- Defined
+    forFilter = defines(str, doc='''
+    @rtype: string
+    The filter name to be handled.
+    ''')
+    
 # --------------------------------------------------------------------
 
 @injected
@@ -26,17 +41,20 @@ class FilterService(IFilterService):
     Implementation for @see: IFilterService that provides the ACL access setup support.
     '''
     
-    aclManagement = IACLManagement; wire.entity('aclManagement')
+    assemblyFilterManagement = Assembly; wire.entity('assemblyFilterManagement')
+    # The assembly to be used for managing groups.
     
     def __init__(self):
-        assert isinstance(self.aclManagement, IACLManagement), 'Invalid ACL management %s' % self.aclManagement
+        assert isinstance(self.assemblyFilterManagement, Assembly), \
+        'Invalid assembly management %s' % self.assemblyFilterManagement
+        self._manage = self.assemblyFilterManagement.create(solicit=Solicit)
     
     def getById(self, name):
         '''
         @see: IFilterService.getById
         '''
         assert isinstance(name, str), 'Invalid name %s' % name
-        filter = self.aclManagement.get(Filter, forFilter=name)
+        filter = getSolicit(self._manage, Filter, forFilter=name)
         if not filter: raise InvalidIdError()
         return filter
         
@@ -44,7 +62,7 @@ class FilterService(IFilterService):
         '''
         @see: IFilterService.getAll
         '''
-        return processCollection(self.aclManagement.get(Filter.Name), **options)
+        return processCollection(getSolicit(self._manage, Filter.Name), **options)
     
     def getFilters(self, access, method, group):
         '''
@@ -53,17 +71,17 @@ class FilterService(IFilterService):
         assert isinstance(access, str), 'Invalid access name %s' % access
         assert isinstance(method, str), 'Invalid method name %s' % method
         assert isinstance(group, str), 'Invalid group name %s' % group
-        return sorted(self.aclManagement.get(Filter.Name, forAccess=access, forMethod=method, forGroup=group) or ())
+        return sorted(getSolicit(self._manage, Filter.Name, forAccess=access, forMethod=method, forGroup=group) or ())
     
     def addFilter(self, access, method, group, filter):
         '''
         @see: IFilterService.addFilter
         '''
-        return self.aclManagement.add(Filter, forAccess=access, forMethod=method, forGroup=group, forFilter=filter)
+        return addSolicit(self._manage, Filter, forAccess=access, forMethod=method, forGroup=group, forFilter=filter)
         
     def removeFilter(self, access, method, group, filter):
         '''
         @see: IFilterService.removeFilter
         '''
-        return self.aclManagement.remove(Filter, forAccess=access, forMethod=method, forGroup=group, forFilter=filter)
+        return remSolicit(self._manage, Filter, forAccess=access, forMethod=method, forGroup=group, forFilter=filter)
         

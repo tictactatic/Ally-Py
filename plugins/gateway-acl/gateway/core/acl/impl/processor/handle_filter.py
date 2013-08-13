@@ -9,6 +9,7 @@ Created on Aug 7, 2013
 Provides the filter handling.
 '''
 
+from ..base import ACTION_GET, ACTION_ADD, ACTION_DEL
 from ally.api.operator.type import TypeProperty
 from ally.container.support import setup
 from ally.design.processor.attribute import requires, defines
@@ -16,8 +17,6 @@ from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain
 from ally.design.processor.handler import HandlerProcessor, Handler
 from gateway.api.filter import Filter
-from gateway.api.group import Group
-from gateway.core.acl.spec import ACTION_GET, ACTION_ADD, ACTION_DEL
 import itertools
 
 # --------------------------------------------------------------------
@@ -40,13 +39,6 @@ class ACLMethod(Context):
     '''
     The ACL method context.
     '''
-    # ---------------------------------------------------------------- Defined
-    filters = defines(dict, doc='''
-    @rtype: dictionary{string: dictionary{string: tuple(Context, Context)}}
-    Contains as value a dictionary having as the key the filter name and as a value a tuple having on the first position
-    the filter context and on the second the access path node that they are filtering. The values dictionaries are
-    indexed by the allowed group name.
-    ''')
     # ---------------------------------------------------------------- Required
     nodesProperties = requires(dict)
 
@@ -71,7 +63,7 @@ class Solicit(Context):
     target = requires(object)
     access = requires(Context)
     method = requires(Context)
-    forGroup = requires(str)
+    filters = requires(dict)
     forFilter = requires(str)
     
 # --------------------------------------------------------------------
@@ -97,22 +89,18 @@ class HandleFilter(HandlerProcessor):
         
         if solicit.forFilter is not None:
             if not register.filters or solicit.forFilter not in register.filters: return chain.cancel()
-            
+        if solicit.target not in (Filter, Filter.Name): return
+        
         if solicit.action == ACTION_GET:
-            if solicit.target not in (Filter, Filter.Name): return
-            
             if solicit.forFilter:
                 if solicit.target == Filter: solicit.value = self.create(solicit.forFilter)
                 else: solicit.value = solicit.forFilter
                 
-            elif solicit.forGroup:
-                if not solicit.method or not solicit.method.filters: return chain.cancel()
-                assert isinstance(solicit.method, ACLMethod), 'Invalid method %s' % solicit.method
-                filters = solicit.method.filters.get(solicit.forGroup)
-                if not filters: return chain.cancel()
+            elif solicit.filters is not None:
+                if not solicit.filters: return
                 
-                if solicit.target == Filter: values = (self.create(name) for name in filters)
-                else: values = filters.keys()
+                if solicit.target == Filter: values = (self.create(name) for name in solicit.filters)
+                else: values = solicit.filters.keys()
                 if solicit.value is not None: solicit.value = itertools.chain(solicit.value, values)
                 else: solicit.value = values
                 
@@ -123,13 +111,7 @@ class HandleFilter(HandlerProcessor):
                 else: solicit.value = values
         
         elif solicit.action in (ACTION_ADD, ACTION_DEL):
-            if solicit.target != Filter:
-                if solicit.target == Group and solicit.method and solicit.forGroup:
-                    if solicit.method.filters and solicit.forGroup in solicit.method.filters:
-                        solicit.method.filters.pop(solicit.forGroup)
-                return
-            
-            if not solicit.method or not solicit.forGroup or not solicit.forFilter: return chain.cancel()
+            if solicit.target != Filter or solicit.filters is None or not solicit.forFilter: return chain.cancel()
             assert isinstance(solicit.method, ACLMethod), 'Invalid method %s' % solicit.method
             assert isinstance(solicit.access, ACLAccess), 'Invalid access %s' % solicit.access
             
@@ -148,17 +130,13 @@ class HandleFilter(HandlerProcessor):
                         if prop == aclFilter.targetProperty: nodes.append(el)
                 
                 if not nodes: return chain.cancel()
-                if len(nodes) > 1: return chain.cancel() #TODO: Gabriel: implement filter pattern.
+                if len(nodes) > 1: return chain.cancel()  # TODO: Gabriel: implement filter pattern.
                 
-                if solicit.method.filters is None: solicit.method.filters = {}
-                filters = solicit.method.filters.get(solicit.forGroup)
-                if filters is None: filters = solicit.method.filters[solicit.forGroup] = {}
-                filters[solicit.forFilter] = (aclFilter, nodes[0])
+                solicit.filters[solicit.forFilter] = (aclFilter, nodes[0])
             else:
-                if not solicit.method.filters or solicit.forGroup not in solicit.method.filters: return chain.cancel()
-                filters = solicit.method.filters[solicit.forGroup]
-                if solicit.forFilter not in filters: return chain.cancel()
-                filters.pop(solicit.forFilter)
+                if not solicit.filters: return chain.cancel()
+                if solicit.forFilter not in solicit.filters: return chain.cancel()
+                solicit.filters.pop(solicit.forFilter)
 
     # ----------------------------------------------------------------
     

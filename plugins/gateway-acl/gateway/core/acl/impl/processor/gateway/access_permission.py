@@ -10,7 +10,6 @@ Processor that generates gateway permissions for configured access.
 '''
 
 from ally.api.type import Type
-from ally.container import wire
 from ally.container.ioc import injected
 from ally.container.support import setup
 from ally.design.processor.attribute import defines, requires, optional
@@ -33,6 +32,8 @@ class Reply(Context):
     ''')
     # ---------------------------------------------------------------- Optional
     rootURI = optional(list)
+    # ---------------------------------------------------------------- Required
+    identifiers = requires(Iterable)
     
 class PermissionACL(Context):
     '''
@@ -43,21 +44,17 @@ class PermissionACL(Context):
     @rtype: string
     The method name for permission.
     ''')
-    methodACL = defines(Context, doc='''
-    @rtype: Context
-    The acl method for permission.
-    ''')
-    groups = defines(set, doc='''
-    @rtype: set(string)
-    The group names for permission.
-    ''')
     path = defines(str, doc='''
     @rtype: string
     The permission path.
     ''')
-    nodesMarkers = defines(dict, doc='''
+    pathMarkers = defines(dict, doc='''
     @rtype: dictionary{Context: string}
     A dictionary containing the path marker value indexed by the node.
+    ''')
+    filters = defines(dict, doc='''
+    @rtype: dictionary{string: object}
+    The filters for permission, as a key the filter name and as a value the filter object.
     ''')
 
 class Register(Context):
@@ -87,7 +84,7 @@ class ACLMethod(Context):
     The ACL method context.
     '''
     # ---------------------------------------------------------------- Required
-    allowed = requires(set)
+    allowed = requires(dict)
      
 # --------------------------------------------------------------------
 
@@ -97,16 +94,8 @@ class AccessPermission(HandlerProcessor):
     '''
     Provides the handler that generates gateway permissions for configured access.
     '''
-    
-    acl_groups = ['Anonymous']; wire.config('acl_groups', doc='''
-    The acl access groups to provide gateways for.''')
-    
     def __init__(self):
-        assert isinstance(self.acl_groups, list), 'Invalid acl groups %s' % self.acl_groups
-        assert self.acl_groups, 'At least an acl group is required'
         super().__init__(Node=Node, ACLAccess=ACLAccess, ACLMethod=ACLMethod)
-        
-        self._groups = set(self.acl_groups)
     
     def process(self, chain, reply:Reply, register:Register, Permission:PermissionACL, **keyargs):
         '''
@@ -116,22 +105,23 @@ class AccessPermission(HandlerProcessor):
         '''
         assert isinstance(reply, Reply), 'Invalid reply %s' % reply
         assert isinstance(register, Register), 'Invalid register %s' % register
-        if not register.accesses: return
+        if reply.identifiers is None or not register.accesses: return
         assert isinstance(register.accesses, dict), 'Invalid register accesses %s' % register.accesses
         
         if Reply.rootURI in reply: rootURI = reply.rootURI
         else: rootURI = None
-        permissions = self.iterPermissions(register.accesses.values(), Permission, rootURI)
+        permissions = self.iterPermissions(register.accesses.values(), set(reply.identifiers), Permission, rootURI)
         if reply.permissions is not None: reply.permissions = itertools.chain(reply.permissions, permissions)
         else: reply.permissions = permissions
         
     # ----------------------------------------------------------------
     
-    def iterPermissions(self, accesses, Permission, rootURI=None):
+    def iterPermissions(self, accesses, identifiers, Permission, rootURI=None):
         '''
         Iterates the permissions for the provided accesses.
         '''
         assert isinstance(accesses, Iterable), 'Invalid accesses %s' % accesses
+        assert isinstance(identifiers, set), 'Invalid identifiers %s' % identifiers
         assert issubclass(Permission, PermissionACL), 'Invalid permission class %s' % Permission
         assert rootURI is None or isinstance(rootURI, list), 'Invalid root URI %s' % rootURI
         for access in accesses:
@@ -139,7 +129,7 @@ class AccessPermission(HandlerProcessor):
             if not access.methods: continue
             assert isinstance(access.methods, dict), 'Invalid methods %s' % access.methods
             
-            items, k, nodesMarkers = [], 1, {}
+            items, k, pathMarkers = [], 1, {}
             if rootURI: items.extend(re.escape(el) for el in rootURI)
             for el in access.path:
                 if isinstance(el, str): items.append(re.escape(el))
@@ -148,21 +138,21 @@ class AccessPermission(HandlerProcessor):
                     assert isinstance(el.type, Type), 'Invalid type %s' % el.type
                     if el.type.isOf(int): items.append('([0-9\\-]+)')
                     else: items.append('([^\\/]+)')
-                    nodesMarkers[el] = '{%s}' % k
+                    pathMarkers[el] = '{%s}' % k
                     k += 1
             path = '%s[\\/]?(?:\\.|$)' % '\\/'.join(items)
             
             for name, method in access.methods.items():
                 assert isinstance(method, ACLMethod), 'Invalid method %s' % method
                 if not method.allowed: continue
-                groups = self._groups.intersection(method.allowed)
-                if not groups: continue
+                midentifiers = identifiers.intersection(method.allowed)
+                if not midentifiers: continue
                 permission = Permission()
                 assert isinstance(permission, PermissionACL), 'Invalid permission %s' % permission
                 permission.method = name
-                permission.methodACL = method
-                permission.groups = groups
                 permission.path = path
-                permission.nodesMarkers = nodesMarkers
+                permission.pathMarkers = pathMarkers
+                permission.filters = {}
+                for identifier in midentifiers: permission.filters.update(method.allowed[identifier])
                 
                 yield permission

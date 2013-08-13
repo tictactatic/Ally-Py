@@ -9,13 +9,13 @@ Created on Aug 6, 2013
 Process the access handling.
 '''
 
+from ..base import ACTION_GET
 from ally.container.support import setup
-from ally.design.processor.attribute import requires, defines
+from ally.design.processor.attribute import requires, defines, definesIf
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain
 from ally.design.processor.handler import HandlerProcessor, Handler
 from gateway.api.access import Access
-from gateway.core.acl.spec import ACTION_GET
 import itertools
 
 # --------------------------------------------------------------------
@@ -43,7 +43,7 @@ class Solicit(Context):
     @rtype: object
     The value required.
     ''')
-    access = defines(Context, doc='''
+    access = definesIf(Context, doc='''
     @rtype: Context
     The access that is targeted by 'forAccess'.
     ''')
@@ -76,15 +76,17 @@ class HandleAccess(HandlerProcessor):
         
         assert isinstance(register.accesses, dict), 'Invalid ACL accesses %s' % register.accesses
         if solicit.forAccess is not None:
-            solicit.access = register.accesses.get(solicit.forAccess)
-            if not solicit.access: return chain.cancel()
+            access = register.accesses.get(solicit.forAccess)
+            if not access: return chain.cancel()
+            if Solicit.access in solicit: solicit.access = access
+        else: access = None
         
         if solicit.action != ACTION_GET: return
         if solicit.target not in (Access, Access.Name): return
         
-        if solicit.access:
-            assert isinstance(solicit.access, ACLAccess), 'Invalid ACL access %s' % solicit.access
-            if solicit.target == Access: solicit.value = self.create(solicit.forAccess, solicit.access)
+        if access:
+            assert isinstance(access, ACLAccess), 'Invalid ACL access %s' % access
+            if solicit.target == Access: solicit.value = self.create(solicit.forAccess, access)
             else: solicit.value = solicit.forAccess
         
         else:

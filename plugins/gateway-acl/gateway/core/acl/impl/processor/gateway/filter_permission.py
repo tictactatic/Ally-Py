@@ -31,16 +31,15 @@ class Permission(Context):
     The permission context.
     '''
     # ---------------------------------------------------------------- Defined
-    filtersPath = defines(dict, doc='''
+    filtersPaths = defines(dict, doc='''
     @rtype: dictionary{string: set(string)}
-    The filters paths for this permission indexed by the target node marker.
+    The filters paths for this permission indexed by the target path marker.
     ''')
     # ---------------------------------------------------------------- Optional
     nodesValues = optional(dict)
     # ---------------------------------------------------------------- Required
-    methodACL = requires(Context)
-    groups = requires(set)
-    nodesMarkers = requires(dict)
+    pathMarkers = requires(dict)
+    filters = requires(dict)
 
 class Invoker(Context):
     '''
@@ -56,13 +55,6 @@ class Element(Context):
     # ---------------------------------------------------------------- Required
     node = requires(Context)
     name = requires(str)
-    
-class ACLMethod(Context):
-    '''
-    The ACL method context.
-    '''
-    # ---------------------------------------------------------------- Required
-    filters = requires(dict)
 
 class ACLFilter(Context):
     '''
@@ -81,7 +73,7 @@ class FilterPermission(HandlerProcessor):
     '''
     
     def __init__(self):
-        super().__init__(Permission=Permission, Invoker=Invoker, Element=Element, ACLMethod=ACLMethod, ACLFilter=ACLFilter)
+        super().__init__(Permission=Permission, Invoker=Invoker, Element=Element, ACLFilter=ACLFilter)
     
     def process(self, chain, reply:Reply, **keyargs):
         '''
@@ -103,53 +95,41 @@ class FilterPermission(HandlerProcessor):
         Adds the filters for permissions.
         '''
         assert isinstance(permissions, Iterable), 'Invalid permissions %s' % permissions
+        assert rootURI is None or isinstance(rootURI, list), 'Invalid root URI %s' % rootURI
         
         for permission in permissions:
             assert isinstance(permission, Permission), 'Invalid permission %s' % permission
-            assert isinstance(permission.methodACL, ACLMethod), 'Invalid ACL method %s' % permission.methodACL
             
-            if permission.methodACL.filters:
-                assert isinstance(permission.methodACL.filters, dict), 'Invalid filters %s' % permission.methodACL.filters
-                assert isinstance(permission.groups, set), 'Invalid groups %s' % permission.groups
-                for group in permission.groups:
-                    filters = permission.methodACL.filters.get(group)
-                    if filters: self.pushFilters(permission, filters, rootURI)
+            if permission.filters:
+                assert isinstance(permission.filters, dict), 'Invalid filters %s' % permission.filters
+                
+                if permission.filtersPaths is None: permission.filtersPaths = {}
+                for aclFilter, node in permission.filters.values():
+                    assert isinstance(aclFilter, ACLFilter), 'Invalid filter %s' % aclFilter
+                    assert isinstance(aclFilter.targets, set), 'Invalid targets %s' % aclFilter.targets
+                    assert isinstance(permission.pathMarkers, dict), 'Invalid path makers %s' % permission.pathMarkers
+                    assert node in permission.pathMarkers, 'No marker available for %s' % node
+                    
+                    pathMarker = permission.pathMarkers[node]
+                    assert isinstance(pathMarker, str), 'Invalid marker %s for %s' % (pathMarker, node)
+                    
+                    for invoker in aclFilter.invokers:
+                        assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
+                        
+                        items = []
+                        if rootURI: items.extend(rootURI)
+                        for el in invoker.path:
+                            assert isinstance(el, Element), 'Invalid element %s' % el
+                            if el.name: items.append(el.name)
+                            elif el.node in aclFilter.targets: items.append(pathMarker)
+                            else:
+                                assert Permission.nodesValues in permission, 'No value available for %s' % el.node
+                                assert el.node in permission.nodesValues, 'No value available for %s' % el.node
+                                assert isinstance(permission.nodesValues[el.node], str), \
+                                'Invalid value %s for %s' % (permission.nodesValues[el.node], el.node)
+                                items.append(permission.nodesValues[el.node])
+                        paths = permission.filtersPaths.get(pathMarker)
+                        if paths is None: paths = permission.filtersPaths[pathMarker] = set()
+                        paths.add('/'.join(items))
                         
             yield permission
-            
-    def pushFilters(self, permission, filters, rootURI=None):
-        '''
-        Pushes the filters into permission.
-        '''
-        assert isinstance(permission, Permission), 'Invalid permission %s' % permission
-        assert isinstance(filters, dict), 'Invalid filters %s' % filters
-        assert rootURI is None or isinstance(rootURI, list), 'Invalid root URI %s' % rootURI
-        
-        if permission.filtersPath is None: permission.filtersPath = {}
-        for aclFilter, node in filters.values():
-            assert isinstance(aclFilter, ACLFilter), 'Invalid filter %s' % aclFilter
-            assert isinstance(aclFilter.targets, set), 'Invalid targets %s' % aclFilter.targets
-            assert isinstance(permission.nodesMarkers, dict), 'Invalid nodes makers %s' % permission.nodesMarkers
-            assert node in permission.nodesMarkers, 'No marker available for %s' % node
-            
-            nodeMarker = permission.nodesMarkers[node]
-            assert isinstance(nodeMarker, str), 'Invalid marker %s for %s' % (nodeMarker, node)
-            
-            for invoker in aclFilter.invokers:
-                assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
-                
-                items = []
-                if rootURI: items.extend(rootURI)
-                for el in invoker.path:
-                    assert isinstance(el, Element), 'Invalid element %s' % el
-                    if el.name: items.append(el.name)
-                    elif el.node in aclFilter.targets: items.append(nodeMarker)
-                    else:
-                        assert Permission.nodesValues in permission, 'No value available for %s' % el.node
-                        assert el.node in permission.nodesValues, 'No value available for %s' % el.node
-                        assert isinstance(permission.nodesValues[el.node], str), \
-                        'Invalid value %s for %s' % (permission.nodesValues[el.node], el.node)
-                        items.append(permission.nodesValues[el.node])
-                paths = permission.filtersPath.get(nodeMarker)
-                if paths is None: paths = permission.filtersPath[nodeMarker] = set()
-                paths.add('/'.join(items))

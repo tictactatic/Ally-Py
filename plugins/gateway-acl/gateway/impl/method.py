@@ -9,15 +9,30 @@ Created on Aug 8, 2013
 Implementation for the ACL method access.
 '''
 
+from . import access
 from ..api.method import IMethodService, Method
-from ..core.acl.spec import IACLManagement
 from ally.api.error import InvalidIdError
 from ally.container import wire
 from ally.container.ioc import injected
 from ally.container.support import setup
+from ally.design.processor.assembly import Assembly
+from ally.design.processor.attribute import defines
+from gateway.core.acl.impl.base import getSolicit
 
 # --------------------------------------------------------------------
 
+class Solicit(access.Solicit):
+    '''
+    The solicit context.
+    '''
+    # ---------------------------------------------------------------- Defined
+    forMethod = defines(str, doc='''
+    @rtype: string
+    The method name to be handled.
+    ''')
+    
+# --------------------------------------------------------------------
+    
 @injected
 @setup(IMethodService, name='methodService')
 class MethodService(IMethodService):
@@ -25,17 +40,20 @@ class MethodService(IMethodService):
     Implementation for @see: IMethodService that provides the ACL access method setup support.
     '''
     
-    aclManagement = IACLManagement; wire.entity('aclManagement')
+    assemblyMethodManagement = Assembly; wire.entity('assemblyMethodManagement')
+    # The assembly to be used for managing methods.
     
     def __init__(self):
-        assert isinstance(self.aclManagement, IACLManagement), 'Invalid ACL management %s' % self.aclManagement
+        assert isinstance(self.assemblyMethodManagement, Assembly), \
+        'Invalid assembly management %s' % self.assemblyMethodManagement
+        self._manage = self.assemblyMethodManagement.create(solicit=Solicit)
         
     def getById(self, name):
         '''
         @see: IMethodService.getById
         '''
         assert isinstance(name, str), 'Invalid method name %s' % name
-        method = self.aclManagement.get(Method, forMethod=name)
+        method = getSolicit(self._manage, Method, forMethod=name)
         if not method: raise InvalidIdError()
         return method
         
@@ -43,4 +61,4 @@ class MethodService(IMethodService):
         '''
         @see: IMethodService.getMethods
         '''
-        return sorted(self.aclManagement.get(Method.Name, forAccess=access) or ())
+        return sorted(getSolicit(self._manage, Method.Name, forAccess=access) or ())

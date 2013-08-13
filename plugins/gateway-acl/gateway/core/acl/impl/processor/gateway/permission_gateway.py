@@ -38,7 +38,7 @@ class Permission(Context):
     # ---------------------------------------------------------------- Required
     path = requires(str)
     method = requires(str)
-    filtersPath = requires(dict)
+    filtersPaths = requires(dict)
      
 # --------------------------------------------------------------------
 
@@ -77,9 +77,9 @@ class RegisterPermissionGateways(HandlerProcessor):
             gateway = Gateway()
             gateway.Pattern = permission.path
             gateway.Methods = [permission.method]
-            if permission.filtersPath:
+            if permission.filtersPaths:
                 gateway.Filters = []
-                for key in sorted(permission.filtersPath):
-                    gateway.Filters.append('|'.join(sorted(permission.filtersPath[key])))
+                for key in sorted(permission.filtersPaths):
+                    gateway.Filters.append('|'.join(sorted(permission.filtersPaths[key])))
                     
             yield gateway

@@ -47,6 +47,7 @@ class Invoker(Context):
     ''')
     # ---------------------------------------------------------------- Required
     path = requires(list)
+    isFilter = requires(bool)
     shadowOf = requires(Context)
 
 class Element(Context):
@@ -121,7 +122,7 @@ class IndexAccessHandler(HandlerProcessor):
         assert issubclass(ACLMethod, ACLMethodInvoker), 'Invalid method class %s' % ACLMethod
         if not register.root: return  # No root to process
         
-        stack, methods, shadows = deque(), [], []
+        stack, methods, accessShadows = deque(), [], {}
         stack.append(([], register.root))
         while stack:
             path, node = stack.popleft()
@@ -131,33 +132,42 @@ class IndexAccessHandler(HandlerProcessor):
                 if register.accesses is None: register.accesses = {}
                 if register.accessMethods is None: register.accessMethods = set()
                 
-                pattern = '/'.join(el if isinstance(el, str) else '*' for el in path)
-                name = '{0:0>8x}'.format(binascii.crc32(pattern.encode(), 0)).upper()
-                
-                access = register.accesses.get(name)
-                if access is None: access = register.accesses[name] = ACLAccess(pattern=pattern, path=path)
-                else:
-                    assert isinstance(access, ACLAccessNode), 'Invalid access %s' % access
-                    assert pattern == access.pattern, \
-                    'Invalid pattern \'%s\' with pattern \'%s\' for name \'%s\'' % (pattern, access.pattern, name)
-                    assert path == access.path, \
-                    'Invalid path \'%s\' with path \'%s\' for \'%s\'' % (path, access.path, pattern)
-                    
-                if access.methods is None: access.methods = {}
-                
+                nmethods, shadows = {}, []
                 for method, invoker in node.invokers.items():
                     assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
+                    if invoker.isFilter: continue
+                    
                     if invoker.shadowOf:
-                        shadows.append((access, method, invoker))
+                        shadows.append((method, invoker))
                         continue
-                    assert method not in access.methods, 'Already a method for \'%s\' at %s' % (method, pattern)
                     assert invoker.access is None, 'Invoker %s already has access %s' % invoker.access
                     
-                    invoker.access = access
-                    access.methods[method] = ACLMethod(invoker=invoker)
+                    nmethods[method] = ACLMethod(invoker=invoker)
                     register.accessMethods.add(method)
-                
-                methods.extend(access.methods.values())
+                    
+                if nmethods or shadows:
+                    pattern = '/'.join(el if isinstance(el, str) else '*' for el in path)
+                    name = '{0:0>8x}'.format(binascii.crc32(pattern.encode(), 0)).upper()
+                    
+                    access = register.accesses.get(name)
+                    if access is None: access = register.accesses[name] = ACLAccess(pattern=pattern, path=path)
+                    else:
+                        assert isinstance(access, ACLAccessNode), 'Invalid access %s' % access
+                        assert pattern == access.pattern, \
+                        'Invalid pattern \'%s\' with pattern \'%s\' for name \'%s\'' % (pattern, access.pattern, name)
+                        assert path == access.path, \
+                        'Invalid path \'%s\' with path \'%s\' for \'%s\'' % (path, access.path, pattern)
+                        
+                    if access.methods is None: access.methods = {}
+                    if shadows: accessShadows[access] = shadows
+                    for method, aclMethod in nmethods.items():
+                        assert isinstance(aclMethod, ACLMethodInvoker), 'Invalid ACL method %s' % aclMethod
+                        assert isinstance(aclMethod.invoker, Invoker), 'Invalid invoker %s' % aclMethod.invoker
+                        assert method not in access.methods, 'Already a method for \'%s\' at %s' % (method, pattern)
+                        assert aclMethod.invoker.access is None, 'Invoker %s already has access %s' % aclMethod.invoker.access
+                        aclMethod.invoker.access = access
+                        access.methods[method] = aclMethod
+                        methods.append(aclMethod)
             
             if node.childByName:
                 for cname, cnode in node.childByName.items():
@@ -169,14 +179,15 @@ class IndexAccessHandler(HandlerProcessor):
                 cpath.append(node)
                 stack.append((cpath, node.child))
                 
-        for access, method, shadow in shadows:
+        for access, shadows in accessShadows.items():
             assert isinstance(access, ACLAccessNode), 'Invalid access %s' % access
-            assert isinstance(shadow, Invoker), 'Invalid invoker %s' % shadow
-            assert isinstance(shadow.shadowOf, Invoker), 'Invalid invoker %s' % shadow.shadowOf
-            assert isinstance(shadow.shadowOf.access, ACLAccessNode), 'Invalid access %s' % shadow.shadowOf.access
-            assert method not in access.methods, 'Already a method for \'%s\' at %s' % (method, access.pattern)
-            
-            access.methods[method] = shadow.shadowOf.access.methods[method]
+            for method, shadow in shadows:
+                assert isinstance(shadow, Invoker), 'Invalid invoker %s' % shadow
+                assert isinstance(shadow.shadowOf, Invoker), 'Invalid invoker %s' % shadow.shadowOf
+                assert isinstance(shadow.shadowOf.access, ACLAccessNode), 'Invalid access %s' % shadow.shadowOf.access
+                assert method not in access.methods, 'Already a method for \'%s\' at %s' % (method, access.pattern)
+                
+                access.methods[method] = shadow.shadowOf.access.methods[method]
             
         for method in methods:
             assert isinstance(method, ACLMethodInvoker), 'Invalid method %s' % method

@@ -9,15 +9,20 @@ Created on Aug 8, 2013
 Provides the group handling.
 '''
 
+from ..base import ACTION_GET, ACTION_ADD, ACTION_DEL
 from ally.container import wire
 from ally.container.support import setup
-from ally.design.processor.attribute import requires, defines
+from ally.design.processor.attribute import requires, defines, definesIf
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain
 from ally.design.processor.handler import HandlerProcessor, Handler
 from gateway.api.group import Group
-from gateway.core.acl.spec import ACTION_GET, ACTION_ADD, ACTION_DEL
 import itertools
+
+# --------------------------------------------------------------------
+
+GROUP_ANONYMOUS = 'Anonymous'
+# The anonymous group name.
 
 # --------------------------------------------------------------------
 
@@ -26,9 +31,10 @@ class ACLMethod(Context):
     The ACL method context.
     '''
     # ---------------------------------------------------------------- Defined
-    allowed = defines(set, doc='''
-    @rtype: set(string)
-    The groups names that are allowed access for method.
+    allowed = defines(dict, doc='''
+    @rtype: dictionary{object: dictionary{string: object}}
+    As a key the identifiers that are allowed access for method and as a value a dictionary having as the key the filter name 
+    and as a value a filter object.
     ''')
 
 class Solicit(Context):
@@ -39,6 +45,10 @@ class Solicit(Context):
     value = defines(object, doc='''
     @rtype: object
     The value required.
+    ''')
+    filters = definesIf(dict, doc='''
+    @rtype: dictionary{string: object}
+    The filters for the allowed access.
     ''')
     # ---------------------------------------------------------------- Required
     action = requires(str)
@@ -55,12 +65,12 @@ class HandleGroup(HandlerProcessor):
     '''
     
     acl_groups = {
-              'Anonymous': 'This group contains the services that can be accessed by anyone',
-              }; wire.config('acl_groups', doc='''
-    The allow access pattern place holders that are placed where a identifier is expected.''')
+                  GROUP_ANONYMOUS: 'This group contains the services that can be accessed by anyone',
+                  }; wire.config('acl_groups', doc='''
+    The ACL groups, as a key the group name and as a value the group description.''')
     
     def __init__(self):
-        assert isinstance(self.acl_groups, dict), 'Invalid acl groups %s' % self.acl_groups
+        assert isinstance(self.acl_groups, dict), 'Invalid ACL groups %s' % self.acl_groups
         super().__init__(ACLMethod=ACLMethod)
 
     def process(self, chain, solicit:Solicit, **keyargs):
@@ -74,10 +84,15 @@ class HandleGroup(HandlerProcessor):
         
         if solicit.forGroup is not None:
             if solicit.forGroup not in self.acl_groups: return chain.cancel()
+            identifier = (Group, solicit.forGroup)
+            if solicit.method and solicit.method.allowed:
+                filters = solicit.method.allowed.get(identifier)
+                if filters is not None and Solicit.filters in solicit: solicit.filters = filters
+            else: filters = None
+        else: identifier = filters = None
             
         if solicit.target not in (Group, Group.Name):
-            if solicit.forGroup and solicit.method:
-                if not solicit.method.allowed or not solicit.forGroup in solicit.method.allowed: chain.cancel()
+            if filters is None: chain.cancel()
             return
         
         if solicit.action == ACTION_GET:
@@ -99,15 +114,17 @@ class HandleGroup(HandlerProcessor):
                 else: solicit.value = values
         
         elif solicit.action in (ACTION_ADD, ACTION_DEL):
-            if solicit.target != Group or not solicit.forGroup or not solicit.method: return chain.cancel()
+            if solicit.target != Group or not identifier or not solicit.method: return chain.cancel()
             assert isinstance(solicit.method, ACLMethod), 'Invalid method %s' % solicit.method
             
             if solicit.action == ACTION_ADD:
-                if solicit.method.allowed is None: solicit.method.allowed = set()
-                solicit.method.allowed.add(solicit.forGroup)
+                if filters is None:
+                    if solicit.method.allowed is None: solicit.method.allowed = {}
+                    filters = solicit.method.allowed[identifier] = {}
+                    if Solicit.filters in solicit: solicit.filters = filters
             else:
-                if not solicit.method.allowed or solicit.forGroup not in solicit.method.allowed: return chain.cancel()
-                solicit.method.allowed.remove(solicit.forGroup)
+                if filters is None: return chain.cancel()
+                solicit.method.allowed.pop(identifier)
                 
     # ----------------------------------------------------------------
     
