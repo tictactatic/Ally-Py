@@ -21,8 +21,12 @@ from os import path, makedirs, renames
 from uuid import uuid4
 import application
 import codecs
+import logging
 import sys
-import traceback
+
+# --------------------------------------------------------------------
+
+log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
@@ -42,9 +46,9 @@ def config():
     if path.isfile(configFile):
         with open(configFile, 'r') as f: config = load(f)
     else:
-        print('The configuration file "%s" doesn\'t exist, create one by running the the application '
-              'with "-dump" option, also change the application properties "server_type" configuration to "mongrel2" '
-              'and also adjust the "recv_spec", "send_spec" and "server_port" accordingly' % configFile, file=sys.stderr)
+        log.error('The configuration file \'%s\' doesn\'t exist, create one by running the the application '
+                  'with "-dump" option, also change the application properties \'server_type\' configuration to \'mongrel2\' '
+                  'and adjust the \'recv_spec\', \'send_spec\' and \'server_port\' accordingly', configFile)
         sys.exit(1)
         
     try:
@@ -72,14 +76,13 @@ def config():
             if updateConfig:
                 if path.isfile(configFile): renames(configFile, configFile + '.bak')
                 with open(configFile, 'w') as f: save(context.configurations(force=True), f)
-                print('Updated the "%s" configuration file' % configFile)
+                log.info('Updated the \'%s\' configuration file', configFile)
         finally: context.deactivate()
     except SystemExit: raise
     except:
-        print('-' * 150, file=sys.stderr)
-        print('A problem occurred while configuring Mongrel2', file=sys.stderr)
-        traceback.print_exc(file=sys.stderr)
-        print('-' * 150, file=sys.stderr)
+        log.error('-' * 150)
+        log.exception('A problem occurred while configuring Mongrel2', file=sys.stderr)
+        log.error('-' * 150)
     else:
         conf = openURI(path.join(pythonPath(), 'resources', 'ally.conf'))
         conf = codecs.getreader('utf8')(conf)
@@ -88,5 +91,5 @@ def config():
         with open(path.join(workspace, 'README-Mongrel2.txt'), 'wb') as f:
             pipe(openURI(path.join(pythonPath(), 'resources', 'README-Mongrel2.txt')), f)
         
-        print('Configured "%s" mongrel2 workspace' % workspace)
+        log.info('Configured \'%s\' mongrel2 workspace' % workspace)
     

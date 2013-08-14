@@ -58,15 +58,5 @@ def dump():
 def testUpdatePlugins():
     assert isinstance(application.options, OptionsCore), 'Invalid application options %s' % application.options
     if not application.options.test: return
-    try:
-        openSetups()
-        loadPlugins()
-        
-    except:
-        print('-' * 150, file=sys.stderr)
-        print('A problem occurred while opening setups for testing', file=sys.stderr)
-        traceback.print_exc(file=sys.stderr)
-        print('-' * 150, file=sys.stderr)
-        return
-    finally: context.deactivate()
+    with openSetups('opening setups for testing'): loadPlugins()
 

@@ -13,6 +13,7 @@ from .distribution import markers, persistMarkers
 from ally.container import aop, ioc, context, event, support, app
 from ally.container.error import SetupError
 from ally.container.impl.config import load
+from ally.support.util import Singletone
 from ally.support.util_sys import isPackage
 from package_extender import PACKAGE_EXTENDER
 import logging
@@ -26,6 +27,12 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
+class Whatcher(Singletone):
+    ''' Provides the watcher for opened assemblies.'''
+    
+    def __enter__(self): return
+    def __exit__(self, type, value, traceback): context.deactivate()
+    
 def loadPlugins():
     ''' Add the plugins to the python path'''
     if os.path.isdir(plugins_path()):
@@ -45,8 +52,8 @@ def openPlugins():
     ''' Add the plugins to the python path and also open the assembly for plugins'''
     loadPlugins()
     if not os.path.isfile(configurations_file_path()):
-        print('The configuration file "%s" does not exist, create one by running the the application '
-              'with "-dump" option' % configurations_file_path())
+        log.error('The configuration file \'%s\' does not exist, create one by running the the application '
+                  'with "-dump" option', configurations_file_path())
         sys.exit(1)
     with open(configurations_file_path(), 'r') as f: config = load(f)
 
@@ -58,6 +65,7 @@ def openPlugins():
                              'to be in a sub package' % module.__name__)
 
     context.open(pluginModules, config=config, included=True)
+    return Whatcher()
 
 # --------------------------------------------------------------------
 
@@ -86,36 +94,31 @@ def excluded_plugins():
 
 @ioc.start(priority=ioc.PRIORITY_FIRST)
 def deploy():
-    openPlugins()
-
-    try: context.processStart()
-    finally: context.deactivate()
+    with openPlugins(): context.processStart()
 
 @event.on(event.REPAIR)
 def repair():
-    openPlugins()
-
-    used = set()
-    try:
-        for call, name, trigger in support.eventsFor(event.REPAIR, app.POPULATE):
-            trigger = (trigger,)
-            if app.POPULATE.isTriggered(trigger):
-                used.add(name)
-                executed = markers().get(name)
-                if app.DEVEL.isTriggered(trigger) or app.REPAIR.isTriggered(trigger): executed = None  # If in devel then we execute regardless
-                if executed is None:
-                    executed = call()
-                    log.info('Executed populate event call \'%s\' for the first time and got %s', name, executed)
-                elif not executed:
-                    executed = call()
-                    log.info('Executed populate event call \'%s\' again and got %s', name, executed)
-                else:
-                    log.info('No need to execute populate event call \'%s\'', name)
-                markers()[name] = executed
-
-            elif app.REPAIR.isTriggered(trigger):
-                log.info('Executing plugins repair event call \'%s\'', name)
-                call()
-    finally:
-        persistMarkers(used)
-        context.deactivate()
+    with openPlugins():
+        used = set()
+        try:
+            for call, name, trigger in support.eventsFor(event.REPAIR, app.POPULATE):
+                trigger = (trigger,)
+                if app.POPULATE.isTriggered(trigger):
+                    used.add(name)
+                    executed = markers().get(name)
+                    if app.DEVEL.isTriggered(trigger) or app.REPAIR.isTriggered(trigger): executed = None  
+                    # If in devel then we execute regardless
+                    if executed is None:
+                        executed = call()
+                        log.info('Executed populate event call \'%s\' for the first time and got %s', name, executed)
+                    elif not executed:
+                        executed = call()
+                        log.info('Executed populate event call \'%s\' again and got %s', name, executed)
+                    else:
+                        log.info('No need to execute populate event call \'%s\'', name)
+                    markers()[name] = executed
+    
+                elif app.REPAIR.isTriggered(trigger):
+                    log.info('Executing plugins repair event call \'%s\'', name)
+                    call()
+        finally: persistMarkers(used)

@@ -228,9 +228,13 @@ class SessionBinder(IProxyHandler):
         else:
             if hasSession():
                 session = openSession()
-                session.flush()
-                session.expunge_all()
-                endCurrent(commit)
+                try:
+                    session.flush()
+                    session.expunge_all()
+                    endCurrent(commit)
+                except:
+                    endCurrent(rollback)
+                    raise
             elif isgenerator(returned):
                 # If the returned value is a generator we need to wrap it in order to provide session support when the actual
                 # generator is used

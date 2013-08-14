@@ -9,7 +9,7 @@ Created on Jun 23, 2011
 SQL alchemy implementation for the generic ided or named entities API.
 '''
 
-from ally.api.error import InvalidIdError
+from ally.api.error import IdError
 from ally.api.operator.type import TypeModel, TypeProperty, TypeQuery
 from ally.api.type import typeFor
 from ally.support.api.util_service import getModelId
@@ -66,7 +66,7 @@ class EntityGetServiceAlchemy(EntitySupportAlchemy):
         @see: IEntityGetService.getById
         '''
         entity = self.session().query(self.Mapped).get(id)
-        if entity is None: raise InvalidIdError(self.Entity)
+        if entity is None: raise IdError(self.Entity)
         return entity
 
 class EntityFindServiceAlchemy(EntitySupportAlchemy):

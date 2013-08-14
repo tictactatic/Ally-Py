@@ -12,12 +12,12 @@ Contains the services for gateway.
 from ..plugin.registry import registerService
 from .db_gateway import bindGatewaySession
 from ally.container import support, ioc, bind, app
-from ally.design.processor.assembly import Assembly
-import re
 from ally.container.support import entityFor
-from gateway.api.gateway import IGatewayService, Gateway
-import logging
+from ally.design.processor.assembly import Assembly
 from ally.support.api.util_service import copyContainer
+from gateway.api.gateway import IGatewayService, Custom
+import logging
+import re
 
 # --------------------------------------------------------------------
 
@@ -63,29 +63,5 @@ def populateDefaulyGateways():
     assert isinstance(serviceGateway, IGatewayService)
     
     for data in defaultGateways():
-        try: serviceGateway.insert(copyContainer(data, Gateway()))
+        try: serviceGateway.insert(copyContainer(data, Custom()))
         except: log.info('Gateway %s already exists' % data)
-
-
-# TODO: Gabriel: see command line for plugins.
-#
-# @ioc.config
-# def full_access_ips():
-#    '''
-#    A list that contains the IPs that have full unrestricted access to the REST server.
-#    The IP can be provided as: 127.0.0.1 or 127.*.*.*
-#    '''
-#    return []
-#
-## --------------------------------------------------------------------
-# @ioc.before(default_gateways)
-# def updateDefaultGatewaysForFullAccess():
-#    ips = []
-#    for ip in full_access_ips():
-#        ip = '\.'.join(mark.replace('*', '\d+') for mark in ip.split('.'))
-#        ips.append(ip)
-#    if ips:
-#        default_gateways().append({
-#                                   'Clients': ips,
-#                                   'Pattern': '(.*)',
-#                                   })

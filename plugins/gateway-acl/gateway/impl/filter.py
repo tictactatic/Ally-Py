@@ -59,7 +59,7 @@ class FilterService(IFilterService):
         '''
         assert isinstance(name, str), 'Invalid name %s' % name
         filter = getSolicit(self._manage, Filter, forFilter=name)
-        if not filter: raise InvalidIdError()
+        if not filter: raise IdError()
         return filter
         
     def getAll(self, **options):

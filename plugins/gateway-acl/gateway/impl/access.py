@@ -54,7 +54,7 @@ class AccessService(IAccessService):
         '''
         assert isinstance(name, str), 'Invalid name %s' % name
         access = getSolicit(self._manage, Access, forAccess=name)
-        if not access: raise InvalidIdError()
+        if not access: raise IdError()
         return access
     
     def getAll(self, **options):

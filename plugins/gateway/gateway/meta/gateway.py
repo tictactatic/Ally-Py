@@ -21,7 +21,7 @@ class GatewayData(Base):
     '''
     __tablename__ = 'gateway'
 
-    hash = Column('hash', String(16), primary_key=True)
+    name = Column('name', String(16), primary_key=True)
     identifier = Column('identifier', BLOB, nullable=False)
     navigate = Column('navigate', BLOB, nullable=False)
 

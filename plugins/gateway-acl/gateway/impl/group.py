@@ -55,7 +55,7 @@ class GroupService(IGroupService):
         '''
         assert isinstance(name, str), 'Invalid group name %s' % name
         group = getSolicit(self._manage, Group, forGroup=name)
-        if not group: raise InvalidIdError()
+        if not group: raise IdError()
         return group
     
     def getAll(self, **options):

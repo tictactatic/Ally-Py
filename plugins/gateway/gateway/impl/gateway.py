@@ -9,9 +9,9 @@ Created on Jan 28, 2013
 Implementation for the default anonymous gateway data.
 '''
 
-from ..api.gateway import IGatewayService, Gateway
+from ..api.gateway import IGatewayService, Gateway, Identifier, Custom
 from ..meta.gateway import GatewayData
-from ally.api.error import InvalidIdError
+from ally.api.error import InputError, IdError
 from ally.container import wire
 from ally.container.ioc import injected
 from ally.container.support import setup
@@ -19,12 +19,14 @@ from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Processing, FILL_ALL
-from ally.support.api.util_service import namesFor
+from ally.internationalization import _
+from ally.support.api.util_service import namesFor, copyContainer
 from ally.support.sqlalchemy.session import SessionSupport
+from ally.support.sqlalchemy.util_service import iterateCollection
 from collections import Iterable
-from gateway.api.gateway import GatewayIdentifier
 import binascii
 import json
+import re
 
 # --------------------------------------------------------------------
 
@@ -67,37 +69,73 @@ class GatewayServiceAlchemy(IGatewayService, SessionSupport):
         assert isinstance(reply, Reply), 'Invalid reply %s' % reply
         if Reply.gateways not in reply: return ()
         return reply.gateways
+
+    # ----------------------------------------------------------------
+    
+    def getById(self, name):
+        '''
+        @see: IGatewayService.getById
+        '''
+        assert isinstance(name, str), 'Invalid gateway name %s' % name
+        data = self.session().query(GatewayData).get(name)
+        if data is None: raise IdError()
+        assert isinstance(data, GatewayData), 'Invalid data %s' % data
+        
+        gatewayData = json.loads(str(data.identifier, 'utf8'))
+        gatewayData.update(json.loads(str(data.navigate, 'utf8')))
+        gateway = copyContainer(gatewayData, Custom())
+        gateway.Name = name
+        return gateway
+    
+    def getAll(self, **options):
+        '''
+        @see: IGatewayService.getAll
+        '''
+        return iterateCollection(self.session().query(GatewayData.name), **options)
     
     def insert(self, gateway):
         '''
         @see: IGatewayService.insert
         '''
-        hash, identifier, navigate = self.dataFor(gateway)
-    
+        assert isinstance(gateway, Gateway), 'Invalid gateway %s' % gateway
+        if gateway.Clients:
+            for pattern in gateway.Clients:
+                try: re.compile(pattern)
+                except: raise RegexError(Gateway.Clients)
+        if gateway.Pattern:
+            try: re.compile(gateway.Pattern)
+            except: raise RegexError(Gateway.Pattern)
+        if gateway.Headers:
+            for pattern in gateway.Headers:
+                try: re.compile(pattern)
+                except: raise RegexError(Gateway.Headers)
+        
+        name, identifier, navigate = self.dataFor(gateway)
+
         data = GatewayData()
-        data.hash = hash
+        data.name = name
         data.identifier, data.navigate = identifier.encode(), navigate.encode()
+        
         self.session().add(data)
-        self.session().flush((data,))
-        return hash
+        return name
     
     def update(self, gateway):
         '''
         @see: IGatewayService.update
         '''
-        assert isinstance(gateway, Gateway), 'Invalid gateway %s' % gateway
-        
-        data = self.session().query(GatewayData).get(gateway.Hash)
-        if data is None: raise InvalidIdError()
+        assert isinstance(gateway, Custom), 'Invalid gateway %s' % gateway
+
+        data = self.session().query(GatewayData).get(gateway.Name)
+        if data is None: raise IdError()
         assert isinstance(data, GatewayData), 'Invalid data %s' % data
         data.navigate = self.dataFor(gateway, onlyNavigate=True).encode()
         
-    def delete(self, gatewayHash):
+    def delete(self, name):
         '''
         @see: IGatewayService.delete
         '''
-        assert isinstance(gatewayHash, str), 'Invalid gateway hash %s' % gatewayHash
-        return self.session().query(GatewayData).filter(GatewayData.hash == gatewayHash).delete() > 0
+        assert isinstance(name, str), 'Invalid gateway name %s' % name
+        return self.session().query(GatewayData).filter(GatewayData.name == name).delete() > 0
 
     # ----------------------------------------------------------------
     
@@ -107,10 +145,9 @@ class GatewayServiceAlchemy(IGatewayService, SessionSupport):
         '''
         assert isinstance(gateway, Gateway), 'Invalid gateway %s' % gateway
         
-        navigateData, namesIdentifier = {}, set(namesFor(GatewayIdentifier))
+        navigateData, namesIdentifier = {}, set(namesFor(Identifier))
         if not onlyNavigate: identifierData = {}
         for name in namesFor(Gateway):
-            if name == 'Hash': continue
             if onlyNavigate and name in namesIdentifier: continue
             
             value = getattr(gateway, name)
@@ -122,6 +159,14 @@ class GatewayServiceAlchemy(IGatewayService, SessionSupport):
         if onlyNavigate: return navigate
         
         identifier = json.dumps(identifierData, sort_keys=True)
-        hash = ('%x' % binascii.crc32(identifier.encode(), 0)).upper()
-        return hash, identifier, navigate
-        
+        return ('%x' % binascii.crc32(identifier.encode(), 0)).upper(), identifier, navigate
+
+# --------------------------------------------------------------------
+
+class RegexError(InputError):
+    '''
+    Raised for invalid regex pattern.
+    '''    
+    
+    def __init__(self, prop):
+        super().__init__(_('Invalid regex pattern'), prop)

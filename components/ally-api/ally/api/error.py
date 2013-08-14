@@ -71,7 +71,7 @@ class InputError(Exception):
         
 # --------------------------------------------------------------------
 
-class InvalidIdError(InputError):
+class IdError(InputError):
     '''
     Exception to be raised when a model id is invalid.
     '''

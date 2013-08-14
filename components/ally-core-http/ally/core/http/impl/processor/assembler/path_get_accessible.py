@@ -17,6 +17,7 @@ from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor
 from ally.http.spec.server import HTTP_GET
 from collections import deque
+from ally.support.util_context import findFirst
 
 # --------------------------------------------------------------------
 
@@ -49,6 +50,7 @@ class Node(Context):
     The node context.
     '''
     # ---------------------------------------------------------------- Required
+    parent = requires(Context)
     invokers = requires(dict)
     invokersGet = requires(dict)
     child = requires(Context)
@@ -80,7 +82,7 @@ class PathGetAccesibleHandler(HandlerProcessor):
         
         for current in register.nodes:
             assert isinstance(current, Node), 'Invalid node %s' % current
-        
+            
             for name, node in self.iterAvailable(current):
                 if node.invokers and HTTP_GET in node.invokers:
                     if current.invokersAccessible is None: current.invokersAccessible = []
@@ -94,16 +96,19 @@ class PathGetAccesibleHandler(HandlerProcessor):
         '''
         assert isinstance(node, Node), 'Invalid node %s' % node
         target = None
-        if node.invokers and HTTP_GET in node.invokers:
-            invoker = node.invokers[HTTP_GET]
-            assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
-            if invoker.isModel and invoker.target: target = invoker.target
+        if not node.invokers or HTTP_GET not in node.invokers: return
+        # The available paths are compiled only for nodes that have a get invoker that can use them.
+        invoker = node.invokers[HTTP_GET]
+        assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
+        if invoker.isModel and invoker.target: target = invoker.target
             
         if target:
             for cname, cnode in self.iterTarget('', node, target): yield cname, cnode
         
         for cname, cnode in self.iterChildByName('', node):
-            yield cname, cnode
+            if invoker.isModel:
+                if cnode.parent and findFirst(cnode.parent, Node.parent, Node.child): yield cname, cnode
+            else: yield cname, cnode
             if target:
                 for cname, cnode in self.iterTarget(cname, cnode, target): yield cname, cnode
         
@@ -127,6 +132,7 @@ class PathGetAccesibleHandler(HandlerProcessor):
         for cname, cnode in self.iterChildByName(name, node.child):
             assert isinstance(cnode, Node), 'Invalid node %s' % cnode
             if not cnode.invokers or not HTTP_GET in cnode.invokers: continue
+            
             invoker = cnode.invokers[HTTP_GET]
             assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
             for el in reversed(invoker.path):

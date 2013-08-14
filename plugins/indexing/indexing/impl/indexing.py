@@ -10,7 +10,7 @@ Provides the implementation for indexing data.
 '''
 
 from ..api.indexing import IIndexingService, Block, Action, Perform
-from ally.api.error import InvalidIdError
+from ally.api.error import IdError
 from ally.container import wire
 from ally.container.ioc import injected
 from ally.container.support import setup
@@ -69,7 +69,7 @@ class AssemblageMarkerService(IIndexingService):
         assert isinstance(blockId, int), 'Invalid block id %s' % blockId
         self._process()
         block = self._blocksById.get(blockId)
-        if block is None: raise InvalidIdError()
+        if block is None: raise IdError()
         return block
     
     def getAction(self, actionId):
@@ -79,7 +79,7 @@ class AssemblageMarkerService(IIndexingService):
         assert isinstance(actionId, int), 'Invalid action id %s' % actionId
         self._process()
         action = self._actionsById.get(actionId)
-        if action is None: raise InvalidIdError()
+        if action is None: raise IdError()
         return action
     
     def getPerform(self, performId):
@@ -89,7 +89,7 @@ class AssemblageMarkerService(IIndexingService):
         assert isinstance(performId, int), 'Invalid perform id %s' % performId
         self._process()
         perform = self._performsById.get(performId)
-        if perform is None: raise InvalidIdError()
+        if perform is None: raise IdError()
         return perform
         
     def getBlocks(self):

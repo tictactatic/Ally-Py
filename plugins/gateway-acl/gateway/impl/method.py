@@ -54,7 +54,7 @@ class MethodService(IMethodService):
         '''
         assert isinstance(name, str), 'Invalid method name %s' % name
         method = getSolicit(self._manage, Method, forMethod=name)
-        if not method: raise InvalidIdError()
+        if not method: raise IdError()
         return method
         
     def getMethods(self, access=None):

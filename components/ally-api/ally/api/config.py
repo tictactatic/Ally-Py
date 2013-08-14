@@ -99,7 +99,7 @@ def model(*args, id=None, name=None, **hints):
             if isclass(name):
                 typ = typeFor(name)
                 assert isinstance(typ, TypeModel), 'Invalid class %s to extract name, is not a model class' % name
-                name = typ.container.name
+                name = typ.name
             assert isinstance(name, str), 'Invalid model name %s' % name
         else:
             name = clazz.__name__

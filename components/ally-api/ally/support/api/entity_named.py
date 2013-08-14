@@ -126,7 +126,7 @@ class IEntityGetCRUDService(IEntityGetService, IEntityCRUDService):
 @service
 class IEntityNQService(IEntityGetService, IEntityFindService, IEntityCRUDService):
     '''
-    Provides the find without querying, CRUD and query entity services.
+    Provides the find without querying and CRUD services.
     '''
 
 @service

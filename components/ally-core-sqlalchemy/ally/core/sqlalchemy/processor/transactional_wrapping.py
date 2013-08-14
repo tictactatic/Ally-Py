@@ -10,7 +10,7 @@ Provides support for SQL alchemy a processor for automatic session handling.
 '''
 
 from ally.api.config import DELETE
-from ally.api.error import InputError, InvalidIdError
+from ally.api.error import InputError, IdError
 from ally.core.spec.codes import INPUT_ERROR, Coded
 from ally.design.processor.attribute import optional, defines, requires
 from ally.design.processor.context import Context
@@ -84,11 +84,12 @@ class TransactionWrappingHandler(HandlerProcessor):
         assert isinstance(request.invoker, Invoker), 'Invalid invoker %s' % request.invoker
         
         exc = None
-        if isinstance(error.exception, NoResultFound): exc = InvalidIdError()
-        elif isinstance(error.exception, IntegrityError): exc = InputError(_('Cannot persist, failed unique constraints'))
+        if isinstance(error.exception, NoResultFound): exc = IdError()
+        elif isinstance(error.exception, IntegrityError):
+            exc = InputError(_('There is already an entity having this unique properties'))
         elif isinstance(error.exception, OperationalError):
-            if request.invoker.method == DELETE: exc = InputError(_('Cannot delete because is in use'))
-            else: exc = InputError(_('A foreign key is not valid'))
+            if request.invoker.method == DELETE: exc = InputError(_('Cannot delete because is used'))
+            else: exc = InputError(_('An entity relation identifier is not valid'))
             
         if exc is not None:
             INPUT_ERROR.set(response)

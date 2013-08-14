@@ -11,7 +11,7 @@ Provides utility methods for SQL alchemy service implementations.
 
 from ally.api.criteria import AsLike, AsOrdered, AsBoolean, AsEqual, AsDate, \
     AsTime, AsDateTime, AsRange
-from ally.api.error import InvalidIdError
+from ally.api.error import IdError
 from ally.api.extension import IterSlice
 from ally.api.operator.type import TypeProperty, TypeCriteria, TypeModel
 from ally.api.type import typeFor
@@ -222,7 +222,7 @@ def updateModel(Mapped, model):
         assert isinstance(typ.propertyId, TypeProperty), 'Invalid property id of %s' % typ
         
         dbModel = openSession().query(Mapped).get(getattr(model, typ.propertyId.name))
-        if not dbModel: raise InvalidIdError(typ.propertyId)
+        if not dbModel: raise IdError(typ.propertyId)
         for name, prop in typ.properties.items():
             if not isinstance(getattr(Mapped, name), ColumnElement): continue
             if prop in model: setattr(dbModel, name, getattr(model, name))

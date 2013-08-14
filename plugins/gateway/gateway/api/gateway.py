@@ -10,16 +10,16 @@ API specifications for gateway.
 '''
 
 from ally.api.config import model, service, call
+from ally.api.option import SliceAndTotal  # @UnusedImport
 from ally.api.type import List, Iter, Dict
+from ally.support.api.entity_named import Entity, IEntityNQService
 
 # --------------------------------------------------------------------
 
-@model(id='Hash')
-class GatewayIdentifier:
+@model
+class Identifier:
     '''
-    Provides the gateway identifier.
-        Hash -      the unique hash for the gateway, this is not mandatory.
-    
+    Provides the gateway identifier.        
         Clients -   contains the client IPs or names regexes that needs to match in order to validate the gateway, if
                     none is provided then the gateway applies to all. At least one client IP needs to match to consider
                     the navigation valid.
@@ -31,31 +31,29 @@ class GatewayIdentifier:
                     the navigation valid.
         Methods -   The list of allowed methods for the request, if no method is provided then all methods are considered
                     valid. At least one method needs to match to consider the navigation valid.
-        Filters -   contains a list of grouped URIs that need to be called in order to allow the gateway Navigate. The filters are
-                    allowed to have place holders of form '{1}' or '{2}' ... '{n}' where n is the number of groups obtained
-                    from the Pattern, the place holders will be replaced with their respective group value. All groups of filters
-                    need to return a True value in order to allow the gateway Navigate, also pre populated parameters are allowed
-                    for filter URI. The filters in a group entry are separated by '|', if any filter in the group returns true
-                    it means the group is true.
         Errors -    The list of errors codes that are considered to be handled by this Gateway entry, if no error is provided
                     then it means the entry is not solving any error navigation. At least one error needs to match in order
                     to consider the navigation valid. The gateways that solve errors will receive also parameters for error
                         status - the status code of the error
                         allow - the method name(s) allowed, this will be provided in case of status 405 (Method not allowed)
     '''
-    Hash = str
     # The request identification attributes
     Clients = List(str)
     Pattern = str
     Headers = List(str)
     Methods = List(str)
-    Filters = List(str)
     Errors = List(int)
 
 @model
-class Gateway(GatewayIdentifier):
+class Gateway(Identifier):
     '''
     Provides the gateway.
+        Filters -   contains a list of grouped URIs that need to be called in order to allow the gateway Navigate. The filters are
+                    allowed to have place holders of form '{1}' or '{2}' ... '{n}' where n is the number of groups obtained
+                    from the Pattern, the place holders will be replaced with their respective group value. All groups of filters
+                    need to return a True value in order to allow the gateway Navigate, also pre populated parameters are allowed
+                    for filter URI. The filters in a group entry are separated by '|', if any filter in the group returns true
+                    it means the group is true.
         Host -      The host where the request needs to be resolved, if not provided the request will be delegated to the
                     default host.
         Protocol -  The protocol to be used in the communication with the server that handles the request, if not provided
@@ -66,15 +64,23 @@ class Gateway(GatewayIdentifier):
         PutHeaders -The headers to be put on the forwarded requests.
     '''
     # The navigation attributes
+    Filters = List(str)
     Host = str
     Protocol = str
     Navigate = str
     PutHeaders = Dict(str, str)
+    
+@model(domain='Gateway')
+class Custom(Entity, Gateway):
+    '''
+    Provides the custom defined gateway.
+        Name -      the unique name for the gateway.
+    '''
 
 # --------------------------------------------------------------------
 
-@service
-class IGatewayService:
+@service((Entity, Custom))
+class IGatewayService(IEntityNQService):
     '''
     The gateway service that provides the anonymous gateways.
     '''
@@ -84,21 +90,3 @@ class IGatewayService:
         '''
         Get the gateways that apply for an anonymous access.
         '''
-    
-    @call
-    def insert(self, gateway:Gateway) -> Gateway.Hash:
-        '''
-        Insert the gateway.
-        '''
-        
-    @call
-    def update(self, gateway:Gateway):
-        '''
-        Update the gateway.
-        '''
-        
-    @call
-    def delete(self, gatewayHash:Gateway) -> bool:
-        '''
-        Delete the gateway.
-        ''' 
