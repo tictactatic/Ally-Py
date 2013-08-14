@@ -26,13 +26,20 @@ class OptionsGateway(OptionsCore):
     def __init__(self):
         super().__init__()
         self._addIPs = None
+        self._remIPs = None
     
     def setAddIPs(self, value):
         '''Setter for adding full access IPs'''
         self._addIPs = value
         self._start = False
+        
+    def setRemIPs(self, value):
+        '''Setter for removing full access IPs'''
+        self._remIPs = value
+        self._start = False
     
     addIPs = property(lambda self: self._addIPs, setAddIPs)
+    remIPs = property(lambda self: self._remIPs, setRemIPs)
 
 # --------------------------------------------------------------------
 
@@ -46,6 +53,9 @@ def prepareGatewayOptions():
 @ioc.after(prepareCoreActions)
 def prepareMongrel2Actions():
     assert isinstance(application.parser, ArgumentParser), 'Invalid parser %s' % application.parser
-    application.parser.add_argument('-allow-access', metavar='IP', dest='addIPs', nargs='+', default=False,
+    application.parser.add_argument('-add-access', metavar='IP', dest='addIPs', nargs='+', default=False,
                                     help='Provide this option to add a full access IPs, all calls from this IP will not be '
                                     'blocked by the gateway, the IPs can be provided as: 127.0.0.1 or 127.*.*.*')
+    application.parser.add_argument('-rem-access', metavar='IP', dest='remIPs', nargs='+', default=False,
+                                    help='Provide this option to remove full access IPs, the IPs need to be provided exactly '
+                                    'with the same form (127.0.0.1 or 127.*.*.*) as they have been added')

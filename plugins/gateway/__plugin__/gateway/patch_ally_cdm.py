@@ -31,6 +31,7 @@ else:
         if server_provide_content():
             defaultGateways().extend([
             {
+             'Name': 'allow_CDM',
              'Pattern': asPattern(root_uri_content()),
              'Methods': [HTTP_GET],
              },

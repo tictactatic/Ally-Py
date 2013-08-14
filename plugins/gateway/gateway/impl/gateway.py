@@ -97,7 +97,8 @@ class GatewayServiceAlchemy(IGatewayService, SessionSupport):
         '''
         @see: IGatewayService.insert
         '''
-        assert isinstance(gateway, Gateway), 'Invalid gateway %s' % gateway
+        assert isinstance(gateway, Custom), 'Invalid gateway %s' % gateway
+        assert isinstance(gateway.Name, str), 'Invalid name %s' % gateway.Name
         if gateway.Clients:
             for pattern in gateway.Clients:
                 try: re.compile(pattern)
@@ -110,14 +111,15 @@ class GatewayServiceAlchemy(IGatewayService, SessionSupport):
                 try: re.compile(pattern)
                 except: raise RegexError(Gateway.Headers)
         
-        name, identifier, navigate = self.dataFor(gateway)
+        hash, identifier, navigate = self.dataFor(gateway)
 
         data = GatewayData()
-        data.name = name
+        data.name = gateway.Name
+        data.hash = hash
         data.identifier, data.navigate = identifier.encode(), navigate.encode()
         
         self.session().add(data)
-        return name
+        return gateway.Name
     
     def update(self, gateway):
         '''
@@ -159,7 +161,7 @@ class GatewayServiceAlchemy(IGatewayService, SessionSupport):
         if onlyNavigate: return navigate
         
         identifier = json.dumps(identifierData, sort_keys=True)
-        return ('%x' % binascii.crc32(identifier.encode(), 0)).upper(), identifier, navigate
+        return binascii.crc32(identifier.encode(), 0), identifier, navigate
 
 # --------------------------------------------------------------------
 

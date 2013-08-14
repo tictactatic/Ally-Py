@@ -41,6 +41,7 @@ else:
     def updateGatewayWithResourcesOptions():
         defaultGateways().extend([
         {
+         'Name': 'allow_resources_OPTIONS',
          'Pattern': asPattern(root_uri_resources()),
          'Methods': [HTTP_OPTIONS],
          },
@@ -53,11 +54,13 @@ else:
             # If path is not found then we try to dispatch a unauthorized access if the path is not
             # found in REST the default error will have priority over the unauthorized access
             {
+             'Name': 'error_unauthorized_vs_not_found',
              'Pattern': asPattern(root_uri_resources()),
              'Errors': [PATH_NOT_FOUND.status],
              'Navigate': '%s/{1}?status=%s' % (root_uri_errors(), UNAUTHORIZED_ACCESS.status),
              },
             {
+             'Name': 'error_unauthorized',
              'Pattern': asPattern(root_uri_resources()),
              'Errors': [INVALID_AUTHORIZATION.status, FORBIDDEN_ACCESS.status, METHOD_NOT_AVAILABLE.status],
              'Navigate': '%s/{1}' % root_uri_errors(),
