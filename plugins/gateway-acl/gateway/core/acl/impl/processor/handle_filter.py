@@ -12,7 +12,7 @@ Provides the filter handling.
 from ..base import ACTION_GET, ACTION_ADD, ACTION_DEL
 from ally.api.operator.type import TypeProperty
 from ally.container.support import setup
-from ally.design.processor.attribute import requires, defines
+from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain
 from ally.design.processor.handler import HandlerProcessor, Handler
@@ -42,13 +42,24 @@ class ACLMethod(Context):
     # ---------------------------------------------------------------- Required
     nodesProperties = requires(dict)
 
+class ACLAllowed(Context):
+    '''
+    The ACL allowed context.
+    '''
+    # ---------------------------------------------------------------- Defined
+    filters = defines(dict, doc='''
+    @rtype: dictionary{Context: set(Context)}
+    As a key the ACL filter context and as a value the path nodes to be filtered.
+    ''')
+    
 class ACLFilter(Context):
     '''
     The ACL filter context.
     '''
     # ---------------------------------------------------------------- Required
+    name = requires(str)
     targetProperty = requires(TypeProperty)
-   
+ 
 class Solicit(Context):
     '''
     The solicit context.
@@ -58,12 +69,14 @@ class Solicit(Context):
     @rtype: object
     The value required.
     ''')
+    # ---------------------------------------------------------------- Optional
+    filterHint = optional(str)
     # ---------------------------------------------------------------- Required
     action = requires(str)
     target = requires(object)
     access = requires(Context)
     method = requires(Context)
-    filters = requires(dict)
+    allowed = requires(Context)
     forFilter = requires(str)
     
 # --------------------------------------------------------------------
@@ -75,7 +88,7 @@ class HandleFilter(HandlerProcessor):
     '''
     
     def __init__(self):
-        super().__init__(ACLAccess=ACLAccess, ACLMethod=ACLMethod, ACLFilter=ACLFilter)
+        super().__init__(ACLAccess=ACLAccess, ACLMethod=ACLMethod, ACLAllowed=ACLAllowed, ACLFilter=ACLFilter)
 
     def process(self, chain, register:Register, solicit:Solicit, **keyargs):
         '''
@@ -96,11 +109,13 @@ class HandleFilter(HandlerProcessor):
                 if solicit.target == Filter: solicit.value = self.create(solicit.forFilter)
                 else: solicit.value = solicit.forFilter
                 
-            elif solicit.filters is not None:
-                if not solicit.filters: return
+            elif solicit.allowed:
+                assert isinstance(solicit.allowed, ACLAllowed), 'Invalid allowed %s' % solicit.allowed
+                if not solicit.allowed.filters: return
                 
-                if solicit.target == Filter: values = (self.create(name) for name in solicit.filters)
-                else: values = solicit.filters.keys()
+                names = (aclFilter.name for aclFilter in solicit.allowed.filters)
+                if solicit.target == Filter: values = (self.create(name) for name in names)
+                else: values = names
                 if solicit.value is not None: solicit.value = itertools.chain(solicit.value, values)
                 else: solicit.value = values
                 
@@ -111,12 +126,14 @@ class HandleFilter(HandlerProcessor):
                 else: solicit.value = values
         
         elif solicit.action in (ACTION_ADD, ACTION_DEL):
-            if solicit.target != Filter or solicit.filters is None or not solicit.forFilter: return chain.cancel()
+            if solicit.target != Filter or not solicit.allowed or not solicit.forFilter: return chain.cancel()
+            assert isinstance(solicit.allowed, ACLAllowed), 'Invalid allowed %s' % solicit.allowed
             assert isinstance(solicit.method, ACLMethod), 'Invalid method %s' % solicit.method
             assert isinstance(solicit.access, ACLAccess), 'Invalid access %s' % solicit.access
             
+            aclFilter = register.filters[solicit.forFilter]
+            
             if solicit.action == ACTION_ADD:
-                aclFilter = register.filters[solicit.forFilter]
                 assert isinstance(aclFilter, ACLFilter), 'Invalid filter %s' % aclFilter
                 assert isinstance(aclFilter.targetProperty, TypeProperty), \
                 'Invalid target property %s' % aclFilter.targetProperty
@@ -130,13 +147,28 @@ class HandleFilter(HandlerProcessor):
                         if prop == aclFilter.targetProperty: nodes.append(el)
                 
                 if not nodes: return chain.cancel()
-                if len(nodes) > 1: return chain.cancel()  # TODO: Gabriel: implement filter pattern.
+                if len(nodes) > 1:
+                    if not Solicit.filterHint in solicit or not solicit.filterHint: return chain.cancel()
+                    assert isinstance(solicit.filterHint, str), 'Invalid filter hint %s' % solicit.filterHint
+                    markers = solicit.filterHint.strip('/').split('/')
+                    if len(solicit.access.path) != len(markers): return chain.cancel()  # Not a correct path hint.
+                    nodes = []
+                    for el, mark in zip(solicit.access.path, markers):
+                        if not isinstance(el, str):
+                            if mark == '#': nodes.append(el)
+                            elif mark != '*': return chain.cancel()  # Not a correct path.
+                        elif el != mark: return chain.cancel()  # Not a correct path.
+                        
+                    if not nodes: return chain.cancel()
                 
-                solicit.filters[solicit.forFilter] = (aclFilter, nodes[0])
+                if solicit.allowed.filters is None: solicit.allowed.filters = {}
+                filterNodes = solicit.allowed.filters.get(aclFilter)
+                if filterNodes is None: filterNodes = solicit.allowed.filters[aclFilter] = set()
+                filterNodes.update(nodes)
             else:
-                if not solicit.filters: return chain.cancel()
-                if solicit.forFilter not in solicit.filters: return chain.cancel()
-                solicit.filters.pop(solicit.forFilter)
+                if not solicit.allowed.filters: return chain.cancel()
+                if aclFilter not in solicit.allowed.filters: return chain.cancel()
+                solicit.filters.pop(aclFilter)
 
     # ----------------------------------------------------------------
     

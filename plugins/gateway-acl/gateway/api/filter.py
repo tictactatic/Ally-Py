@@ -48,9 +48,10 @@ class IFilterService(IEntityGetService, IEntityFindService):
         '''
     
     @call
-    def addFilter(self, access:Access.Name, method:Method.Name, group:Group.Name, filter:Filter.Name) -> bool:
+    def addFilter(self, access:Access.Name, method:Method.Name, group:Group.Name, filter:Filter.Name, hint:str=None) -> bool:
         '''
-        Adds the filter for the access group.
+        Adds the filter for the access group, the hint is used only when the filter matches multiple entries in the access
+        path, the location of the filter will be marked '#'.
         '''
         
     @call

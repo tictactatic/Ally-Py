@@ -31,6 +31,10 @@ class Solicit(group.Solicit):
     @rtype: string
     The filter name to be handled.
     ''')
+    filterHint = defines(str, doc='''
+    @rtype: string
+    The filter placing hint.
+    ''')
     
 # --------------------------------------------------------------------
 
@@ -73,11 +77,12 @@ class FilterService(IFilterService):
         assert isinstance(group, str), 'Invalid group name %s' % group
         return sorted(getSolicit(self._manage, Filter.Name, forAccess=access, forMethod=method, forGroup=group) or ())
     
-    def addFilter(self, access, method, group, filter):
+    def addFilter(self, access, method, group, filter, hint=None):
         '''
         @see: IFilterService.addFilter
         '''
-        return addSolicit(self._manage, Filter, forAccess=access, forMethod=method, forGroup=group, forFilter=filter)
+        return addSolicit(self._manage, Filter, forAccess=access, forMethod=method, forGroup=group,
+                          forFilter=filter, filterHint=hint)
         
     def removeFilter(self, access, method, group, filter):
         '''

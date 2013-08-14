@@ -29,6 +29,7 @@ class IGatewayACLService:
         '''
         
         #TODO: Gabriel: see below
+        # Vezi ca nu ii buna combinarea de filtre.
 #        fa dupa aia filter pattern hint.
 #        dupa aia sa incepi cu right based access.
 #        si dupa aia cu action

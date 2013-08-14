@@ -14,12 +14,15 @@ from ally.api.type import List, Iter, Dict
 
 # --------------------------------------------------------------------
 
-@model
-class Gateway:
+@model(id='Hash')
+class GatewayIdentifier:
     '''
-    Provides the gateway data.
+    Provides the gateway identifier.
+        Hash -      the unique hash for the gateway, this is not mandatory.
+    
         Clients -   contains the client IPs or names regexes that needs to match in order to validate the gateway, if
-                    none is provided then the gateway applies to all.
+                    none is provided then the gateway applies to all. At least one client IP needs to match to consider
+                    the navigation valid.
         Pattern -   contains the regex that needs to match with the requested URI. The pattern needs to produce, if is the
                     case, capturing groups that can be used by the Filters or Navigate.
         Headers -   The headers to be filtered in order to validate the navigation. The headers are provided as regexes that
@@ -39,6 +42,20 @@ class Gateway:
                     to consider the navigation valid. The gateways that solve errors will receive also parameters for error
                         status - the status code of the error
                         allow - the method name(s) allowed, this will be provided in case of status 405 (Method not allowed)
+    '''
+    Hash = str
+    # The request identification attributes
+    Clients = List(str)
+    Pattern = str
+    Headers = List(str)
+    Methods = List(str)
+    Filters = List(str)
+    Errors = List(int)
+
+@model
+class Gateway(GatewayIdentifier):
+    '''
+    Provides the gateway.
         Host -      The host where the request needs to be resolved, if not provided the request will be delegated to the
                     default host.
         Protocol -  The protocol to be used in the communication with the server that handles the request, if not provided
@@ -48,12 +65,7 @@ class Gateway:
                     for navigate URI, the parameters will be appended to the actual parameters.
         PutHeaders -The headers to be put on the forwarded requests.
     '''
-    Clients = List(str)
-    Pattern = str
-    Headers = List(str)
-    Methods = List(str)
-    Filters = List(str)
-    Errors = List(int)
+    # The navigation attributes
     Host = str
     Protocol = str
     Navigate = str
@@ -72,3 +84,21 @@ class IGatewayService:
         '''
         Get the gateways that apply for an anonymous access.
         '''
+    
+    @call
+    def insert(self, gateway:Gateway) -> Gateway.Hash:
+        '''
+        Insert the gateway.
+        '''
+        
+    @call
+    def update(self, gateway:Gateway):
+        '''
+        Update the gateway.
+        '''
+        
+    @call
+    def delete(self, gatewayHash:Gateway) -> bool:
+        '''
+        Delete the gateway.
+        ''' 

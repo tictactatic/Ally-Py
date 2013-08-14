@@ -9,7 +9,9 @@ Created on Jan 28, 2013
 Implementation for the default anonymous gateway data.
 '''
 
-from ..api.gateway import IGatewayService
+from ..api.gateway import IGatewayService, Gateway
+from ..meta.gateway import GatewayData
+from ally.api.error import InvalidIdError
 from ally.container import wire
 from ally.container.ioc import injected
 from ally.container.support import setup
@@ -17,7 +19,12 @@ from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Processing, FILL_ALL
+from ally.support.api.util_service import namesFor
+from ally.support.sqlalchemy.session import SessionSupport
 from collections import Iterable
+from gateway.api.gateway import GatewayIdentifier
+import binascii
+import json
 
 # --------------------------------------------------------------------
 
@@ -35,7 +42,7 @@ class Reply(Context):
 
 @injected
 @setup(IGatewayService, name='gatewayService')
-class GatewayService(IGatewayService):
+class GatewayServiceAlchemy(IGatewayService, SessionSupport):
     '''
     Implementation for @see: IGatewayService that provides the default anonymous gateway data.
     '''
@@ -60,4 +67,61 @@ class GatewayService(IGatewayService):
         assert isinstance(reply, Reply), 'Invalid reply %s' % reply
         if Reply.gateways not in reply: return ()
         return reply.gateways
-                
+    
+    def insert(self, gateway):
+        '''
+        @see: IGatewayService.insert
+        '''
+        hash, identifier, navigate = self.dataFor(gateway)
+    
+        data = GatewayData()
+        data.hash = hash
+        data.identifier, data.navigate = identifier.encode(), navigate.encode()
+        self.session().add(data)
+        self.session().flush((data,))
+        return hash
+    
+    def update(self, gateway):
+        '''
+        @see: IGatewayService.update
+        '''
+        assert isinstance(gateway, Gateway), 'Invalid gateway %s' % gateway
+        
+        data = self.session().query(GatewayData).get(gateway.Hash)
+        if data is None: raise InvalidIdError()
+        assert isinstance(data, GatewayData), 'Invalid data %s' % data
+        data.navigate = self.dataFor(gateway, onlyNavigate=True).encode()
+        
+    def delete(self, gatewayHash):
+        '''
+        @see: IGatewayService.delete
+        '''
+        assert isinstance(gatewayHash, str), 'Invalid gateway hash %s' % gatewayHash
+        return self.session().query(GatewayData).filter(GatewayData.hash == gatewayHash).delete() > 0
+
+    # ----------------------------------------------------------------
+    
+    def dataFor(self, gateway, onlyNavigate=False):
+        '''
+        Provides the json serialized data for the gateway.
+        '''
+        assert isinstance(gateway, Gateway), 'Invalid gateway %s' % gateway
+        
+        navigateData, namesIdentifier = {}, set(namesFor(GatewayIdentifier))
+        if not onlyNavigate: identifierData = {}
+        for name in namesFor(Gateway):
+            if name == 'Hash': continue
+            if onlyNavigate and name in namesIdentifier: continue
+            
+            value = getattr(gateway, name)
+            if isinstance(value, list): value = sorted(value)
+            if name in namesIdentifier: identifierData[name] = value
+            else: navigateData[name] = value
+        
+        navigate = json.dumps(navigateData, sort_keys=True)
+        if onlyNavigate: return navigate
+        
+        identifier = json.dumps(identifierData, sort_keys=True)
+        hash = ('%x' % binascii.crc32(identifier.encode(), 0)).upper()
+        return hash, identifier, navigate
+        

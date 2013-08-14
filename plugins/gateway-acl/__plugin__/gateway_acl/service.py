@@ -142,4 +142,4 @@ def samples():
     print('ADDED:', groupService.addGroup('84611CBB', 'DELETE', 'Anonymous'), 'DELETE:RBAC/Role/*/SubRole/*')
 
     assert isinstance(filterService, IFilterService)
-    print('FILTERED:', filterService.addFilter('84611CBB', 'DELETE', 'Anonymous', 'Filter1'), 'DELETE:RBAC/Role/*/SubRole/*')
+    print('FILTERED:', filterService.addFilter('84611CBB', 'DELETE', 'Anonymous', 'Filter1', hint='RBAC/Role/#/SubRole/#'), 'DELETE:RBAC/Role/*/SubRole/*')

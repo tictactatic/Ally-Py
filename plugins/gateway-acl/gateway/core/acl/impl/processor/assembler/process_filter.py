@@ -18,6 +18,7 @@ from ally.design.processor.attribute import requires, defines, definesIf
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Abort
 from ally.design.processor.handler import HandlerProcessor, Handler
+from ally.support.util_context import PlaceHolder
 from gateway.api.filter import Allowed
 import logging
 
@@ -78,6 +79,10 @@ class ACLFilterInvoker(Context):
     The ACL filter context.
     '''
     # ---------------------------------------------------------------- Defined
+    name = defines(str, doc='''
+    @rtype: string
+    The filter name.
+    ''')
     invokers = defines(list, doc='''
     @rtype: list[Context]
     The invoker contexts associated with the filter.
@@ -109,7 +114,9 @@ class ProcessFilterHandler(HandlerProcessor):
         assert isinstance(self.typeModelAllowed, TypeModel), 'Invalid type model allowed %s' % self.typeModelAllowed
         assert isinstance(self.typePropertyAllowed, TypeProperty), \
         'Invalid type property allowed %s' % self.typePropertyAllowed
-        super().__init__(Invoker=Invoker)
+        # The 'ACLAllowed' context is not relevant for filter process but in order to have it as a assembly context we need 
+        # to defined it in a assembly processor in order make it available for all other assemblies that require ACL allowed.
+        super().__init__(Invoker=Invoker, ACLAllowed=PlaceHolder())
 
     def process(self, chain, register:Register, ACLFilter:ACLFilterInvoker, Element:ElementFilter, **keyargs):
         '''
@@ -159,7 +166,7 @@ class ProcessFilterHandler(HandlerProcessor):
             
             if register.filters is None: register.filters = {}
             aclFilter = register.filters.get(filterName)
-            if aclFilter is None: aclFilter = register.filters[filterName] = ACLFilter()
+            if aclFilter is None: aclFilter = register.filters[filterName] = ACLFilter(name=filterName)
             assert isinstance(aclFilter, ACLFilterInvoker), 'Invalid filter %s' % aclFilter
             
             if aclFilter.invokers is None: aclFilter.invokers = []

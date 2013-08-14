@@ -22,8 +22,6 @@ from inspect import isclass
 from itertools import chain
 from sqlalchemy.sql.expression import ColumnElement
 from sqlalchemy.orm.mapper import Mapper
-from sqlalchemy.orm.attributes import InstrumentedAttribute
-from sqlalchemy.schema import Column
 
 # --------------------------------------------------------------------
 

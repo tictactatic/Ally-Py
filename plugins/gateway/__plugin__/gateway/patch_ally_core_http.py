@@ -9,7 +9,7 @@ Created on Feb 19, 2013
 Provides the ally core http setup patch.
 '''
 
-from .service import asPattern, default_gateways
+from .service import asPattern, defaultGateways
 from ally.container import ioc
 import logging
 
@@ -37,19 +37,19 @@ else:
                                FORBIDDEN_ACCESS.status: FORBIDDEN_ACCESS,
                                })
     
-    @ioc.before(default_gateways)
+    @ioc.before(defaultGateways)
     def updateGatewayWithResourcesOptions():
-        default_gateways().extend([
+        defaultGateways().extend([
         {
          'Pattern': asPattern(root_uri_resources()),
          'Methods': [HTTP_OPTIONS],
          },
                                    ])
     
-    @ioc.before(default_gateways)
+    @ioc.before(defaultGateways)
     def updateGatewayWithResourcesErrors():
         if server_provide_errors():
-            default_gateways().extend([
+            defaultGateways().extend([
             # If path is not found then we try to dispatch a unauthorized access if the path is not
             # found in REST the default error will have priority over the unauthorized access
             {

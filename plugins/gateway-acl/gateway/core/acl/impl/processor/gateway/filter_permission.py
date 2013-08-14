@@ -104,32 +104,33 @@ class FilterPermission(HandlerProcessor):
                 assert isinstance(permission.filters, dict), 'Invalid filters %s' % permission.filters
                 
                 if permission.filtersPaths is None: permission.filtersPaths = {}
-                for aclFilter, node in permission.filters.values():
+                for aclFilter, nodes in permission.filters.items():
                     assert isinstance(aclFilter, ACLFilter), 'Invalid filter %s' % aclFilter
                     assert isinstance(aclFilter.targets, set), 'Invalid targets %s' % aclFilter.targets
                     assert isinstance(permission.pathMarkers, dict), 'Invalid path makers %s' % permission.pathMarkers
-                    assert node in permission.pathMarkers, 'No marker available for %s' % node
                     
-                    pathMarker = permission.pathMarkers[node]
-                    assert isinstance(pathMarker, str), 'Invalid marker %s for %s' % (pathMarker, node)
-                    
-                    for invoker in aclFilter.invokers:
-                        assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
+                    for node in nodes:
+                        assert node in permission.pathMarkers, 'No marker available for %s' % node
+                        pathMarker = permission.pathMarkers[node]
+                        assert isinstance(pathMarker, str), 'Invalid marker %s for %s' % (pathMarker, node)
                         
-                        items = []
-                        if rootURI: items.extend(rootURI)
-                        for el in invoker.path:
-                            assert isinstance(el, Element), 'Invalid element %s' % el
-                            if el.name: items.append(el.name)
-                            elif el.node in aclFilter.targets: items.append(pathMarker)
-                            else:
-                                assert Permission.nodesValues in permission, 'No value available for %s' % el.node
-                                assert el.node in permission.nodesValues, 'No value available for %s' % el.node
-                                assert isinstance(permission.nodesValues[el.node], str), \
-                                'Invalid value %s for %s' % (permission.nodesValues[el.node], el.node)
-                                items.append(permission.nodesValues[el.node])
-                        paths = permission.filtersPaths.get(pathMarker)
-                        if paths is None: paths = permission.filtersPaths[pathMarker] = set()
-                        paths.add('/'.join(items))
+                        for invoker in aclFilter.invokers:
+                            assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
+                            
+                            items = []
+                            if rootURI: items.extend(rootURI)
+                            for el in invoker.path:
+                                assert isinstance(el, Element), 'Invalid element %s' % el
+                                if el.name: items.append(el.name)
+                                elif el.node in aclFilter.targets: items.append(pathMarker)
+                                else:
+                                    assert Permission.nodesValues in permission, 'No value available for %s' % el.node
+                                    assert el.node in permission.nodesValues, 'No value available for %s' % el.node
+                                    assert isinstance(permission.nodesValues[el.node], str), \
+                                    'Invalid value %s for %s' % (permission.nodesValues[el.node], el.node)
+                                    items.append(permission.nodesValues[el.node])
+                            paths = permission.filtersPaths.get(pathMarker)
+                            if paths is None: paths = permission.filtersPaths[pathMarker] = set()
+                            paths.add('/'.join(items))
                         
             yield permission

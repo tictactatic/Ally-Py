@@ -9,8 +9,9 @@ Created on Jul 18, 2013
 Provides utility functions for processor contexts.
 '''
 
+from .util import Singletone
 from ally.design.processor.context import Context, Object, attributeOf
-from ally.design.processor.spec import ContextMetaClass, IAttribute
+from ally.design.processor.spec import ContextMetaClass, IAttribute, IResolver
 from collections import Iterable
 
 # --------------------------------------------------------------------
@@ -230,3 +231,43 @@ def findFirst(context, search, attrOrCall, **keyargs):
         assert isinstance(context, Context), 'Invalid context %s' % context
         value = call(context)
         if value is not None: return value
+
+# --------------------------------------------------------------------
+
+class PlaceHolder(Singletone, IResolver):
+    '''
+    The context resolver that simply is there by name with not other functionality, this is some times useful
+    when there are assemblies that keep in account what is defined or not.
+    '''
+        
+    def copy(self, names=None):
+        '''
+        @see: IResolver.copy
+        '''
+        return self
+
+    def merge(self, other, isFirst=True):
+        '''
+        @see: IResolver.merge
+        '''
+        return other
+        
+    def solve(self, other):
+        '''
+        @see: IResolver.solve
+        '''
+        return other
+        
+    def list(self, *flags):
+        '''
+        @see: IResolver.list
+        '''
+        assert not flags, 'Unknown flags: %s' % ', '.join(flags)
+        return {}
+    
+    def create(self, *flags):
+        '''
+        @see: IResolver.create
+        '''
+        assert not flags, 'Unknown flags: %s' % ', '.join(flags)
+        return {}

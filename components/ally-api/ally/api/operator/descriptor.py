@@ -9,11 +9,11 @@ Created on Mar 13, 2012
 Provides the operator descriptors for the APIs.
 '''
 
+from ..operator.type import TypePropertyContainer
 from ..type import typeFor, Type, TypeSupport
 from .type import TypeContainer, TypeProperty, TypeQuery, TypeCriteria, TypeCall, \
     TypeService
 from abc import ABCMeta
-from ally.api.operator.type import TypePropertyContainer
 from ally.support.util_spec import IGet, IContained, ISet, IDelete
 from ally.support.util_sys import getAttrAndClass
 from inspect import isclass

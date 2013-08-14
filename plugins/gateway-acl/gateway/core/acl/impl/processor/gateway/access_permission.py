@@ -53,8 +53,8 @@ class PermissionACL(Context):
     A dictionary containing the path marker value indexed by the node.
     ''')
     filters = defines(dict, doc='''
-    @rtype: dictionary{string: object}
-    The filters for permission, as a key the filter name and as a value the filter object.
+    @rtype: dictionary{Context: set(Context)}
+    As a key the ACL filter context and as a value the path nodes to be filtered.
     ''')
 
 class Register(Context):
@@ -85,7 +85,14 @@ class ACLMethod(Context):
     '''
     # ---------------------------------------------------------------- Required
     allowed = requires(dict)
-     
+
+class ACLAllowed(Context):
+    '''
+    The ACL allowed context.
+    '''
+    # ---------------------------------------------------------------- Defined
+    filters = requires(dict)
+    
 # --------------------------------------------------------------------
 
 @injected
@@ -95,7 +102,7 @@ class AccessPermission(HandlerProcessor):
     Provides the handler that generates gateway permissions for configured access.
     '''
     def __init__(self):
-        super().__init__(Node=Node, ACLAccess=ACLAccess, ACLMethod=ACLMethod)
+        super().__init__(Node=Node, ACLAccess=ACLAccess, ACLMethod=ACLMethod, ACLAllowed=ACLAllowed)
     
     def process(self, chain, reply:Reply, register:Register, Permission:PermissionACL, **keyargs):
         '''
@@ -145,6 +152,7 @@ class AccessPermission(HandlerProcessor):
             for name, method in access.methods.items():
                 assert isinstance(method, ACLMethod), 'Invalid method %s' % method
                 if not method.allowed: continue
+                assert isinstance(method.allowed, dict), 'Invalid method allowed %s' % method.allowed
                 midentifiers = identifiers.intersection(method.allowed)
                 if not midentifiers: continue
                 permission = Permission()
@@ -152,7 +160,26 @@ class AccessPermission(HandlerProcessor):
                 permission.method = name
                 permission.path = path
                 permission.pathMarkers = pathMarkers
-                permission.filters = {}
-                for identifier in midentifiers: permission.filters.update(method.allowed[identifier])
                 
+                # Join the filters.
+                nodes = set(el for el in access.path if not isinstance(el, str))
+                for allowed in map(method.allowed.get, midentifiers):
+                    assert isinstance(allowed, ACLAllowed), 'Invalid allowed %s' % allowed
+                    if not allowed.filters:
+                        nodes.clear()
+                        break
+                    assert isinstance(allowed.filters, dict), 'Invalid filters %s' % allowed.filters
+                    for fnodes in allowed.filters.values(): nodes.intersection_update(fnodes)
+                    
+                if nodes:
+                    permission.filters = {}
+                    for allowed in map(method.allowed.get, midentifiers):
+                        for aclFilter, fnodes in allowed.filters.items():
+                            assert isinstance(fnodes, set), 'Invalid filter nodes %s' % fnodes
+                            fnodes = fnodes.intersection(nodes)
+                            if not fnodes: continue
+                            pnodes = permission.filters.get(aclFilter)
+                            if pnodes is None: permission.filters[aclFilter] = fnodes
+                            else: pnodes.update(fnodes)
+                        
                 yield permission

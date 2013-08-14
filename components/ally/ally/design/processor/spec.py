@@ -265,7 +265,7 @@ class ContextMetaClass(abc.ABCMeta):
         return '<context \'%s.%s(%s)\'>' % (self.__module__, self.__name__, ', '.join(self.__attributes__))
 
 # --------------------------------------------------------------------
-
+        
 def isNameForClass(name):
     '''
     Function used for determining if a context name is targeting a class rather then a value.

@@ -32,9 +32,8 @@ class ACLMethod(Context):
     '''
     # ---------------------------------------------------------------- Defined
     allowed = defines(dict, doc='''
-    @rtype: dictionary{object: dictionary{string: object}}
-    As a key the identifiers that are allowed access for method and as a value a dictionary having as the key the filter name 
-    and as a value a filter object.
+    @rtype: dictionary{object: Context}
+    As a key the identifiers that are allowed access for method and as a value the ACL allowed context.
     ''')
 
 class Solicit(Context):
@@ -46,9 +45,9 @@ class Solicit(Context):
     @rtype: object
     The value required.
     ''')
-    filters = definesIf(dict, doc='''
-    @rtype: dictionary{string: object}
-    The filters for the allowed access.
+    allowed = definesIf(Context, doc='''
+    @rtype: Context
+    The allowed context.
     ''')
     # ---------------------------------------------------------------- Required
     action = requires(str)
@@ -73,7 +72,7 @@ class HandleGroup(HandlerProcessor):
         assert isinstance(self.acl_groups, dict), 'Invalid ACL groups %s' % self.acl_groups
         super().__init__(ACLMethod=ACLMethod)
 
-    def process(self, chain, solicit:Solicit, **keyargs):
+    def process(self, chain, solicit:Solicit, ACLAllowed:Context, **keyargs):
         '''
         @see: HandlerProcessor.process
         
@@ -86,13 +85,13 @@ class HandleGroup(HandlerProcessor):
             if solicit.forGroup not in self.acl_groups: return chain.cancel()
             identifier = (Group, solicit.forGroup)
             if solicit.method and solicit.method.allowed:
-                filters = solicit.method.allowed.get(identifier)
-                if filters is not None and Solicit.filters in solicit: solicit.filters = filters
-            else: filters = None
-        else: identifier = filters = None
+                allowed = solicit.method.allowed.get(identifier)
+                if allowed and Solicit.allowed in solicit: solicit.allowed = allowed
+            else: allowed = None
+        else: identifier = allowed = None
             
         if solicit.target not in (Group, Group.Name):
-            if filters is None: chain.cancel()
+            if not allowed: chain.cancel()
             return
         
         if solicit.action == ACTION_GET:
@@ -118,12 +117,12 @@ class HandleGroup(HandlerProcessor):
             assert isinstance(solicit.method, ACLMethod), 'Invalid method %s' % solicit.method
             
             if solicit.action == ACTION_ADD:
-                if filters is None:
+                if not allowed:
                     if solicit.method.allowed is None: solicit.method.allowed = {}
-                    filters = solicit.method.allowed[identifier] = {}
-                    if Solicit.filters in solicit: solicit.filters = filters
+                    allowed = solicit.method.allowed[identifier] = ACLAllowed()
+                    if Solicit.allowed in solicit: solicit.allowed = allowed
             else:
-                if filters is None: return chain.cancel()
+                if not allowed: return chain.cancel()
                 solicit.method.allowed.pop(identifier)
                 
     # ----------------------------------------------------------------

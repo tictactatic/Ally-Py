@@ -236,7 +236,7 @@ def copyContainer(src, dest, exclude=()):
     source and destination will be transfered, the rest of properties will be ignored.
     If common properties are not compatible by types an exception will be raised.
     
-    @param src: container object
+    @param src: container object|dictionary{string: object}
         The source to copy from.
     @param dest: container object
         The destination to copy to.
@@ -248,9 +248,13 @@ def copyContainer(src, dest, exclude=()):
     assert src is not None, 'A source object is required'
     properites = set(namesFor(dest))
     properites.difference_update(exclude)
-    for name, prop in iterateFor(src):
-        if name not in properites: continue
-        if prop in src: setattr(dest, name, getattr(src, name))
+    if isinstance(src, dict):
+        for name in properites:
+            if name in src: setattr(dest, name, src[name])
+    else:
+        for name, prop in iterateFor(src):
+            if name not in properites: continue
+            if prop in src: setattr(dest, name, getattr(src, name))
     return dest
 
 # --------------------------------------------------------------------
