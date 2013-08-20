@@ -16,12 +16,13 @@ from ally.api.extension import IterSlice
 from ally.api.operator.type import TypeProperty, TypeCriteria, TypeModel
 from ally.api.type import typeFor
 from ally.support.api.util_service import namesFor
-from ally.support.sqlalchemy.mapper import MappedSupport, mappingFor
+from ally.support.sqlalchemy.mapper import MappedSupport, mappingFor, tableFor
 from ally.support.sqlalchemy.session import openSession
 from inspect import isclass
 from itertools import chain
-from sqlalchemy.sql.expression import ColumnElement
+from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm.mapper import Mapper
+from sqlalchemy.sql.expression import ColumnElement
 
 # --------------------------------------------------------------------
 
@@ -38,7 +39,7 @@ def buildLimits(sqlQuery, offset=None, limit=None):
     if limit is not None: sqlQuery = sqlQuery.limit(limit)
     return sqlQuery
 
-def buildQuery(sqlQuery, query, Mapped, only=None, exclude=None):
+def buildQuery(sqlQuery, query, Mapped, only=None, exclude=None, **mapping):
     '''
     Builds the query on the SQL alchemy query.
 
@@ -54,16 +55,19 @@ def buildQuery(sqlQuery, query, Mapped, only=None, exclude=None):
     @param exclude: tuple(string|TypeCriteriaEntry)|string|TypeCriteriaEntry|None
         The criteria names or references to be excluded when processing the query. If you provided a only parameter you cannot
         provide an exclude.
+    @param mapping: key arguments of columns
+        The column mappings provided for criteria name, the mapping columns will be automatically joined.
     '''
     assert query is not None, 'A query object is required'
-    clazz, mapper = query.__class__, mappingFor(Mapped)
-    assert isinstance(mapper, Mapper), 'Invalid mapper %s' % mapper
     
-    columns, ordered, unordered = {}, [], []
+    columns = {}
     for name in namesFor(Mapped):
-        cp, name = mapper.columns.get(name), '%s%s' % (name[0].lower(), name[1:])
-        if isinstance(cp, ColumnElement): columns[name] = cp
-    columns = {name:columns.get(name) for name in namesFor(clazz)}
+        cname = '%s%s' % (name[0].lower(), name[1:])
+        if mapping and cname in mapping: columns[cname] = mapping[cname]
+        else:
+            cp = getattr(Mapped, name)
+            if typeFor(cp) is None: columns[cname] = cp  # If no API type is detected it means that the API property is mapped
+    columns = {name:columns.get(name) for name in namesFor(query)}
 
     if only:
         if not isinstance(only, tuple): only = (only,)
@@ -72,14 +76,14 @@ def buildQuery(sqlQuery, query, Mapped, only=None, exclude=None):
         for criteria in only:
             if isinstance(criteria, str):
                 column = columns.get(criteria)
-                assert column is not None, 'Invalid only criteria name \'%s\' for query class %s' % (criteria, clazz)
+                assert column is not None, 'Invalid only criteria name \'%s\' for query %s' % (criteria, query)
                 onlyColumns[criteria] = column
             else:
                 typ = typeFor(criteria)
                 assert isinstance(typ, TypeProperty), 'Invalid only criteria %s' % criteria
                 assert isinstance(typ.type, TypeCriteria), 'Invalid only criteria %s' % criteria
                 column = columns.get(typ.name)
-                assert column is not None, 'Invalid only criteria \'%s\' for query class %s' % (criteria, clazz)
+                assert column is not None, 'Invalid only criteria \'%s\' for query %s' % (criteria, query)
                 onlyColumns[typ.name] = column
         columns = onlyColumns
     elif exclude:
@@ -87,16 +91,18 @@ def buildQuery(sqlQuery, query, Mapped, only=None, exclude=None):
         for criteria in exclude:
             if isinstance(criteria, str):
                 column = columns.pop(criteria, None)
-                assert column is not None, 'Invalid exclude criteria name \'%s\' for query class %s' % (criteria, clazz)
+                assert column is not None, 'Invalid exclude criteria name \'%s\' for query %s' % (criteria, query)
             else:
                 typ = typeFor(criteria)
                 assert isinstance(typ, TypeProperty), 'Invalid exclude criteria %s' % criteria
                 assert isinstance(typ.type, TypeCriteria), 'Invalid only criteria %s' % criteria
                 column = columns.pop(typ.name, None)
-                assert column is not None, 'Invalid exclude criteria \'%s\' for query class %s' % (criteria, clazz)
-
+                assert column is not None, 'Invalid exclude criteria \'%s\' for query %s' % (criteria, query)
+ 
+    ordered, unordered = [], []
     for criteria, column in columns.items():
-        if column is None or getattr(clazz, criteria) not in query: continue
+        if column is None or getattr(query.__class__, criteria) not in query: continue
+        if criteria in mapping: sqlQuery = sqlQuery.join(tableFor(column))
 
         crt = getattr(query, criteria)
         if isinstance(crt, AsBoolean):
@@ -147,8 +153,8 @@ def iterateObjectCollection(sqlQuery, offset=None, limit=None, withTotal=False):
     if withTotal:
         sqlLimit = buildLimits(sqlQuery, offset, limit)
         if limit <= 0: return (), sqlQuery.count()
-        return IterSlice(sqlLimit.all(), sqlQuery.count(), offset, limit)
-    return sqlQuery.all()
+        return IterSlice(sqlLimit.yield_per(10), sqlQuery.count(), offset, limit)
+    return sqlQuery.yield_per(10)
 
 def iterateCollection(sqlQuery, offset=None, limit=None, withTotal=False):
     '''
@@ -218,7 +224,7 @@ def updateModel(Mapped, model):
     else:
         typ = typeFor(Mapped)
         assert isinstance(typ, TypeModel), 'Invalid model class %s' % Mapped
-        assert typ.isOf(model), 'Invalid model %s for %s' % (model, typ)
+        assert typ.isValid(model), 'Invalid model %s for %s' % (model, typ)
         assert isinstance(typ.propertyId, TypeProperty), 'Invalid property id of %s' % typ
         
         dbModel = openSession().query(Mapped).get(getattr(model, typ.propertyId.name))
@@ -229,3 +235,26 @@ def updateModel(Mapped, model):
     
     openSession().flush((dbModel,))
     return dbModel
+
+def deleteModel(Mapped, identifier):
+    '''
+    Delete the provided model based on the provided identifier using the current session.
+
+    @param Mapped: class
+        The mapped class to update the model for, the model type is required to have a property id.
+    @param identifier: object
+        The identifier to delete for.
+    @return: boolean
+        True if any entry was deleted, False otherwise.
+    '''
+    assert isclass(Mapped), 'Invalid class %s' % Mapped
+    assert isinstance(Mapped, MappedSupport), 'Invalid mapped class %s' % Mapped
+    typ = typeFor(Mapped)
+    assert isinstance(typ, TypeModel), 'Invalid model class %s' % Mapped
+    assert isinstance(typ.propertyId, TypeProperty), 'Invalid property id of %s' % typ
+    assert typ.propertyId.isValid(identifier), 'Invalid identifier %s for %s' % (identifier, typ.propertyId)
+    
+    try: model = openSession().query(Mapped).filter(getattr(Mapped, typ.propertyId.name) == identifier).one()
+    except NoResultFound: return False
+    openSession().delete(model)
+    return True

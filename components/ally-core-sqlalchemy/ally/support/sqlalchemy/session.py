@@ -11,13 +11,13 @@ Provides support for SQL alchemy automatic session handling.
 
 from ally.container.impl.proxy import IProxyHandler, Execution, \
     registerProxyHandler
+from ally.core.error import DevelError
 from collections import deque
 from inspect import isgenerator
 from sqlalchemy.exc import InvalidRequestError
-from sqlalchemy.orm.session import Session
+from sqlalchemy.orm.session import sessionmaker, Session
 from threading import current_thread
 import logging
-from ally.core.error import DevelError
 
 # --------------------------------------------------------------------
 
@@ -49,7 +49,8 @@ def setKeepAlive(keep):
         Flag indicating that the session should be left open (True) or not (False).
     '''
     assert isinstance(keep, bool), 'Invalid keep flag %s' % keep
-    current_thread()._ally_db_session_alive = keep
+    if not keep: del current_thread()._ally_db_session_alive
+    else: current_thread()._ally_db_session_alive = keep
     
 
 def beginWith(sessionCreator):
@@ -59,7 +60,7 @@ def beginWith(sessionCreator):
     @param sessionCreator: class
         The session creator class.
     '''
-    assert issubclass(sessionCreator, Session), 'Invalid session creator %s' % sessionCreator
+    assert isinstance(sessionCreator, sessionmaker), 'Invalid session creator %s' % sessionCreator
     try: creators = current_thread()._ally_db_session_create
     except AttributeError: creators = current_thread()._ally_db_session_create = deque()
     assert isinstance(creators, deque)
@@ -211,7 +212,7 @@ class SessionBinder(IProxyHandler):
         @param sessionCreator: class
             The session creator class that will create the session.
         '''
-        assert issubclass(sessionCreator, Session), 'Invalid session creator %s' % sessionCreator
+        assert isinstance(sessionCreator, sessionmaker), 'Invalid session creator %s' % sessionCreator
         self.sessionCreator = sessionCreator
     
     def handle(self, execution):

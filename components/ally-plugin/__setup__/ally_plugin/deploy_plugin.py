@@ -9,10 +9,11 @@ Created on Jan 9, 2012
 Special module that is targeted by the application loader in order to deploy the components in the current system path.
 '''
 
-from .distribution import markers, persistMarkers
-from ally.container import aop, ioc, context, event, support, app
+from .distribution import triggerEvents, PRIORITY_PERSIST_MARKERS
+from ally.container import aop, ioc, context, event, app
 from ally.container.error import SetupError
 from ally.container.impl.config import load
+from ally.design.priority import Priority, PRIORITY_FIRST
 from ally.support.util import Singletone
 from ally.support.util_sys import isPackage
 from package_extender import PACKAGE_EXTENDER
@@ -24,6 +25,11 @@ import sys
 # --------------------------------------------------------------------
 
 log = logging.getLogger(__name__)
+
+PRIORITY_DEPLOY = Priority('Deploy plugin', after=PRIORITY_FIRST)
+# The deploy priority.
+PRIORITY_TRIGGER_EVENTS = Priority('Deploy plugin events', before=PRIORITY_PERSIST_MARKERS)
+# The deploy event priority.
 
 # --------------------------------------------------------------------
 
@@ -50,21 +56,7 @@ def loadPlugins():
 
 def openPlugins():
     ''' Add the plugins to the python path and also open the assembly for plugins'''
-    loadPlugins()
-    if not os.path.isfile(configurations_file_path()):
-        log.error('The configuration file \'%s\' does not exist, create one by running the the application '
-                  'with "-dump" option', configurations_file_path())
-        sys.exit(1)
-    with open(configurations_file_path(), 'r') as f: config = load(f)
-
-    PACKAGE_EXTENDER.addFreezedPackage('__plugin__.')
-    pluginModules = aop.modulesIn('__plugin__.**')
-    for module in pluginModules.load().asList():
-        if not isPackage(module) and re.match('__plugin__\\.[^\\.]+$', module.__name__):
-            raise SetupError('The plugin setup module \'%s\' is not allowed directly in the __plugin__ package it needs '
-                             'to be in a sub package' % module.__name__)
-
-    context.open(pluginModules, config=config, included=True)
+    context.activate(plugins())
     return Whatcher()
 
 # --------------------------------------------------------------------
@@ -92,33 +84,34 @@ def excluded_plugins():
 
 # --------------------------------------------------------------------
 
-@ioc.start(priority=ioc.PRIORITY_FIRST)
+@ioc.entity
+def plugins():
+    loadPlugins()
+    if not os.path.isfile(configurations_file_path()):
+        log.error('The configuration file \'%s\' does not exist, create one by running the the application '
+                  'with "-dump" option', configurations_file_path())
+        sys.exit(1)
+    with open(configurations_file_path(), 'r') as f: config = load(f)
+
+    PACKAGE_EXTENDER.addFreezedPackage('__plugin__.')
+    pluginModules = aop.modulesIn('__plugin__.**')
+    for module in pluginModules.load().asList():
+        if not isPackage(module) and re.match('__plugin__\\.[^\\.]+$', module.__name__):
+            raise SetupError('The plugin setup module \'%s\' is not allowed directly in the __plugin__ package it needs '
+                             'to be in a sub package' % module.__name__)
+
+    return context.open(pluginModules, config=config, included=True, active=False)
+
+# --------------------------------------------------------------------
+
+@ioc.start(priority=PRIORITY_DEPLOY)
 def deploy():
     with openPlugins(): context.processStart()
+    
+@ioc.start(priority=PRIORITY_TRIGGER_EVENTS)
+def deployEvents():
+    with openPlugins(): triggerEvents(app.DEPLOY, app.POPULATE)
 
 @event.on(event.REPAIR)
-def repair():
-    with openPlugins():
-        used = set()
-        try:
-            for call, name, trigger in support.eventsFor(event.REPAIR, app.POPULATE):
-                trigger = (trigger,)
-                if app.POPULATE.isTriggered(trigger):
-                    used.add(name)
-                    executed = markers().get(name)
-                    if app.DEVEL.isTriggered(trigger) or app.REPAIR.isTriggered(trigger): executed = None  
-                    # If in devel then we execute regardless
-                    if executed is None:
-                        executed = call()
-                        log.info('Executed populate event call \'%s\' for the first time and got %s', name, executed)
-                    elif not executed:
-                        executed = call()
-                        log.info('Executed populate event call \'%s\' again and got %s', name, executed)
-                    else:
-                        log.info('No need to execute populate event call \'%s\'', name)
-                    markers()[name] = executed
-    
-                elif app.REPAIR.isTriggered(trigger):
-                    log.info('Executing plugins repair event call \'%s\'', name)
-                    call()
-        finally: persistMarkers(used)
+def repairEvents():
+    with openPlugins(): triggerEvents(app.REPAIR)

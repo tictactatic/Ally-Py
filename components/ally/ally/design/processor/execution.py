@@ -253,7 +253,6 @@ class Execution:
             call = self._calls.popleft()
             assert log.debug('Processing %s', call) or True
             try: call(self, **self.arg.__dict__)
-            except Abort: raise
             except Exception as e:
                 if isinstance(e, TypeError) and 'arguments' in str(e):
                     raise TypeError('A problem occurred while invoking with arguments %s, at:%s' % 
@@ -279,8 +278,6 @@ class Execution:
         @return: boolean
             False if if one of the provided flags matches the execution, True otherwise.
         '''
-        assert self._status is None, 'Execution cannot process'
-        
         while True:
             if not self.do(): break
             
@@ -306,7 +303,7 @@ class Execution:
         Handles the finalization for execution.
         !!! For internal use only.
         
-         @return: boolean
+        @return: boolean
             True if the finalization was handled and the chain should continue execution.
         '''
         return False
@@ -458,7 +455,12 @@ class Chain(Execution):
         '''
         if not self._errors: return False
         assert log.debug('Started error chain') or True
-        self._calls.appendleft(Error(self, exception))
+        error = Error(self, exception)
+        error.execute()
+        if not error.isSuppressed:
+            self._calls.clear()
+            if self._handleFinalization(): self.execute()
+            raise error.exception
         return True
     
     def _handleFinalization(self):
@@ -476,7 +478,7 @@ class Error(Execution):
     '''
     A execution that contains a list of processors (callables) that are executed one by one that targets and error processing.
     '''
-    __slots__ = ('chain', 'exception', '_retrying')
+    __slots__ = ('chain', 'exception', '_retrying', '_suppressed')
     
     def __init__(self, chain, exception):
         '''
@@ -493,18 +495,30 @@ class Error(Execution):
         
         self.chain = chain
         self.exception = exception
+        self._suppressed = False
         self._retrying = False
     
+    isSuppressed = property(lambda self: self._suppressed, doc='''
+    @rtype: boolean
+    True if the error should be suppressed.
+    ''')
     isRetrying = property(lambda self: self._retrying, doc='''
     @rtype: boolean
     True if the error chained will retry execution.
     ''')
+    
+    def suppress(self):
+        '''
+        Suppress the exception so it should not be propagated.
+        '''
+        self._suppressed = True
         
     def retry(self):
         '''
         Retries to execute the chain where it left of after an exception occurred.
         '''
         if not self._retrying:
+            self._suppressed = True
             self._retrying = True
             self.chain._status = None
             

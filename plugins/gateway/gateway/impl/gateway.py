@@ -24,7 +24,6 @@ from ally.support.api.util_service import namesFor, copyContainer
 from ally.support.sqlalchemy.session import SessionSupport
 from ally.support.sqlalchemy.util_service import iterateCollection
 from collections import Iterable
-import binascii
 import json
 import re
 
@@ -111,11 +110,10 @@ class GatewayServiceAlchemy(IGatewayService, SessionSupport):
                 try: re.compile(pattern)
                 except: raise RegexError(Gateway.Headers)
         
-        hash, identifier, navigate = self.dataFor(gateway)
+        identifier, navigate = self.dataFor(gateway)
 
         data = GatewayData()
         data.name = gateway.Name
-        data.hash = hash
         data.identifier, data.navigate = identifier.encode(), navigate.encode()
         
         self.session().add(data)
@@ -161,7 +159,7 @@ class GatewayServiceAlchemy(IGatewayService, SessionSupport):
         if onlyNavigate: return navigate
         
         identifier = json.dumps(identifierData, sort_keys=True)
-        return binascii.crc32(identifier.encode(), 0), identifier, navigate
+        return identifier, navigate
 
 # --------------------------------------------------------------------
 

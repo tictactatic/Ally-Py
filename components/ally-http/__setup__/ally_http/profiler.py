@@ -12,6 +12,7 @@ Provides application profiling.
 from ..ally_http.processor import contentLengthEncode
 from .server import assemblyServer, updateAssemblyServer
 from ally.container import ioc
+from ally.design.priority import PRIORITY_FIRST
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.handler import Handler
 from ally.http.impl.processor.profiler_view import ProfilerViewHandlerHandler
@@ -68,6 +69,6 @@ def updateAssemblyServerForProfile():
 
 # --------------------------------------------------------------------
 
-@ioc.start(priority=ioc.PRIORITY_TOP)
+@ioc.start(priority=PRIORITY_FIRST)
 def startProfile():
     if profile_server(): profiler().enable()

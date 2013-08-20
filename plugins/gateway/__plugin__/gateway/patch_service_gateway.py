@@ -23,7 +23,7 @@ log = logging.getLogger(__name__)
 try:
     from __setup__ import ally_gateway  # @UnusedImport
     from __setup__ import ally_core_http  # @UnusedImport
-except ImportError: log.info('No gateway service available, thus no need to publish the gateway data')
+except ImportError: log.info('No gateway component available, thus no need to publish the gateway data')
 else:
     from __setup__.ally_gateway.processor import gateway_uri
     from __setup__.ally_core_http.server import root_uri_resources

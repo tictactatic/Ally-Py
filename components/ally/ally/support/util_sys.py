@@ -17,6 +17,7 @@ from pkgutil import iter_modules, get_importer, iter_importers, \
 import functools
 import re
 import sys
+import types
 
 # --------------------------------------------------------------------
 
@@ -91,6 +92,10 @@ def locationStack(located):
         return '\n  File "%s", line %i' % (getsourcefile(located), line)
     else:
         if hasattr(located, '__wrapped_location__'): return located.__wrapped_location__
+        
+        if isinstance(located, types.FrameType):
+            return '\n  File "%s", line %i, in %s' % (located.f_code.co_filename, located.f_lineno, located.f_code.co_name)
+        
         assert hasattr(located, '__code__') and hasattr(located, '__name__'), 'Invalid function or class %s' % located
         return '\n  File "%s", line %i, in %s' % (located.__code__.co_filename, located.__code__.co_firstlineno,
                                                   located.__name__)
@@ -105,6 +110,24 @@ def isPackage(module):
     assert ismodule(module), 'Invalid module %s' % module
     return hasattr(module, '__path__')
 
+def callerFrame(level=1):
+    '''
+    Provides the caller frame.
+    
+    @param level: integer
+        The level from where to start finding the caller.
+    @return: object
+        The frame object.
+    '''
+    stacks = stack()
+    currentModule = stacks[level][1]
+    for k in range(level + 1, len(stacks)):
+        if stacks[k][1] != currentModule:
+            frame = stacks[k][0]
+            break
+    else: raise Exception('There is no other module than the current one')
+    return frame
+
 def callerName(level=1):
     '''
     Provides the caller function name.
@@ -114,14 +137,7 @@ def callerName(level=1):
     @return: string
         The caller name, for level 0 this will actually be name of the function that is the caller .
     '''
-    stacks = stack()
-    currentModule = stacks[level][1]
-    for k in range(level + 1, len(stacks)):
-        if stacks[k][1] != currentModule:
-            frame = stacks[k][0]
-            break
-    else: raise Exception('There is no other module than the current one')
-    return frame.f_code.co_name
+    return callerFrame(level + 1).f_code.co_name
 
 def callerGlobals(level=1):
     '''
@@ -132,14 +148,7 @@ def callerGlobals(level=1):
     @return: dictionary{string, object}
         The globals of the caller (based on the provided level)
     '''
-    stacks = stack()
-    currentModule = stacks[level][1]
-    for k in range(level + 1, len(stacks)):
-        if stacks[k][1] != currentModule:
-            frame = stacks[k][0]
-            break
-    else: raise Exception('There is no other module than the current one')
-    return frame.f_globals
+    return callerFrame(level + 1).f_globals
 
 def callerLocals(level=1):
     '''
@@ -150,14 +159,7 @@ def callerLocals(level=1):
     @return: dictionary{string, object}
         The locals of the caller (based on the provided level)
     '''
-    stacks = stack()
-    currentModule = stacks[level][1]
-    for k in range(level + 1, len(stacks)):
-        if stacks[k][1] != currentModule:
-            frame = stacks[k][0]
-            break
-    else: raise Exception('There is no other module than the current one')
-    return frame.f_locals
+    return callerFrame(level + 1).f_locals
 
 def pythonPath(level=1):
     '''

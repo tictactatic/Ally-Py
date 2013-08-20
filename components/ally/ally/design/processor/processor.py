@@ -134,7 +134,7 @@ class Contextual(Processor):
         assert isinstance(arguments, (list, tuple)), 'Invalid arguments %s' % arguments
         assert isinstance(annotations, dict), 'Invalid annotations %s' % annotations
 
-        if len(arguments) > 2 and 'self' == arguments[0] and 'chain' == arguments[1]: return arguments[2:], annotations
+        if len(arguments) >= 2 and 'self' == arguments[0] and 'chain' == arguments[1]: return arguments[2:], annotations
         raise ProcessorError('Required function of form \'def processor(self, chain, contex:Context ...)\' for:%s' % 
                              locationStack(self.function))
     

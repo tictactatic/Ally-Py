@@ -91,4 +91,21 @@ class IdError(InputError):
                         'Invalid property id % for model %s' % (typ.propertyId, typ)
                         items = chain(items[:k], (typ.propertyId,), items[k + 1:])
                     break
-        super().__init__(_('Unknown identifier'), *items, **data)
+        super().__init__(_('Unknown value'), *items, **data)
+        
+class ExistError(InputError):
+    '''
+    Exception to be raised when a model already exists from a business logic key.
+    '''
+    
+    def __init__(self, target, *items, **data):
+        '''
+        Initializes the exist exception based on the items(s). This exception is usually raised in insert methods that have
+        complex business logic keys that is broken.
+        @see: InputError.__init__
+        
+        @param target: model container
+            The model that already exists.
+        '''
+        assert isinstance(typeFor(target), TypeModel), 'Invalid target model %s' % target
+        super().__init__(_('Already exists a model with the provided data'), target, *items, **data)

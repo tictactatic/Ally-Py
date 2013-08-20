@@ -6,7 +6,7 @@ Created on Jan 5, 2012
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
 
-Provides support for SQL alchemy a processor for automatic session handling.
+Provides automatic session handling for SQL alchemy.
 '''
 
 from ally.api.config import DELETE
@@ -58,20 +58,19 @@ class TransactionWrappingHandler(HandlerProcessor):
     '''
     
     def __init__(self):
-        super().__init__(request=Request, Invoker=Invoker)
+        super().__init__(request=Request, response=Response, Invoker=Invoker)
 
-    def process(self, chain, response:Response, **keyargs):
+    def process(self, chain, **keyargs):
         '''
         @see: HandlerProcessor.process
         
         Wraps the invoking and all processors after invoking in a transaction.
         '''
         assert isinstance(chain, Chain), 'Invalid processors chain %s' % chain
-        assert isinstance(response, Response), 'Invalid response %s' % response
 
         setKeepAlive(True)
         chain.onError(self.processError)
-        chain.onFinalize(self.processEnd)
+        chain.onFinalize(self.processFinalize)
     
     def processError(self, error, request, response, **keyargs):
         '''
@@ -97,11 +96,13 @@ class TransactionWrappingHandler(HandlerProcessor):
             response.errorInput = exc
             error.retry()
     
-    def processEnd(self, final, response, **keyargs):
+    def processFinalize(self, final, response, **keyargs):
         '''
-        Process the end of the transaction.
+        Process the finalize of the transaction.
         '''
         assert isinstance(response, Response), 'Invalid response %s' % response
+        setKeepAlive(False)
+        
         if Response.isSuccess in response:
             if response.isSuccess is True: endSessions(commit)
             else: endSessions(rollback)

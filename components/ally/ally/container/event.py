@@ -53,6 +53,12 @@ class ITrigger(metaclass=abc.ABCMeta):
         '''
         The trigger equal method.
         '''
+        
+    @abc.abstractmethod
+    def __str__(self):
+        '''
+        The trigger to string method.
+        '''
 
 class Trigger(ITrigger):
     '''
@@ -69,6 +75,7 @@ class Trigger(ITrigger):
         @param triggers: arguments[ITrigger]
             The triggers to be used by the composite trigger.
         '''
+        assert isinstance(name, str), 'Invalid name %s' % name
         if __debug__:
             for trigger in triggers: assert isinstance(trigger, ITrigger), 'Invalid trigger %s' % trigger
 
@@ -101,6 +108,13 @@ class Trigger(ITrigger):
         @see: ITrigger.__eq__
         '''
         return self is other
+    
+    def __str__(self):
+        '''
+        @see: ITrigger.__str__
+        '''
+        if self.triggers: return '%s|%s' % (self.name, '|'.join(sorted(str(trig) for trig in self.triggers)))
+        return self.name
 
 # --------------------------------------------------------------------
 

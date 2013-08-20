@@ -11,6 +11,7 @@ Contains sql alchemy database setup.
 
 from ally.container import ioc, app
 from ally.container.error import ConfigError
+from ally.design.priority import Priority, PRIORITY_NORMAL
 from sqlalchemy.engine import create_engine
 from sqlalchemy.engine.base import Engine
 from sqlalchemy.orm.session import sessionmaker
@@ -20,6 +21,13 @@ import logging
 # --------------------------------------------------------------------
 
 log = logging.getLogger(__name__)
+
+# --------------------------------------------------------------------
+
+if __name__ == 'sql_alchemy.database_config': PRIORITY_CREATE_TABLES = PRIORITY_NORMAL
+else:
+    PRIORITY_CREATE_TABLES = Priority('Create %s tables' % __name__[__name__.rindex('.') + 1:], before=PRIORITY_NORMAL)
+    # The create tables priority.
 
 # --------------------------------------------------------------------
 
@@ -56,6 +64,6 @@ def metas(): return []
 
 # --------------------------------------------------------------------
 
-@app.populate(app.DEVEL, app.CHANGED, priority=app.PRIORITY_TOP)
+@app.setup(app.DEVEL, priority=PRIORITY_CREATE_TABLES)
 def createTables():
     for meta in metas(): meta.create_all(alchemyEngine())

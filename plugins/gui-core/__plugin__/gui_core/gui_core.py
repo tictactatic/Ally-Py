@@ -50,7 +50,7 @@ def publish(*args):
     '''
     To be used as decorator whenever publishing GUI files
     '''
-    decorator = onDecorator((app.POPULATE, app.DEVEL, app.CHANGED), app.PRIORITY_NORMAL, callerLocals())
+    decorator = onDecorator((app.POPULATE, app.DEVEL), app.PRIORITY_NORMAL, callerLocals())
     if not args: return decorator
     assert len(args) == 1, 'Expected only one argument that is the decorator function, got %s arguments' % len(args)
     return decorator(args[0])

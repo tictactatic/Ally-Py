@@ -146,9 +146,8 @@ class InvokerNodeHandler(HandlerProcessor):
                         
                         if node.type is None: node.type = el.property.type
                         elif node.type != el.property.type:
-                            log.error('Cannot use because the node type %s, from:%s\n, and is incompatible with property '
-                                      '%s, at:%s', node.type, ''.join(invk.location for invk in node.invokers.values()),
-                                      el.property, invoker.location)
+                            log.error('Cannot use because the property %s is expected to be %s, at:%s',
+                                      el.property, node.type, invoker.location)
                             valid = False
                             break
                         

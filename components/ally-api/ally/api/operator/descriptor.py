@@ -348,7 +348,6 @@ def processWithProperties(clazz, container):
         bases.append(Container)
         clazz = container.clazz = type(clazz.__name__, tuple(bases), attributes)
     
-    clazz._ally_type = container
     clazz._ally_reference = {name: Reference(prop) for name, prop in container.properties.items()}
     
     for name in container.properties:
@@ -378,7 +377,6 @@ def processAsQuery(clazz, query):
         bases.append(Query)
         clazz = query.clazz = type(clazz.__name__, tuple(bases), attributes)
     
-    clazz._ally_type = query
     for name, prop in query.properties.items(): setattr(clazz, name, CriteriaEntry(prop))
     
     return clazz
@@ -407,7 +405,6 @@ def processAsService(clazz, service):
     abstract.update(service.calls)
     
     clazz.__abstractmethods__ = frozenset(abstract)
-    clazz._ally_type = service
     for name, callType in service.calls.items():
         callAPI = CallAPI(callType)
         callAPI.__isabstractmethod__ = True  # Flag that notifies the ABCMeta that is is an actual abstract method.

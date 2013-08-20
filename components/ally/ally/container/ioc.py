@@ -16,7 +16,7 @@ from ._impl._setup import SetupEntity, SetupSource, SetupConfig, SetupFunction, 
     SetupEvent, SetupEventReplace, SetupSourceReplace, SetupStart, SetupEventCancel, \
     register, SetupConfigReplace, setupsOf
 from .error import SetupError
-from ally.design.priority import Priority
+from ally.design.priority import Priority, PRIORITY_NORMAL #@UnusedImport
 from functools import partial, update_wrapper
 from inspect import isclass, ismodule, getfullargspec, isfunction, cleandoc
 import logging
@@ -24,13 +24,6 @@ import logging
 # --------------------------------------------------------------------
 
 log = logging.getLogger(__name__)
-
-PRIORITY_FINAL = Priority()
-PRIORITY_LAST = Priority(PRIORITY_FINAL)
-PRIORITY_NORMAL = Priority(PRIORITY_LAST)
-PRIORITY_BEFORE_NORMAL = Priority(PRIORITY_NORMAL)
-PRIORITY_FIRST = Priority(PRIORITY_BEFORE_NORMAL)
-PRIORITY_TOP = Priority(PRIORITY_FIRST)
 
 # --------------------------------------------------------------------
 
@@ -131,7 +124,7 @@ def after(*setups, auto=True):
         The setup function(s) to listen to.
     @param auto: boolean
         In some cases the event is not called (for instance externally provided configurations) this means is auto managed
-        by the container, if placed on False the event is guaranteed to be called regardless of what the container option.
+        by the container, if placed on False the event is guaranteed to be called regardless of the container option.
     '''
     if __debug__:
         for setup in setups: assert isinstance(setup, SetupFunction), 'Invalid setup function %s' % setup

@@ -207,10 +207,13 @@ class CallEvent(WithCall, WithListeners):
         self._processed = True
         self.assembly.called.add(self.name)
 
-        for listener, _auto in self._listenersBefore: listener()
-        ret = self.call()
-        if ret is not None: raise SetupError('The event call \'%s\' cannot return any value' % self.name)
-        for listener, _auto in self._listenersAfter: listener()
+        Assembly.stack.append(self.assembly)
+        try:
+            for listener, _auto in self._listenersBefore: listener()
+            ret = self.call()
+            if ret is not None: raise SetupError('The event call \'%s\' cannot return any value' % self.name)
+            for listener, _auto in self._listenersAfter: listener()
+        finally: Assembly.stack.pop()
         
 class CallEventOnCount(CallEvent):
     '''
@@ -489,14 +492,17 @@ class CallEventControlled(WithCall, WithListeners):
         self._processed = True
         self.assembly.called.add(self.name)
 
-        try: self._value = self.call()
-        except:
-            log.exception('A problem occurred for controlled event: %s' % self.name)
-            self._value = False
-        if self._value is None: self._value = True
-        if not isinstance(self._value, bool):
-            raise SetupError('The controlled event call \'%s\' needs to return a boolean value, got \'%s\'' % 
-                             (self.name, self._value))
-        if self._value:
-            for listener, _auto in self._listenersAfter: listener()
+        Assembly.stack.append(self.assembly)
+        try:
+            try: self._value = self.call()
+            except:
+                log.exception('A problem occurred for controlled event: %s' % self.name)
+                self._value = False
+            if self._value is None: self._value = True
+            if not isinstance(self._value, bool):
+                raise SetupError('The controlled event call \'%s\' needs to return a boolean value, got \'%s\'' % 
+                                 (self.name, self._value))
+            if self._value:
+                for listener, _auto in self._listenersAfter: listener()
+        finally: Assembly.stack.pop()
         return self._value

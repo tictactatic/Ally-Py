@@ -9,6 +9,7 @@ Created on Aug 7, 2013
 Provides the filter calls processing.
 '''
 
+from acl.api.filter import Allowed
 from ally.api.config import GET
 from ally.api.operator.type import TypeModel, TypeProperty
 from ally.api.type import Call, Type, typeFor
@@ -18,8 +19,6 @@ from ally.design.processor.attribute import requires, defines, definesIf
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Abort
 from ally.design.processor.handler import HandlerProcessor, Handler
-from ally.support.util_context import PlaceHolder
-from gateway.api.filter import Allowed
 import logging
 
 # --------------------------------------------------------------------
@@ -33,10 +32,6 @@ class Register(Context):
     The register context.
     '''
     # ---------------------------------------------------------------- Defined
-    filters = defines(dict, doc='''
-    @rtype: dictionary{string: Context}
-    The filter contexts indexed by name.
-    ''')
     hintsCall = definesIf(dict)
     # ---------------------------------------------------------------- Required
     invokers = requires(list)
@@ -50,9 +45,9 @@ class Invoker(Context):
     @rtype: list[Context]
     The starting path elements for filter.
     ''')
-    isFilter = defines(bool, doc='''
-    @rtype: boolean
-    True if the invoker is a filter.
+    filterName = defines(str, doc='''
+    @rtype: string
+    If present it means the invoker is a filter type invoker and is known with the provided name.
     ''')
     # ---------------------------------------------------------------- Required
     call = requires(Call)
@@ -72,20 +67,6 @@ class ElementFilter(Context):
     model = defines(TypeModel, doc='''
     @rtype: TypeModel
     The model represented by the element.
-    ''')
-        
-class ACLFilterInvoker(Context):
-    '''
-    The ACL filter context.
-    '''
-    # ---------------------------------------------------------------- Defined
-    name = defines(str, doc='''
-    @rtype: string
-    The filter name.
-    ''')
-    invokers = defines(list, doc='''
-    @rtype: list[Context]
-    The invoker contexts associated with the filter.
     ''')
     
 # --------------------------------------------------------------------
@@ -116,16 +97,15 @@ class ProcessFilterHandler(HandlerProcessor):
         'Invalid type property allowed %s' % self.typePropertyAllowed
         # The 'ACLAllowed' context is not relevant for filter process but in order to have it as a assembly context we need 
         # to defined it in a assembly processor in order make it available for all other assemblies that require ACL allowed.
-        super().__init__(Invoker=Invoker, ACLAllowed=PlaceHolder())
+        super().__init__(Invoker=Invoker)
 
-    def process(self, chain, register:Register, ACLFilter:ACLFilterInvoker, Element:ElementFilter, **keyargs):
+    def process(self, chain, register:Register, Element:ElementFilter, **keyargs):
         '''
         @see: HandlerProcessor.process
         
         Process the filter calls.
         '''
         assert isinstance(register, Register), 'Invalid register %s' % register
-        assert issubclass(ACLFilter, ACLFilterInvoker), 'Invalid filter class %s' % ACLFilter
         assert issubclass(Element, ElementFilter), 'Invalid path element %s' % Element
         if not register.invokers: return
         
@@ -162,14 +142,6 @@ class ProcessFilterHandler(HandlerProcessor):
             if invoker.path is None: invoker.path = []
             invoker.path.insert(0, Element(name=self.typeModelAllowed.name, model=self.typeModelAllowed))
             invoker.output = self.typePropertyAllowed
-            invoker.isFilter = True
-            
-            if register.filters is None: register.filters = {}
-            aclFilter = register.filters.get(filterName)
-            if aclFilter is None: aclFilter = register.filters[filterName] = ACLFilter(name=filterName)
-            assert isinstance(aclFilter, ACLFilterInvoker), 'Invalid filter %s' % aclFilter
-            
-            if aclFilter.invokers is None: aclFilter.invokers = []
-            aclFilter.invokers.append(invoker)
+            invoker.filterName = filterName.strip()
         
         if aborted: raise Abort(*aborted)

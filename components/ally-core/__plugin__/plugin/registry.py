@@ -41,4 +41,3 @@ def addService(*binders):
     binders = processBinders(binders)
     assert binders, 'At least a binder is required, if you want the register without binders use the \'registerService\' function'
     return partial(registerService, binders=binders)
-

@@ -57,7 +57,7 @@ def defaultGateways() -> list: return []
 def updateAssemblyAnonymousGateways():
     assemblyAnonymousGateways().add(databaseGateways(), gatewayMethodMerge(), registerMethodOverride())
 
-@app.populate(app.DEVEL, app.CHANGED)
+@app.populate(app.DEVEL)
 def populateDefaulyGateways():
     serviceGateway = entityFor(IGatewayService)
     assert isinstance(serviceGateway, IGatewayService)

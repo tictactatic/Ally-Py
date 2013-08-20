@@ -14,6 +14,7 @@ from .decode import assemblyDecode, assemblyDecodeExport, \
 from .definition import definitions
 from .encode import assemblyEncode
 from ally.container import ioc
+from ally.container.priority import PRIORITY_LOAD_ENTITIES
 from ally.core.impl.processor.assembler.decoding import DecodingHandler, \
     decodingExport
 from ally.core.impl.processor.assembler.definition import DefinitionHandler
@@ -29,6 +30,7 @@ from ally.core.impl.processor.assembler.validate_hints import \
 from ally.core.impl.processor.assembler.validate_solved import \
     ValidateSolvedHandler
 from ally.core.impl.processor.content import AssemblerContentHandler
+from ally.design.priority import Priority
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.handler import Handler
 import logging
@@ -36,6 +38,9 @@ import logging
 # --------------------------------------------------------------------
 
 log = logging.getLogger(__name__)
+
+PRIORITY_REGISTER = Priority('Register services', after=PRIORITY_LOAD_ENTITIES)
+# The register priority.
 
 # --------------------------------------------------------------------
 
@@ -105,7 +110,7 @@ def updateAssemblyDecodeExportForDecoding():
     
 # --------------------------------------------------------------------
 
-@ioc.start(priority=ioc.PRIORITY_FINAL)
+@ioc.start(priority=PRIORITY_REGISTER)
 def register():
     log.info('Registering %s services into the resources structure', len(services()))
     injectorAssembly().registerServices(services())

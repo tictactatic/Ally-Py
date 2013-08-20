@@ -21,7 +21,7 @@ log = logging.getLogger(__name__)
 
 try:
     from __setup__ import ally_cdm  # @UnusedImport
-except ImportError: log.info('No ally CDM service available, thus no need to create configurations based on it')
+except ImportError: log.info('No ally cdm component available, thus no need to create configurations based on it')
 else:
     from __setup__.ally_cdm.server import root_uri_content, server_provide_content
     from ally.http.spec.server import HTTP_GET

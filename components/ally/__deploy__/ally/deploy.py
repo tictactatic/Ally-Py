@@ -138,6 +138,6 @@ def repair():
     assert isinstance(application.options, OptionsCore), 'Invalid application options %s' % application.options
     if not application.options.repair: return
     with openSetups('repairing'):
-        for call, name, _trigger in support.eventsFor(event.REPAIR):
+        for call, name, _triggers in support.eventsFor(event.REPAIR):
             log.info('Executing repair event call \'%s\'', name)
             call()

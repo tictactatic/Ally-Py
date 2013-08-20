@@ -220,14 +220,9 @@ def equalContainer(ainstance, oinstance, exclude=()):
         properties.difference_update(exclude)
         if properties: return False  # It means that they are properties that are not accounted for in one of the containers.
         
-    for name, aprop in atype.properties.items():
+    for name in atype.properties:
         if name in exclude: continue
-        oprop = otype.properties[name]
-        if aprop not in ainstance:
-            if oprop in oinstance: return False
-        else:
-            if oprop not in oinstance: return False
-            if getattr(ainstance, name) != getattr(oinstance, name): return False
+        if getattr(ainstance, name) != getattr(oinstance, name): return False
     return True
 
 def copyContainer(src, dest, exclude=()):

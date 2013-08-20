@@ -92,7 +92,7 @@ def processStart(assembly=None):
         if isinstance(call, CallStart):
             assert isinstance(call, CallStart)
             if call.assembly == assembly: calls.append(call)
-    sortByPriorities(calls, priority=lambda call: call.priority, reverse=True)
+    sortByPriorities(calls, priority=lambda call: call.priority)
     for call in calls: assembly.processForName(call.name)
     
 def configurations(assembly=None, force=False):

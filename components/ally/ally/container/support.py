@@ -19,7 +19,7 @@ from ._impl._support import SetupEntityListen, SetupEntityListenAfterBinding, \
 from .error import SetupError
 from .event import ITrigger, createEvents
 from .impl.config import Config
-from .ioc import PRIORITY_LAST
+from .priority import PRIORITY_LOAD_ENTITIES
 from .wire import createWirings
 from ally.design.priority import sortByPriorities
 from collections import Iterable
@@ -223,7 +223,7 @@ def loadAllEntities(*classes, module=None):
         group = registry['__name__']
 
     loader = partial(loadAll, group + '.', classesFrom(classes))
-    return register(SetupStart(loader, PRIORITY_LAST, name='loader_%s' % id(loader)), registry)
+    return register(SetupStart(loader, PRIORITY_LOAD_ENTITIES, name='loader_%s' % id(loader)), registry)
 
 def include(module, inModule=None):
     '''
@@ -359,9 +359,10 @@ def eventsFor(*triggers, source=None):
     @param source: Assembly|Iterable(tuple(string, callable))|None
         The source to provide the events for, it can be an assembly in which case the assembly calls are used as the source
         or it can be an iterable providing tuples of name and call. If None then the current assembly calls are used.
-    @return: Iterable(tuple(Callable, string, ITrigger))
+    @return: Iterable(tuple(callable, string, list[ITrigger]))
         An iterator that yields tuples having on the first position the call will return True for a successful event execution,
-        False otherwise, on the second position the event name and on the last position the trigger.
+        False otherwise, on the second position the event name and on the last position the triggers associated with the call
+        containing at least one of the provided triggers.
     '''
     assert triggers, 'At least one trigger is required'
     if source is None: source = Assembly.current()
@@ -379,8 +380,9 @@ def eventsFor(*triggers, source=None):
         for trigger in call.triggers:
             assert isinstance(trigger, ITrigger), 'Invalid trigger %s' % trigger
             if trigger.isTriggered(triggers):
-                calls.append((call, name, trigger))
-    sortByPriorities(calls, priority=lambda item: item[0].priority, reverse=True)
+                calls.append((call, name, list(call.triggers)))
+                break
+    sortByPriorities(calls, priority=lambda item: item[0].priority)
     return calls
 
 # --------------------------------------------------------------------

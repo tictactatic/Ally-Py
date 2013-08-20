@@ -100,7 +100,9 @@ class InternalErrorHandler(Handler):
         assert isinstance(response, Response), 'Invalid response %s' % response
         assert isinstance(responseCnt, ResponseContent), 'Invalid response content %s' % responseCnt
         assert isinstance(error.exception, Exception), 'Invalid error exception %s' % error.exception
+        
         if error.isRetrying: return  # Maybe next time
+        error.suppress()
         
         excInfo = (type(error.exception), error.exception, error.exception.__traceback__)
         log.error('Exception occurred while processing the execution', exc_info=excInfo)

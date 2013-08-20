@@ -259,13 +259,15 @@ def tableFor(mapped):
     '''
     Provides the table of the provided mapped class.
     
-    @param mapped: class
-        The mapped class.
+    @param mapped: object
+        The mapped object.
     @return: Table
         The associated table.
     '''
-    assert isinstance(mapped, DeclarativeMetaModel), 'Invalid mapped class %s' % mapped
-
+    if isinstance(mapped, InstrumentedAttribute):
+        assert isinstance(mapped, InstrumentedAttribute)
+        return mapped.parent.mapped_table
+    assert isinstance(mapped, DeclarativeMetaModel), 'Invalid mapped object %s' % mapped
     return mapped.__table__
 
 # --------------------------------------------------------------------

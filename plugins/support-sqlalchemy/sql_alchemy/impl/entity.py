@@ -1,7 +1,7 @@
 '''
 Created on Jun 23, 2011
 
-@package: support plugin
+@package: support sqlalchemy
 @copyright: 2012 Sourcefabric o.p.s.
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
@@ -9,14 +9,13 @@ Created on Jun 23, 2011
 SQL alchemy implementation for the generic ided or named entities API.
 '''
 
-from ally.api.error import IdError
 from ally.api.operator.type import TypeModel, TypeProperty, TypeQuery
 from ally.api.type import typeFor
 from ally.support.api.util_service import getModelId
 from ally.support.sqlalchemy.mapper import MappedSupport
 from ally.support.sqlalchemy.session import SessionSupport
 from ally.support.sqlalchemy.util_service import buildQuery, \
-    iterateCollection, insertModel, updateModel
+    iterateCollection, insertModel, updateModel, deleteModel
 from inspect import isclass
 import logging
 
@@ -31,7 +30,7 @@ class EntitySupportAlchemy(SessionSupport):
     Provides support generic entity handling.
     '''
 
-    def __init__(self, Mapped, QEntity=None):
+    def __init__(self, Mapped, QEntity=None, **mapping):
         '''
         Construct the entity support for the provided model class and query class.
         
@@ -39,6 +38,9 @@ class EntitySupportAlchemy(SessionSupport):
             The mapped entity model class.
         @param QEntity: class|None
             The query mapped class if there is one.
+        @param mapping: key arguments of columns
+            The column mappings provided for criteria name in case they are needed, this is only used if a QEntity is
+            provided.
         '''
         assert isclass(Mapped), 'Invalid class %s' % Mapped
         assert isinstance(Mapped, MappedSupport), 'Invalid mapped class %s' % Mapped
@@ -48,10 +50,16 @@ class EntitySupportAlchemy(SessionSupport):
         
         self.Entity = model.clazz
         self.Mapped = Mapped
+        self.MappedId = getModelId(Mapped)
 
         if QEntity is not None:
             assert isclass(QEntity), 'Invalid class %s' % QEntity
             assert isinstance(typeFor(QEntity), TypeQuery), 'Invalid query entity class %s' % QEntity
+            if __debug__:
+                for name in mapping:
+                    assert name in typeFor(QEntity).properties, 'Invalid criteria name \'%s\' for %s' % (name, QEntity)
+            self._mapping = mapping
+        else: assert not mapping, 'Illegal mappings %s with no QEntity provided' % mapping
         self.QEntity = QEntity
 
 # --------------------------------------------------------------------
@@ -65,9 +73,7 @@ class EntityGetServiceAlchemy(EntitySupportAlchemy):
         '''
         @see: IEntityGetService.getById
         '''
-        entity = self.session().query(self.Mapped).get(id)
-        if entity is None: raise IdError(self.Entity)
-        return entity
+        return self.session().query(self.Mapped).filter(self.MappedId == id).one()
 
 class EntityFindServiceAlchemy(EntitySupportAlchemy):
     '''
@@ -78,7 +84,7 @@ class EntityFindServiceAlchemy(EntitySupportAlchemy):
         '''
         @see: IEntityQueryService.getAll
         '''
-        return iterateCollection(self.session().query(getModelId(self.Mapped)), **options)
+        return iterateCollection(self.session().query(self.MappedId), **options)
 
 class EntityQueryServiceAlchemy(EntitySupportAlchemy):
     '''
@@ -90,10 +96,10 @@ class EntityQueryServiceAlchemy(EntitySupportAlchemy):
         @see: IEntityQueryService.getAll
         '''
         assert self.QEntity is not None, 'No query available for this service'
-        sqlQuery = self.session().query(getModelId(self.Mapped))
+        sqlQuery = self.session().query(self.MappedId)
         if q is not None:
             assert isinstance(q, self.QEntity), 'Invalid query %s' % q
-            sqlQuery = buildQuery(sqlQuery, q, self.Mapped)
+            sqlQuery = buildQuery(sqlQuery, q, self.Mapped, **self._mapping)
         return iterateCollection(sqlQuery, **options)
 
 class EntityCRUDServiceAlchemy(EntitySupportAlchemy):
@@ -117,7 +123,7 @@ class EntityCRUDServiceAlchemy(EntitySupportAlchemy):
         '''
         @see: IEntityCRUDService.delete
         '''
-        return self.session().query(self.Entity).filter(self.Entity.Id == id).delete() > 0
+        return deleteModel(self.Mapped, id)
 
 class EntityGetCRUDServiceAlchemy(EntityGetServiceAlchemy, EntityCRUDServiceAlchemy):
     '''

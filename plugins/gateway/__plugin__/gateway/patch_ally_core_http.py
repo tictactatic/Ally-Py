@@ -21,7 +21,7 @@ log = logging.getLogger(__name__)
 
 try:
     from __setup__ import ally_core_http  # @UnusedImport
-except ImportError: log.info('No ally core http service available, thus no need to create configurations based on it')
+except ImportError: log.info('No ally core http component available, thus no need to create Gateway configurations based on it')
 else:
     from __setup__.ally_core_http.processor_error import statusToCode
     from __setup__.ally_core_http.server import root_uri_resources, root_uri_errors, \

@@ -105,7 +105,7 @@ def model(*args, id=None, name=None, **hints):
             name = clazz.__name__
         if not match(RULE_MODEL[0], name): raise Exception(RULE_MODEL[1] % name)
         
-        model = TypeModel(clazz, name)
+        model = clazz._ally_type = TypeModel(clazz, name)
     
         for typ in inheritedTypesFrom(clazz, TypeModel):
             assert isinstance(typ, TypeModel)
@@ -116,10 +116,15 @@ def model(*args, id=None, name=None, **hints):
             model.hints.update(hitem for hitem in typ.hints.items() if hitem[0] not in model.hints)
         model.hints.update(hints)
         
+        toSelf = []
         for name, typ in extractProperties(clazz, TypeModel).items():
             if not match(RULE_MODEL_PROPERTY[0], name): raise Exception(RULE_MODEL_PROPERTY[1] % name)
             if isinstance(typ, TypeModel):
                 assert isinstance(typ, TypeModel)
+                if typ == model:
+                    toSelf.append(name)
+                    continue
+                
                 if not typ.propertyId:
                     raise Exception('Cannot use %s for property \'%s\', because the model has no id defined' % (typ, name))
                 model.properties[name] = TypePropertyContainer(model, name, typ.propertyId, typ)
@@ -136,6 +141,12 @@ def model(*args, id=None, name=None, **hints):
                 raise Exception('The id cannot be a List type, got %s' % model.propertyId.type)
             if isinstance(model.propertyId, TypePropertyContainer):
                 raise Exception('The id cannot be a model reference, got %s' % model.propertyId.container)
+            
+        for name in toSelf:
+            if not model.propertyId:
+                raise Exception('Cannot use self %s for property \'%s\', because there is no id defined' % (model, name))
+            model.properties[name] = TypePropertyContainer(model, name, model.propertyId, model)
+                
         return processWithProperties(clazz, model)
     if args: return decorator(*args)
     return decorator
@@ -160,7 +171,7 @@ def criteria(*args, main=None):
         assert isclass(clazz), 'Invalid class %s' % clazz
         nonlocal main
     
-        criteria = TypeCriteria(clazz)
+        criteria = clazz._ally_type = TypeCriteria(clazz)
         for name, typ in extractProperties(clazz, TypeCriteria).items():
             if not match(RULE_CRITERIA_PROPERTY[0], name): raise Exception(RULE_CRITERIA_PROPERTY[1] % name)
             if not typ.isPrimitive:
@@ -204,7 +215,7 @@ def query(owner):
     def decorator(clazz):
         assert isclass(clazz), 'Invalid class %s' % clazz
 
-        query = TypeQuery(clazz, target)
+        query = clazz._ally_type = TypeQuery(clazz, target)
         for name, criteria in extractCriterias(clazz).items():
             if not match(RULE_QUERY_CRITERIA[0], name): raise Exception(RULE_QUERY_CRITERIA[1] % name)
             query.properties[name] = TypeProperty(query, name, typeFor(criteria), isContainable=False)
@@ -319,7 +330,7 @@ def service(*generic):
     def decorator(clazz):
         assert isclass(clazz), 'Invalid class %s' % clazz
     
-        service = TypeService(clazz)
+        service = clazz._ally_type = TypeService(clazz)
         for name, function in clazz.__dict__.items():
             if isfunction(function):
                 try: service.calls[name] = TypeCall(service, function._ally_call)
@@ -363,7 +374,7 @@ def extension(*args):
     def decorator(clazz):
         assert isclass(clazz), 'Invalid class %s' % clazz
     
-        extension = TypeExtension(clazz)
+        extension = clazz._ally_type = TypeExtension(clazz)
     
         for name, typ in extractProperties(clazz, TypeExtension).items():
             if not match(RULE_EXTENSION_PROPERTY[0], name): raise Exception(RULE_EXTENSION_PROPERTY[1] % name)
@@ -390,7 +401,7 @@ def option(*args):
     def decorator(clazz):
         assert isclass(clazz), 'Invalid class %s' % clazz
         
-        option = TypeOption(clazz)
+        option = clazz._ally_type = TypeOption(clazz)
     
         for name, typ in extractProperties(clazz, TypeOption).items():
             if not match(RULE_OPTION_PROPERTY[0], name): raise Exception(RULE_OPTION_PROPERTY[1] % name)
