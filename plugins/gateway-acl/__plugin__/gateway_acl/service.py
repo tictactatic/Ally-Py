@@ -54,5 +54,18 @@ def populateSamples():
     groupService = entityFor(IGroupService)
     assert isinstance(groupService, IGroupService)
     
-    print('ADDED:', groupService.addGroup(1285521629, 'Anonymous'), 'GET:ACL/Access/*')
-    print('FILTER:', groupService.addFilter(1285521629, 'Anonymous', 'Filter1'), 'GET:ACL/Access/*')
+    print('ACL/Access/*')
+    print('ADDED:', groupService.addGroup(1285521629, 'Anonymous'))
+    print('FILTER:', groupService.addFilter(1285521629, 'Anonymous', 'Filter1'))
+    
+    print('ACL/Access')
+    print('ADDED:', groupService.addGroup(3232022005, 'Anonymous'))
+    print('FILTER:', groupService.addFilter(3232022005, 'Anonymous', 'Filter1'))
+    
+    print('ACL/Access/*/Group/*/Entry/*/Filter/*')
+    print('ADDED:', groupService.addGroup(512347881, 'Anonymous'))
+    print('FILTER:', groupService.addFilter(512347881, 'Anonymous', 'Filter1'))
+    
+    print('Gateway/Custom/*')
+    print('ADDED:', groupService.addGroup(903992123, 'Anonymous'))
+    print('FILTER:', groupService.addFilter(903992123, 'Anonymous', 'Filter1'))

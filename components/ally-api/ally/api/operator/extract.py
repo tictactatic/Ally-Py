@@ -11,7 +11,8 @@ Provides the configuration functions.
 
 from ..type import Non, Type, Input, Iter, typeFor
 from .type import TypeContainer, TypeCriteria, TypeQuery, TypeModel
-from ally.api.operator.type import TypeProperty, TypeOption, Call
+from ally.api.operator.type import TypeProperty, TypeOption, Call, \
+    TypePropertyContainer
 from ally.support.util_sys import locationStack
 from inspect import isfunction, getfullargspec, isclass
 import logging
@@ -62,7 +63,11 @@ def extractPropertiesInhertied(clazz, forType=TypeContainer):
         assert isinstance(container, TypeContainer), 'Invalid container %s' % container
         for name, prop in container.properties.items():
             assert isinstance(prop, TypeProperty), 'Invalid property %s' % prop
-            if name not in definitions: definitions[name] = prop.type
+            if name not in definitions:
+                if isinstance(prop, TypePropertyContainer):
+                    assert isinstance(prop, TypePropertyContainer)
+                    definitions[name] = prop.container
+                else: definitions[name] = prop.type
     return definitions
 
 def extractProperties(clazz, forType=TypeContainer):

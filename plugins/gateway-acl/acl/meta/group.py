@@ -32,15 +32,16 @@ class AccessToGroup(Base):
     accessId = Column('fk_access_id', ForeignKey(AccessMapped.Id, ondelete='CASCADE'))
     groupId = Column('fk_group_id', ForeignKey('acl_group.id', ondelete='CASCADE'))
     
-class GroupToFilter(Base):
+class FilterToEntry(Base):
     '''
-    Provides the Access to Group mapping.
+    Provides the Filter to Entry mapping.
     '''
-    __tablename__ = 'acl_access_group_filter'
+    __tablename__ = 'acl_filter_access_entry'
     __table_args__ = dict(mysql_engine='InnoDB')
     
-    groupId = Column('fk_access_group_id', ForeignKey(AccessToGroup.id, ondelete='CASCADE'), primary_key=True)
+    accessGroupId = Column('fk_access_group_id', ForeignKey(AccessToGroup.id, ondelete='CASCADE'), primary_key=True)
     filterId = Column('fk_filter_id', ForeignKey(FilterMapped.id, ondelete='CASCADE'), primary_key=True)
+    position = Column('position', INTEGER(unsigned=True), autoincrement=False, primary_key=True)
     
 @validate
 class GroupMapped(Base, Group):

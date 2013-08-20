@@ -10,7 +10,6 @@ Specifications and general functions for ACL.
 '''
 
 from ally.api.operator.type import TypeProperty, TypeModel
-import binascii
 
 # --------------------------------------------------------------------
 
@@ -28,19 +27,3 @@ def uniqueNameFor(prop):
     
     return '%s.%s.%s' % (prop.parent.clazz.__module__, prop.parent.clazz.__name__, prop.name)
 
-def generateId(path, method):
-    '''
-    Generates a unique id for the provided path and method.
-    
-    @param path: string
-        The path to generate the id for.
-    @param method: string
-        The method name.
-    @return: integer
-        The generated hash id.
-    '''
-    assert isinstance(path, str), 'Invalid path %s' % path
-    assert isinstance(method, str), 'Invalid method %s' % method
-    id = binascii.crc32(path.strip().strip('/').encode(), 0)
-    id = binascii.crc32(method.strip().upper().encode(), id)
-    return id

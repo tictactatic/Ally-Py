@@ -9,8 +9,9 @@ Created on Aug 8, 2013
 Indexes the access invokers.
 '''
 
-from acl.api.access import IAccessService, Access
-from acl.core.spec import uniqueNameFor, generateId
+from acl.api.access import IAccessService, Access, Construct, generateId, \
+    generateHash
+from acl.core.spec import uniqueNameFor
 from ally.api.operator.type import TypeProperty
 from ally.container import wire
 from ally.container.ioc import injected
@@ -18,7 +19,6 @@ from ally.container.support import setup
 from ally.design.processor.attribute import requires
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor, Handler
-from ally.support.api.util_service import equalContainer
 import logging
 
 # --------------------------------------------------------------------
@@ -96,7 +96,7 @@ class IndexAccessHandler(HandlerProcessor):
         '''
         assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
         
-        access = Access()
+        access = Construct()
         access.Method = invoker.methodHTTP
         access.Types, items = [], []
         for el in invoker.path:
@@ -111,15 +111,16 @@ class IndexAccessHandler(HandlerProcessor):
             
         if invoker.shadowOf:
             assert isinstance(invoker.shadowOf, Invoker), 'Invalid invoker %s' % invoker.shadowOf
-            access.ShadowOf = generateId('/'.join('*' if el.property else el.name for el in invoker.shadowOf.path),
-                                         invoker.shadowOf.methodHTTP)
+            spath = '/'.join('*' if el.property else el.name for el in invoker.shadowOf.path)
+            access.ShadowOf = generateId(spath, invoker.shadowOf.methodHTTP)
         
         try: present = self.accessService.getById(generateId(access.Path, access.Method))
         except: assert log.debug('There is no access for \'%s\' with %s', access.Path, access.Method) or True
         else:
+            assert isinstance(present, Access), 'Invalid access %s' % present
             assert present.Path == access.Path, \
             'Problems with hashing, hash %s it is the same for \'%s\' and \'%s\'' % (access.Id, present.Path, access.Path)
-            if equalContainer(access, present, exclude=('Id',)): return
+            if present.Hash == generateHash(access): return
             log.info('Removing access %s since is not compatible with the current structure', present)
             self.accessService.delete(present.Id)
         

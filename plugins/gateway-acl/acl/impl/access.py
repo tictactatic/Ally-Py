@@ -9,15 +9,15 @@ Created on Aug 6, 2013
 Implementation for the ACL access.
 '''
 
-from ..api.access import IAccessService, Access, QAccess
-from ..meta.access import AccessMapped, AccessToType
+from ..api.access import IAccessService, Construct, generateId, QAccess
+from ..meta.access import AccessMapped, EntryMapped
 from ..meta.acl_intern import Path, Method, Type
-from acl.core.spec import generateId
+from acl.api.access import generateHash
 from ally.api.error import InputError
 from ally.container.ioc import injected
 from ally.container.support import setup
 from ally.internationalization import _
-from ally.support.sqlalchemy.util_service import deleteModel
+from ally.support.sqlalchemy.util_service import deleteModel, iterateCollection
 from sql_alchemy.impl.entity import EntityGetServiceAlchemy, \
     EntityQueryServiceAlchemy, EntitySupportAlchemy
 from sqlalchemy.orm.exc import NoResultFound
@@ -45,30 +45,51 @@ class AccessServiceAlchemy(EntityGetServiceAlchemy, EntityQueryServiceAlchemy, I
             if QAccess.method.equal in q: q.method.equal = q.method.equal.strip().upper()
         return super().getAll(q=q, **options)
     
+    def getEntry(self, accessId, position):
+        '''
+        @see: IAccessService.getEntry
+        '''
+        assert isinstance(accessId, int), 'Invalid access id %s' % accessId
+        assert isinstance(position, int), 'Invalid position %s' % position
+        
+        sqlQuery = self.session().query(EntryMapped)
+        sqlQuery = sqlQuery.filter(EntryMapped.accessId == accessId).filter(EntryMapped.Position == position)
+        return sqlQuery.one()
+        
+    def getEntries(self, accessId):
+        '''
+        @see: IAccessService.getEntries
+        '''
+        assert isinstance(accessId, int), 'Invalid access id %s' % accessId
+        return iterateCollection(self.session().query(EntryMapped.Position).filter(EntryMapped.accessId == accessId))
+    
     def insert(self, access):
         '''
         @see: IAccessService.insert
         '''
-        assert isinstance(access, Access), 'Invalid access %s' % access
+        assert isinstance(access, Construct), 'Invalid access %s' % access
 
         dbAccess = AccessMapped()
         items, dbAccess.pathId = self.pathId(access.Path)
         dbAccess.methodId = self.methodId(access.Method)
-        
-        for item in items:
-            if item == '*':
-                if not access.Types: raise InputError(_('Expected at least one type for first *', Access.Types))
-                if len(access.Types) <= len(dbAccess.types):
-                    raise InputError(_('Expected a type for * at position %(position)i'),
-                                     Access.Types, position=len(dbAccess.types) + 1)
-                accessToType = AccessToType()
-                accessToType.typeId = self.typeId(access.Types[len(dbAccess.types)])
-                accessToType.position = len(dbAccess.types) + 1
-                dbAccess.types.append(accessToType)
-        
         dbAccess.Id = generateId(access.Path, access.Method)
         dbAccess.ShadowOf = access.ShadowOf
+        dbAccess.Hash = generateHash(access)
         self.session().add(dbAccess)
+        
+        position = 0
+        for item in items:
+            if item == '*':
+                if not access.Types: raise InputError(_('Expected at least one type for first *', Construct.Types))
+                if len(access.Types) <= position:
+                    raise InputError(_('Expected a type for * at %(position)i'), Construct.Types, position=position + 1)
+                entry = EntryMapped()
+                entry.Position = position
+                entry.typeId = self.typeId(access.Types[position])
+                entry.accessId = dbAccess.Id
+                self.session().add(entry)
+                position += 1
+        
         return dbAccess.Id
         
     def delete(self, accessId):
@@ -97,7 +118,7 @@ class AccessServiceAlchemy(EntityGetServiceAlchemy, EntityQueryServiceAlchemy, I
                     if aclPath.priority is None: aclPath.priority = k
                 elif not re.match('\w*$', item):
                     raise InputError(_('Invalid path item \'%(item)s\', expected only alpha numeric characters or *'),
-                                     Access.Path, item=item)
+                                     Construct.Path, item=item)
             if aclPath.priority is None: aclPath.priority = 0
             
             self.session().add(aclPath)
