@@ -141,8 +141,8 @@
     padding: 0;
 }
 
-.post-list li,
-.search-result-list li,
+.post-list > li,
+.search-result-list > li,
 .post-draggable {
 
 	background: #FFFFFF;
@@ -153,6 +153,7 @@
     margin: 0;
     padding: 8px 8px 8px 17px !important;
     position:relative;
+
     &:first-child {
     	border-top-width:1px;
     }
@@ -425,13 +426,9 @@
 		}
 	}
 	&.twitter {
-		.result-content {
-			figure {
-				display: none;
-			}
-		}
 		.attributes {
 			padding-top: 3px;
+			padding-left: 63px;
 			.source-icon {
 				background-image:url(../../images/twitter-16px.png);
 			}
@@ -440,15 +437,13 @@
 
 	&.facebook {
 		.result-content {
-			figure {
-				display: none;
-			}
 			.result-text {
 				padding-left: 50px;
 			}
 		}
 		.attributes {
 			padding-top: 3px;
+			padding-left: 63px;
 			
 		}
 	}
@@ -590,8 +585,8 @@ overrides
 =========================================
 */
 
-.post-list li {
-	&.youtube, &.soundcloud {
+.post-list > li {
+	&.youtube {
 		.result-content {
 			overflow: hidden;
 		}
@@ -610,6 +605,13 @@ overrides
 		    height: 100%; 
 		}
 	}
+	&.youtube {
+		.result-content {
+			.result-text {
+				max-width: 500px;
+			}
+		}
+	}
 	&.commentpost {
 		.post-info {
 			padding-left: 60px;
@@ -624,7 +626,7 @@ overrides
 	}
 }
 
-#timeline-view .post-list li
+#timeline-view .post-list > li
 {
 	margin-left: 26px; /* for all posts except from wrapup (wrapup indent) */		
 }
@@ -636,7 +638,7 @@ overrides
 .collabs {
 	bottom: 0;
     padding: 0 12px 30px 0;
-    top: 80px !important;
+    top: 0;
     left:0;
     right:13px;
     z-index:2;
@@ -653,7 +655,7 @@ overrides
     right:13px;
     z-index:2;
 
-	li {
+	> li {
 		border: 0;
 		padding: 0 !important;
 		margin: 6px 0 0 0;
@@ -924,7 +926,7 @@ overrides
 
 
 .collabs, .sms-list, .comments-list {
-	li {
+	> li {
 		background: #FFFFFF;
 	    border: 1px solid #fff;
 	    border-top-width:0;
@@ -1712,7 +1714,6 @@ overrides
 	.border-radius(0 0 5px 5px);
 }
 .chainblogs {
-	top: 190px !important;
 	bottom: 0;
 	padding: 0 12px 30px 0;
 	left: 0;
@@ -1720,21 +1721,27 @@ overrides
 	z-index: 2;
 }
 
-.sms-results-holder, .comments-results-holder {
+ .sms-results-holder, .comments-results-holder {
 	position: absolute;
-	top: 150px !important;
+	top: 0px;
 	bottom: 30px;
-	padding: 0 12px 5px 0;
+	padding: 0;
 	left: 0;
-	right: 13px;
+	right: 0px;
 	z-index: 2;
 	overflow: hidden;
 	overflow-y: auto;
+	.alert {
+		margin-top: 0 !important;
+	}
 }
 .comments-results-holder {
-	top: 100px !important;
 	margin-top: 0 !important;
 }
+.sms-results-holder {
+	padding: 0 12px 30px 0;
+}
+
 .ads-header {
 	h4 {
 		margin:6px 0 5px 0;
@@ -1749,12 +1756,12 @@ overrides
 	border-color: #c4e3e9;
 	p {
 		margin-bottom:3px;
-		.feed-info {
-			white-space: nowrap;
-			overflow: hidden;
-			text-overflow: ellipsis;
-			height:21px;
-			margin-bottom:0;
+		&.feed-info {
+			.label {
+				margin-bottom: 3px;
+				display: inline-block;
+				padding-top: 2px;
+			}
 		}
 	}
 	.feed-info .label, .new-results.label {
@@ -1829,5 +1836,137 @@ figure.avatar-medium > img   {
 	}
 */
 
+.post-list > li,
+.search-result-list > li,
+.post-draggable {
+    overflow:hidden;
+    &:hover {
+        overflow: visible;
+        .verification-box {
+           right:10px;
+        }
+    }
+}
 
-	
+.verification-box {
+    position: absolute;
+    top:10px;
+    right:-60px;
+    //.transition( all 0.3s ease);
+    .verification-label {
+         display: inline-block;
+        a {
+            color:#fff;
+            font-size:10px;
+            padding: 3px 6px;
+            .border-radius(2px);
+            background: #a0a0a0;
+            text-transform: uppercase;
+            height: 10px;
+            line-height: 10px;
+            text-shadow: 0 0 1px #555;
+            vertical-align: top;
+            .caret {
+                margin: 3px 0 0 2px;
+                .opacity(100);
+                border-top-color:#fff;
+            }
+        }
+        .dropdown-menu {
+            li span {
+                border-left:4px solid #7e7e7e;
+                margin-right: 10px;
+                &.label-assigned { border-color: #41b8cc; }
+                &.label-verified { border-color: #37b300; }
+                &.label-unverified { border-color: #cf0000; }
+                &.label-onverification { border-color: #ffa200; }
+            }
+        }
+    }
+    
+    .verification-assign {
+        display: inline-block;
+        margin-left:5px;
+        .assignment-menu {
+            a {
+                padding: 1px 3px !important;
+                .border-radius(2px);
+                background: none;
+                height: 14px;
+                line-height: 14px;
+                .caret {
+                    margin: 5px 0 0 2px;
+                    .opacity(100);
+                    border-top-color:#888;
+                }
+            }
+            &:hover a, &.open a {
+                background: #cacaca !important;
+            }
+        }
+    }
+    
+    .post-quick-actions {
+        display: inline-block;
+        vertical-align: middle;
+        margin-left: 5px;
+        .action-close {
+            width:10px;
+            height:10px;
+            padding: 3px;
+            background: url(../../images/action-close.png) no-repeat 3px 3px;
+            .opacity(70);
+            display: inline-block;
+            margin-top: -1px;
+            &:hover {
+                .opacity(100);
+                text-decoration:none;
+            }
+        }
+    }
+    
+    //dropdown fix
+    .sf-dropdown-right {
+        left:auto;
+        right:0;
+    }
+}
+    
+.verification-assigned {
+    .verification-label a { 
+        background:  #41b8cc; 
+        &:hover { background:  #41b8cc; }
+    }
+}
+.verification-verified {
+    .verification-label a, .verification-label.open a { 
+        background:  #37b300; 
+        &:hover { background:  #37b300; }
+        }
+}
+.verification-unverified {
+    .verification-label a, .verification-label.open a  { 
+        background:  #cf0000; 
+        &:hover { background:  #cf0000; }
+        }
+}
+.verification-onverification {
+    .verification-label a, .verification-label.open a  { 
+        background:  #ffa200; 
+        &:hover { background:  #ffa200; }
+        }
+}
+    
+
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
