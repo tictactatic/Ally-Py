@@ -15,6 +15,7 @@ from ally.design.processor.attribute import requires, optional, defines, \
 from ally.design.processor.context import Context
 from ally.support.util_io import IInputStream
 from collections import Iterable
+from ally.design.processor.execution import Processing
 
 # --------------------------------------------------------------------
 

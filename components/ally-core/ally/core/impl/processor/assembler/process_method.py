@@ -11,7 +11,7 @@ Provides the processing on callers based on methods.
 
 from ally.api.config import GET, INSERT, UPDATE, DELETE
 from ally.api.operator.type import TypeProperty, TypeModel
-from ally.api.type import Iter, Type
+from ally.api.type import Iter, Type, Input
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Abort
@@ -47,6 +47,10 @@ class Invoker(Context):
     isModel = defines(bool, doc='''
     @rtype: boolean
     If True it means that the invoker provides a full model, attention the model can be in a collection.
+    ''')
+    modelInput = defines(Input, doc='''
+    @rtype: Input
+    The input that is expected to receive a model object, this is only available for INSERT or UPDATE methods.
     ''')
     # ---------------------------------------------------------------- Required
     method = requires(int)
@@ -130,11 +134,12 @@ class ProcessMethodHandler(HandlerProcessor):
             log.error('Cannot use because the output %s is not for a model, at:%s', invoker.output, invoker.location)
             return False
         
-        models = [inp.type for inp in invoker.inputs if isinstance(inp.type, TypeModel)]
-        if len(models) > 1:
+        inputs = [inp for inp in invoker.inputs if isinstance(inp.type, TypeModel)]
+        if len(inputs) > 1:
             log.error('Cannot use because there are to many models %s to insert, at:%s',
-                     ', '.join(str(model) for model in models), invoker.location)
+                     ', '.join(str(inp.type) for inp in inputs), invoker.location)
             return False
+        if inputs: invoker.modelInput = inputs[0]
             
         invoker.target = output
         return True
@@ -145,12 +150,14 @@ class ProcessMethodHandler(HandlerProcessor):
         '''
         assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
 
-        models = [inp.type for inp in invoker.inputs if isinstance(inp.type, TypeModel)]
-        if len(models) > 1:
+        inputs = [inp for inp in invoker.inputs if isinstance(inp.type, TypeModel)]
+        if len(inputs) > 1:
             log.error('Cannot use because there are to many models %s to update, at:%s',
-                     ', '.join(str(model) for model in models), invoker.location)
+                     ', '.join(str(inp.type) for inp in inputs), invoker.location)
             return False
-        elif models: invoker.target = models[0]
+        if inputs:
+            invoker.modelInput = inputs[0]
+            invoker.target = invoker.modelInput.type
         return True
     
     def processDELETE(self, invoker):

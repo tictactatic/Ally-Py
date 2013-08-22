@@ -15,7 +15,6 @@ from .filter import FilterMapped
 from .metadata_acl import Base
 from ally.support.sqlalchemy.mapper import validate
 from sqlalchemy.dialects.mysql.base import INTEGER
-from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.schema import Column, ForeignKey, UniqueConstraint
 from sqlalchemy.types import String
 
@@ -43,6 +42,19 @@ class FilterToEntry(Base):
     filterId = Column('fk_filter_id', ForeignKey(FilterMapped.id, ondelete='CASCADE'), primary_key=True)
     position = Column('position', INTEGER(unsigned=True), autoincrement=False, primary_key=True)
     
+class FilterToProperty(Base):
+    '''
+    Provides the Filter to Property mapping.
+    '''
+    __tablename__ = 'acl_filter_access_property'
+    __table_args__ = dict(mysql_engine='InnoDB')
+    
+    accessGroupId = Column('fk_access_group_id', ForeignKey(AccessToGroup.id, ondelete='CASCADE'), primary_key=True)
+    filterId = Column('fk_filter_id', ForeignKey(FilterMapped.id, ondelete='CASCADE'), primary_key=True)
+    name = Column('name', String(255), primary_key=True)
+
+# --------------------------------------------------------------------
+
 @validate
 class GroupMapped(Base, Group):
     '''
@@ -53,7 +65,5 @@ class GroupMapped(Base, Group):
     
     Name = Column('name', String(255), nullable=False, unique=True)
     Description = Column('description', String(255))
-    Target = association_proxy('target', 'name')
-    Paths = association_proxy('paths', 'path.path')
     # Non REST model attribute --------------------------------------
     id = Column('id', INTEGER(unsigned=True), primary_key=True)

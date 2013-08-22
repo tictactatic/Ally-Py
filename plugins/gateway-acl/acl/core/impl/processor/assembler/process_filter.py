@@ -9,7 +9,6 @@ Created on Aug 7, 2013
 Provides the filter calls processing.
 '''
 
-from acl.api.filter import Allowed
 from ally.api.config import GET
 from ally.api.operator.type import TypeModel, TypeProperty
 from ally.api.type import Call, Type, typeFor
@@ -19,6 +18,7 @@ from ally.design.processor.attribute import requires, defines, definesIf
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Abort
 from ally.design.processor.handler import HandlerProcessor, Handler
+from gateway.api.gateway import Allowed
 import logging
 
 # --------------------------------------------------------------------

@@ -11,11 +11,12 @@ API specifications for service access.
 
 from .domain_acl import modelACL
 from ally.api.config import service, call, query
-from ally.api.criteria import AsEqualOrdered
+from ally.api.criteria import AsEqualOrdered, AsLikeOrdered
+from ally.api.type import Iter, Dict, List
 from ally.support.api.entity_ided import Entity, IEntityGetService, QEntity, \
     IEntityQueryService
 from binascii import crc32
-from ally.api.type import List, Iter
+import hashlib
 
 # --------------------------------------------------------------------
 
@@ -25,37 +26,69 @@ class Access(Entity):
         Path -       contains the path that the access maps to. The path contains beside the fixed string
                      names also markers '*' for where dynamic path elements are expected.
         Method -     the method name that this access maps to.
-        ShadowOf -   the access that this access is actually shadowing, this means that the access path is just a reroute
-                     for the shadowed access.
+        Shadowing -  the access that this access is actually shadowing, this means that the access path is just a reroute
+                     for the shadowing access.
+        Shadowed -   the access that this access is shadowed, this means that this access is overridden by the shadow in
+                     required cases.
+        Priority -   the ACL priority when constructing gateways on it.
         Hash -       the hash that represents the full aspect of the access.
     '''
     Path = str
     Method = str
+    Priority = int
     Hash = str
-    
-Access.ShadowOf = Access
+
+Access.Shadowing = Access
+Access.Shadowed = Access
 Access = modelACL(Access)
 
 @modelACL(name=Access)
 class Construct(Access):
     '''
     Contains data required for constructing an ACL access.
-        Types -      the types list needs to have exactly as many entries as there are '*' in the access 'Path', and the
-                     entries will indicate the type name expected for the corresponding '*' index in the access 'Path'.
+        Types -          the types dictionary needs to have entries as there are '*' in the access 'Path' except if access
+                         is a shadow in that case the types from the shadowed type will be used, the dictionary
+                         key is the position of the '*' starting from 1 for the first '*', and as a value the type name.
+        TypesShadowing - the dictionary containing as a key the position of the '*' in the 'Path' and as a value the 
+                         the position in the shadowing access type.
+        TypesShadowed -  the dictionary containing as a key the position of the '*' in the 'Path' and as a value the 
+                         the position in the shadowed access type.
+        Properties -     the properties dictionary associated with the access, as a key the property name and as a value
+                         the property type name.
+        Excludable -     the names that can be excluded from this access response.
+                         
     '''
-    Types = List(str)
+    Types = Dict(int, str)
+    TypesShadowing = Dict(int, int)
+    TypesShadowed = Dict(int, int)
+    Properties = Dict(str, str)
+    Excludable = List(str)
 
 @modelACL(id='Position')
 class Entry:
     '''
     The path entry that corresponds to a '*' dynamic path input.
-    
-    Position -       the position of the entry in the access path.
-    Type -           the type name associated with the path entry.
+        Position -           the position of the entry in the access path.
+        Type -               the type name associated with the path entry.
+        Shadowing -          the position that this entry is shadowing.
+        Shadowed -           the position of the shadowed entry, also it means that the values belonging to it 
+                             will not be actually used by the access path request.
     '''
     Position = int
+    Shadowing = int
+    Shadowed = int
     Type = str
-   
+
+@modelACL(id='Name')
+class Property:
+    '''
+    The input model property associated with an access.
+        Name -            the property name.
+        Type -            the type associated with the input model property.
+    '''
+    Name = str
+    Type = str
+
 # --------------------------------------------------------------------
 
 @query(Access)
@@ -63,7 +96,7 @@ class QAccess(QEntity):
     '''
     Provides the query for access.
     '''
-    path = AsEqualOrdered
+    path = AsLikeOrdered
     method = AsEqualOrdered
     
 # --------------------------------------------------------------------
@@ -84,6 +117,18 @@ class IAccessService(IEntityGetService, IEntityQueryService):
     def getEntries(self, accessId:Access) -> Iter(Entry.Position):
         '''
         Provides the path dynamic entries for access.
+        '''
+        
+    @call
+    def getProperty(self, accessId:Access, name:Property) -> Property:
+        '''
+        Provides the input property with the provided name and access.
+        '''
+        
+    @call
+    def getProperties(self, accessId:Access) -> Iter(Property.Name):
+        '''
+        Provides the input properties for access.
         '''
     
     @call
@@ -110,12 +155,12 @@ class IAccessService(IEntityGetService, IEntityQueryService):
     
     # TODO: Gabriel: remove
     @call(filter='Filter1')
-    def isDummy1Filter(self, accessId:Access) -> bool:
+    def isDummy1Filter(self, id:Access) -> bool:
         '''
         '''
     
     @call(webName='Second', filter='Filter2')
-    def isDummy2Filter(self, accessId:Access) -> bool:
+    def isDummy2Filter(self, id:Access) -> bool:
         '''
         '''
         
@@ -147,8 +192,23 @@ def generateHash(access):
     '''
     assert isinstance(access, Construct), 'Invalid access %s' % access
     
-    hashAcc = generateId(access.Path, access.Method) + (access.ShadowOf or 0)
+    hashAcc = hashlib.md5()
+    hashAcc.update(str(generateId(access.Path, access.Method)).encode())
+    if access.Shadowing: hashAcc.update(str(access.Shadowing).encode())
+    if access.Shadowed: hashAcc.update(str(access.Shadowed).encode())
     if access.Types:
-        for name in sorted(access.Types): hashAcc = crc32(name.encode(), hashAcc)
+        for position in sorted(access.Types):
+            hashAcc.update(('%s:%s' % (position, access.Types[position])).encode())
+    if access.TypesShadowing:
+        for position in sorted(access.TypesShadowing):
+            hashAcc.update(('%s:%s' % (position, access.TypesShadowing[position])).encode())
+    if access.TypesShadowed:
+        for position in sorted(access.TypesShadowed):
+            hashAcc.update(('%s:%s' % (position, access.TypesShadowed[position])).encode())
+    if access.Properties:
+        for name in sorted(access.Properties):
+            hashAcc.update(('%s:%s' % (name, access.Properties[name])).encode())
+    if access.Excludable:
+        for name in sorted(access.Excludable): hashAcc.update(name.encode())
     
-    return ('%x' % hashAcc).upper()
+    return hashAcc.hexdigest().upper()

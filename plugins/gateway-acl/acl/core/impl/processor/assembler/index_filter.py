@@ -108,7 +108,7 @@ class IndexFilterHandler(HandlerProcessor):
             else:
                 filtre, ptarget, invokers = filters[invoker.filterName]
                 if target != ptarget:
-                    log.error('Cannot use filter invoker at:%s, because target is incompatible with filters at:%s',
+                    log.error('Cannot use filter invoker at:%s\n, because target is incompatible with filters at:%s',
                               invoker.location, ''.join(invk.location for invk in invokers))
                     aborted.append(invoker)
                     continue

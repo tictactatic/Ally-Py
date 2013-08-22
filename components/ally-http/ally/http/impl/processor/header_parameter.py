@@ -10,14 +10,10 @@ Pushes parameters as header values.
 '''
 
 from ally.container.ioc import injected
-from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires
-from ally.design.processor.branch import Branch
-from ally.design.processor.execution import Processing
-from ally.design.processor.handler import HandlerProcessor, \
-    HandlerBranching
+from ally.design.processor.handler import HandlerProcessor
 from ally.http.spec.headers import PARAMETERS_AS_HEADERS, encode, HeadersRequire
-from ally.support.http.util_dispatch import obtainOPTIONS
+from ally.support.http.request import RequesterOptions
 import logging
 
 # --------------------------------------------------------------------
@@ -71,28 +67,28 @@ class RequestOptions(Request):
 # --------------------------------------------------------------------
 
 @injected
-class HeaderParameterOptionsHandler(HandlerBranching):
+class HeaderParameterOptionsHandler(HandlerProcessor):
     '''
     Implementation for a handler that pushes parameters as header values based on the OPTIONS specifications, the
     request URI is used for getting the options.
     '''
     
-    assembly = Assembly
-    # The assembly to be used in processing the request for the OPTIONS.
+    requesterOptions = RequesterOptions
+    # The request options used for getting the header options.
     
     def __init__(self):
-        assert isinstance(self.assembly, Assembly), 'Invalid assembly %s' % self.assembly
-        super().__init__(Branch(self.assembly).using('request', 'requestCnt', 'response', 'responseCnt'))
+        assert isinstance(self.requesterOptions, RequesterOptions), \
+        'Invalid requester options %s' % self.requesterOptions
+        super().__init__()
         
-    def process(self, chain, processing, request:RequestOptions, **keyargs):
+    def process(self, chain, request:RequestOptions, **keyargs):
         '''
-        @see: HandlerBranching.process
+        @see: HandlerProcessor.process
         '''
-        assert isinstance(processing, Processing), 'Invalid processing %s' % processing
         assert isinstance(request, RequestOptions), 'Invalid request %s' % request
         if not request.parameters: return  # No parameters available.
         
-        options = obtainOPTIONS(processing, request.uri)
+        options = self.requesterOptions.request(request.uri)
         if options:
             assert log.debug('No OPTIONS available at: %s', request.uri) or True
             parametersHeaders = PARAMETERS_AS_HEADERS.decode(options)

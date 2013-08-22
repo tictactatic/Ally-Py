@@ -10,13 +10,13 @@ Provides the asyncore handling of content.
 '''
 
 from ally.container.ioc import injected
-from ally.design.processor.attribute import defines, requires
+from ally.design.processor.attribute import defines, requires, definesIf
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain
 from ally.design.processor.handler import HandlerProcessor
 from ally.support.util_io import IInputStream, IOutputStream
+from ally.support.util_spec import IDo
 from ally.zip.util_zip import normOSPath
-from collections import Callable
 from genericpath import isdir
 from io import BytesIO
 import os
@@ -35,12 +35,15 @@ class RequestContent(Context):
     '''
     The request content context.
     '''
+    # ---------------------------------------------------------------- Defined
+    source = defines(IInputStream)
+    doContentReader = definesIf(IDo, doc='''
+    @rtype: callable(bytes) -> bytes|None
+    The content reader callable used for pushing data from the asyncore read, returns True in order to get more data.
+    Once the reader is finalized it will return either None or remaining bytes.
+    ''')
     # ---------------------------------------------------------------- Required
     length = requires(int)
-    # ---------------------------------------------------------------- Defined
-    contentReader = defines(Callable)
-    contentRequired = defines(bool)
-    source = defines(IInputStream)
 
 class Response(Context):
     '''
@@ -85,31 +88,27 @@ class AsyncoreContentHandler(HandlerProcessor):
         assert isinstance(response, Response), 'Invalid response %s' % response
         
         if response.isSuccess is False: return  # Skip in case the response is in error
+        if not requestCnt.length or RequestContent.doContentReader not in requestCnt: return
         
-        if not requestCnt.length:
-            requestCnt.contentRequired = False  # No length or content.
-        elif requestCnt.length > self.dumpRequestsSize:
+        if requestCnt.length > self.dumpRequestsSize:
             tm_year, tm_mon, tm_mday, tm_hour, tm_min, tm_sec, *_rest = time.localtime()
             path = 'request_%s_%s-%s-%s_%s-%s-%s' % (self._count, tm_year, tm_mon, tm_mday, tm_hour, tm_min, tm_sec)
             self._count += 1
-            requestCnt.contentReader = readerInFile(chain, requestCnt, path)
-            requestCnt.contentRequired = True
-        else:
-            requestCnt.contentReader = readerInMemory(requestCnt)
-            requestCnt.contentRequired = True
+            requestCnt.doContentReader = createReaderInFile(chain, requestCnt, path)
+        else: requestCnt.doContentReader = createReaderInMemory(requestCnt)
 
 # --------------------------------------------------------------------
 
-def reader(stream, callBack, length):
+def createReader(stream, callBack, length):
     '''
-    Provides the reader in stream with finalizing call back.
+    Create the reader in stream with finalizing call back.
     '''
     assert isinstance(stream, IOutputStream), 'Invalid stream %s' % stream
     assert callable(callBack), 'Invalid call back %s' % callBack
     assert length is None or isinstance(length, int), 'Invalid length %s' % length
     
     size = 0
-    def read(data):
+    def doRead(data):
         nonlocal size, stream
         assert stream is not None, 'Reader is finalized'
         assert isinstance(stream, IOutputStream)
@@ -136,11 +135,11 @@ def reader(stream, callBack, length):
             stream = None
         return ret
     
-    return read
+    return doRead
 
-def readerInMemory(requestCnt):
+def createReaderInMemory(requestCnt):
     '''
-    Provides the reader in memory.
+    Create the reader in memory.
     '''
     assert isinstance(requestCnt, RequestContent), 'Invalid request content %s' % requestCnt
     stream = BytesIO()
@@ -148,12 +147,12 @@ def readerInMemory(requestCnt):
         assert isinstance(requestCnt, RequestContent)
         stream.seek(0)
         requestCnt.source = stream
-        requestCnt.contentReader = None
-    return reader(stream, callBack, requestCnt.length)
+        requestCnt.doContentReader = None
+    return createReader(stream, callBack, requestCnt.length)
 
-def readerInFile(chain, requestCnt, path):
+def createReaderInFile(chain, requestCnt, path):
     '''
-    Provides the reader in file.
+    Create the reader in file.
     '''
     assert isinstance(chain, Chain), 'Invalid chain %s' % chain
     assert isinstance(requestCnt, RequestContent), 'Invalid request content %s' % requestCnt
@@ -171,5 +170,5 @@ def readerInFile(chain, requestCnt, path):
         nonlocal stream
         stream.close()
         stream = requestCnt.source = open(path, mode='rb')
-        requestCnt.contentReader = None
-    return reader(stream, callBack, requestCnt.length)
+        requestCnt.doContentReader = None
+    return createReader(stream, callBack, requestCnt.length)

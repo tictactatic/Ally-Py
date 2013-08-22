@@ -10,7 +10,7 @@ Contains the SQL alchemy meta for ACL access.
 '''
 
 from . import acl_intern
-from ..api.access import Access, Entry
+from ..api.access import Access, Entry, Property
 from .metadata_acl import Base
 from ally.support.sqlalchemy.mapper import validate
 from sqlalchemy.dialects.mysql.base import INTEGER
@@ -32,7 +32,9 @@ class AccessMapped(Base, Access):
     Id = Column('id', INTEGER(unsigned=True), autoincrement=False, primary_key=True)
     Path = association_proxy('path', 'path')
     Method = association_proxy('method', 'name')
-    ShadowOf = Column('fk_shadow_of_id', ForeignKey('acl_access.id', ondelete='CASCADE'))
+    Priority = association_proxy('path', 'priority')
+    Shadowing = Column('fk_shadowing_id', ForeignKey('acl_access.id', ondelete='CASCADE'))
+    Shadowed = Column('fk_shadowed_id', ForeignKey('acl_access.id', ondelete='CASCADE'))
     Hash = Column('hash', String(30), nullable=False, unique=True)
     # Non REST model attribute --------------------------------------
     pathId = Column('fk_path_id', ForeignKey(acl_intern.Path.id, ondelete='RESTRICT'), nullable=False)
@@ -50,6 +52,24 @@ class EntryMapped(Base, Entry):
     __table_args__ = dict(mysql_engine='InnoDB')
     
     Position = Column('position', INTEGER(unsigned=True), autoincrement=False, primary_key=True)
+    Shadowing = Column('shadowing_position', INTEGER(unsigned=True))
+    Shadowed = Column('shadowed_position', INTEGER(unsigned=True))
+    Type = association_proxy('type', 'name')
+    # Non REST model attribute --------------------------------------
+    accessId = Column('fk_access_id', ForeignKey(AccessMapped.Id, ondelete='CASCADE'), nullable=False, primary_key=True)
+    typeId = Column('fk_type_id', ForeignKey(acl_intern.Type.id, ondelete='RESTRICT'), nullable=False)
+    # Relationships -------------------------------------------------
+    type = relationship(acl_intern.Type, lazy='joined', uselist=False)
+    
+@validate
+class PropertyMapped(Base, Property):
+    '''
+    Provides the ACL access property mapping.
+    '''
+    __tablename__ = 'acl_access_property'
+    __table_args__ = dict(mysql_engine='InnoDB')
+    
+    Name = Column('name', String(255), primary_key=True)
     Type = association_proxy('type', 'name')
     # Non REST model attribute --------------------------------------
     accessId = Column('fk_access_id', ForeignKey(AccessMapped.Id, ondelete='CASCADE'), nullable=False, primary_key=True)

@@ -26,4 +26,3 @@ def uniqueNameFor(prop):
     assert isinstance(prop.parent, TypeModel), 'Invalid property parent %s' % prop.parent
     
     return '%s.%s.%s' % (prop.parent.clazz.__module__, prop.parent.clazz.__name__, prop.name)
-

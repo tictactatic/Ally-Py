@@ -28,7 +28,7 @@ class FilterToPath(Base):
     __tablename__ = 'acl_filter_path'
     __table_args__ = dict(mysql_engine='InnoDB')
     
-    filterId = Column('fk_filter_id', ForeignKey('acl_filter.id', ondelete='CASCADE'), primary_key=True)
+    filterId = Column('fk_filter_id', ForeignKey('acl_filter.id', ondelete='CASCADE'))
     pathId = Column('fk_path_id', ForeignKey(acl_intern.Path.id, ondelete='RESTRICT'), primary_key=True)
     # Relationships -------------------------------------------------
     path = relationship(acl_intern.Path, lazy='joined', cascade='all')

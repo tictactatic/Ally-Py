@@ -17,13 +17,6 @@ from ally.support.api.entity_named import Entity, IEntityGetService, QEntity, \
     IEntityQueryService
 
 # --------------------------------------------------------------------
-
-@modelACL
-class Allowed:
-    '''
-    Defines the allowed model that is returned by filters.
-    '''
-    IsAllowed = bool
     
 @modelACL
 class Filter(Entity):

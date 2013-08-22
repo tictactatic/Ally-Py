@@ -23,9 +23,9 @@ from pytz.exceptions import UnknownTimeZoneError
 
 # --------------------------------------------------------------------
 
-TIME_ZONE = HeaderRaw('X-TimeZone')
+TIME_ZONE = HeaderRaw('TimeZone')
 # The custom time zone header.
-CONTENT_TIME_ZONE = HeaderRaw('X-Content-TimeZone')
+CONTENT_TIME_ZONE = HeaderRaw('Content-TimeZone')
 # The custom content time zone header.
         
 # --------------------------------------------------------------------
