@@ -1,0 +1,66 @@
+Examples
+========
+
+The "example" plugin contains the basic setting for domain and database connection.
+The "example-user" puts in a rather simple way for handling user information.
+
+To run this example, it is necessary to go through the next steps:
+
+1) Environment preparation
+
+Some auxiliary libraries are necessary. They are stored in the main repository part,
+in the "../distribution/libraries directory".
+
+Copy them into the distribution/libraries subdirectory of this (examples)
+directory.
+
+Other steps are relative to this (examples) directory.
+
+2) Building the sources
+
+On the command line, run the:
+
+./build-eggs
+
+If you have not removed the (above mentioned) packages, their compiled egg files
+shall be removed from distribution/components and components/plugins directories.
+
+3) Configuration creation
+
+On the command line, run the:
+
+python3 ./distribution/application.py -dump
+
+The configuration *.properties files are created in the "distribution" subdirectory.
+You can look into those files and tweak them.
+
+4) Plugin avoiding
+
+Some Ally-Py packages prevent proper work unless the application-specific security
+packages are developed. Thus Ally-Py security-related packages shall not be loaded
+when these simple examples should be run.
+
+To deactivate those packages, set in ./distribution/application.properties
+the option 'excluded_plugins', see below.
+
+excluded_plugins:
+- components/service-gateway
+- components/service-gateway-recaptcha
+- plugins/security-rbac
+
+5) Running the system
+
+On the command line, run the:
+
+python3 ./distribution/application.py
+
+When running the first time, it shall take some time for the initial database
+preparation. The "example" database is (sqlite3 by default) located at
+distribution/workspace/shared/example.db
+
+The REST interface is available at
+
+http://localhost:8080/resources/
+
+
+
