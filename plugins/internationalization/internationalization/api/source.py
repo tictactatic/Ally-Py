@@ -22,8 +22,10 @@ from ally.support.api.entity import Entity, QEntity, IEntityService
 TYPE_PYTHON = N_('python')
 # The java script type for the source
 TYPE_JAVA_SCRIPT = N_('javascript')
+# The html type for the source
+TYPE_HTML = N_('html')
 
-TYPES = (TYPE_PYTHON, TYPE_JAVA_SCRIPT)
+TYPES = (TYPE_PYTHON, TYPE_JAVA_SCRIPT, TYPE_HTML)
 # The available source types.
 
 # --------------------------------------------------------------------
