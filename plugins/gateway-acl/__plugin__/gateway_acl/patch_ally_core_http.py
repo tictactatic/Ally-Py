@@ -10,9 +10,9 @@ Provides the ally core http setup patch.
 '''
 
 from ..sql_alchemy.processor import transaction
-from .service import assemblyAnonymousGateways
-from __plugin__.gateway_acl.service import updateAssemblyAnonymousGatewaysForAcl, \
-    anonymousGroupSpecifier
+from .service import assemblyAnonymousGateways, \
+    updateAssemblyAnonymousGatewaysForAcl, registerAclPermission, \
+    updateAssemblyGroupGateways, assemblyGroupGateways
 from acl.core.impl.processor.gateway.root_uri import RootURIHandler
 from ally.container import support, app, ioc
 from ally.design.processor.handler import Handler
@@ -29,7 +29,6 @@ try:
 except ImportError: log.info('No ally core http component available, thus no need to register ACL to it')
 else:
     from __setup__.ally_core.resources import assemblyAssembler, updateAssemblyAssembler, processMethod
-    from __setup__.ally_core_http.resources import conflictResolve
     from __setup__.ally_core_http.server import root_uri_resources
 
     # The assembler processors
@@ -48,7 +47,11 @@ else:
     
     @ioc.after(updateAssemblyAnonymousGatewaysForAcl)
     def updateAssemblyAnonymousGatewaysForHTTPRoot():
-        assemblyAnonymousGateways().add(rootURI(), before=anonymousGroupSpecifier())
+        assemblyAnonymousGateways().add(rootURI(), before=registerAclPermission())
+        
+    @ioc.after(updateAssemblyGroupGateways)
+    def updateAssemblyGroupGatewaysForHTTPRoot():
+        assemblyGroupGateways().add(rootURI(), before=registerAclPermission())
     
     @ioc.after(updateAssemblyAssembler)
     def updateAssemblyAssemblerForFilter():
@@ -56,6 +59,5 @@ else:
     
     @app.setup(app.DEVEL)
     def updateAssemblyAssemblerForAccess():
-        assemblyAssembler().add(indexAccess())
-        assemblyAssembler().add(transaction(), indexFilter(), after=conflictResolve())
+        assemblyAssembler().add(transaction(), indexFilter(), indexAccess())
 

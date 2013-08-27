@@ -126,7 +126,7 @@ def extractCriterias(clazz):
 
     return definitions
 
-def extractInputOuput(function, types=None, modelToId=False):
+def extractInputOuput(function, types=None, modelToId=False, prototype=None):
     '''
     Extracts the input and output for a call based on the provided function.
     
@@ -139,6 +139,9 @@ def extractInputOuput(function, types=None, modelToId=False):
         Flag indicating that the extract should convert all inputs that are model types to their actually
         corresponding property type, used in order not to constantly provide the id property of the model when in fact
         we can deduce that the API annotation actually refers to the id and not the model.
+    @param prototype: object
+        The prototype object used in calling the annotation callables, only if this prototype is provided the callables
+        will be invoked.
     @return: tuple(list[Input], Type)
         A tuple containing on the first position the list of inputs for the call, and second the output type of the call.
     '''
@@ -163,12 +166,12 @@ def extractInputOuput(function, types=None, modelToId=False):
 
     mandatory = len(args)
     if defaults: mandatory -= len(defaults)
-    typ = annotations.get('return')
-    output, inputs = typeFor(Non if typ is None else typ), []
+    output, inputs = extractType(Non if 'return' not in annotations else annotations['return'], prototype), []
     for k, arg in enumerate(args):
         if arg not in annotations: raise Exception('There is no type for \'%s\'' % arg)
-        typ = typeFor(annotations[arg])
-        assert isinstance(typ, Type), 'Could not obtain a valid type for \'%s\' with %s' % (arg, annotations[arg])
+        typ = extractType(annotations[arg], prototype)
+        assert isinstance(typ, Type), 'Could not obtain a valid type \'%s\' for \'%s\' with %s, at:%s' \
+                                      % (typ, arg, annotations[arg], locationStack(function))
         if modelToId and isinstance(typ, TypeModel):
             assert isinstance(typ, TypeModel)
             assert typ.propertyId, 'The model %s has not id to use' % typ
@@ -178,7 +181,7 @@ def extractInputOuput(function, types=None, modelToId=False):
     
     if keywords:
         if keywords not in annotations: raise Exception('There is option type for keywords \'%s\'' % keywords)
-        option = typeFor(annotations[keywords])
+        option = extractType(annotations[keywords], prototype)
         assert isinstance(option, TypeOption), 'Invalid option \'%s\' with %s' % (keywords, annotations[keywords])
         obj = option.clazz()
         for name, prop in option.properties.items():
@@ -188,6 +191,24 @@ def extractInputOuput(function, types=None, modelToId=False):
             inputs.append(Input(name, prop, True, getattr(obj, name)))
 
     return inputs, output
+
+def extractType(annotation, prototype):
+    '''
+    Extracts the annotation type.
+    
+    @param annotation: object
+        The annotation object to extract the type for.
+    @param prototype: object
+        The prototype object used in calling the annotation callables, only if this prototype is provided the callables
+        will be invoked.
+    @return: Type|None
+        The annotation type or None if not found.
+    '''
+    if annotation is not None:
+        typ = typeFor(annotation)
+        if typ is None and prototype is not None and callable(annotation):
+            return typeFor(annotation(prototype))
+        return typ
 
 # --------------------------------------------------------------------
 
@@ -268,3 +289,22 @@ def processGenericType(forType, generic):
         assert isinstance(forType, Iter)
         itemType = processGenericType(forType.itemType, generic)
         if itemType: return forType.__class__(itemType)
+
+# --------------------------------------------------------------------
+
+class Prototype:
+    '''
+    The prototype object passed on to the prototype calls.
+    '''
+    
+    def __new__(cls, replaces, clazz):
+        assert isinstance(replaces, dict), 'Invalid replaces %s' % replaces
+        assert isclass(clazz), 'Invalid class %s' % clazz
+        self = object.__new__(cls)
+        self.__dict__.update(replaces)
+        self._clazz = clazz
+        return self
+    
+    def __getattr__(self, name):
+        if not name.startswith('_'):
+            raise Exception('A generic replace is required for \'%s\' at:%s' % (name, locationStack(self._clazz)))

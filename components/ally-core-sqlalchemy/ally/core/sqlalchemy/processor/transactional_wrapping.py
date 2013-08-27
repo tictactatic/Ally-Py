@@ -9,7 +9,7 @@ Created on Jan 5, 2012
 Provides automatic session handling for SQL alchemy.
 '''
 
-from ally.api.config import DELETE
+from ally.api.config import DELETE, GET
 from ally.api.error import InputError, IdError
 from ally.core.spec.codes import INPUT_ERROR, Coded
 from ally.design.processor.attribute import optional, defines, requires
@@ -88,7 +88,7 @@ class TransactionWrappingHandler(HandlerProcessor):
             exc = InputError(_('There is already an entity having this unique properties'))
         elif isinstance(error.exception, OperationalError):
             if request.invoker.method == DELETE: exc = InputError(_('Cannot delete because is used'))
-            else: exc = InputError(_('An entity relation identifier is not valid'))
+            elif request.invoker.method != GET: exc = InputError(_('An entity relation identifier is not valid'))
             
         if exc is not None:
             INPUT_ERROR.set(response)

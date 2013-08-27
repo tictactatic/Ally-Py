@@ -9,17 +9,17 @@ Created on Aug 19, 2013
 Implementation for the ACL filter.
 '''
 
-from ..api.filter import IFilterService, Filter, QFilter
-from ..meta.acl_intern import Path, Type
-from ..meta.filter import FilterMapped, FilterToPath
+from ..api.filter import FilterCreate, IFilterService, QFilter, generateHash
+from ..meta.acl_intern import Path
+from ..meta.filter import FilterMapped, FilterEntryMapped
+from acl.core.impl.acl_intern import pathId, typeId
 from ally.api.error import InputError
 from ally.container.ioc import injected
 from ally.container.support import setup
 from ally.internationalization import _
-from ally.support.sqlalchemy.util_service import deleteModel
+from ally.support.sqlalchemy.util_service import deleteModel, iterateCollection
 from sql_alchemy.impl.entity import EntityGetServiceAlchemy, \
     EntityQueryServiceAlchemy, EntitySupportAlchemy
-from sqlalchemy.orm.exc import NoResultFound
     
 # --------------------------------------------------------------------
 
@@ -31,29 +31,50 @@ class FilterServiceAlchemy(EntityGetServiceAlchemy, EntityQueryServiceAlchemy, I
     '''
     
     def __init__(self):
-        EntitySupportAlchemy.__init__(self, FilterMapped, QFilter, target=Type.name)
+        EntitySupportAlchemy.__init__(self, FilterMapped, QFilter, path=Path.path)
+        
+    def getEntry(self, filterName, position):
+        '''
+        @see: IFilterService.getEntry
+        '''
+        assert isinstance(filterName, str), 'Invalid filter name %s' % filterName
+        assert isinstance(position, int), 'Invalid position %s' % position
+        
+        sql = self.session().query(FilterEntryMapped).join(FilterMapped)
+        sql = sql.filter(FilterMapped.Name == filterName).filter(FilterEntryMapped.Position == position)
+        return sql.one()
+        
+    def getEntries(self, filterName):
+        '''
+        @see: IFilterService.getEntries
+        '''
+        assert isinstance(filterName, str), 'Invalid filter name %s' % filterName
+        
+        sql = self.session().query(FilterEntryMapped.Position).join(FilterMapped)
+        sql = sql.filter(FilterMapped.Name == filterName)
+        return iterateCollection(sql)
     
     def insert(self, filtre):
         '''
         @see: IFilterService.insert
         '''
-        assert isinstance(filtre, Filter), 'Invalid filter %s' % filtre
+        assert isinstance(filtre, FilterCreate), 'Invalid filter %s' % filtre
 
         dbFilter = FilterMapped()
+        items, dbFilter.pathId = pathId(filtre.Path)
         dbFilter.Name = filtre.Name
-        dbFilter.targetId = self.typeId(filtre.Target)
-        
-        if filtre.Paths:
-            for path in filtre.Paths:
-                assert isinstance(path, str), 'Invalid path %s' % path
-                if path.count('*') != 1: raise InputError(_('Expected only one *'))
-                
-                filterToPath = FilterToPath()
-                filterToPath.pathId = self.pathId(path)
-                dbFilter.paths.append(filterToPath)
-        
+        dbFilter.Target = filtre.Target
+        dbFilter.Hash = generateHash(filtre)
         self.session().add(dbFilter)
-        return dbFilter.Name
+        self.session().flush((dbFilter,))
+        
+        count = self.generateEntries(filtre, dbFilter.id, items)
+        
+        if filtre.Target is None: raise InputError(_('Expected a target entry position'), FilterCreate.Target)
+        if filtre.Target < 1 or filtre.Target >= count:
+            raise InputError(_('Invalid target entry position'), FilterCreate.Target)
+        
+        return filtre.Name
         
     def delete(self, name):
         '''
@@ -63,36 +84,30 @@ class FilterServiceAlchemy(EntityGetServiceAlchemy, EntityQueryServiceAlchemy, I
     
     # ----------------------------------------------------------------
     
-    def pathId(self, path):
+    def generateEntries(self, filtre, filterId, items):
         '''
-        Provides the path id for the provided path.
-        '''
-        assert isinstance(path, str), 'Invalid path %s' % path
+        Generates the filter entries.
         
-        path = path.strip().strip('/')
-        try: pathId, = self.session().query(Path.id).filter(Path.path == path).one()
-        except NoResultFound:
-            aclPath = Path()
-            aclPath.path = path
+        @return: integer
+            The total count of generated entries.
+        '''
+        assert isinstance(filtre, FilterCreate), 'Invalid filter %s' % filtre
+        
+        position = 1
+        for item in items:
+            if item != '*': continue
+            entry = FilterEntryMapped()
+            entry.Position = position
+            entry.filterId = filterId
+        
+            # Handling a normal access.
+            if not filtre.Types: raise InputError(_('Expected at least one type for first *'), FilterCreate.Types)
+            assert isinstance(filtre.Types, dict), 'Invalid filter types %s' % filtre.Types
+            if position not in filtre.Types:
+                raise InputError(_('Expected a type for * at %(position)i'), FilterCreate.Types, position=position)
             
-            self.session().add(aclPath)
-            self.session().flush((aclPath,))
-            pathId = aclPath.id
+            entry.typeId = typeId(filtre.Types[position])
+            self.session().add(entry)
+            position += 1
         
-        return pathId
-    
-    def typeId(self, name):
-        '''
-        Provides the type id for the provided type name.
-        '''
-        assert isinstance(name, str), 'Invalid type name %s' % name
-        
-        name = name.strip()
-        try: typeId, = self.session().query(Type.id).filter(Type.name == name).one()
-        except NoResultFound:
-            aclType = Type()
-            aclType.name = name
-            self.session().add(aclType)
-            self.session().flush((aclType,))
-            typeId = aclType.id
-        return typeId
+        return position

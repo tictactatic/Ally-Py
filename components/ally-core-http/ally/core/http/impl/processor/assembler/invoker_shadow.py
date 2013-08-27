@@ -46,7 +46,7 @@ class Invoker(Context):
     ''')
     shadowed = definesIf(Context, doc='''
     @rtype: Context
-    The invoker that tis shadowed.
+    The invoker that is shadowed.
     ''')
     # ---------------------------------------------------------------- Required
     id = requires(str)
@@ -126,7 +126,7 @@ class InvokerShadowHandler(HandlerProcessor):
                 shadow.id = invokerId
                 shadow.path = path
                 shadow.shadowing = invoker
-                shadow.shadowed = cinvoker
+                if Invoker.shadowed in shadow: shadow.shadowed = cinvoker
                 register.doCopyInvoker(shadow, invoker)
                 
                 ninvokers.append(shadow)

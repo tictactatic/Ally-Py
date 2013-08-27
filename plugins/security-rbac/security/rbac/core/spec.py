@@ -27,7 +27,7 @@ class IRbacService(metaclass=abc.ABCMeta):
         @param rbacId: integer
             The rbac id.
         @param sql: sql
-            The sql used for fetching the data if not provided it something like "session().query(RightModel)"
+            The sql used for fetching the data if not provided it will be something like "session().query(RightModel)"
         @return: sql[RightModel]
             The sql alchemy that fetches the rights.
         '''

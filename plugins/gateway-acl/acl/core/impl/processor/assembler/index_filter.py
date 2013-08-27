@@ -9,17 +9,16 @@ Created on Aug 12, 2013
 Indexes the filters invokers.
 '''
 
-from acl.api.filter import IFilterService, Filter
+from acl.api.filter import IFilterService, FilterCreate, Filter, generateHash
 from acl.core.spec import uniqueNameFor
 from ally.api.operator.type import TypeProperty
 from ally.container import wire
 from ally.container.ioc import injected
 from ally.container.support import setup
-from ally.design.processor.attribute import requires
+from ally.design.processor.attribute import requires, optional
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Abort
 from ally.design.processor.handler import HandlerProcessor, Handler
-from ally.support.api.util_service import equalContainer
 import logging
 
 # --------------------------------------------------------------------
@@ -39,6 +38,8 @@ class Invoker(Context):
     '''
     The invoker context.
     '''
+    # ---------------------------------------------------------------- Optional
+    filterInjected = optional(dict)
     # ---------------------------------------------------------------- Required
     path = requires(list)
     filterName = requires(str)
@@ -76,59 +77,74 @@ class IndexFilterHandler(HandlerProcessor):
         assert isinstance(register, Register), 'Invalid register %s' % register
         if not register.invokers: return
         
-        aborted, filters = [], {}
+        invokers = {}
         for invoker in register.invokers:
             assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
             if invoker.filterName is None: continue
             
-            target, items = None, []
+            finvokers = invokers.get(invoker.filterName)
+            if finvokers is None: finvokers = invokers[invoker.filterName] = []
+            finvokers.append(invoker)
+        
+        aborted, invokersFilters = [], []
+        for name, finvokers in invokers.items():
+            if len(finvokers) > 1:
+                log.error('Cannot use filters invokers because they have the same name \'%s\', at:%s',
+                          name, ''.join(invk.location for invk in invokers))
+                aborted.extend(finvokers)
+            invokersFilters.append(finvokers[0])
+        
+        filters = []
+        for invoker in invokersFilters:
+            filtre = FilterCreate()
+            filtre.Name = invoker.filterName
+            filters.append(filtre)
+            position, items = 1, []
             for el in invoker.path:
                 assert isinstance(el, Element), 'Invalid element %s' % el
                 if el.property:
-                    if target is None:
-                        target = el.property
-                        items.append('*')
+                    if filtre.Types is None: filtre.Types = {}
+                    if Invoker.filterInjected in invoker and invoker.filterInjected and el in invoker.filterInjected:
+                        filtre.Types[position] = invoker.filterInjected[el]
                     else:
-                        log.error('Cannot use filter invoker because there are to many targets available, at:%s',
-                                  invoker.location)
-                        aborted.append(invoker)
-                        break
+                        filtre.Types[position] = uniqueNameFor(el.property)
+                        
+                        if filtre.Target is not None:
+                            log.error('Cannot use filter invoker because there are to many possible targets, at:%s',
+                                      invoker.location)
+                            aborted.append(invoker)
+                            break
+                        filtre.Target = position
+                    items.append('*')
                 else:
                     assert isinstance(el.name, str), 'Invalid element name %s' % el.name
                     items.append(el.name)
             else:
-                if target is None:
-                    log.error('Cannot use filter invoker because there is not target available, at:%s', invoker.location)
+                filtre.Path = '/'.join(items)
+                if filtre.Target is None:
+                    log.error('Cannot use filter invoker because there is no target, at:%s', invoker.location)
                     aborted.append(invoker)
-                    continue
-                
-            if invoker.filterName not in filters:
-                filtre, target, invokers = filters[invoker.filterName] = Filter(), target, [invoker]
-                filtre.Paths = []
-            else:
-                filtre, ptarget, invokers = filters[invoker.filterName]
-                if target != ptarget:
-                    log.error('Cannot use filter invoker at:%s\n, because target is incompatible with filters at:%s',
-                              invoker.location, ''.join(invk.location for invk in invokers))
-                    aborted.append(invoker)
-                    continue
-                invokers.append(invoker)
-                
-            filtre.Paths.append('/'.join(items))
-        
+            
         if aborted: raise Abort(*aborted)
         
-        for name, (filtre, target, invokers) in filters.items():
-            filtre.Name = name
-            filtre.Target = uniqueNameFor(target)
-            filtre.Paths.sort()
+        self.mergeFilters(filters)
             
-            try: present = self.filterService.getById(name)
-            except: assert log.debug('There is no filter for \'%s\'', name) or True
+    # ----------------------------------------------------------------
+    
+    def mergeFilters(self, filters):
+        '''
+        Persist the filter.
+        '''
+        for filtre in filters:
+            assert isinstance(filtre, FilterCreate), 'Invalid filter %s' % filtre
+        
+            try: present = self.filterService.getById(filtre.Name)
+            except: assert log.debug('There is no filter for \'%s\'', filtre.Name) or True
             else:
-                if equalContainer(filtre, present): return
+                assert isinstance(present, Filter), 'Invalid filter %s' % present
+                if present.Hash == generateHash(filtre): continue
                 log.info('Removing filter %s since is not compatible with the current structure', present)
-                self.filterService.delete(name)
+                self.filterService.delete(filtre.Name)
             
             self.filterService.insert(filtre)
             assert log.debug('Added filter %s', filtre) or True

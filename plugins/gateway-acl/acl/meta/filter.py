@@ -9,29 +9,17 @@ Created on Aug 19, 2013
 Contains the SQL alchemy meta for ACL filter.
 '''
 
-from . import acl_intern
-from ..api.filter import Filter
+from ..api.filter import Filter, Entry
+from .acl_intern import Path, Type
 from .metadata_acl import Base
 from ally.support.sqlalchemy.mapper import validate
 from sqlalchemy.dialects.mysql.base import INTEGER
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import relationship
-from sqlalchemy.schema import Column, ForeignKey
+from sqlalchemy.schema import Column, ForeignKey, UniqueConstraint
 from sqlalchemy.types import String
 
 # --------------------------------------------------------------------
-
-class FilterToPath(Base):
-    '''
-    Provides the Filter to Path mapping.
-    '''
-    __tablename__ = 'acl_filter_path'
-    __table_args__ = dict(mysql_engine='InnoDB')
-    
-    filterId = Column('fk_filter_id', ForeignKey('acl_filter.id', ondelete='CASCADE'))
-    pathId = Column('fk_path_id', ForeignKey(acl_intern.Path.id, ondelete='RESTRICT'), primary_key=True)
-    # Relationships -------------------------------------------------
-    path = relationship(acl_intern.Path, lazy='joined', cascade='all')
 
 @validate
 class FilterMapped(Base, Filter):
@@ -42,11 +30,30 @@ class FilterMapped(Base, Filter):
     __table_args__ = dict(mysql_engine='InnoDB')
     
     Name = Column('name', String(255), nullable=False, unique=True)
-    Target = association_proxy('target', 'name')
-    Paths = association_proxy('paths', 'path.path')
+    Target = Column('target_position', INTEGER(unsigned=True), nullable=False)
+    Hash = Column('hash', String(50), nullable=False, unique=True)
     # Non REST model attribute --------------------------------------
     id = Column('id', INTEGER(unsigned=True), primary_key=True)
-    targetId = Column('fk_type_id', ForeignKey(acl_intern.Type.id, ondelete='RESTRICT'), nullable=False)
+    pathId = Column('fk_path_id', ForeignKey(Path.id, ondelete='RESTRICT'), nullable=False)
     # Relationships -------------------------------------------------
-    target = relationship(acl_intern.Type, lazy='joined', uselist=False)
-    paths = relationship(FilterToPath, lazy='joined', cascade='all')
+    path = relationship(Path, lazy='joined', uselist=False)
+    # REST model attribute with name conflicts ----------------------
+    Path = association_proxy('path', 'path')
+    
+@validate
+class FilterEntryMapped(Base, Entry):
+    '''
+    Provides the ACL filter entry mapping.
+    '''
+    __tablename__ = 'acl_filter_entry'
+    __table_args__ = (UniqueConstraint('fk_filter_id', 'position', name='uix_acl_filter_entry'), dict(mysql_engine='InnoDB'))
+    
+    Position = Column('position', INTEGER(unsigned=True), nullable=False)
+    # Non REST model attribute --------------------------------------
+    id = Column('id', INTEGER(unsigned=True), primary_key=True)
+    filterId = Column('fk_filter_id', ForeignKey(FilterMapped.id, ondelete='CASCADE'), nullable=False)
+    typeId = Column('fk_type_id', ForeignKey(Type.id, ondelete='RESTRICT'), nullable=False)
+    # Relationships -------------------------------------------------
+    type = relationship(Type, lazy='joined', uselist=False)
+    # REST model attribute with name conflicts ----------------------
+    Type = association_proxy('type', 'name')

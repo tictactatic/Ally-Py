@@ -11,50 +11,85 @@ API specifications for service filters.
 
 from .domain_acl import modelACL
 from ally.api.config import service, call, query
-from ally.api.criteria import AsEqualOrdered
-from ally.api.type import List
-from ally.support.api.entity_named import Entity, IEntityGetService, QEntity, \
-    IEntityQueryService
+from ally.api.criteria import AsLikeOrdered
+from ally.api.type import Dict, Iter
+from ally.support.api.entity import IEntityGetPrototype, IEntityQueryPrototype
+import hashlib
 
 # --------------------------------------------------------------------
-    
-@modelACL
-class Filter(Entity):
-    '''
-    The filter model.
-        Target -     the target type name that this filter is designed for.
-        Paths -      a list of paths that are used to check the filter, at least one path needs to provide an allowed
-                     answer in order to consider the filter passed. The path contains beside the fixed string
-                     names also a marker '*' for where the filtered value should be placed before using the service.
-                     The paths might also contain other value place holders.
-    '''
-    Target = str
-    Paths = List(str)
 
+@modelACL(id='Position')
+class Entry:
+    '''
+    The path entry that corresponds to a '*' dynamic path input.
+        Position -           the position of the entry in the filter path.
+        Type -               the type name associated with the path entry.
+    '''
+    Position = int
+    Type = str
+
+@modelACL(id='Name')
+class Filter:
+    '''
+    Contains data required for an ACL filter.
+        Name -       the filter unique name.
+        Path -       contains the path that the filter maps to. The path contains beside the fixed string
+                     names also markers '*' for where the filtered values or injected values will be placed.
+        Hash -       the hash that represents the full aspect of the filter.
+        Target -     the target entry position for the filter.
+    '''
+    Name = str
+    Path = str
+    Target = Entry
+    Hash = str
+
+@modelACL(name=Filter)
+class FilterCreate(Filter):
+    '''
+    Contains data required for creating an ACL filter.
+        Types -      the types dictionary needs to have entries as there are '*' in the filter 'Path', the dictionary
+                     key is the position of the '*' starting from 1 for the first '*', and as a value the type name.
+    '''
+    Types = Dict(int, str)
+    
 # --------------------------------------------------------------------
 
 @query(Filter)
-class QFilter(QEntity):
+class QFilter:
     '''
     Provides the query for filter.
     '''
-    target = AsEqualOrdered
+    path = AsLikeOrdered
 
 # --------------------------------------------------------------------
 
-@service((Entity, Filter), (QEntity, QFilter))
-class IFilterService(IEntityGetService, IEntityQueryService):
+@service(('Entity', Filter), ('QEntity', QFilter))
+class IFilterService(IEntityGetPrototype, IEntityQueryPrototype):
     '''
     The ACL access filter service provides the means of accessing the available filters.
     '''
     
     @call
-    def insert(self, filter:Filter) -> Filter.Name:
+    def getEntry(self, filterName:Filter, position:Entry) -> Entry:
+        '''
+        Provides the path dynamic entry for filter and position.
+        '''
+        
+    @call
+    def getEntries(self, filterName:Filter) -> Iter(Entry.Position):
+        '''
+        Provides the path dynamic entries for filter.
+        '''
+    
+    @call
+    def insert(self, filter:FilterCreate) -> Filter.Name:
         '''
         Insert the filter.
         
-        @param filter: Filter
+        @param filter: FilterCreate
             The filter to be inserted.
+        @return: string
+            The name of the filter.
         '''
     
     @call
@@ -67,3 +102,25 @@ class IFilterService(IEntityGetService, IEntityQueryService):
         @return: boolean
             True if the delete is successful, false otherwise.
         '''
+
+# --------------------------------------------------------------------
+
+def generateHash(filtre):
+    '''
+    Generates hash for the provided filter create.
+    
+    @param filtre: FilterCreate
+        The filter to generate the has for.
+    @return: string
+        The generated hash.
+    '''
+    assert isinstance(filtre, FilterCreate), 'Invalid filter %s' % filtre
+    
+    hashFil = hashlib.md5()
+    hashFil.update(filtre.Name.encode())
+    if filtre.Target: hashFil.update(str(filtre.Target).encode())
+    if filtre.Types:
+        for position in sorted(filtre.Types):
+            hashFil.update(('%s:%s' % (position, filtre.Types[position])).encode())
+    
+    return hashFil.hexdigest().upper()

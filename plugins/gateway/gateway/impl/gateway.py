@@ -34,10 +34,7 @@ class Reply(Context):
     The reply context.
     '''
     # ---------------------------------------------------------------- Required
-    gateways = requires(Iterable, doc='''
-    @rtype: Iterable(Gateway)
-    The gateways.
-    ''')
+    gateways = requires(Iterable)
     
 # --------------------------------------------------------------------
 

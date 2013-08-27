@@ -15,16 +15,16 @@ from ally.api.config import query, service, call
 from ally.api.criteria import AsLikeOrdered
 from ally.api.option import SliceAndTotal # @UnusedImport
 from ally.api.type import Iter
-from ally.support.api.entity_ided import Entity, QEntity, IEntityGetService, \
-    IEntityCRUDService
+from ally.support.api.entity import IEntityGetPrototype, IEntityCRUDPrototype
 
 # --------------------------------------------------------------------
 
-@modelSecurity
-class Right(Entity):
+@modelSecurity(id='Id')
+class Right:
     '''
     Provides the right data.
     '''
+    Id = int
     Type = RightType
     Name = str
     Description = str
@@ -32,7 +32,7 @@ class Right(Entity):
 # --------------------------------------------------------------------
 
 @query(Right)
-class QRight(QEntity):
+class QRight:
     '''
     Query for right service
     '''
@@ -40,14 +40,14 @@ class QRight(QEntity):
 
 # --------------------------------------------------------------------
 
-@service((Entity, Right))
-class IRightService(IEntityGetService, IEntityCRUDService):
+@service(('Entity', Right))
+class IRightService(IEntityGetPrototype, IEntityCRUDPrototype):
     '''
     Right model service API.
     '''
     
     @call
-    def getAll(self, typeId:RightType=None, q:QRight=None, **options:SliceAndTotal) -> Iter(Right.Id):
+    def getAll(self, typeName:RightType=None, q:QRight=None, **options:SliceAndTotal) -> Iter(Right.Id):
         '''
         Provides the rights searched by the provided query.
         '''

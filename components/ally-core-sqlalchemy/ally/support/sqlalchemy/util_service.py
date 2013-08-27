@@ -26,24 +26,26 @@ from sqlalchemy.sql.expression import ColumnElement
 
 # --------------------------------------------------------------------
 
-def buildLimits(sqlQuery, offset=None, limit=None):
+def buildLimits(sql, offset=None, limit=None):
     '''
     Builds limiting on the SQL alchemy query.
 
+    @param sql: SQL alchemy
+        The sql alchemy query to use for limits.
     @param offset: integer|None
         The offset to fetch elements from.
     @param limit: integer|None
         The limit of elements to get.
     '''
-    if offset is not None: sqlQuery = sqlQuery.offset(offset)
-    if limit is not None: sqlQuery = sqlQuery.limit(limit)
-    return sqlQuery
+    if offset is not None: sql = sql.offset(offset)
+    if limit is not None: sql = sql.limit(limit)
+    return sql
 
-def buildQuery(sqlQuery, query, Mapped, only=None, exclude=None, **mapping):
+def buildQuery(sql, query, Mapped, only=None, exclude=None, **mapping):
     '''
     Builds the query on the SQL alchemy query.
 
-    @param sqlQuery: SQL alchemy
+    @param sql: SQL alchemy
         The sql alchemy query to use.
     @param query: query
         The REST query object to provide filtering on.
@@ -102,26 +104,26 @@ def buildQuery(sqlQuery, query, Mapped, only=None, exclude=None, **mapping):
     ordered, unordered = [], []
     for criteria, column in columns.items():
         if column is None or getattr(query.__class__, criteria) not in query: continue
-        if criteria in mapping: sqlQuery = sqlQuery.join(tableFor(column))
+        if criteria in mapping: sql = sql.join(tableFor(column))
 
         crt = getattr(query, criteria)
         if isinstance(crt, AsBoolean):
             assert isinstance(crt, AsBoolean)
             if AsBoolean.value in crt:
-                sqlQuery = sqlQuery.filter(column == crt.value)
+                sql = sql.filter(column == crt.value)
         elif isinstance(crt, AsLike):
             assert isinstance(crt, AsLike)
-            if AsLike.like in crt: sqlQuery = sqlQuery.filter(column.like(crt.like))
-            elif AsLike.ilike in crt: sqlQuery = sqlQuery.filter(column.ilike(crt.ilike))
+            if AsLike.like in crt: sql = sql.filter(column.like(crt.like))
+            elif AsLike.ilike in crt: sql = sql.filter(column.ilike(crt.ilike))
         elif isinstance(crt, AsEqual):
             assert isinstance(crt, AsEqual)
             if AsEqual.equal in crt:
-                sqlQuery = sqlQuery.filter(column == crt.equal)
+                sql = sql.filter(column == crt.equal)
         elif isinstance(crt, (AsDate, AsTime, AsDateTime, AsRange)):
-            if crt.__class__.start in crt: sqlQuery = sqlQuery.filter(column >= crt.start)
-            elif crt.__class__.until in crt: sqlQuery = sqlQuery.filter(column < crt.until)
-            if crt.__class__.end in crt: sqlQuery = sqlQuery.filter(column <= crt.end)
-            elif crt.__class__.since in crt: sqlQuery = sqlQuery.filter(column > crt.since)
+            if crt.__class__.start in crt: sql = sql.filter(column >= crt.start)
+            elif crt.__class__.until in crt: sql = sql.filter(column < crt.until)
+            if crt.__class__.end in crt: sql = sql.filter(column <= crt.end)
+            elif crt.__class__.since in crt: sql = sql.filter(column > crt.since)
 
         if isinstance(crt, AsOrdered):
             assert isinstance(crt, AsOrdered)
@@ -133,16 +135,16 @@ def buildQuery(sqlQuery, query, Mapped, only=None, exclude=None, **mapping):
 
         ordered.sort(key=lambda pack: pack[2])
         for column, asc, _priority in chain(ordered, unordered):
-            if asc: sqlQuery = sqlQuery.order_by(column)
-            else: sqlQuery = sqlQuery.order_by(column.desc())
+            if asc: sql = sql.order_by(column)
+            else: sql = sql.order_by(column.desc())
 
-    return sqlQuery
+    return sql
 
-def iterateObjectCollection(sqlQuery, offset=None, limit=None, withTotal=False):
+def iterateObjectCollection(sql, offset=None, limit=None, withTotal=False):
     '''
     Iterates the collection of objects from the sql query based on the provided parameters.
     
-    @param sqlQuery: SQL alchemy
+    @param sql: SQL alchemy
         The sql alchemy query to iterate the collection from.
         
     ... the options
@@ -151,16 +153,16 @@ def iterateObjectCollection(sqlQuery, offset=None, limit=None, withTotal=False):
         The obtained collection of objects.
     '''
     if withTotal:
-        sqlLimit = buildLimits(sqlQuery, offset, limit)
-        if limit <= 0: return (), sqlQuery.count()
-        return IterSlice(sqlLimit.yield_per(10), sqlQuery.count(), offset, limit)
-    return sqlQuery.yield_per(10)
+        sqlLimit = buildLimits(sql, offset, limit)
+        if limit <= 0: return (), sql.count()
+        return IterSlice(sqlLimit.yield_per(10), sql.count(), offset, limit)
+    return sql.yield_per(10)
 
-def iterateCollection(sqlQuery, offset=None, limit=None, withTotal=False):
+def iterateCollection(sql, offset=None, limit=None, withTotal=False):
     '''
     Iterates the collection of value from the sql query based on the provided parameters.
     
-    @param sqlQuery: SQL alchemy
+    @param sql: SQL alchemy
         The sql alchemy query to iterate the collection from.
         
     ... the options
@@ -169,10 +171,10 @@ def iterateCollection(sqlQuery, offset=None, limit=None, withTotal=False):
         The obtained collection of values.
     '''
     if withTotal:
-        sqlLimit = buildLimits(sqlQuery, offset, limit)
-        if limit == 0: return (), sqlQuery.count()
-        return IterSlice((value for value, in sqlLimit.all()), sqlQuery.count(), offset, limit)
-    return (value for value, in sqlQuery.all())
+        sqlLimit = buildLimits(sql, offset, limit)
+        if limit == 0: return (), sql.count()
+        return IterSlice((value for value, in sqlLimit.all()), sql.count(), offset, limit)
+    return (value for value, in sql.all())
 
 # --------------------------------------------------------------------
 

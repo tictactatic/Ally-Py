@@ -10,9 +10,9 @@ API specifications for gateway.
 '''
 
 from ally.api.config import model, service, call
-from ally.api.option import SliceAndTotal  # @UnusedImport
+from ally.api.option import SliceAndTotal # @UnusedImport
 from ally.api.type import List, Iter, Dict
-from ally.support.api.entity_named import Entity, IEntityNQService
+from ally.support.api.entity import IEntityNQPrototype
 
 # --------------------------------------------------------------------
 
@@ -62,6 +62,7 @@ class Gateway(Identifier):
                     have place holders and also the '*' which stands for the actual called URI, also parameters are allowed
                     for navigate URI, the parameters will be appended to the actual parameters.
         PutHeaders -The headers to be put on the forwarded requests.
+        Exclude -   The list of index block names to be excluded from the response.
     '''
     # The navigation attributes
     Filters = List(str)
@@ -69,6 +70,8 @@ class Gateway(Identifier):
     Protocol = str
     Navigate = str
     PutHeaders = Dict(str, str)
+    # The response attributes
+    Exclude = List(str)
 
 @model
 class Allowed:
@@ -79,17 +82,18 @@ class Allowed:
 
 # --------------------------------------------------------------------
    
-@model(domain='Gateway')
-class Custom(Entity, Gateway):
+@model(domain='Gateway', id='Name')
+class Custom(Gateway):
     '''
     Provides the custom defined gateway.
         Name -      the unique name for the gateway.
     '''
+    Name = str
 
 # --------------------------------------------------------------------
 
-@service((Entity, Custom))
-class IGatewayService(IEntityNQService):
+@service(('Entity', Custom))
+class IGatewayService(IEntityNQPrototype):
     '''
     The gateway service that provides the anonymous gateways.
     '''

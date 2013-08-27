@@ -15,7 +15,7 @@ from ally.core.error import DevelError
 from collections import deque
 from inspect import isgenerator
 from sqlalchemy.exc import InvalidRequestError
-from sqlalchemy.orm.session import sessionmaker, Session
+from sqlalchemy.orm.session import Session
 from threading import current_thread
 import logging
 
@@ -60,7 +60,7 @@ def beginWith(sessionCreator):
     @param sessionCreator: class
         The session creator class.
     '''
-    assert isinstance(sessionCreator, sessionmaker), 'Invalid session creator %s' % sessionCreator
+    assert sessionCreator, 'A session creator is required'
     try: creators = current_thread()._ally_db_session_create
     except AttributeError: creators = current_thread()._ally_db_session_create = deque()
     assert isinstance(creators, deque)
@@ -212,7 +212,7 @@ class SessionBinder(IProxyHandler):
         @param sessionCreator: class
             The session creator class that will create the session.
         '''
-        assert isinstance(sessionCreator, sessionmaker), 'Invalid session creator %s' % sessionCreator
+        assert sessionCreator, 'A session creator is required'
         self.sessionCreator = sessionCreator
     
     def handle(self, execution):
@@ -227,7 +227,11 @@ class SessionBinder(IProxyHandler):
             endCurrent(rollback)
             raise
         else:
-            if hasSession():
+            if isgenerator(returned):
+                # If the returned value is a generator we need to wrap it in order to provide session support when the actual
+                # generator is used
+                return self.wrapGenerator(returned)
+            elif hasSession():
                 session = openSession()
                 try:
                     session.flush()
@@ -236,10 +240,6 @@ class SessionBinder(IProxyHandler):
                 except:
                     endCurrent(rollback)
                     raise
-            elif isgenerator(returned):
-                # If the returned value is a generator we need to wrap it in order to provide session support when the actual
-                # generator is used
-                return self.wrapGenerator(returned)
             return returned
 
     # ----------------------------------------------------------------

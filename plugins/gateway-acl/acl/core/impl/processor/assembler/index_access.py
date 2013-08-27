@@ -9,7 +9,7 @@ Created on Aug 8, 2013
 Indexes the access invokers.
 '''
 
-from acl.api.access import IAccessService, Access, Construct, generateId, \
+from acl.api.access import IAccessService, Access, AccessCreate, generateId, \
     generateHash
 from acl.core.spec import uniqueNameFor
 from ally.api.operator.type import TypeProperty, TypeModel, \
@@ -121,7 +121,7 @@ class IndexAccessHandler(HandlerProcessor):
         '''
         assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
         
-        access = Construct()
+        access = AccessCreate()
         access.Method = invoker.methodHTTP
         
         # Process the path and types.

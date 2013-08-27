@@ -10,7 +10,30 @@ Specifications and general functions for ACL.
 '''
 
 from ally.api.operator.type import TypeProperty, TypeModel
+import abc
 
+# --------------------------------------------------------------------
+
+class IAclPermissionProvider(metaclass=abc.ABCMeta):
+    '''
+    Specification for ACL permission provider.
+    '''
+    
+    @abc.abstractmethod
+    def iteratePermissions(self, identifiers):
+        '''
+        Iterates all the ACL permissions for the provided identifiers.
+        
+        @param identifiers: Iterable(object)
+            The identifiers to iterate the permissions for.
+        @return: Iterable(tuple(Access, dictionary{object: tuple(dictionary{integer:list[string]},
+                                                                 dictionary{string:list[string]})}))
+            Provides and iterator that yields tuples with the access and filters.
+            The filters dictionary contains:
+                identifier object: (filter paths for entries indexed by entry position,
+                                    filter paths for properties indexed by property name)
+        '''
+        
 # --------------------------------------------------------------------
 
 def uniqueNameFor(prop):

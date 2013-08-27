@@ -152,7 +152,7 @@ def isAvailableIn(container, name, type):
 
 # --------------------------------------------------------------------
 
-def getModelId(obj):
+def modelId(obj):
     '''
     Provides the objects model property id, this means that the object needs to be a model type container.
     

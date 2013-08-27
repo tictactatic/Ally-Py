@@ -30,13 +30,13 @@ class RightServiceAlchemy(EntityGetServiceAlchemy, EntityCRUDServiceAlchemy, IRi
     def __init__(self):
         EntitySupportAlchemy.__init__(self, RightMapped, QRight)
         
-    def getAll(self, typeId=None, q=None, **options):
+    def getAll(self, typeName=None, q=None, **options):
         '''
         @see: IRightService.getAll
         '''
-        sqlQuery = self.session().query(RightMapped.Id)
-        if typeId: sqlQuery = sqlQuery.filter(RightMapped.Type == typeId)
+        sql = self.session().query(RightMapped.Id)
+        if typeName is not None: sql = sql.filter(RightMapped.Type == typeName)
         if q is not None:
             assert isinstance(q, QRight), 'Invalid query %s' % q
-            sqlQuery = buildQuery(sqlQuery, q, RightMapped)
-        return iterateCollection(sqlQuery, **options)
+            sql = buildQuery(sql, q, RightMapped)
+        return iterateCollection(sql, **options)

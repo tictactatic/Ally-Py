@@ -12,17 +12,17 @@ API specifications for service access.
 from .domain_acl import modelACL
 from ally.api.config import service, call, query
 from ally.api.criteria import AsEqualOrdered, AsLikeOrdered
-from ally.api.type import Iter, Dict, List
-from ally.support.api.entity_ided import Entity, IEntityGetService, QEntity, \
-    IEntityQueryService
+from ally.api.type import Iter, Dict
+from ally.support.api.entity import IEntityGetPrototype, IEntityQueryPrototype
 from binascii import crc32
 import hashlib
 
 # --------------------------------------------------------------------
 
-class Access(Entity):
+class Access:
     '''
-    Contains data required for mapping an ACL access.
+    Contains data required for an ACL access.
+        Id -         the id of the access.
         Path -       contains the path that the access maps to. The path contains beside the fixed string
                      names also markers '*' for where dynamic path elements are expected.
         Method -     the method name that this access maps to.
@@ -33,6 +33,7 @@ class Access(Entity):
         Priority -   the ACL priority when constructing gateways on it.
         Hash -       the hash that represents the full aspect of the access.
     '''
+    Id = int
     Path = str
     Method = str
     Priority = int
@@ -40,12 +41,12 @@ class Access(Entity):
 
 Access.Shadowing = Access
 Access.Shadowed = Access
-Access = modelACL(Access)
+Access = modelACL(Access, id='Id')
 
 @modelACL(name=Access)
-class Construct(Access):
+class AccessCreate(Access):
     '''
-    Contains data required for constructing an ACL access.
+    Contains data required for creating an ACL access.
         Types -          the types dictionary needs to have entries as there are '*' in the access 'Path' except if access
                          is a shadow in that case the types from the shadowed type will be used, the dictionary
                          key is the position of the '*' starting from 1 for the first '*', and as a value the type name.
@@ -55,14 +56,12 @@ class Construct(Access):
                          the position in the shadowed access type.
         Properties -     the properties dictionary associated with the access, as a key the property name and as a value
                          the property type name.
-        Excludable -     the names that can be excluded from this access response.
                          
     '''
     Types = Dict(int, str)
     TypesShadowing = Dict(int, int)
     TypesShadowed = Dict(int, int)
     Properties = Dict(str, str)
-    Excludable = List(str)
 
 @modelACL(id='Position')
 class Entry:
@@ -92,7 +91,7 @@ class Property:
 # --------------------------------------------------------------------
 
 @query(Access)
-class QAccess(QEntity):
+class QAccess:
     '''
     Provides the query for access.
     '''
@@ -101,8 +100,8 @@ class QAccess(QEntity):
     
 # --------------------------------------------------------------------
 
-@service((Entity, Access), (QEntity, QAccess))
-class IAccessService(IEntityGetService, IEntityQueryService):
+@service(('Entity', Access), ('QEntity', QAccess))
+class IAccessService(IEntityGetPrototype, IEntityQueryPrototype):
     '''
     The ACL access service provides the means of setting up the access control layer for services.
     '''
@@ -132,12 +131,12 @@ class IAccessService(IEntityGetService, IEntityQueryService):
         '''
     
     @call
-    def insert(self, access:Construct) -> Access.Id:
+    def insert(self, access:AccessCreate) -> Access.Id:
         '''
         Insert the access.
         
-        @param access: Construct
-            The access Construct to be inserted.
+        @param access: AccessCreate
+            The access to be inserted.
         @return: integer
             The id assigned to the access
         '''
@@ -160,7 +159,7 @@ class IAccessService(IEntityGetService, IEntityQueryService):
         '''
     
     @call(webName='Second', filter='Filter2')
-    def isDummy2Filter(self, id:Access) -> bool:
+    def isDummy2Filter(self, id:Property) -> bool:
         '''
         '''
         
@@ -183,14 +182,14 @@ def generateId(path, method):
 
 def generateHash(access):
     '''
-    Generates a unique has for the provided construct access.
+    Generates hash for the provided access create.
     
-    @param access: Construct
-        The construct access to generate the has for.
+    @param access: AccessCreate
+        The access to generate the has for.
     @return: string
         The generated hash.
     '''
-    assert isinstance(access, Construct), 'Invalid access %s' % access
+    assert isinstance(access, AccessCreate), 'Invalid access %s' % access
     
     hashAcc = hashlib.md5()
     hashAcc.update(str(generateId(access.Path, access.Method)).encode())
@@ -208,7 +207,5 @@ def generateHash(access):
     if access.Properties:
         for name in sorted(access.Properties):
             hashAcc.update(('%s:%s' % (name, access.Properties[name])).encode())
-    if access.Excludable:
-        for name in sorted(access.Excludable): hashAcc.update(name.encode())
     
     return hashAcc.hexdigest().upper()

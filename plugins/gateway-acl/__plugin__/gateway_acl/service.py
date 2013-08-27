@@ -10,26 +10,22 @@ Contains the services for ACL.
 '''
     
 from ..gateway.service import updateAssemblyAnonymousGateways, \
-    assemblyAnonymousGateways, gatewayMethodMerge
+    assemblyAnonymousGateways, gatewayMethodMerge, registerMethodOverride
 from ..plugin.registry import addService
 from .db_acl import bindACLSession, bindACLValidations
 from acl.api.group import IGroupService, Group
-from acl.core.impl.processor.gateway.group_specifier import \
-    GroupSpecifierHandler
+from acl.core.impl.processor.gateway.acl_permission import \
+    RegisterAclPermissionHandler
 from ally.container import ioc, support, bind, app
 from ally.container.support import entityFor
+from ally.design.processor.assembly import Assembly
 from ally.design.processor.handler import Handler
 from itertools import chain
 
 # --------------------------------------------------------------------
 
-GROUP_ANONYMOUS = 'Anonymous'
-# The anonymous group name.
-
-# --------------------------------------------------------------------
-
 # The gateway processors
-registerGroupPermission = registerPermissionGateway = support.notCreated  # Just to avoid errors
+anonymousGroup = registerPermissionGateway = support.notCreated  # Just to avoid errors
 
 SERVICES = 'acl.api.**.I*Service'
 @ioc.entity
@@ -44,54 +40,57 @@ support.loadAllEntities(SERVICES)
 
 # --------------------------------------------------------------------
 
-@ioc.config
-def acl_groups_anonymous():
-    ''' The ACL groups that are delivered for anonymous access.'''
-    return [GROUP_ANONYMOUS, 'Test']  # TODO: Gabriel: remove sample data
+@ioc.entity
+def assemblyGroupGateways() -> Assembly:
+    ''' The assembly used for generating the group gateways'''
+    return Assembly('Group gateways')
 
 # --------------------------------------------------------------------
 
 @ioc.entity
-def anonymousGroupSpecifier() -> Handler:
-    b = GroupSpecifierHandler()
-    b.groups = acl_groups_anonymous()
+def registerAclPermission() -> Handler:
+    b = RegisterAclPermissionHandler()
+    b.aclPermissionProvider = entityFor(IGroupService)
     return b
 
 # --------------------------------------------------------------------
 
 @ioc.after(updateAssemblyAnonymousGateways)
 def updateAssemblyAnonymousGatewaysForAcl():
-    assemblyAnonymousGateways().add(anonymousGroupSpecifier(), registerGroupPermission(), registerPermissionGateway(),
+    assemblyAnonymousGateways().add(anonymousGroup(), registerAclPermission(), registerPermissionGateway(),
                                     before=gatewayMethodMerge())
+
+@ioc.after(assemblyGroupGateways)
+def updateAssemblyGroupGateways():
+    assemblyGroupGateways().add(registerAclPermission(), registerPermissionGateway(), gatewayMethodMerge(),
+                                registerMethodOverride())
     
-@app.populate(app.DEVEL)
-def populateGroupAnonymous():
-    groupService = entityFor(IGroupService)
-    assert isinstance(groupService, IGroupService)
+
     
-    try: groupService.getById(GROUP_ANONYMOUS)
-    except:
-        group = Group()
-        group.Name = GROUP_ANONYMOUS
-        group.Description = 'This group contains the services that can be accessed by anyone'
-        groupService.insert(group)
-        
 # TODO: GAbriel: remove sample data
-@ioc.after(populateGroupAnonymous)
+@app.populate(app.DEVEL)
 def populateSamples():
     groupService = entityFor(IGroupService)
     assert isinstance(groupService, IGroupService)
     
-    # TODO: Gabriel: Implement also Model ACL
+    try:
+        group = Group()
+        group.Name = 'Anonymous'
+        group.IsAnonymous = True
+        groupService.insert(group)
+    except: pass
     try:
         group = Group()
         group.Name = 'Test'
+        #group.IsAnonymous = True
         groupService.insert(group)
     except: pass
 
     print('ACL/Access')
-    print('ADDED:', groupService.addGroup(3232022005, 'Anonymous'))
+    groupService.addAcl(3232022005, 'Anonymous')
+    groupService.addAcl(3232022005, 'Test')
     print('FILTER:', groupService.registerFilter(3232022005, 'Anonymous', 'Filter1', place='#Shadowing'))
+    
     
 #    print('ACL/Access/*')
 #    print('ADDED:', groupService.addGroup(1285521629, 'Anonymous'))
@@ -99,7 +98,6 @@ def populateSamples():
 #    
 #    print('ADDED:', groupService.addGroup(1285521629, 'Test'))
     
-    # TODO: filter place pattern with model: RBAC/Role/@/SubRole/*#Name,Prop
     # Place sample
 #    print('RBAC/Role/*/SubRole/*')
 #    print('ADDED:', groupService.addGroup(2052129038, 'Test'))
