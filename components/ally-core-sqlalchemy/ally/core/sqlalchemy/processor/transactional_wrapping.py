@@ -21,6 +21,11 @@ from ally.support.sqlalchemy.session import rollback, commit, setKeepAlive, \
     endSessions
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm.exc import NoResultFound
+import logging
+
+# --------------------------------------------------------------------
+
+log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
@@ -91,6 +96,8 @@ class TransactionWrappingHandler(HandlerProcessor):
             elif request.invoker.method != GET: exc = InputError(_('An entity relation identifier is not valid'))
             
         if exc is not None:
+            log.info('SQL Alchemy handled exception occurred',
+                     exc_info=(type(error.exception), error.exception, error.exception.__traceback__))
             INPUT_ERROR.set(response)
             exc.with_traceback(error.exception.__traceback__)
             response.errorInput = exc

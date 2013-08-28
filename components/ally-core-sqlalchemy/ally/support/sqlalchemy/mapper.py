@@ -266,7 +266,8 @@ def tableFor(mapped):
     '''
     if isinstance(mapped, InstrumentedAttribute):
         assert isinstance(mapped, InstrumentedAttribute)
-        return mapped.parent.mapped_table
+        assert len(mapped.property.columns) == 1, 'To many columns found for %s' % mapped
+        return mapped.property.columns[0].table
     assert isinstance(mapped, DeclarativeMetaModel), 'Invalid mapped object %s' % mapped
     return mapped.__table__
 

@@ -476,3 +476,23 @@ def option(*args):
         return processWithProperties(clazz, option)
     if args: return decorator(*args)
     return decorator
+
+# --------------------------------------------------------------------
+
+def hints(target, **hints):
+    '''
+    Places hints on the provided target type.
+    
+    @param target: container TypeModel or TypeCall
+        The target call or model to place the hints.
+    '''
+    assert hints, 'At least a hint is required'
+    
+    typ = typeFor(target)
+    if isinstance(typ, TypeCall):
+        assert isinstance(typ, TypeCall)
+        assert isinstance(typ.call, Call), 'Invalid call %s' % typ.call
+        typ.call.hints.update(hints)
+    else:
+        assert isinstance(typ, TypeModel), 'Invalid target %s' % target
+        typ.hints.update(hints)

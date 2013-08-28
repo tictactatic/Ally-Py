@@ -398,7 +398,11 @@ class AclServiceAlchemy(SessionSupport, IAclPermissionProvider):
         @return: boolean
             True if the filter can be assigned, False otherwise.
         '''
-        return True
+        assert isinstance(filterId, int), 'Invalid filter id %s' % filterId
+        
+        sql = self.session().query(FilterEntryMapped.id)
+        sql = sql.filter(FilterEntryMapped.filterId == filterId)
+        return sql.count() == 1  # Only the target entry is allowed
     
     def assignEntryFilter(self, accessId, identifier, entryPosition, filterId):
         '''

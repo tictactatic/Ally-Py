@@ -10,11 +10,11 @@ Provides the implementation for right.
 '''
 
 from ..api.right import IRightService, QRight
-from ..meta.right import RightMapped
+from ..meta.right import RightMapped, RightAccess
+from acl.core.impl.acl import AclServiceAlchemy
 from ally.container.ioc import injected
 from ally.container.support import setup
-from ally.support.sqlalchemy.util_service import buildQuery, \
-    iterateCollection
+from ally.support.sqlalchemy.util_service import buildQuery, iterateCollection
 from sql_alchemy.impl.entity import EntityGetServiceAlchemy, \
     EntityCRUDServiceAlchemy, EntitySupportAlchemy
 
@@ -22,13 +22,14 @@ from sql_alchemy.impl.entity import EntityGetServiceAlchemy, \
 
 @injected
 @setup(IRightService, name='rightService')
-class RightServiceAlchemy(EntityGetServiceAlchemy, EntityCRUDServiceAlchemy, IRightService):
+class RightServiceAlchemy(EntityGetServiceAlchemy, EntityCRUDServiceAlchemy, AclServiceAlchemy, IRightService):
     '''
     Implementation for @see: IRightService
     '''
     
     def __init__(self):
         EntitySupportAlchemy.__init__(self, RightMapped, QRight)
+        AclServiceAlchemy.__init__(self, RightMapped, RightAccess)
         
     def getAll(self, typeName=None, q=None, **options):
         '''

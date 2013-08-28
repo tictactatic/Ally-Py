@@ -380,6 +380,18 @@ def processCollection(collection, clazz=None, query=None, fetcher=None, offset=0
     if withTotal: return IterSlice(collection, total, offset, limit)
     return collection
 
+def emptyCollection(withTotal=False, **options):
+    '''
+    Provides an empty collection based on the provided options.
+    
+    ... the options
+    
+    @return: Iterable()
+        The empty collection.
+    '''
+    if withTotal: return IterSlice((), 0, 0, 0)
+    return ()
+
 # --------------------------------------------------------------------
 
 def likeAsRegex(like, caseInsensitive=True):
