@@ -21,6 +21,4 @@ class IRoleRbacService(IRoleService, IRbacPrototype):
     '''
     Role model and Rbac service API.
     '''
-hints(IRoleRbacService.getRoles, webName='Sub')
-hints(IRoleRbacService.addRole, webName='Sub')
-hints(IRoleRbacService.remRole, webName='Sub')
+hints(IRoleRbacService.getRoles, IRoleRbacService.addRole, IRoleRbacService.remRole, webName='Sub')

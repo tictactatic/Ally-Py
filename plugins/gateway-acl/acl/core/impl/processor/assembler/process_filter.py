@@ -10,8 +10,8 @@ Provides the filter calls processing.
 '''
 
 from ally.api.config import GET
-from ally.api.operator.type import TypeModel, TypeProperty
-from ally.api.type import Call, Type, typeFor
+from ally.api.operator.type import TypeModel, TypeProperty, TypeCall
+from ally.api.type import Type, typeFor
 from ally.container.ioc import injected
 from ally.container.support import setup
 from ally.design.processor.attribute import requires, defines, definesIf
@@ -50,7 +50,7 @@ class Invoker(Context):
     If present it means the invoker is a filter type invoker and is known with the provided name.
     ''')
     # ---------------------------------------------------------------- Required
-    call = requires(Call)
+    call = requires(TypeCall)
     method = requires(int)
     output = requires(Type)
     location = requires(str)
@@ -117,7 +117,7 @@ class ProcessFilterHandler(HandlerProcessor):
         for invoker in register.invokers:
             assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
             if not invoker.call: continue  # No call to process hints on.
-            assert isinstance(invoker.call, Call), 'Invalid call %s' % invoker.call
+            assert isinstance(invoker.call, TypeCall), 'Invalid call %s' % invoker.call
             if not self.hintName in invoker.call.hints: continue
             
             filterName = invoker.call.hints[self.hintName]
