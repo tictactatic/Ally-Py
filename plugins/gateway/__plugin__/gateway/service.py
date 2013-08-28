@@ -10,7 +10,7 @@ Contains the services for gateway.
 '''
     
 from ..plugin.registry import registerService
-from .db_gateway import bindGatewaySession
+from .database import binders
 from ally.container import support, ioc, bind, app
 from ally.container.support import entityFor
 from ally.design.processor.assembly import Assembly
@@ -31,8 +31,6 @@ asPattern = lambda rootURI: '^%s(?:/|(?=\\.)|$)(.*)' % re.escape(rootURI)
 registerDatabaseGateway = gatewayMethodMerge = registerMethodOverride = support.notCreated  # Just to avoid errors
 
 SERVICES = 'gateway.api.**.I*Service'
-@ioc.entity
-def binders(): return [bindGatewaySession]
 
 bind.bindToEntities('gateway.impl.**.*Alchemy', 'gateway.core.impl.**.*Alchemy', binders=binders)
 support.createEntitySetup('gateway.impl.**.*', 'gateway.core.impl.**.*')

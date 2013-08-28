@@ -13,13 +13,14 @@ from .domain_acl import modelACL
 from ally.api.config import service, call, query
 from ally.api.criteria import AsEqualOrdered, AsLikeOrdered
 from ally.api.type import Iter, Dict
-from ally.support.api.entity import IEntityGetPrototype, IEntityQueryPrototype
+from ally.support.api.entity_ided import Entity, IEntityGetService, QEntity, \
+    IEntityQueryService
 from binascii import crc32
 import hashlib
 
 # --------------------------------------------------------------------
 
-class Access:
+class Access(Entity):
     '''
     Contains data required for an ACL access.
         Id -         the id of the access.
@@ -41,7 +42,7 @@ class Access:
 
 Access.Shadowing = Access
 Access.Shadowed = Access
-Access = modelACL(Access, id='Id')
+Access = modelACL(Access)
 
 @modelACL(name=Access)
 class AccessCreate(Access):
@@ -91,7 +92,7 @@ class Property:
 # --------------------------------------------------------------------
 
 @query(Access)
-class QAccess:
+class QAccess(QEntity):
     '''
     Provides the query for access.
     '''
@@ -100,8 +101,8 @@ class QAccess:
     
 # --------------------------------------------------------------------
 
-@service(('Entity', Access), ('QEntity', QAccess))
-class IAccessService(IEntityGetPrototype, IEntityQueryPrototype):
+@service((Entity, Access), (QEntity, QAccess))
+class IAccessService(IEntityGetService, IEntityQueryService):
     '''
     The ACL access service provides the means of setting up the access control layer for services.
     '''

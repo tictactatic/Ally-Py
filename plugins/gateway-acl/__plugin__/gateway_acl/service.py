@@ -11,8 +11,8 @@ Contains the services for ACL.
     
 from ..gateway.service import updateAssemblyAnonymousGateways, \
     assemblyAnonymousGateways, gatewayMethodMerge, registerMethodOverride
-from ..plugin.registry import addService
-from .db_acl import bindACLSession, bindACLValidations
+from ..plugin.registry import registerService
+from .database import binders
 from acl.api.group import IGroupService, Group
 from acl.core.impl.processor.gateway.acl_permission import \
     RegisterAclPermissionHandler
@@ -20,7 +20,6 @@ from ally.container import ioc, support, bind, app
 from ally.container.support import entityFor
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.handler import Handler
-from itertools import chain
 
 # --------------------------------------------------------------------
 
@@ -28,14 +27,10 @@ from itertools import chain
 anonymousGroup = registerPermissionGateway = support.notCreated  # Just to avoid errors
 
 SERVICES = 'acl.api.**.I*Service'
-@ioc.entity
-def binders(): return [bindACLSession]
-@ioc.entity
-def bindersService(): return list(chain((bindACLValidations,), binders()))
 
 bind.bindToEntities('acl.impl.**.*Alchemy', 'acl.core.impl.processor.gateway.**.*Alchemy', binders=binders)
 support.createEntitySetup('acl.impl.**.*', 'acl.core.impl.processor.gateway.**.*')
-support.listenToEntities(SERVICES, listeners=addService(bindersService))
+support.listenToEntities(SERVICES, listeners=registerService)
 support.loadAllEntities(SERVICES)
 
 # --------------------------------------------------------------------

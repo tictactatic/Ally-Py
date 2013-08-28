@@ -10,9 +10,9 @@ API specifications for gateway.
 '''
 
 from ally.api.config import model, service, call
-from ally.api.option import SliceAndTotal # @UnusedImport
+from ally.api.option import SliceAndTotal  # @UnusedImport
 from ally.api.type import List, Iter, Dict
-from ally.support.api.entity import IEntityNQPrototype
+from ally.support.api.entity_named import Entity, IEntityNQService
 
 # --------------------------------------------------------------------
 
@@ -82,18 +82,17 @@ class Allowed:
 
 # --------------------------------------------------------------------
    
-@model(domain='Gateway', id='Name')
-class Custom(Gateway):
+@model(domain='Gateway')
+class Custom(Entity, Gateway):
     '''
     Provides the custom defined gateway.
         Name -      the unique name for the gateway.
     '''
-    Name = str
 
 # --------------------------------------------------------------------
 
-@service(('Entity', Custom))
-class IGatewayService(IEntityNQPrototype):
+@service((Entity, Custom))
+class IGatewayService(IEntityNQService):
     '''
     The gateway service that provides the anonymous gateways.
     '''

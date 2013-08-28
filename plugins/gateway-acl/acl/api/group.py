@@ -12,28 +12,27 @@ API specifications for access group.
 from .domain_acl import modelACL
 from acl.core.api.acl import IACLPrototype
 from ally.api.config import service, query
+from ally.api.option import SliceAndTotal  # @UnusedImport
+from ally.support.api.entity_named import Entity, IEntityService, QEntity
 from ally.api.criteria import AsBooleanOrdered
-from ally.api.option import SliceAndTotal # @UnusedImport
-from ally.support.api.entity import IEntityPrototype
 
 # --------------------------------------------------------------------
 
-@modelACL(id='Name')
-class Group:
+@modelACL
+class Group(Entity):
     '''
     Defines the group of ACL access.
         Name -           the group unique name.
         IsAnonymous -    if true it means that the group should be delivered for anonymous access.
         Description -    a description explaining the group.
     '''
-    Name = str
     IsAnonymous = bool
     Description = str
 
 # --------------------------------------------------------------------
 
 @query(Group)
-class QGroup:
+class QGroup(QEntity):
     '''
     Provides the query for group.
     '''
@@ -41,8 +40,8 @@ class QGroup:
     
 # --------------------------------------------------------------------
 
-@service(('Entity', Group), ('QEntity', QGroup), ('ACL', Group))
-class IGroupService(IEntityPrototype, IACLPrototype):
+@service((Entity, Group), (QEntity, QGroup), ('ACL', Group))
+class IGroupService(IEntityService, IACLPrototype):
     '''
     The ACL access group service used for allowing accesses based on group.
     '''

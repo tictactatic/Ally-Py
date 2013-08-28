@@ -13,7 +13,8 @@ from .domain_acl import modelACL
 from ally.api.config import service, call, query
 from ally.api.criteria import AsLikeOrdered
 from ally.api.type import Dict, Iter
-from ally.support.api.entity import IEntityGetPrototype, IEntityQueryPrototype
+from ally.support.api.entity_named import Entity, IEntityGetService, QEntity, \
+    IEntityQueryService
 import hashlib
 
 # --------------------------------------------------------------------
@@ -28,17 +29,15 @@ class Entry:
     Position = int
     Type = str
 
-@modelACL(id='Name')
-class Filter:
+@modelACL
+class Filter(Entity):
     '''
     Contains data required for an ACL filter.
-        Name -       the filter unique name.
         Path -       contains the path that the filter maps to. The path contains beside the fixed string
                      names also markers '*' for where the filtered values or injected values will be placed.
         Hash -       the hash that represents the full aspect of the filter.
         Target -     the target entry position for the filter.
     '''
-    Name = str
     Path = str
     Target = Entry
     Hash = str
@@ -55,7 +54,7 @@ class FilterCreate(Filter):
 # --------------------------------------------------------------------
 
 @query(Filter)
-class QFilter:
+class QFilter(QEntity):
     '''
     Provides the query for filter.
     '''
@@ -63,8 +62,8 @@ class QFilter:
 
 # --------------------------------------------------------------------
 
-@service(('Entity', Filter), ('QEntity', QFilter))
-class IFilterService(IEntityGetPrototype, IEntityQueryPrototype):
+@service((Entity, Filter), (QEntity, QFilter))
+class IFilterService(IEntityGetService, IEntityQueryService):
     '''
     The ACL access filter service provides the means of accessing the available filters.
     '''

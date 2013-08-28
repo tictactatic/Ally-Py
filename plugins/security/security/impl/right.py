@@ -35,7 +35,7 @@ class RightServiceAlchemy(EntityGetServiceAlchemy, EntityCRUDServiceAlchemy, IRi
         @see: IRightService.getAll
         '''
         sql = self.session().query(RightMapped.Id)
-        if typeName is not None: sql = sql.filter(RightMapped.Type == typeName)
+        if typeName: sql = sql.filter(RightMapped.Type == typeName)
         if q is not None:
             assert isinstance(q, QRight), 'Invalid query %s' % q
             sql = buildQuery(sql, q, RightMapped)

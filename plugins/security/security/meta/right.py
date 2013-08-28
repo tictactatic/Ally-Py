@@ -14,6 +14,8 @@ from .metadata_security import Base
 from .right_type import RightTypeMapped
 from ally.support.sqlalchemy.mapper import validate
 from sqlalchemy.dialects.mysql.base import INTEGER
+from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.orm import relationship
 from sqlalchemy.schema import Column, ForeignKey, UniqueConstraint
 from sqlalchemy.types import String
 
@@ -29,7 +31,10 @@ class RightMapped(Base, Right):
                       dict(mysql_engine='InnoDB', mysql_charset='utf8'))
 
     Id = Column('id', INTEGER(unsigned=True), primary_key=True)
-    Type = Column('fk_right_type_id', ForeignKey(RightTypeMapped.Id), nullable=False)
-    Name = Column('name', String(150), nullable=False)
+    Type = association_proxy('type', 'Name')
+    Name = Column('name', String(150), nullable=False, unique=True)
     Description = Column('description', String(255))
-
+    # Non REST model attribute --------------------------------------
+    typeId = Column('fk_right_type_id', ForeignKey(RightTypeMapped.Id), nullable=False)
+    # Relationships -------------------------------------------------
+    type = relationship(RightTypeMapped, lazy='joined', uselist=False)
