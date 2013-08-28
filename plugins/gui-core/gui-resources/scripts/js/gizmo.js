@@ -1147,6 +1147,20 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
             this.delegateEvents();
         }
     });
-    
+
+    /**
+     * Add one overlay for each request
+     * and remove it once it finishes.
+     */
+    $(document).on('ajaxStart', function() {
+        $('<div />').
+            addClass('tmploader').
+            insertAfter('#area-main');
+    }).on('ajaxStop', function(e) {
+        setTimeout(function() {
+            $('.tmploader').first().remove();
+        }, 300); // to prevent flickering
+    });
+
     return { Model: Model, Collection: Collection, Sync: Sync, UniqueContainer: Uniq, View: View, Url: Url, Register: Register};
 });
