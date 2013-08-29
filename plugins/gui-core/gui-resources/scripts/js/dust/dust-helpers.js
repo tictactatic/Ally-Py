@@ -406,9 +406,22 @@ function getAnnotation(idx)
         catch(e){}
         return '';
     };
-}
+};
+
 dust.filters.twitter_annotation_before = getAnnotation(0);
 dust.filters.twitter_annotation_after = getAnnotation(1);
+
+/**
+ * Return locale aware date for given utc date
+ */
+dust.filters.userdate = function(content) {
+  try {
+    var d = new Date(Date.parse(content + ' +0000'));
+    return d.toLocaleString();
+  } catch (err) {
+    return content;
+  }
+};
 
 return dust;
 });
