@@ -25,6 +25,21 @@ log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
+class SessionSupport:
+    '''
+    Class that provides for the services that use SQLAlchemy the session support.
+    All services that use SQLAlchemy have to extend this class in order to provide the sql alchemy session
+    of the request, the session will be automatically handled by the session processor.
+    '''
+
+    def session(self):
+        '''
+        Provide or construct a session.
+        '''
+        return openSession()
+
+# --------------------------------------------------------------------
+
 def setKeepAlive(keep):
     '''
     Set the flag that indicates if a session should be closed or kept alive after a call has finalized.
@@ -36,6 +51,7 @@ def setKeepAlive(keep):
     assert isinstance(keep, bool), 'Invalid keep flag %s' % keep
     if not keep: del current_thread()._ally_db_session_alive
     else: current_thread()._ally_db_session_alive = keep
+    
 
 def beginWith(sessionCreator):
     '''
@@ -44,7 +60,11 @@ def beginWith(sessionCreator):
     @param sessionCreator: class
         The session creator class.
     '''
+<<<<<<< Updated upstream
+    assert sessionCreator, 'A session creator is required'
+=======
     assert sessionCreator is not None, 'Required a session creator'
+>>>>>>> Stashed changes
     try: creators = current_thread()._ally_db_session_create
     except AttributeError: creators = current_thread()._ally_db_session_create = deque()
     assert isinstance(creators, deque)
@@ -196,7 +216,11 @@ class SessionBinder(IProxyHandler):
         @param sessionCreator: class
             The session creator class that will create the session.
         '''
+<<<<<<< Updated upstream
+        assert sessionCreator, 'A session creator is required'
+=======
         assert sessionCreator is not None, 'Required a session creator'
+>>>>>>> Stashed changes
         self.sessionCreator = sessionCreator
     
     def handle(self, execution):
@@ -211,7 +235,11 @@ class SessionBinder(IProxyHandler):
             endCurrent(rollback)
             raise
         else:
-            if hasSession():
+            if isgenerator(returned):
+                # If the returned value is a generator we need to wrap it in order to provide session support when the actual
+                # generator is used
+                return self.wrapGenerator(returned)
+            elif hasSession():
                 session = openSession()
                 try:
                     session.flush()
@@ -220,12 +248,6 @@ class SessionBinder(IProxyHandler):
                 except:
                     endCurrent(rollback)
                     raise
-                
-            elif isgenerator(returned):
-                # If the returned value is a generator we need to wrap it in order to provide session support when the actual
-                # generator is used
-                return self.wrapGenerator(returned)
-
             return returned
 
     # ----------------------------------------------------------------
