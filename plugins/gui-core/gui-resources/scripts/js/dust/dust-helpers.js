@@ -411,16 +411,22 @@ function getAnnotation(idx)
 dust.filters.twitter_annotation_before = getAnnotation(0);
 dust.filters.twitter_annotation_after = getAnnotation(1);
 
+// superdesk date format parser
+var superdeskDateRegExp = /^([\d]+)\.([\d]+)\.([\d]+) ([\d]+):([\d]+)$/;
+
 /**
  * Return locale aware date for given utc date
  */
 dust.filters.userdate = function(content) {
-  try {
-    var d = new Date(Date.parse(content + ' +0000'));
-    return d.toLocaleString();
-  } catch (err) {
-    return content;
+  var match = superdeskDateRegExp.exec(content);
+  if (match) {
+    var date = new Date();
+    date.setUTCFullYear(2000 + parseInt(match[3]), parseInt(match[2]), parseInt(match[1]));
+    date.setUTCHours(parseInt(match[4]), parseInt(match[5]));
+    return date.toLocaleString();
   }
+
+  return content;
 };
 
 return dust;
