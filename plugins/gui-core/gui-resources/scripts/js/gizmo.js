@@ -1,4 +1,4 @@
-define('gizmo', ['jquery', 'utils/class'], function($,Class)
+define('gizmo', ['jquery', 'utils/class', 'jquery/loadingblock'], function($,Class)
 {
     function compareObj(x, y)
     {
@@ -1154,8 +1154,9 @@ define('gizmo', ['jquery', 'utils/class'], function($,Class)
      */
     $(document).on('ajaxStart', function() {
         $('<div />').
+            insertAfter('#area-main').
             addClass('tmploader').
-            insertAfter('#area-main');
+            loadingblock();
     }).on('ajaxStop', function(e) {
         setTimeout(function() {
             $('.tmploader').first().remove();

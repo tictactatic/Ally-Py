@@ -1737,15 +1737,5 @@ a.collaborator-name-large  {
 /* end of login popup style override */
 
 .tmploader {
-	position: fixed;
-	top: 0;
-	left: 0;
-	width: 100%;
 	height: 100%;
-	margin-top: 40px;
-	z-index: 10000;
-	background-color: #fff;
-	color: #000;
-    background: #fff no-repeat 50% 50% url('../../images/ajax-loader.gif');
-    opacity: 0.5;
 }
