@@ -11,7 +11,8 @@ Provides the configurations for delivering files from the local file system.
 
 from ..ally_gateway.processor import assemblyGateway, \
     gatewayAuthorizedRepository, assemblyRESTRequest, updateAssemblyGateway, \
-    cleanup_interval, gatewaySelector
+    cleanup_interval, gatewaySelector, gatewayForward
+from ..ally_http.processor import contentLengthEncode, headerEncodeResponse
 from ally.container import ioc
 from ally.container.error import ConfigError
 from ally.design.processor.assembly import Assembly
@@ -21,6 +22,7 @@ from ally.gateway.http.impl.processor.captcha_validator import \
 from ally.gateway.http.impl.processor.repository_captcha import \
     GatewayCaptchaRepositoryHandler
 from ally.http.impl.processor.forward import ForwardHTTPHandler
+from ally.http.impl.processor.headers.set_fixed import HeaderSetEncodeHandler
 
 # --------------------------------------------------------------------
 
@@ -49,6 +51,16 @@ def recaptcha_private_key() -> str:
     ''' The reCAPTCHA private key'''
     return '6Le3_OISAAAAABsPP6Rz7o96xc_6KK5OClxV2BUf'
 
+@ioc.config
+def headers_failed_captcha() -> dict:
+    '''The headers to place on a failed captcha validation response'''
+    return {
+            'Content-Type': ['text/plain;charset=UTF-8'],
+            'Cache-Control':['no-cache'],
+            'Pragma':['no-cache'],
+            'Access-Control-Allow-Origin': ['*'],
+            }
+
 # --------------------------------------------------------------------
 # Creating the processors used in handling the request
 
@@ -75,6 +87,12 @@ def recaptchaForward() -> Handler:
     b.externalPort = recaptcha_external_port()
     return b
 
+@ioc.entity
+def headerFailedCaptcha() -> Handler:
+    b = HeaderSetEncodeHandler()
+    b.headers = headers_failed_captcha()
+    return b
+
 # --------------------------------------------------------------------
 
 @ioc.entity
@@ -85,11 +103,12 @@ def assemblyReCaptchaForward() -> Assembly:
     return Assembly('reCAPTCHA forward')
 
 # --------------------------------------------------------------------
-    
+
 @ioc.after(updateAssemblyGateway)
 def updateAssemblyGatewayForCaptcha():
-    assemblyGateway().add(gatewayCaptchaRepository(), after=gatewayAuthorizedRepository())
+    assemblyGateway().add(gatewayCaptchaRepository(), before=gatewayAuthorizedRepository())
     assemblyGateway().add(gatewayCaptchaValidation(), after=gatewaySelector())
+    assemblyGateway().add(headerEncodeResponse(), contentLengthEncode(), headerFailedCaptcha(), after=gatewayForward())
 
 @ioc.after(assemblyReCaptchaForward)
 def updateAssemblyReCaptchaForward():
