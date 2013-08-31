@@ -11,15 +11,16 @@ Implementation for handling ACL service.
 
 from ally.api.error import IdError
 from ally.support.api.util_service import emptyCollection, modelId
-from ally.support.sqlalchemy.mapper import MappedSupport
-from ally.support.sqlalchemy.session import SessionSupport
-from ally.support.sqlalchemy.util_service import buildQuery, iterateCollection
 from security.api.right import QRight
 from security.meta.right import RightMapped
+from security.meta.right_type import RightTypeMapped
 from security.rbac.api.role import QRole, Role
-from security.rbac.meta.rbac import RbacDefinition
+from security.rbac.meta.rbac import WithRbac
 from security.rbac.meta.rbac_intern import RoleNode, RbacRole, RbacRight, Rbac
 from security.rbac.meta.role import RoleMapped
+from sql_alchemy.support.mapper import MappedSupport
+from sql_alchemy.support.util_service import SessionSupport, buildQuery, \
+    iterateCollection
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm.util import aliased
 from sqlalchemy.sql.expression import and_
@@ -44,7 +45,7 @@ class RbacServiceAlchemy(SessionSupport):
             The Rbac mapped class that organizes the RBAC structure.
         '''
         assert isinstance(Rbac, MappedSupport), 'Invalid mapped class %s' % Rbac
-        assert issubclass(Rbac, RbacDefinition), 'Invalid Rbac class %s' % Rbac
+        assert issubclass(Rbac, WithRbac), 'Invalid Rbac class %s' % Rbac
         
         self.Rbac = Rbac
         self.RbacIdentifier = modelId(Rbac)
@@ -65,24 +66,14 @@ class RbacServiceAlchemy(SessionSupport):
             sql = buildQuery(sql, q, RoleMapped)
         return iterateCollection(sql, **options)
     
-    def getRights(self, identifier, q=None, **options):
+    def getRights(self, identifier, typeName=None, q=None, **options):
         '''
         @see: IRbacPrototype.getRights
         '''
         rbacId = self.findRbacId(identifier)
         if rbacId is None: return emptyCollection(**options)
         
-        subq = self.session().query(RightMapped.Id)
-        subq = subq.join(RbacRight, RbacRight.rightId == RightMapped.Id)
-        subq = subq.join(Child, Child.roleId == RbacRight.rbacId)
-        subq = subq.join(Parent, and_(Child.left >= Parent.left, Child.right <= Parent.right))
-        subq = subq.join(RbacRole, and_(RbacRole.roleId == Parent.roleId, RbacRole.rbacId == rbacId))
-
-        sql = self.session().query(RightMapped.Id)
-        sql = sql.join(RbacRight, and_(RbacRight.rightId == RightMapped.Id, RbacRight.rbacId == rbacId))
-
-        sql = sql.union(subq).distinct(RightMapped.Id).order_by(RightMapped.Id)
-        
+        sql = self.sqlRights(rbacId, typeName)
         if q:
             assert isinstance(q, QRight), 'Invalid query %s' % q
             sql = buildQuery(sql, q, RightMapped)
@@ -94,7 +85,7 @@ class RbacServiceAlchemy(SessionSupport):
         '''
         assert isinstance(roleName, str), 'Invalid role name %s' % roleName
         
-        try: roleId, = self.session().query(RoleMapped.id).filter(RoleMapped.Name == roleName)
+        try: roleId, = self.session().query(RoleMapped.id).filter(RoleMapped.Name == roleName).one()
         except NoResultFound: raise IdError(Role)
         rbacId = self.obtainRbacId(identifier)
         
@@ -111,7 +102,7 @@ class RbacServiceAlchemy(SessionSupport):
         rbacId = self.findRbacId(identifier)
         if rbacId is None: return False
         
-        sql = self.session().query(RbacRole).join(RoleMapped)
+        sql = self.session().query(RbacRole).join(RoleMapped, RoleMapped.rbacId == RbacRole.roleId)
         sql = sql.filter(RbacRole.rbacId == rbacId).filter(RoleMapped.Name == roleName)
         try: rbacRole = sql.one()
         except NoResultFound: return False
@@ -176,13 +167,47 @@ class RbacServiceAlchemy(SessionSupport):
         '''
         sql = self.session().query(self.Rbac)
         sql = sql.filter(self.RbacIdentifier == identifier)
-        try: rbacContainer = sql.one()
+        try: withRbac = sql.one()
         except NoResultFound: raise IdError(self.Rbac)
-        assert isinstance(rbacContainer, RbacDefinition), 'Invalid Rbac container %s' % rbacContainer
-        if rbacContainer.rbacId is None:
+        assert isinstance(withRbac, WithRbac), 'Invalid with Rbac container %s' % withRbac
+        if withRbac.rbacId is None:
             rbac = Rbac()
             self.session().add(rbac)
             self.session().flush((rbac,))
-            rbacContainer.rbacId = rbac.id
+            withRbac.rbacId = rbac.id
             
-        return rbacContainer.rbacId
+        return withRbac.rbacId
+    
+    # ----------------------------------------------------------------
+    
+    def sqlRights(self, rbacId, typeName=None):
+        '''
+        Generates the sql that can be used for fetching all rights for the provided rbac id.
+        
+        @param rbacId: integer
+            The rbac id to generate the sql with.
+        @param typeName: string|None
+            The right type name to provide the rights for, if not provided all rights ids for rbac id will be iterated.
+        @return: sql(RightMapped.Id)
+            The sql that iterates all rights ids.
+        '''
+        assert isinstance(rbacId, int), 'Invalid rbac id %s' % rbacId
+        
+        subq = self.session().query(RightMapped.Id)
+        if typeName is not None:
+            assert isinstance(typeName, str), 'Invalid type name %s' % typeName
+            subq = subq.join(RightTypeMapped).filter(RightTypeMapped.Name == typeName)
+            
+        subq = subq.join(RbacRight, RbacRight.rightId == RightMapped.Id)
+        subq = subq.join(Child, Child.roleId == RbacRight.rbacId)
+        subq = subq.join(Parent, and_(Child.left >= Parent.left, Child.right <= Parent.right))
+        subq = subq.join(RbacRole, and_(RbacRole.roleId == Parent.roleId, RbacRole.rbacId == rbacId))
+
+        sql = self.session().query(RightMapped.Id)
+        if typeName is not None:
+            assert isinstance(typeName, str), 'Invalid type name %s' % typeName
+            sql = sql.join(RightTypeMapped).filter(RightTypeMapped.Name == typeName)
+            
+        sql = sql.join(RbacRight, and_(RbacRight.rightId == RightMapped.Id, RbacRight.rbacId == rbacId))
+
+        return sql.union(subq).distinct(RightMapped.Id).order_by(RightMapped.Id)

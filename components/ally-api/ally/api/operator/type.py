@@ -329,13 +329,15 @@ class TypeCall(Type):
     input and output from the call.
     '''
 
-    def __init__(self, parent, name, method, inputs, output, hints=None):
+    def __init__(self, parent, definer, name, method, inputs, output, hints=None):
         '''
         Constructs the service call type.
         @see: Type.__init__
         
         @param parent: TypeService
             The parent service type.
+        @param definer: class
+            The class where the call is actually defined.
         @param name: string
             The name of the function represented by the call.
         @param method: integer
@@ -348,6 +350,7 @@ class TypeCall(Type):
             The hints associated with the call.
         '''
         assert isinstance(parent, TypeService), 'Invalid parent %s' % parent
+        assert isclass(definer), 'Invalid definer class %s' % definer
         assert isinstance(name, str) and name.strip(), 'Provide a valid name'
         assert isinstance(method, int), 'Invalid method %s' % method
         assert isinstance(inputs, (list, tuple)), 'Invalid inputs %s, needs to be a list' % inputs
@@ -355,6 +358,7 @@ class TypeCall(Type):
         super().__init__(False, False)
 
         self.parent = parent
+        self.definer = definer
         self.name = name
         self.method = method
         self.output = output

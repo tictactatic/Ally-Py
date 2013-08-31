@@ -46,7 +46,7 @@ class PropertyFilterDefinition:
     filterId = declared_attr(lambda cls:
                Column('fk_filter_id', ForeignKey(FilterMapped.id, ondelete='CASCADE'), primary_key=True))
            
-class AclAccessDefinition:
+class WithAclAccess:
     '''
     Provides the ACL Access relation definition.
     '''

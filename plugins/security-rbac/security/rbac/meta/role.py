@@ -10,16 +10,16 @@ Contains the SQL alchemy meta for rbac APIs.
 '''
 
 from ..api.role import Role
-from .rbac import RbacDefinition
+from .rbac import WithRbac
 from .rbac_intern import Rbac
-from ally.support.sqlalchemy.mapper import validate
+from sql_alchemy.support.mapper import validate
 from sqlalchemy.schema import Column, ForeignKey
 from sqlalchemy.types import String
 
 # --------------------------------------------------------------------
 
 @validate
-class RoleMapped(Rbac, RbacDefinition, Role):
+class RoleMapped(Rbac, WithRbac, Role):
     '''
     Provides the mapping for Role rbac.
     '''

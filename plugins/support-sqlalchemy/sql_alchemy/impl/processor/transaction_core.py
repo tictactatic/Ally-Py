@@ -1,12 +1,12 @@
 '''
 Created on Jan 5, 2012
 
-@package: ally core sql alchemy
+@package: support sqlalchemy
 @copyright: 2012 Sourcefabric o.p.s.
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
 
-Provides automatic session handling for SQL alchemy.
+Provides automatic session handling for SQL alchemy in ally core.
 '''
 
 from ally.api.config import DELETE, GET
@@ -17,7 +17,7 @@ from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain, Error
 from ally.design.processor.handler import HandlerProcessor
 from ally.internationalization import _
-from ally.support.sqlalchemy.session import rollback, commit, setKeepAlive, \
+from sql_alchemy.support.session import rollback, commit, setKeepAlive, \
     endSessions
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm.exc import NoResultFound
@@ -57,9 +57,9 @@ class Response(Coded):
 
 # --------------------------------------------------------------------
 
-class TransactionWrappingHandler(HandlerProcessor):
+class TransactionCoreHandler(HandlerProcessor):
     '''
-    Implementation for a processor that provides the SQLAlchemy session handling.
+    Implementation for a processor that provides the SQLAlchemy session handling in ally core.
     '''
     
     def __init__(self):
@@ -69,7 +69,7 @@ class TransactionWrappingHandler(HandlerProcessor):
         '''
         @see: HandlerProcessor.process
         
-        Wraps the invoking and all processors after invoking in a transaction.
+        Wraps the invoking and all processors after in a single transaction.
         '''
         assert isinstance(chain, Chain), 'Invalid processors chain %s' % chain
 

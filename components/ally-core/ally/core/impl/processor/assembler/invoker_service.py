@@ -115,6 +115,8 @@ class InvokerServiceHandler(HandlerProcessor):
                 invoker.inputs = tuple(iterateInputs(call))
                 invoker.output = call.output
                 invoker.location = locationStack(getattr(service.clazz, call.name))
+                if call.definer.__module__ != service.clazz.__module__ or call.definer.__name__ != service.clazz.__name__:
+                    invoker.location = '%s\n,inherited from %s' % (locationStack(service.clazz), invoker.location)
                 invoker.doInvoke = getattr(implementation, call.name)
                 register.invokers.append(invoker)
         

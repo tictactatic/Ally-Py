@@ -13,19 +13,17 @@ from ..api.role import QRole
 from ..core.impl.rbac import RbacServiceAlchemy, Child, Parent
 from ..meta.rbac_intern import RoleNode
 from ..meta.role import RoleMapped
-from ally.container.ioc import injected
 from ally.container.support import setup
-from ally.support.sqlalchemy.mapper import InsertFromSelect, tableFor
-from ally.support.sqlalchemy.util_service import insertModel
 from security.rbac.api.role_rbac import IRoleRbacService
 from security.rbac.meta.rbac_intern import RbacRole
 from sql_alchemy.impl.entity import EntityServiceAlchemy
+from sql_alchemy.support.mapper import InsertFromSelect, tableFor
+from sql_alchemy.support.util_service import insertModel
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.sql.expression import and_, select
 
 # --------------------------------------------------------------------
-    
-@injected
+
 @setup(IRoleRbacService, name='roleService')
 class RoleServiceAlchemy(EntityServiceAlchemy, RbacServiceAlchemy, IRoleRbacService):
     '''

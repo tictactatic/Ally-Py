@@ -25,9 +25,9 @@ class Rbac(Base):
 
     id = Column('id', INTEGER(unsigned=True), primary_key=True)
 
-class RbacDefinition:
+class WithRbac:
     '''
-    Provides the Rbac definition.
+    Provides the with Rbac definition.
     '''
     __table_args__ = dict(mysql_engine='InnoDB')
 

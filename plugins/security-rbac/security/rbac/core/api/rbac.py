@@ -14,6 +14,7 @@ from ally.api.option import SliceAndTotal # @UnusedImport
 from ally.api.type import Iter
 from ally.support.api.util_service import modelId
 from security.api.right import QRight, Right
+from security.api.right_type import RightType
 from security.rbac.api.role import Role, QRole
 import abc # @UnusedImport
 
@@ -40,12 +41,15 @@ class IRbacPrototype(metaclass=abc.ABCMeta):
         '''
     
     @prototype
-    def getRights(self, identifier:lambda p:p.RBAC, q:QRight=None, **options:SliceAndTotal) -> Iter(Right.Id):
+    def getRights(self, identifier:lambda p:p.RBAC, typeName:RightType.Name=None,
+                  q:QRight=None, **options:SliceAndTotal) -> Iter(Right.Id):
         '''
         Provides the rights for the provided identifier.
         
         @param identifier: object
             The RBAC object identifier to provide the rights for.
+        @param typeName: string|None
+            The right type name to provide the rights for, if not provided all rights will be iterated.
         @param q: QRight|None
             The query to apply on the rights.
         @param options: key arguments

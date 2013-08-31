@@ -14,9 +14,9 @@ from ..meta.right import RightMapped, RightAccess
 from acl.core.impl.acl import AclServiceAlchemy
 from ally.container.ioc import injected
 from ally.container.support import setup
-from ally.support.sqlalchemy.util_service import buildQuery, iterateCollection
 from sql_alchemy.impl.entity import EntityGetServiceAlchemy, \
     EntityCRUDServiceAlchemy, EntitySupportAlchemy
+from sql_alchemy.support.util_service import buildQuery, iterateCollection
 
 # --------------------------------------------------------------------
 
@@ -41,3 +41,4 @@ class RightServiceAlchemy(EntityGetServiceAlchemy, EntityCRUDServiceAlchemy, Acl
             assert isinstance(q, QRight), 'Invalid query %s' % q
             sql = buildQuery(sql, q, RightMapped)
         return iterateCollection(sql, **options)
+    

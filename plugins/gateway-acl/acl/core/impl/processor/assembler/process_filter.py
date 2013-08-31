@@ -45,7 +45,7 @@ class Invoker(Context):
     @rtype: list[Context]
     The starting path elements for filter.
     ''')
-    filterName = defines(str, doc='''
+    filterName = definesIf(str, doc='''
     @rtype: string
     If present it means the invoker is a filter type invoker and is known with the provided name.
     ''')
@@ -142,6 +142,6 @@ class ProcessFilterHandler(HandlerProcessor):
             if invoker.path is None: invoker.path = []
             invoker.path.insert(0, Element(name=self.typeModelAllowed.name, model=self.typeModelAllowed))
             invoker.output = self.typePropertyAllowed
-            invoker.filterName = filterName.strip()
+            if Invoker.filterName in invoker: invoker.filterName = filterName.strip()
         
         if aborted: raise Abort(*aborted)

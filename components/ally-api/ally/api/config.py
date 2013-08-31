@@ -377,7 +377,7 @@ def service(*generic):
         service = clazz._ally_type = TypeService(clazz)
         for name, function in clazz.__dict__.items():
             if not isfunction(function): continue
-            try: service.calls[name] = TypeCall(service, *function._ally_call)
+            try: service.calls[name] = TypeCall(service, clazz, *function._ally_call)
             except AttributeError: raise Exception('No call for method at:%s' % locationStack(function))
             del function._ally_call
 
@@ -393,9 +393,9 @@ def service(*generic):
                     except AttributeError: pass
                     else:
                         if prototype is None: prototype = Prototype(replaces, clazz)
-                        service.calls[name] = TypeCall(service, *callPrototype(prototype))
+                        service.calls[name] = TypeCall(service, base, *callPrototype(prototype))
                         continue
-                    try: service.calls[name] = TypeCall(service, *function._ally_call)
+                    try: service.calls[name] = TypeCall(service, base, *function._ally_call)
                     except AttributeError: raise Exception('No call for inherited method at:%s' % locationStack(function))
                 classes.extend(base.__bases__)
                 
@@ -406,7 +406,7 @@ def service(*generic):
                 for name, cal in inherited.calls.items():
                     assert isinstance(cal, TypeCall)
                     if name not in service.calls:
-                        service.calls[name] = TypeCall(service, *processGenericCall(cal, generics))
+                        service.calls[name] = TypeCall(service, cal.definer, *processGenericCall(cal, generics))
     
         return processAsService(clazz, service)
     if clazz: return decorator(clazz)
