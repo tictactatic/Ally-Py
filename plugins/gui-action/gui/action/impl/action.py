@@ -14,7 +14,6 @@ from ally.container.support import setup
 from gui.action.api.action import Action, IActionManagerService
 from sql_alchemy.impl.entity import EntityNQServiceAlchemy, EntitySupportAlchemy
 from sqlalchemy.exc import SQLAlchemyError
-from ally.support.sqlalchemy.util_service import iterateCollection, insertModel
 from gui.action.meta.action import ActionMapped
 
 # --------------------------------------------------------------------

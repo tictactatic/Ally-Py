@@ -11,7 +11,7 @@ Contains the SQL alchemy meta for gui actions.
 
 from ..api.action import Action
 from .metadata_action import Base
-from ally.support.sqlalchemy.mapper import validate
+from sql_alchemy.support.mapper import validate
 from sqlalchemy.schema import Column
 from sqlalchemy.types import String
 
