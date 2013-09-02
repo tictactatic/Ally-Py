@@ -9,19 +9,31 @@ Created on Aug 30, 2013
 Provides utility methods for SQL alchemy meta definitions.
 '''
 
+from .mapper import mappingFor, tableFor
 from ally.api.operator.type import TypeModel, TypeProperty
 from ally.api.type import typeFor
 from ally.support.util import modifyFirst, toUnderscore
 from ally.support.util_sys import callerLocals
+from inspect import isclass
+from operator import attrgetter
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, mapper, column_property
 from sqlalchemy.orm.attributes import InstrumentedAttribute
+from sqlalchemy.orm.properties import ColumnProperty
 from sqlalchemy.schema import Column, ForeignKey
-from sqlalchemy.sql.expression import select
+from sqlalchemy.sql.expression import join, select
 
 # --------------------------------------------------------------------
 
-def relationshipModel(mappedId, *spec, converter=None):
+def hybrid(*args, fset=None, fdel=None, expr=None):
+    '''
+    Method used to facilitate the use of @see: hybrid_property
+    '''
+    def decorator(fget): return hybrid_property(fget, fset, fdel, expr)
+    if not args: return decorator
+    return decorator(*args)
+
+def relationshipModel(mappedId, *spec):
     '''
     Creates a relationship with the model, this should only be used in case the mapped model database id is different from the
     actual model id.
@@ -34,8 +46,6 @@ def relationshipModel(mappedId, *spec, converter=None):
             also column needs to be provided, if None provided it will create one automatically.
         target: string
             The SQL alchemy relationship target name, if None provided it will create one automatically.
-    @param converter: object
-        The converter used to convert from model id to database id.
     '''
     assert isinstance(mappedId, InstrumentedAttribute), 'Invalid mapped id %s' % mappedId
     register = callerLocals()
@@ -64,13 +74,62 @@ def relationshipModel(mappedId, *spec, converter=None):
         rel = getattr(self, target)
         if rel: return getattr(rel, rtype.propertyId.name)
     
-    if converter is None: converter = lambda value: select([mappedId], getattr(mappedId.class_, rtype.propertyId.name) == value)
+    def fset(self, value): setattr(self, column, select([mappedId], getattr(mappedId.class_, rtype.propertyId.name) == value))
     
-    def fset(self, value):
-        setattr(self, column, converter(value))
+    return hybrid_property(fget, fset, expr=joinedExpr(mappedId.class_, rtype.propertyId.name))
+
+# --------------------------------------------------------------------
+
+def joinedExpr(other, attr):
+    '''
+    Creates a joined expression.
+    @see: joined
     
-    def expr(cls):
-        return getattr(mappedId.class_, rtype.propertyId.name)
+    @param attr: string
+        The attribute name to fetch from the joined class.
+    @return: InstrumentedAttribute
+        The joined attribute.
+    '''
+    assert isclass(other), 'Invalid other class %s' % other
+    assert isinstance(attr, str), 'Invalid attribute %s' % attr
     
-    return hybrid_property(fget, fset, expr=expr)
+    getter = attrgetter('%s_%s' % (other.__name__, attr))
+    def expr(cls): return getter(joined(cls, other))
+    return expr
+
+def joined(mapped, other):
+    '''
+    Creates a joined mapped for the provided mapped class with other class. The joined mapped class will be cached on
+    the other class.
     
+    @param mapped: class
+        The mapped class to create the joined mapped class with.
+    @param other: class
+        The other class to create the joined mapping with.
+    @return: class
+        The joined mapped class.
+    '''
+    assert isclass(mapped), 'Invalid mapped class %s' % mapped
+    assert isclass(other), 'Invalid other class %s' % other
+    
+    name = '%s%s' % (mapped.__name__, other.__name__)
+    try: return getattr(mapped, name)
+    except AttributeError: pass
+    
+    properties = {}
+    mapping, omapping = mappingFor(mapped), mappingFor(other)
+    for cp in mapping.iterate_properties:
+        if not isinstance(cp, ColumnProperty) or not cp.key: continue
+        assert isinstance(cp, ColumnProperty)
+        properties['%s_%s' % (mapped.__name__, cp.key)] = column_property(getattr(mapping.c, cp.key))
+    for cp in omapping.iterate_properties:
+        if not isinstance(cp, ColumnProperty) or not cp.key: continue
+        assert isinstance(cp, ColumnProperty)
+        properties['%s_%s' % (other.__name__, cp.key)] = column_property(getattr(omapping.c, cp.key))
+    
+    
+    clazz = type(name, (object,), {})
+    mapper(clazz, join(tableFor(mapped), tableFor(other)), properties=properties)
+    setattr(mapped, name, clazz)
+    
+    return clazz

@@ -47,6 +47,8 @@ class Permission(Context):
     '''
     The permission context.
     '''
+    # ---------------------------------------------------------------- Optional
+    navigate = optional(str)
     # ---------------------------------------------------------------- Required
     access = requires(Access)
     filters = requires(dict)
@@ -88,6 +90,8 @@ class RegisterPermissionGatewayHandler(HandlerProcessor):
         '''
         assert isinstance(permissions, Iterable), 'Invalid permissions %s' % permissions
         
+        permissions = sorted(permissions, key=lambda perm: perm.access.Path)
+        permissions.sort(key=lambda perm: perm.access.Priority)
         for perm in permissions:
             assert isinstance(perm, Permission), 'Invalid permission %s' % perm
             assert isinstance(perm.access, Access), 'Invalid permission access %s' % perm.access
@@ -151,5 +155,11 @@ class RegisterPermissionGatewayHandler(HandlerProcessor):
                     values.append('%s=%s' % (name, '|'.join(paths)))
                 if gateway.PutHeaders is None: gateway.PutHeaders = {}
                 gateway.PutHeaders[HEADER_FILTER_INPUT] = ';'.join(values)
-            
+                
+            if Permission.navigate in perm and perm.navigate:
+                if replacements: path = perm.navigate % replacements
+                else: path = perm.navigate
+                if rootURI: path = '%s/%s' % (rootURI, path)
+                gateway.Navigate = path
+                
             yield gateway

@@ -15,9 +15,13 @@
 
 	<Captcha>
 		<Allows methods="GET" filter="userAuth">
-			<URL>User/*</URL>
+			<URL>Post/:User/*/PublishedPost/</URL>
+			<URL>Post/*:User/*/PublishedPost/*</URL>
+		
+			<URL>User/:User/*/SubUser</URL>
+			<URL>User/*:User/*/SubUser/*</URL>
 			<URL>User/*/Blog</URL>
-			<URL>User/#/SubUser/*</URL>
+			<URL>User/@/SubUser/*</URL>
 		</Allows>
 		<Allows methods="PUT" filter="userAuth">
 			<URL>User/*</URL>

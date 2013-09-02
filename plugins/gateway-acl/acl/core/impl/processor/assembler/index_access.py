@@ -11,10 +11,10 @@ Indexes the access invokers.
 
 from acl.api.access import IAccessService, Access, AccessCreate, generateId, \
     generateHash
-from acl.core.spec import uniqueNameFor
+from acl.core.spec import signature
 from ally.api.operator.type import TypeProperty, TypeModel, \
     TypePropertyContainer
-from ally.api.type import Input
+from ally.api.type import Input, Type, Non
 from ally.container import wire
 from ally.container.ioc import injected
 from ally.container.support import setup
@@ -44,6 +44,7 @@ class Invoker(Context):
     # ---------------------------------------------------------------- Required
     path = requires(list)
     methodHTTP = requires(str)
+    output = requires(Type)
     modelInput = requires(Input)
     filterName = requires(str)
     shadowing = requires(Context)
@@ -123,6 +124,7 @@ class IndexAccessHandler(HandlerProcessor):
         
         access = AccessCreate()
         access.Method = invoker.methodHTTP
+        access.Output = signature(Non if invoker.output is None else invoker.output)
         
         # Process the path and types.
         position, items = 1, []
@@ -133,17 +135,17 @@ class IndexAccessHandler(HandlerProcessor):
                     assert isinstance(el.shadowing, Element), 'Invalid element %s' % el.shadowing
                     assert isinstance(el.shadowing.accessEntryPosition, int), \
                     'Invalid element position %s' % el.shadowing.accessEntryPosition
-                    if access.TypesShadowing is None: access.TypesShadowing = {}
-                    access.TypesShadowing[position] = el.shadowing.accessEntryPosition
+                    if access.EntriesShadowing is None: access.EntriesShadowing = {}
+                    access.EntriesShadowing[position] = el.shadowing.accessEntryPosition
                 elif el.shadowed:
                     assert isinstance(el.shadowed, Element), 'Invalid element %s' % el.shadowed
                     assert isinstance(el.shadowed.accessEntryPosition, int), \
                     'Invalid element position %s' % el.shadowed.accessEntryPosition
-                    if access.TypesShadowed is None: access.TypesShadowed = {}
-                    access.TypesShadowed[position] = el.shadowed.accessEntryPosition
+                    if access.EntriesShadowed is None: access.EntriesShadowed = {}
+                    access.EntriesShadowed[position] = el.shadowed.accessEntryPosition
                 else:
-                    if access.Types is None: access.Types = {}
-                    access.Types[position] = uniqueNameFor(el.property)
+                    if access.Entries is None: access.Entries = {}
+                    access.Entries[position] = signature(el.property)
                     el.accessEntryPosition = position
                 items.append('*')
                 position += 1
@@ -168,7 +170,7 @@ class IndexAccessHandler(HandlerProcessor):
                 if not isinstance(prop, TypePropertyContainer): continue
                 assert isinstance(prop, TypePropertyContainer)
                 if access.Properties is None: access.Properties = {}
-                access.Properties[name] = uniqueNameFor(prop.type)
+                access.Properties[name] = signature(prop.type)
 
         try: present = self.accessService.getById(generateId(access.Path, access.Method))
         except: assert log.debug('There is no access for \'%s\' with %s', access.Path, access.Method) or True
@@ -180,7 +182,7 @@ class IndexAccessHandler(HandlerProcessor):
             log.info('Removing access %s since is not compatible with the current structure', present)
             self.accessService.delete(present.Id)
             
-        #TODO: Gabriel: After refactoring encoder on the new structure you can have access to the encoded names
+        # TODO: Gabriel: After refactoring encoder on the new structure you can have access to the encoded names
         # maybe by indexes rather then doEncode, this remains to be seen. After the encoder we can also implement
         # the excludable properties and then convince the Gateway service to do some assemblage and remove unwanted
         # indexes.

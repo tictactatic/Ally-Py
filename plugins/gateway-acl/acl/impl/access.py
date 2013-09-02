@@ -9,10 +9,10 @@ Created on Aug 6, 2013
 Implementation for the ACL access.
 '''
 
-from ..api.access import IAccessService, AccessCreate, generateId, QAccess
+from ..api.access import IAccessService, AccessCreate, generateId, QAccess, \
+    generateHash
 from ..meta.access import AccessMapped, EntryMapped, PropertyMapped
 from ..meta.acl_intern import Path, Method
-from acl.api.access import generateHash
 from ally.api.error import InputError
 from ally.container.ioc import injected
 from ally.container.support import setup
@@ -89,7 +89,7 @@ class AccessServiceAlchemy(EntityGetServiceAlchemy, EntityQueryServiceAlchemy, I
         @see: IAccessService.delete
         '''
         return deleteModel(AccessMapped, accessId)
-    
+        
     # ----------------------------------------------------------------
     
     def generateEntries(self, access, accessId, items):
@@ -103,16 +103,16 @@ class AccessServiceAlchemy(EntityGetServiceAlchemy, EntityQueryServiceAlchemy, I
                 raise InputError(_('Expected a shadowing if a shadowed is provided'), AccessCreate.Shadowed)
             if access.Shadowed is None:
                 raise InputError(_('Expected a shadowed if a shadowing is provided'), AccessCreate.Shadowed)
-            if access.Types:
-                raise InputError(_('No types expected for shadows'), AccessCreate.Types)
+            if access.Entries:
+                raise InputError(_('No entries expected for shadows'), AccessCreate.Entries)
             assert isinstance(access.Shadowing, int), 'Invalid shadowing %s' % access.Shadowing
             assert isinstance(access.Shadowed, int), 'Invalid shadowed id %s' % access.Shadowed
             
             sql = self.session().query(EntryMapped).filter(EntryMapped.accessId == access.Shadowing)
-            shadowingEntries = {entry.Position: entry.Type for entry in sql.all()}
+            shadowingEntries = {entry.Position: entry.Signature for entry in sql.all()}
             
             sql = self.session().query(EntryMapped).filter(EntryMapped.accessId == access.Shadowed)
-            shadowedEntries = {entry.Position: entry.Type for entry in sql.all()}
+            shadowedEntries = {entry.Position: entry.Signature for entry in sql.all()}
             
             isShadow = True
         else: isShadow = False
@@ -126,48 +126,48 @@ class AccessServiceAlchemy(EntityGetServiceAlchemy, EntityQueryServiceAlchemy, I
             
             if isShadow:
                 # Handling a shadow access.
-                if access.TypesShadowing:
-                    assert isinstance(access.TypesShadowing, dict), 'Invalid shadowing types %s' % access.TypesShadowing
-                    sposition = access.TypesShadowing.get(position)
+                if access.EntriesShadowing:
+                    assert isinstance(access.EntriesShadowing, dict), 'Invalid shadowing entries %s' % access.EntriesShadowing
+                    sposition = access.EntriesShadowing.get(position)
                 else: sposition = None
                 if sposition is not None:
                     if sposition not in shadowingEntries:
                         raise InputError(_('Invalid shadowing position %(shadowing)i for position %(position)s'),
-                                         AccessCreate.TypesShadowing, shadowing=sposition, position=position)
-                    typeName = shadowingEntries.pop(sposition)
+                                         AccessCreate.EntriesShadowing, shadowing=sposition, position=position)
+                    signature = shadowingEntries.pop(sposition)
                     entry.Shadowing = sposition
                 else:
-                    if access.TypesShadowed:
-                        assert isinstance(access.TypesShadowed, dict), 'Invalid shadowed types %s' % access.TypesShadowed
-                        sposition = access.TypesShadowed.get(position)
+                    if access.EntriesShadowed:
+                        assert isinstance(access.EntriesShadowed, dict), 'Invalid shadowed entries %s' % access.EntriesShadowed
+                        sposition = access.EntriesShadowed.get(position)
                     else: sposition = None
                     if sposition is None:
                         raise InputError(_('Cannot find shadowing or shadowed type for position %(position)s'))
                     if sposition not in shadowedEntries:
                         raise InputError(_('Invalid shadowed position %(shadowed)i for position %(position)s'),
-                                         AccessCreate.TypesShadowed, shadowed=sposition, position=position)
-                    typeName = shadowedEntries.pop(sposition)
+                                         AccessCreate.EntriesShadowed, shadowed=sposition, position=position)
+                    signature = shadowedEntries.pop(sposition)
                     entry.Shadowed = sposition
             
             else:
                 # Handling a normal access.
-                if not access.Types: raise InputError(_('Expected at least one type for first *'), AccessCreate.Types)
-                assert isinstance(access.Types, dict), 'Invalid access types %s' % access.Types
-                if position not in access.Types:
-                    raise InputError(_('Expected a type for * at %(position)i'), AccessCreate.Types, position=position)
-                typeName = access.Types[position]
+                if not access.Entries: raise InputError(_('Expected at least one entry for first *'), AccessCreate.Entries)
+                assert isinstance(access.Entries, dict), 'Invalid access entries %s' % access.Entries
+                if position not in access.Entries:
+                    raise InputError(_('Expected an entry for * at %(position)i'), AccessCreate.Entries, position=position)
+                signature = access.Entries[position]
             
-            entry.Type = typeName
+            entry.Signature = signature
             self.session().add(entry)
             position += 1
 
         if isShadow:
             if shadowingEntries:
-                raise InputError(_('This shadowing lacks types for shadow access at positions %(positions)s'),
-                             AccessCreate.TypesShadowing, positions=', '.join(shadowingEntries))
+                raise InputError(_('This shadowing lacks entries for shadow access at positions %(positions)s'),
+                             AccessCreate.EntriesShadowing, positions=', '.join(shadowingEntries))
             if shadowedEntries:
-                raise InputError(_('This shadowed lacks types for shadow access at positions %(positions)s'),
-                             AccessCreate.TypesShadowed, positions=', '.join(shadowedEntries))
+                raise InputError(_('This shadowed lacks entries for shadow access at positions %(positions)s'),
+                             AccessCreate.EntriesShadowed, positions=', '.join(shadowedEntries))
                 
     def generateProperties(self, access, accessId):
         '''
@@ -177,9 +177,9 @@ class AccessServiceAlchemy(EntityGetServiceAlchemy, EntityQueryServiceAlchemy, I
         
         if not access.Properties: return
         assert isinstance(access.Properties, dict), 'Invalid access properties %s' % access.Properties
-        for name, typeName in access.Properties.items():
+        for name, signature in access.Properties.items():
             prop = PropertyMapped()
             prop.Name = name
             prop.accessId = accessId
-            prop.Type = typeName
+            prop.Signature = signature
             self.session().add(prop)

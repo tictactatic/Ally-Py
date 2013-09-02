@@ -123,7 +123,8 @@ def isCompatible(theProperty, withProperty):
     assert isinstance(wtyp, TypeProperty)
     if not isinstance(wtyp.parent, TypeContainer): return False
     assert isinstance(wtyp.parent, TypeContainer)
-    if not typ.name == wtyp.name: return False
+    if typ.name != wtyp.name: return False
+    if typ.type != wtyp.type: return False
     if not issubclass(wtyp.parent.clazz, typ.parent.clazz): return False
     
     return True

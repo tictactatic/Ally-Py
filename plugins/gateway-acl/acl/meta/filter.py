@@ -10,7 +10,7 @@ Contains the SQL alchemy meta for ACL filter.
 '''
 
 from ..api.filter import Filter
-from .acl_intern import WithPath, WithType
+from .acl_intern import WithPath, WithSignature
 from .metadata_acl import Base
 from sql_alchemy.support.mapper import validate
 from sqlalchemy.dialects.mysql.base import INTEGER
@@ -20,7 +20,7 @@ from sqlalchemy.types import String
 # --------------------------------------------------------------------
 
 @validate
-class FilterMapped(Base, WithPath, WithType, Filter):
+class FilterMapped(Base, WithPath, WithSignature, Filter):
     '''
     Provides the ACL filter mapping.
     '''
@@ -28,5 +28,6 @@ class FilterMapped(Base, WithPath, WithType, Filter):
     __table_args__ = dict(mysql_engine='InnoDB')
     
     Name = Column('name', String(255), nullable=False, unique=True)
+    Signature = WithSignature.createSignature()
     # Non REST model attribute --------------------------------------
     id = Column('id', INTEGER(unsigned=True), primary_key=True)

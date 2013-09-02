@@ -10,7 +10,7 @@ Indexes the filters invokers.
 '''
 
 from acl.api.filter import IFilterService, Filter
-from acl.core.spec import uniqueNameFor
+from acl.core.spec import signature
 from ally.api.operator.type import TypeProperty
 from ally.container import wire
 from ally.container.ioc import injected
@@ -107,19 +107,19 @@ class IndexFilterHandler(HandlerProcessor):
                     if Invoker.filterInjected in invoker and invoker.filterInjected and el in invoker.filterInjected:
                         items.append(invoker.filterInjected[el])
                     else:
-                        if filtre.Type is not None:
+                        if filtre.Signature is not None:
                             log.error('Cannot use filter invoker because there are to many possible targets, at:%s',
                                       invoker.location)
                             aborted.append(invoker)
                             break
-                        filtre.Type = uniqueNameFor(el.property)
+                        filtre.Signature = signature(el.property)
                         items.append('*')
                 else:
                     assert isinstance(el.name, str), 'Invalid element name %s' % el.name
                     items.append(el.name)
             else:
                 filtre.Path = '/'.join(items)
-                if filtre.Type is None:
+                if filtre.Signature is None:
                     log.error('Cannot use filter invoker because there is no target, at:%s', invoker.location)
                     aborted.append(invoker)
             
@@ -140,7 +140,7 @@ class IndexFilterHandler(HandlerProcessor):
             except: assert log.debug('There is no filter for \'%s\'', filtre.Name) or True
             else:
                 assert isinstance(present, Filter), 'Invalid filter %s' % present
-                if present.Type == filtre.Type: continue
+                if present.Signature == filtre.Signature: continue
                 log.info('Removing filter %s since is not compatible with the current structure', present)
                 self.filterService.delete(filtre.Name)
             

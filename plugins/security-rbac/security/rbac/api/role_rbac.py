@@ -11,7 +11,7 @@ API specifications for Roles with Rbac.
 
 from .role import IRoleService, Role
 from ally.api.config import service, hints
-from security.rbac.core.api.rbac import IRbacPrototype
+from security.rbac.api.rbac import IRbacPrototype
 
 
 # --------------------------------------------------------------------
