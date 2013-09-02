@@ -421,8 +421,13 @@ dust.filters.userdate = function(content) {
   var match = superdeskDateRegExp.exec(content);
   if (match) {
     var date = new Date();
-    date.setUTCFullYear(2000 + parseInt(match[3]), parseInt(match[2]), parseInt(match[1]));
+    date.setUTCFullYear(2000 + parseInt(match[3]), parseInt(match[2]) - 1, parseInt(match[1])); // month is 0-11
     date.setUTCHours(parseInt(match[4]), parseInt(match[5]));
+    return date.toLocaleString();
+  }
+
+  var date = new Date(content);
+  if (!isNaN(date.getTime())) {
     return date.toLocaleString();
   }
 
