@@ -32,12 +32,13 @@ class Access(Entity):
         Shadowed -   the access that this access is shadowed, this means that this access is overridden by the shadow in
                      required cases.
         Priority -   the ACL priority when constructing gateways on it.
+        Output -     the output type signature for access.
         Hash -       the hash that represents the full aspect of the access.
     '''
-    Id = int
     Path = str
     Method = str
     Priority = int
+    Output = str
     Hash = str
 
 Access.Shadowing = Access
@@ -48,46 +49,46 @@ Access = modelACL(Access)
 class AccessCreate(Access):
     '''
     Contains data required for creating an ACL access.
-        Types -          the types dictionary needs to have entries as there are '*' in the access 'Path' except if access
-                         is a shadow in that case the types from the shadowed type will be used, the dictionary
-                         key is the position of the '*' starting from 1 for the first '*', and as a value the type name.
-        TypesShadowing - the dictionary containing as a key the position of the '*' in the 'Path' and as a value the 
-                         the position in the shadowing access type.
-        TypesShadowed -  the dictionary containing as a key the position of the '*' in the 'Path' and as a value the 
-                         the position in the shadowed access type.
-        Properties -     the properties dictionary associated with the access, as a key the property name and as a value
-                         the property type name.
+        Entries -            the entries dictionary needs to have entries as there are '*' in the access 'Path' except if access
+                             is a shadow in that case the entries from the shadowed will be used, the dictionary
+                             key is the position of the '*' starting from 1 for the first '*', and as a value the type signature.
+        EntriesShadowing -   the dictionary containing as a key the position of the '*' in the 'Path' and as a value the 
+                             the position in the shadowing access entry.
+        EntriesShadowed -    the dictionary containing as a key the position of the '*' in the 'Path' and as a value the 
+                             the position in the shadowed access entry.
+        Properties -         the properties dictionary associated with the access, as a key the property name and as a value
+                             the property type name.
                          
     '''
-    Types = Dict(int, str)
-    TypesShadowing = Dict(int, int)
-    TypesShadowed = Dict(int, int)
+    Entries = Dict(int, str)
+    EntriesShadowing = Dict(int, int)
+    EntriesShadowed = Dict(int, int)
     Properties = Dict(str, str)
-
+    
 @modelACL(id='Position')
 class Entry:
     '''
     The path entry that corresponds to a '*' dynamic path input.
         Position -           the position of the entry in the access path.
-        Type -               the type name associated with the path entry.
         Shadowing -          the position that this entry is shadowing.
         Shadowed -           the position of the shadowed entry, also it means that the values belonging to it 
                              will not be actually used by the access path request.
+        Signature -          the type signature associated with the path entry.
     '''
     Position = int
     Shadowing = int
     Shadowed = int
-    Type = str
+    Signature = str
 
 @modelACL(id='Name')
 class Property:
     '''
     The input model property associated with an access.
         Name -            the property name.
-        Type -            the type associated with the input model property.
+        Signature -       the type signature associated with the input model property.
     '''
     Name = str
-    Type = str
+    Signature = str
 
 # --------------------------------------------------------------------
 
@@ -168,7 +169,7 @@ def generateId(path, method):
     '''
     assert isinstance(path, str), 'Invalid path %s' % path
     assert isinstance(method, str), 'Invalid method %s' % method
-    return crc32(method.strip().upper().encode(), crc32(path.strip().strip('/').encode(), 0))
+    return crc32(method.strip().upper().encode(), crc32(path.strip().strip('/').encode()))
 
 def generateHash(access):
     '''
@@ -185,15 +186,16 @@ def generateHash(access):
     hashAcc.update(str(generateId(access.Path, access.Method)).encode())
     if access.Shadowing: hashAcc.update(str(access.Shadowing).encode())
     if access.Shadowed: hashAcc.update(str(access.Shadowed).encode())
-    if access.Types:
-        for position in sorted(access.Types):
-            hashAcc.update(('%s:%s' % (position, access.Types[position])).encode())
-    if access.TypesShadowing:
-        for position in sorted(access.TypesShadowing):
-            hashAcc.update(('%s:%s' % (position, access.TypesShadowing[position])).encode())
-    if access.TypesShadowed:
-        for position in sorted(access.TypesShadowed):
-            hashAcc.update(('%s:%s' % (position, access.TypesShadowed[position])).encode())
+    if access.Output: hashAcc.update(access.Output.encode())
+    if access.Entries:
+        for position in sorted(access.Entries):
+            hashAcc.update(('%s:%s' % (position, access.Entries[position])).encode())
+    if access.EntriesShadowing:
+        for position in sorted(access.EntriesShadowing):
+            hashAcc.update(('%s:%s' % (position, access.EntriesShadowing[position])).encode())
+    if access.EntriesShadowed:
+        for position in sorted(access.EntriesShadowed):
+            hashAcc.update(('%s:%s' % (position, access.EntriesShadowed[position])).encode())
     if access.Properties:
         for name in sorted(access.Properties):
             hashAcc.update(('%s:%s' % (name, access.Properties[name])).encode())

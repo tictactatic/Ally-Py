@@ -10,8 +10,9 @@ Contains the SQL alchemy meta for ACL group.
 '''
 
 from ..api.group import Group
+from .acl import WithAclAccess
+from .compensate import WithCompensate
 from .metadata_acl import Base
-from acl.meta.acl import WithAclAccess
 from sql_alchemy.support.mapper import validate
 from sqlalchemy.dialects.mysql.base import INTEGER
 from sqlalchemy.schema import Column, ForeignKey
@@ -40,3 +41,11 @@ class GroupAccess(Base, WithAclAccess):
     __tablename__ = 'acl_group_access'
     
     aclId = Column('fk_group_id', ForeignKey(GroupMapped.id, ondelete='CASCADE'))
+    
+class GroupCompensate(Base, WithCompensate):
+    '''
+    Provides the Group to Compensate mapping.
+    '''
+    __tablename__ = 'acl_group_compensate'
+    
+    aclAccessId = Column('fk_group_access_id', ForeignKey(GroupAccess.id, ondelete='CASCADE'))

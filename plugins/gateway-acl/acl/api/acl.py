@@ -6,11 +6,11 @@ Created on Aug 27, 2013
 @license: http://www.gnu.org/licenses/gpl-3.0.txt
 @author: Gabriel Nistor
 
-API specifications for access group.
+API specifications for ACL access.
 '''
 
-from acl.api.access import Access, Entry, Property
-from acl.api.filter import Filter
+from .access import Access, Entry, Property
+from .filter import Filter
 from ally.api.config import DELETE, UPDATE, prototype
 from ally.api.option import SliceAndTotal # @UnusedImport
 from ally.api.type import Iter
@@ -115,41 +115,41 @@ class IAclPrototype(metaclass=abc.ABCMeta):
         '''
     
     @prototype
-    def addAcl(self, accessId:Access.Id, identifier:lambda p: modelId(p.ACL)):
+    def addAcl(self, identifier:lambda p: modelId(p.ACL), accessId:Access.Id):
         '''
         Adds a new ACL object for the access.
         The ACL object will also propagate to the shadow, shadowing and shadowed accesses.
         
-        @param accessId: integer
-            The access id to add to.
         @param identifier: object
             The ACL object identifier.
+        @param accessId: integer
+            The access id to add to.
         '''
         
     @prototype(method=DELETE)
-    def remAcl(self, accessId:Access, identifier:lambda p: p.ACL) -> bool:
+    def remAcl(self, identifier:lambda p: p.ACL, accessId:Access) -> bool:
         '''
         Removes ACL object for the access.
         The ACL object will also propagate to the shadow, shadowing and shadowed accesses.
         
-        @param accessId: integer
-            The access id to remove from.
         @param identifier: object
             The ACL object identifier.
+        @param accessId: integer
+            The access id to remove from.
         @return: boolean
             True if a ACL object has been successfully removed, False otherwise. 
         '''
     
     @prototype
-    def addEntryFilter(self, accessId:Access.Id, identifier:lambda p: modelId(p.ACL),
+    def addEntryFilter(self, identifier:lambda p: modelId(p.ACL), accessId:Access.Id,
                        entryPosition:Entry.Position, filterName:Filter.Name):
         '''
         Adds a filter to a ACL object access entry.
         
-        @param accessId: integer
-            The access id.
         @param identifier: object
             The ACL object identifier.
+        @param accessId: integer
+            The access id.
         @param entryPosition: integer
             The entry position.
         @param filterName: string
@@ -157,15 +157,15 @@ class IAclPrototype(metaclass=abc.ABCMeta):
         '''
         
     @prototype(method=DELETE)
-    def remEntryFilter(self, accessId:Access.Id, identifier:lambda p: p.ACL,
+    def remEntryFilter(self, identifier:lambda p: p.ACL, accessId:Access.Id,
                        entryPosition:Entry, filterName:Filter.Name) -> bool:
         '''
         Removes an filter from the ACL object access entry.
         
-        @param accessId: integer
-            The access id.
         @param identifier: object
             The ACL object identifier.
+        @param accessId: integer
+            The access id.
         @param entryPosition: integer
             The entry position.
         @param filterName: string
@@ -175,15 +175,15 @@ class IAclPrototype(metaclass=abc.ABCMeta):
         '''
         
     @prototype
-    def addPropertyFilter(self, accessId:Access.Id, identifier:lambda p: modelId(p.ACL),
+    def addPropertyFilter(self, identifier:lambda p: modelId(p.ACL), accessId:Access.Id,
                           propertyName:Property, filterName:Filter.Name):
         '''
         Adds a filter to a ACL object access property.
         
-        @param accessId: integer
-            The access id.
         @param identifier: object
             The ACL object identifier.
+        @param accessId: integer
+            The access id.
         @param propertyName: string
             The property name.
         @param filterName: string
@@ -191,15 +191,15 @@ class IAclPrototype(metaclass=abc.ABCMeta):
         '''
         
     @prototype(method=DELETE)
-    def remPropertyFilter(self, accessId:Access.Id, identifier:lambda p: p.ACL,
+    def remPropertyFilter(self, identifier:lambda p: p.ACL, accessId:Access.Id,
                           propertyName:Property, filterName:Filter.Name) -> bool:
         '''
         Removes an filter from the ACL object access property.
         
-        @param accessId: integer
-            The access id.
         @param identifier: object
             The ACL object identifier.
+        @param accessId: integer
+            The access id.
         @param entryPosition: integer
             The entry position.
         @param propertyName: string
@@ -209,17 +209,17 @@ class IAclPrototype(metaclass=abc.ABCMeta):
         '''
     
     @prototype(method=UPDATE)
-    def registerFilter(self, accessId:Access.Id, identifier:lambda p: modelId(p.ACL),
+    def registerFilter(self, identifier:lambda p: modelId(p.ACL), accessId:Access.Id,
                        filterName:Filter.Name, place:str=None) -> bool:
         '''
         Register a new filter for access, the place is used only when the filter matches multiple entries in the access
-        path, the location of the filter will be marked '#'. The register will also propagate to the shadow, shadowing and 
+        path, the location of the filter will be marked '@'. The register will also propagate to the shadow, shadowing and 
         shadowed accesses.
         
-        @param accessId: integer
-            The access id.
         @param identifier: object
             The ACL object identifier.
+        @param accessId: integer
+            The access id.
         @param filterName: string
             The filter name.
         @param place: string

@@ -24,10 +24,10 @@ class Filter(Entity):
         Path -       contains the path that the filter maps to. The path contains beside the fixed string
                      names also markers '*' for where the filtered values or injected values will be placed.
         Hash -       the hash that represents the full aspect of the filter.
-        Type -       the type name associated with the target path entry.
+        Signature -  the type signature associated with the target path entry.
     '''
     Path = str
-    Type = str
+    Signature = str
     
 # --------------------------------------------------------------------
 

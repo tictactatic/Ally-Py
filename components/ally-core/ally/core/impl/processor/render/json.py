@@ -268,7 +268,7 @@ class RenderJSONHandler(RenderBaseHandler):
     def process(self, chain, request:Context, **keyargs):
         if super().process(chain, **keyargs):
             assert isinstance(request, Request), 'Invalid request %s' % request
-            if Request.converterContent in request:
+            if Request.converterContent in request and request.converterContent:
                 request.converterContent = ConverterJSON(request.converterContent)
 
     def renderFactory(self, content):

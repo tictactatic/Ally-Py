@@ -10,7 +10,7 @@ Contains the SQL alchemy meta for ACL access.
 '''
 
 from ..api.access import Access, Entry, Property
-from .acl_intern import WithMethod, WithPath, WithType
+from .acl_intern import WithMethod, WithPath, WithSignature
 from .metadata_acl import Base
 from sql_alchemy.support.mapper import validate
 from sqlalchemy.dialects.mysql.base import INTEGER
@@ -21,7 +21,7 @@ from sqlalchemy.types import String
 # --------------------------------------------------------------------
 
 @validate
-class AccessMapped(Base, WithPath, WithMethod, Access):
+class AccessMapped(Base, WithPath, WithMethod, WithSignature, Access):
     '''
     Provides the ACL access mapping.
     '''
@@ -32,10 +32,11 @@ class AccessMapped(Base, WithPath, WithMethod, Access):
     Priority = association_proxy('path', 'priority')
     Shadowing = Column('fk_shadowing_id', ForeignKey('acl_access.id', ondelete='CASCADE'))
     Shadowed = Column('fk_shadowed_id', ForeignKey('acl_access.id', ondelete='CASCADE'))
+    Output = WithSignature.createSignature()
     Hash = Column('hash', String(50), nullable=False, unique=True)
-    
+
 @validate
-class EntryMapped(Base, WithType, Entry):
+class EntryMapped(Base, WithSignature, Entry):
     '''
     Provides the ACL access entry mapping.
     '''
@@ -45,12 +46,13 @@ class EntryMapped(Base, WithType, Entry):
     Position = Column('position', INTEGER(unsigned=True))
     Shadowing = Column('shadowing_position', INTEGER(unsigned=True))
     Shadowed = Column('shadowed_position', INTEGER(unsigned=True))
+    Signature = WithSignature.createSignature()
     # Non REST model attribute --------------------------------------
     id = Column('id', INTEGER(unsigned=True), primary_key=True)
     accessId = Column('fk_access_id', ForeignKey(AccessMapped.Id, ondelete='CASCADE'), nullable=False)
     
 @validate
-class PropertyMapped(Base, WithType, Property):
+class PropertyMapped(Base, WithSignature, Property):
     '''
     Provides the ACL access property mapping.
     '''
@@ -58,6 +60,7 @@ class PropertyMapped(Base, WithType, Property):
     __table_args__ = (UniqueConstraint('fk_access_id', 'name', name='uix_acl_access_property'), dict(mysql_engine='InnoDB'))
     
     Name = Column('name', String(255))
+    Signature = WithSignature.createSignature()
     # Non REST model attribute --------------------------------------
     id = Column('id', INTEGER(unsigned=True), primary_key=True)
     accessId = Column('fk_access_id', ForeignKey(AccessMapped.Id, ondelete='CASCADE'), nullable=False)

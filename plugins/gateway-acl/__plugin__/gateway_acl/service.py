@@ -16,6 +16,8 @@ from .database import binders
 from acl.api.group import IGroupService
 from acl.core.impl.processor.gateway.acl_permission import \
     RegisterAclPermissionHandler
+from acl.core.impl.processor.gateway.compensate import \
+    RegisterCompensatePermissionHandler
 from acl.core.impl.processor.gateway.root_uri import RootURIHandler
 from ally.container import ioc, support, bind
 from ally.container.support import entityFor
@@ -64,14 +66,20 @@ def registerAclPermission() -> Handler:
     b.aclPermissionProvider = entityFor(IGroupService)
     return b
 
+@ioc.entity
+def registerCompensatePermission() -> Handler:
+    b = RegisterCompensatePermissionHandler()
+    b.compensateProvider = entityFor(IGroupService)
+    return b
+
 # --------------------------------------------------------------------
 
 @ioc.after(updateAssemblyAnonymousGateways)
 def updateAssemblyAnonymousGatewaysForAcl():
-    assemblyAnonymousGateways().add(anonymousGroup(), rootURI(), registerAclPermission(), registerPermissionGateway(),
-                                    before=gatewayMethodMerge())
+    assemblyAnonymousGateways().add(anonymousGroup(), rootURI(), registerAclPermission(), registerCompensatePermission(),
+                                    registerPermissionGateway(), before=gatewayMethodMerge())
 
 @ioc.after(assemblyGroupGateways)
 def updateAssemblyGroupGateways():
-    assemblyGroupGateways().add(registerAclPermission(), rootURI(), registerPermissionGateway(), gatewayMethodMerge(),
-                                registerMethodOverride())
+    assemblyGroupGateways().add(registerAclPermission(), registerCompensatePermission(), rootURI(), registerPermissionGateway(),
+                                gatewayMethodMerge(), registerMethodOverride())

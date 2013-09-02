@@ -9,13 +9,13 @@ Created on Aug 28, 2013
 API specifications for RBAC right.
 '''
 
+from .role import Role, QRole
 from ally.api.config import prototype, DELETE
 from ally.api.option import SliceAndTotal # @UnusedImport
 from ally.api.type import Iter
 from ally.support.api.util_service import modelId
 from security.api.right import QRight, Right
 from security.api.right_type import RightType
-from security.rbac.api.role import Role, QRole
 import abc # @UnusedImport
 
 # --------------------------------------------------------------------

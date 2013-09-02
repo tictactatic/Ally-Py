@@ -13,6 +13,7 @@ from ..api.right import Right
 from .metadata_security import Base
 from .right_type import RightTypeMapped
 from acl.meta.acl import WithAclAccess
+from acl.meta.compensate import WithCompensate
 from sql_alchemy.support.mapper import validate
 from sql_alchemy.support.util_meta import relationshipModel
 from sqlalchemy.dialects.mysql.base import INTEGER
@@ -42,3 +43,11 @@ class RightAccess(Base, WithAclAccess):
     __tablename__ = 'acl_right_access'
     
     aclId = Column('fk_right_id', ForeignKey(RightMapped.Id, ondelete='CASCADE'))
+    
+class RightCompensate(Base, WithCompensate):
+    '''
+    Provides the Right to Compensate mapping.
+    '''
+    __tablename__ = 'acl_right_compensate'
+    
+    aclAccessId = Column('fk_right_access_id', ForeignKey(RightAccess.id, ondelete='CASCADE'))

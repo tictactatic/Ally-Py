@@ -11,7 +11,7 @@ Contains the services for security.
     
 from ..plugin.registry import registerService
 from .database import binders
-from ally.container import support, bind
+from ally.container import support, bind, ioc
 
 # --------------------------------------------------------------------
 
@@ -21,3 +21,10 @@ bind.bindToEntities('security.impl.**.*Alchemy', 'security.**.impl.**.*Alchemy',
 support.createEntitySetup('security.impl.**.*', 'security.**.impl.**.*')
 support.listenToEntities(*SERVICES, listeners=registerService)
 support.loadAllEntities(*SERVICES)
+
+# --------------------------------------------------------------------
+
+@ioc.entity
+def signaturesRight() -> dict:
+    ''' The right signatures that can be injected'''
+    return {}

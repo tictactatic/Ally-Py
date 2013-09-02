@@ -11,6 +11,7 @@ Contains the SQL alchemy meta for ACL internal mappings.
 
 from .metadata_acl import Base
 from sql_alchemy.support.session import openSession
+from sql_alchemy.support.util_meta import joinedExpr, hybrid
 from sqlalchemy.dialects.mysql.base import INTEGER
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -43,11 +44,11 @@ class Method(Base):
     id = Column('id', INTEGER(unsigned=True), primary_key=True)
     name = Column('name', String(20), nullable=False, unique=True)
 
-class Type(Base):
+class Signature(Base):
     '''
-    Provides the ACL type mapping.
+    Provides the ACL type signature mapping.
     '''
-    __tablename__ = 'acl_type'
+    __tablename__ = 'acl_signature'
     __table_args__ = dict(mysql_engine='InnoDB')
     
     id = Column('id', INTEGER(unsigned=True), primary_key=True)
@@ -60,18 +61,15 @@ class WithPath:
     Provides the definition used to add path on other mappings.
     '''
 
-    # Non REST model attribute --------------------------------------
     pathId = declared_attr(lambda cls: Column('fk_path_id', ForeignKey(Path.id, ondelete='RESTRICT'), nullable=False))
-    # Relationships -------------------------------------------------
     path = declared_attr(lambda cls: relationship(Path, lazy='joined', uselist=False, viewonly=True))
-    # REST model attribute with name conflicts ----------------------
-    @hybrid_property
+
+    @hybrid(expr=joinedExpr(Path, 'path'))
     def Path(self):
         if self.path: return self.path.path
     @Path.setter
-    def setterPath(self, path):
+    def PathSet(self, path):
         assert isinstance(path, str), 'Invalid path %s' % path
-        
         path = path.strip().strip('/')
         session = openSession()
         try: pathId, = session.query(Path.id).filter(Path.path == path).one()
@@ -89,24 +87,20 @@ class WithPath:
             session.flush((aclPath,))
             pathId = aclPath.id
         self.pathId = pathId
-    @Path.expression
-    def expressionPath(self): return Path.path
-
+    
 class WithMethod:
     '''
     Provides the definition used to add method on other mappings.
     '''
     
-    # Non REST model attribute --------------------------------------
     methodId = declared_attr(lambda cls: Column('fk_method_id', ForeignKey(Method.id, ondelete='RESTRICT'), nullable=False))
-    # Relationships -------------------------------------------------
     method = declared_attr(lambda cls: relationship(Method, lazy='joined', uselist=False, viewonly=True))
-    # REST model attribute with name conflicts ----------------------
-    @hybrid_property
+    
+    @hybrid(expr=joinedExpr(Method, 'name'))
     def Method(self):
         if self.method: return self.method.name
     @Method.setter
-    def setterMethod(self, name):
+    def MethodSet(self, name):
         assert isinstance(name, str), 'Invalid name %s' % name
         name = name.strip().upper()
         assert name, 'Empty string is not a valid name'
@@ -120,37 +114,38 @@ class WithMethod:
             session.flush((method,))
             methodId = method.id
         self.methodId = methodId
-    @Method.expression
-    def expressionMethod(self): return Method.name
+
+class WithSignature:
+    '''
+    Provides the definition used to add signature on other mappings.
+    '''
     
-class WithType:
-    '''
-    Provides the definition used to add type on other mappings.
-    '''
-
-    # Non REST model attribute --------------------------------------
-    typeId = declared_attr(lambda cls: Column('fk_type_id', ForeignKey(Type.id, ondelete='RESTRICT'), nullable=False))
-    # Relationships -------------------------------------------------
-    type = declared_attr(lambda cls: relationship(Type, lazy='joined', uselist=False, viewonly=True))
-    # REST model attribute with name conflicts ----------------------
-    @hybrid_property
-    def Type(self):
-        if self.type: return self.type.name
-    @Type.setter
-    def setterType(self, name):
-        assert isinstance(name, str), 'Invalid type name %s' % name
-        name = name.strip()
-        assert name, 'Empty string is not a valid name'
+    signatureId = declared_attr(lambda cls:
+                                Column('fk_signature_id', ForeignKey(Signature.id, ondelete='RESTRICT'), nullable=False))
+    signature = declared_attr(lambda cls: relationship(Signature, lazy='joined', uselist=False, viewonly=True))
+    
+    @classmethod
+    def createSignature(cls):
+        '''
+        Create the signature name link.
+        '''
         
-        session = openSession()
-        try: typeId, = session.query(Type.id).filter(Type.name == name).one()
-        except NoResultFound:
-            aclType = Type()
-            aclType.name = name
-            session.add(aclType)
-            session.flush((aclType,))
-            typeId = aclType.id
-        self.typeId = typeId
-    @Type.expression
-    def expressionType(self): return Type.name
-
+        def fget(self):
+            if self.signature: return self.signature.name
+        
+        def fset(self, name):
+            assert isinstance(name, str), 'Invalid signature name %s' % name
+            name = name.strip()
+            assert name, 'Empty string is not a valid signature name'
+            
+            session = openSession()
+            try: signatureId, = session.query(Signature.id).filter(Signature.name == name).one()
+            except NoResultFound:
+                signature = Signature()
+                signature.name = name
+                session.add(signature)
+                session.flush((signature,))
+                signatureId = signature.id
+            self.signatureId = signatureId
+            
+        return hybrid_property(fget, fset, expr=joinedExpr(Signature, 'name'))

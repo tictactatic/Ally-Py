@@ -12,6 +12,7 @@ Implementation for handling ACL service.
 from ..spec import IAclPermissionProvider
 from acl.api.access import Access, Entry, Property
 from acl.api.filter import Filter
+from acl.core.spec import isCompatible
 from acl.meta.access import EntryMapped, PropertyMapped, AccessMapped
 from acl.meta.acl import WithAclAccess
 from acl.meta.acl_intern import Path
@@ -126,7 +127,7 @@ class AclServiceAlchemy(SessionSupport, IAclPermissionProvider):
         sql = sql.filter(PropertyMapped.Name == propertyName)
         return iterateCollection(sql, **options)
     
-    def addAcl(self, accessId, identifier):
+    def addAcl(self, identifier, accessId):
         '''
         @see: IACLPrototype.addAcl
         '''
@@ -156,7 +157,7 @@ class AclServiceAlchemy(SessionSupport, IAclPermissionProvider):
     
             self.session().add(aclAccess)
             
-    def remAcl(self, accessId, identifier):
+    def remAcl(self, identifier, accessId):
         '''
         @see: IACLPrototype.remAcl
         '''
@@ -170,7 +171,7 @@ class AclServiceAlchemy(SessionSupport, IAclPermissionProvider):
         self.session().delete(aclAccess)
         return True
     
-    def addEntryFilter(self, accessId, identifier, entryPosition, filterName):
+    def addEntryFilter(self, identifier, accessId, entryPosition, filterName):
         '''
         @see: IACLPrototype.addEntryFilter
         '''
@@ -178,15 +179,17 @@ class AclServiceAlchemy(SessionSupport, IAclPermissionProvider):
         assert isinstance(entryPosition, int), 'Invalid entry position %s' % entryPosition
         assert isinstance(filterName, str), 'Invalid filter name %s' % filterName
         
-        filterId, targetTypeId = self.filterObtain(filterName)
-        sql = self.session().query(EntryMapped.id)
+        filtre = self.filterObtain(filterName)
+        assert isinstance(filtre, FilterMapped), 'Invalid filter %s' % filtre
+        sql = self.session().query(EntryMapped.Signature)
         sql = sql.filter(EntryMapped.accessId == accessId).filter(EntryMapped.Position == entryPosition)
-        sql = sql.filter(EntryMapped.typeId == targetTypeId)
-        if not sql.count(): raise InputError(_('Invalid filter for entry position'))
+        try: esignature, = sql.one()
+        except NoResultFound: raise IdError(Entry)
+        if not isCompatible(filtre.Signature, esignature): raise InputError(_('Invalid filter for entry position'))
         
-        self.assignEntryFilter(accessId, identifier, entryPosition, filterId)
+        self.assignEntryFilter(identifier, accessId, entryPosition, filtre.id)
         
-    def remEntryFilter(self, accessId, identifier, entryPosition, filterName):
+    def remEntryFilter(self, identifier, accessId, entryPosition, filterName):
         '''
         @see: IACLPrototype.remEntryFilter
         '''
@@ -203,7 +206,7 @@ class AclServiceAlchemy(SessionSupport, IAclPermissionProvider):
         self.session().delete(entryFilter)
         return True
     
-    def addPropertyFilter(self, accessId, identifier, propertyName, filterName):
+    def addPropertyFilter(self, identifier, accessId, propertyName, filterName):
         '''
         @see: IACLPrototype.addPropertyFilter
         '''
@@ -211,15 +214,17 @@ class AclServiceAlchemy(SessionSupport, IAclPermissionProvider):
         assert isinstance(propertyName, str), 'Invalid property name %s' % propertyName
         assert isinstance(filterName, str), 'Invalid filter name %s' % filterName
         
-        filterId, targetTypeId = self.filterObtain(filterName)
-        sql = self.session().query(PropertyMapped.id)
+        filtre = self.filterObtain(filterName)
+        assert isinstance(filtre, FilterMapped), 'Invalid filter %s' % filtre
+        sql = self.session().query(PropertyMapped.Signature)
         sql = sql.filter(PropertyMapped.accessId == accessId).filter(PropertyMapped.Name == propertyName)
-        sql = sql.filter(PropertyMapped.typeId == targetTypeId)
-        if not sql.count(): raise InputError(_('Invalid filter for property name'))
+        try: psignature, = sql.one()
+        except NoResultFound: raise IdError(Property)
+        if not isCompatible(filtre.Signature, psignature): raise InputError(_('Invalid filter for property name'))
         
-        self.assignPropertyFilter(accessId, identifier, propertyName, filterId)
+        self.assignPropertyFilter(identifier, accessId, propertyName, filtre.id)
         
-    def remPropertyFilter(self, accessId, identifier, propertyName, filterName):
+    def remPropertyFilter(self, identifier, accessId, propertyName, filterName):
         '''
         @see: IACLPrototype.remPropertyFilter
         '''
@@ -237,7 +242,7 @@ class AclServiceAlchemy(SessionSupport, IAclPermissionProvider):
         self.session().delete(propertyFilter)
         return True
     
-    def registerFilter(self, accessId, identifier, filterName, place=None):
+    def registerFilter(self, identifier, accessId, filterName, place=None):
         '''
         @see: IACLPrototype.registerFilter
         '''
@@ -248,7 +253,9 @@ class AclServiceAlchemy(SessionSupport, IAclPermissionProvider):
         except NoResultFound: raise IdError(Access)
         assert isinstance(access, AccessMapped), 'Invalid access %s' % access
 
-        filterId, targetTypeId = self.filterObtain(filterName)
+        filtre = self.filterObtain(filterName)
+        assert isinstance(filtre, FilterMapped), 'Invalid filter %s' % filtre
+        
         sql = self.session().query(EntryMapped)
         sql = sql.filter(EntryMapped.accessId == accessId)
         entries = {entry.Position: entry for entry in sql.all()}
@@ -256,7 +263,7 @@ class AclServiceAlchemy(SessionSupport, IAclPermissionProvider):
         filterEntries = []  # The compatible entries with the filter.
         for entry in entries.values():
             assert isinstance(entry, EntryMapped), 'Invalid entry %s' % entry
-            if entry.typeId == targetTypeId: filterEntries.append(entry)
+            if isCompatible(filtre.Signature, entry.Signature): filterEntries.append(entry)
         
         sql = self.session().query(PropertyMapped)
         sql = sql.filter(PropertyMapped.accessId == accessId)
@@ -265,23 +272,23 @@ class AclServiceAlchemy(SessionSupport, IAclPermissionProvider):
         filterProperties = []  # The compatible properties with the filter.
         for prop in properties.values():
             assert isinstance(prop, PropertyMapped), 'Invalid property %s' % prop
-            if prop.typeId == targetTypeId: filterProperties.append(prop)
+            if isCompatible(filtre.Signature, prop.Signature): filterProperties.append(prop)
         
         if not filterEntries and not filterProperties: return False
         if len(filterEntries) + len(filterProperties) > 1:
             if place is None:
                 raise InputError(_('Filter matches multiple entries and/or properties, a place is required to be specified'))
-            filterEntries, filterProperties = self.determineFilterPlace(access, targetTypeId, place, entries, properties)
+            filterEntries, filterProperties = self.determineFilterPlace(access, filtre.Signature, place, entries, properties)
         
         for entry in filterEntries:
-            self.assignEntryFilter(accessId, identifier, entry.Position, filterId)
+            self.assignEntryFilter(identifier, accessId, entry.Position, filtre.id)
             if entry.Shadowing is not None:  # Registering the filter also for the shadowing entry.
-                self.assignEntryFilter(access.Shadowing, identifier, entry.Shadowing, filterId)
+                self.assignEntryFilter(identifier, access.Shadowing, entry.Shadowing, filtre.id)
                     
         for prop in filterProperties:
-            self.assignPropertyFilter(accessId, identifier, prop.Name, filterId)
+            self.assignPropertyFilter(identifier, accessId, prop.Name, filtre.id)
             if access.Shadowing is not None:  # Registering the filter also for the shadowing property.
-                self.assignPropertyFilter(access.Shadowing, identifier, prop.Name, filterId)
+                self.assignPropertyFilter(identifier, access.Shadowing, prop.Name, filtre.id)
         
         if access.Shadowing is None:
             # Registering the filter also for the shadows, if any, of this access.
@@ -297,9 +304,9 @@ class AclServiceAlchemy(SessionSupport, IAclPermissionProvider):
             
             for shadowId, sentries in shadows.items():
                 for entry in filterEntries:
-                    self.assignEntryFilter(shadowId, identifier, sentries[entry.Position], filterId)
+                    self.assignEntryFilter(identifier, shadowId, sentries[entry.Position], filtre.id)
                 for prop in filterProperties:
-                    self.assignPropertyFilter(shadowId, identifier, prop.Name, filterId)
+                    self.assignPropertyFilter(identifier, shadowId, prop.Name, filtre.id)
  
         return True
     
@@ -346,14 +353,14 @@ class AclServiceAlchemy(SessionSupport, IAclPermissionProvider):
     
     # --------------------------------------------------------------------
     
-    def aclAccessId(self, accessId, identifier):
+    def aclAccessId(self, identifier, accessId):
         '''
-        Provides the ACL access object.
+        Provides the ACL access object id.
         
-        @param accessId: integer
-            The access id.
         @param identifier: object
             The ACL object identifier.
+        @param accessId: integer
+            The access id.
         @return: integer
             The acl access id.
         '''
@@ -369,24 +376,24 @@ class AclServiceAlchemy(SessionSupport, IAclPermissionProvider):
         
         @param filterName: string
             The filter name to obtain data for,
-        @return: tuple(integer, integer)
-            Provides the filter id and target type id for the filter.
+        @return: FilterMapped
+            Provides the filter mapped.
         '''
         assert isinstance(filterName, str), 'Invalid filter name %s' % filterName
         
-        sql = self.session().query(FilterMapped.id, FilterMapped.typeId)
+        sql = self.session().query(FilterMapped)
         sql = sql.filter(FilterMapped.Name == filterName)
         try: return sql.one()
         except NoResultFound: raise IdError(Filter)
-    
-    def assignEntryFilter(self, accessId, identifier, entryPosition, filterId):
+        
+    def assignEntryFilter(self, identifier, accessId, entryPosition, filterId):
         '''
         Register the filter at the provided entry position.
         
-        @param accessId: integer
-            The access id to register the filter with.
         @param identifier: object
             The ACL object identifier.
+        @param accessId: integer
+            The access id to register the filter with.
         @param entryPosition: integer
             The entry position to register the filter at.
         @param filterId: integer
@@ -403,7 +410,7 @@ class AclServiceAlchemy(SessionSupport, IAclPermissionProvider):
         try: entryId, = sql.one()
         except NoResultFound: raise IdError(Entry.Position)
         
-        aclAccessId = self.aclAccessId(accessId, identifier)
+        aclAccessId = self.aclAccessId(identifier, accessId)
         
         sql = self.session().query(self.EntryFilter)
         sql = sql.filter(self.EntryFilter.aclAccessId == aclAccessId)
@@ -417,14 +424,14 @@ class AclServiceAlchemy(SessionSupport, IAclPermissionProvider):
         
         self.session().add(entryFilter)
         
-    def assignPropertyFilter(self, accessId, identifier, propertyName, filterId):
+    def assignPropertyFilter(self, identifier, accessId, propertyName, filterId):
         '''
         Register the filter at the provided property name.
         
-        @param accessId: integer
-            The access id to register the filter with.
         @param identifier: object
             The ACL object identifier.
+        @param accessId: integer
+            The access id to register the filter with.
         @param propertyName: string
             The property name to register the filter at.
         @param filterId: integer
@@ -441,7 +448,7 @@ class AclServiceAlchemy(SessionSupport, IAclPermissionProvider):
         try: propertyId, = sql.one()
         except NoResultFound: raise IdError(Property.Name)
         
-        aclAccessId = self.aclAccessId(accessId, identifier)
+        aclAccessId = self.aclAccessId(identifier, accessId)
         
         sql = self.session().query(self.PropertyFilter)
         sql = sql.filter(self.PropertyFilter.aclAccessId == aclAccessId)
@@ -455,14 +462,14 @@ class AclServiceAlchemy(SessionSupport, IAclPermissionProvider):
         
         self.session().add(propertyFilter)
         
-    def determineFilterPlace(self, access, targetTypeId, place, entries, properties):
+    def determineFilterPlace(self, access, signature, place, entries, properties):
         '''
         Determines the filter position and properties based on the provided place hint.
         
         @param access: AccessMapped
             The access to determine the place for.
-        @param targetTypeId: integer
-            The filter target type id to determine place for.
+        @param signature: string
+            The filter target type signature to determine place for.
         @param place: string
             The place pattern.
         @param entries: dictionary{integer: EntryMapped}
@@ -473,7 +480,7 @@ class AclServiceAlchemy(SessionSupport, IAclPermissionProvider):
             The entries and properties where the filter is placed.
         '''
         assert isinstance(access, AccessMapped), 'Invalid access %s' % access
-        assert isinstance(targetTypeId, int), 'Invalid filter target type id %s' % targetTypeId
+        assert isinstance(signature, str), 'Invalid filter type signature %s' % signature
         assert isinstance(place, str), 'Invalid place %s' % place
         assert isinstance(entries, dict), 'Invalid entries %s' % entries
         assert isinstance(properties, dict), 'Invalid properties %s' % properties
@@ -494,8 +501,9 @@ class AclServiceAlchemy(SessionSupport, IAclPermissionProvider):
                         if item == '*':
                             position += 1
                             if mark == '@':
-                                entry = entries.get(position)
-                                if entry.typeId != targetTypeId:
+                                entry = entries[position]
+                                assert isinstance(entry, EntryMapped), 'Invalid mapped entry %s' % entry
+                                if isCompatible(signature, entry.Signature):
                                     raise InputError(_('Invalid filter path place preference at position %(position)s, '
                                                        'it is not compatible with the filter'), position=position)
                                 filterEntries.append(entry)
@@ -512,7 +520,7 @@ class AclServiceAlchemy(SessionSupport, IAclPermissionProvider):
                     prop = properties.get(name.strip())
                     if prop is None: raise InputError(_('Unknown filter property place \'%(name)s\''), name=name)
                     assert isinstance(prop, PropertyMapped), 'Invalid property %s' % prop
-                    if prop.typeId != targetTypeId:
+                    if isCompatible(signature, prop.Signature):
                         raise InputError(_('Invalid filter property place %(name)s, it is not compatible '
                                            'with the filter'), name=name)
                     filterProperties.append(prop)
@@ -528,14 +536,14 @@ class AclServiceAlchemy(SessionSupport, IAclPermissionProvider):
                 if item == '*':
                     position += 1
                     entry = entries.get(position)
-                    if entry.typeId == targetTypeId:
+                    if isCompatible(signature, entry.Signature):
                         items.append('@')
                         inPath = True
                         continue
                 items.append(item)
                 
             for name, prop in properties.items():
-                if prop.typeId == targetTypeId: props.append(name)
+                if isCompatible(signature, prop.Signature): props.append(name)
             
             if inPath: place = '/'.join(items)
             else: place = ''

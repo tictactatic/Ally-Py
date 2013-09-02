@@ -292,6 +292,33 @@ def firstLastCheck(iterator):
 
 # --------------------------------------------------------------------
 
+def intToString(number, numerals='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'):
+    '''
+    Converts an integer to a string using the provided numerals.
+    
+    @param number: integer
+        The number to convert.
+    @param numerals: string
+        The numerals to use in the conversion.
+    @return: string
+        The converted number.
+    '''
+    assert isinstance(number, int), 'Invalid number %s' % number
+    assert number >= 0, 'Only positive numbers are allowed %s' % number
+    assert isinstance(numerals, str), 'Invalid numerals %s' % numerals
+    assert len(numerals) > 2, 'At least two numerals are required'
+    base = len(numerals)
+
+    if number == 0: return numerals[0]
+
+    result = []
+    while number:
+        result.append(numerals[int(number % base)])
+        number = int(number / base)
+    result.reverse()
+
+    return ''.join(result)
+
 def modifyFirst(value, upper=False):
     '''
     Modifies the first letter to an upper or lower letter.
