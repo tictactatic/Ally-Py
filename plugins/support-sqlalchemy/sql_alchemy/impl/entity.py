@@ -83,7 +83,7 @@ class EntityFindServiceAlchemy(EntitySupportAlchemy):
         '''
         @see: IEntityFindPrototype.getAll
         '''
-        return iterateCollection(self.session().query(self.MappedId), **options)
+        return iterateCollection(self.session().query(self.MappedId).order_by(self.MappedId), **options)
 
 class EntityQueryServiceAlchemy(EntitySupportAlchemy):
     '''

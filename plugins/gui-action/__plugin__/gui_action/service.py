@@ -19,7 +19,7 @@ SERVICES = 'gui.action.api.**.I*Service'
 
 bind.bindToEntities('gui.action.impl.**.*Alchemy', binders=binders)
 support.createEntitySetup('gui.action.impl.**.*')
-support.listenToEntities(SERVICES, listeners=registerService, beforeBinding=False)
+support.listenToEntities(SERVICES, listeners=registerService)
 support.loadAllEntities(SERVICES)
 
 # --------------------------------------------------------------------

@@ -12,7 +12,7 @@ Provides the node based on invokers.
 from ally.api.operator.type import TypeProperty
 from ally.api.type import Type
 from ally.container.ioc import injected
-from ally.design.processor.attribute import requires, defines
+from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Abort
 from ally.design.processor.handler import HandlerProcessor
@@ -49,6 +49,8 @@ class Invoker(Context):
     @rtype: Context
     The invoker node.
     ''')
+    # ---------------------------------------------------------------- Optional
+    shadowing = optional(Context)
     # ---------------------------------------------------------------- Required
     methodHTTP = requires(str)
     path = requires(list)
@@ -125,7 +127,7 @@ class InvokerNodeHandler(HandlerProcessor):
             register.root = Node()
             register.nodes.append(register.root)
         
-        aborted = []
+        aborted, checkReported = [], self.createReported()
         for invoker in register.invokers:
             assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
             assert isinstance(invoker.methodHTTP, str), 'Invalid HTTP method name %s' % invoker.methodHTTP
@@ -140,22 +142,25 @@ class InvokerNodeHandler(HandlerProcessor):
                         assert isinstance(el.property, TypeProperty)
                         
                         if not el.property.type.isPrimitive:
-                            log.error('Cannot use because the %s is not a primitive, at:%s', el.property, invoker.location)
+                            if checkReported(invoker):
+                                log.error('Cannot use because the %s is not a primitive, at:%s', el.property, invoker.location)
                             valid = False
                             break
                         
                         if node.type is None: node.type = el.property.type
                         elif node.type != el.property.type:
-                            log.error('Cannot use because the property %s is expected to be %s, at:%s',
-                                      el.property, node.type, invoker.location)
+                            if checkReported(invoker):
+                                log.error('Cannot use because the property %s is expected to be %s, at:%s',
+                                          el.property, node.type, invoker.location)
                             valid = False
                             break
                         
                         assert isinstance(node.type, Type), 'Invalid node type %s' % node.type
                         if node.type.isOf(str) and node.childByName:
-                            log.error('Cannot use because the node already has named children (%s) and cannot use with '
-                                      'string property \'%s\', at:%s', ', '.join(str(childName) 
-                                                        for childName in node.childByName), el.property, invoker.location)
+                            if checkReported(invoker):
+                                log.error('Cannot use because the node already has named children (%s) and cannot use with '
+                                          'string property \'%s\', at:%s', ', '.join(str(childName) 
+                                                            for childName in node.childByName), el.property, invoker.location)
                             valid = False
                             break
                         
@@ -168,8 +173,9 @@ class InvokerNodeHandler(HandlerProcessor):
                         assert isinstance(el.name, str) and el.name, 'Invalid element name %s' % el.name
                             
                         if node.type and node.type.isOf(str):
-                            log.error('Cannot use because the node represents a string property and cannot add name '
-                                      '\'%s\', at:%s', el.name, invoker.location)
+                            if checkReported(invoker):
+                                log.error('Cannot use because the node represents a string property and cannot add name '
+                                          '\'%s\', at:%s', el.name, invoker.location)
                             valid = False
                             break
                         
@@ -198,3 +204,18 @@ class InvokerNodeHandler(HandlerProcessor):
                 invoker.node = node
                 
         if aborted: raise Abort(*aborted)
+
+    # ----------------------------------------------------------------
+    
+    def createReported(self):
+        '''
+        Helper to check the reported status for invokers.
+        '''
+        reported = set()
+        def check(invoker):
+            assert isinstance(invoker, Invoker), 'Invalid invoker %s' % invoker
+            if invoker.location in reported: return False
+            if Invoker.shadowing in invoker and invoker.shadowing: return False
+            reported.add(invoker)
+            return True
+        return check

@@ -9,17 +9,15 @@ Created on Feb 27, 2012
 Action manager interface and action model 
 '''
 
-from ally.api.config import service, call
-from ally.api.option import SliceAndTotal #@UnusedImport
+from ally.api.config import service, call, hints
+from ally.api.option import SliceAndTotal  # @UnusedImport
 from ally.api.type import Iter, Reference
 from ally.support.api.entity import IEntityNQPrototype
 from gui.api.domain_gui import modelGui
 
 # --------------------------------------------------------------------
-# TODO: we need to fix the action object since it has a child count which is dependent on list structure
-# we can latter on use the x-filter to actually request the inner children of an action in the form of *.ActionChildren
-# this will mean to fetch recursive all the action children, this is how will end up having a tree of actions.
-@modelGui(id='Path', name='GUIACTION')
+
+@modelGui(id='Path')
 class Action:
     '''
     The object used to create and group actions 
@@ -43,7 +41,14 @@ class IActionManagerService(IEntityNQPrototype):
     '''
     
     @call
+    def getRoots(self, **options:SliceAndTotal) -> Iter(Action.Path):
+        '''
+        Get all root actions registered
+        '''
+        
+    @call(webName='Sub')
     def getChildren(self, path:Action.Path, **options:SliceAndTotal) -> Iter(Action.Path):
         '''
         Get all actions registered
         '''
+hints(IActionManagerService.getAll, webName='All')

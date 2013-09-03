@@ -17,9 +17,10 @@ from ally.design.processor.context import Context
 from ally.design.processor.execution import Chain
 from ally.design.processor.handler import HandlerProcessor, Handler
 from ally.support.api.util_service import copyContainer
-from ally.support.util_context import asData
+from ally.support.util_context import asData, attributesOf
 from gui.action.api.action import Action, IActionManagerService
 import logging
+from ally.support.util import modifyFirst
 
 # --------------------------------------------------------------------
 
@@ -47,8 +48,8 @@ class WithTracking(Context):
     '''
     lineNumber = requires(int)
     colNumber = requires(int)
-    
-class ActionDefinition(WithTracking):
+
+class ActionData(Context):
     '''
     The action container context.
     '''
@@ -57,6 +58,11 @@ class ActionDefinition(WithTracking):
     label = requires(str)
     script = requires(str)
     navBar = requires(str)
+    
+class ActionDefinition(ActionData, WithTracking):
+    '''
+    The action container context.
+    '''
     
 # --------------------------------------------------------------------
 
@@ -72,12 +78,12 @@ class SynchronizeActionHandler(HandlerProcessor):
     def __init__(self):
         assert isinstance(self.actionManagerService, IActionManagerService), \
         'Invalid action service %s' % self.actionManagerService
-        super().__init__()
+        super().__init__(Repository=Repository)
         
-        #will keep a track of the warnings displayed to avoid displaying the same warning multiple times
+        # will keep a track of the warnings displayed to avoid displaying the same warning multiple times
         self._warnings = set()
         
-    def process(self, chain, solicit:Solicit, Repository:Context, **keyargs):
+    def process(self, chain, solicit:Solicit, **keyargs):
         '''
         @see: HandlerProcessor.process
         
@@ -85,15 +91,16 @@ class SynchronizeActionHandler(HandlerProcessor):
         '''
         assert isinstance(chain, Chain), 'Invalid chain %s' % chain
         assert isinstance(solicit, Solicit), 'Invalid solicit %s' % solicit
+        if solicit.repository is None or solicit.repository.actions is None: return
+        assert isinstance(solicit.repository, Repository), 'Invalid repository %s' % solicit.repository
         
         actionsFromConfig = {}
-        #check for actions with the same path -> display warning message
+        # check for actions with the same path -> display warning message
         isWarning = False
         for action in solicit.repository.actions:
             if action.path in actionsFromConfig:
                 action1, action2 = action, actionsFromConfig[action.path]
-                
-                diffs = compareActions(action1, action2)
+                diffs = self.compareActions(action1, action2)
                 if diffs:
                     isWarning = True
                     warningId = '%s_%s_%s' % (action.path, action1.lineNumber, action2.lineNumber)
@@ -101,45 +108,47 @@ class SynchronizeActionHandler(HandlerProcessor):
                     
                     log.warning('Attributes: "%s" are different for Action with path="%s" at Line %s and Line %s',
                                 ', '.join(diffs), action1.path, action1.lineNumber, action2.lineNumber)
-                    
                     self._warnings.add(warningId)
                     
             else: actionsFromConfig[action.path] = action
-        #if everything was ok, erase all warnings
-        if not isWarning and len(self._warnings)>0: 
+        # if everything was ok, erase all warnings
+        if not isWarning and len(self._warnings) > 0: 
             log.warning('Actions OK')
-            self._warnings = set()
+            self._warnings.clear()
             
         actionsFromDb = set(self.actionManagerService.getAll())
         
-        for action in actionsFromConfig.values():
+        for action in sorted(actionsFromConfig.values(), key=lambda action:action.path):
             assert isinstance(action, ActionDefinition), 'Invalid action %s' % action
             data = asData(action, ActionDefinition)
-            data = {'%s%s' % (name[0].upper(), name[1:]): value for name, value in data.items()}
+            data = {modifyFirst(name, True): value for name, value in data.items()}
             apiAction = copyContainer(data, Action())
+            resolved = False
             if action.path not in actionsFromDb:
-                self.actionManagerService.insert(apiAction)
-            else:
+                try:
+                    self.actionManagerService.insert(apiAction)
+                    resolved = True
+                except: log.warn('Cannot add action %s, maybe already exists' % apiAction.Path)
+                
+            if not resolved:
                 self.actionManagerService.update(apiAction)
-                actionsFromDb.remove(action.path)
+                # except: log.warn('Cannot update action %s' % apiAction.Path)
+                actionsFromDb.discard(action.path)
         
         for path in actionsFromDb: self.actionManagerService.delete(path)
 
-def compareActions(action1, action2):
-    '''
-    Compares two actions by their attributes and returns a list of attributes that have different values 
-    or an empty list.
-    '''
-    assert isinstance(action1, ActionDefinition)
-    assert isinstance(action2, ActionDefinition)
-    
-    differences = []
-    
-    data1, data2 = asData(action1, ActionDefinition), asData(action2, ActionDefinition)
-    exclude = asData(action1, WithTracking)
-    
-    for attr in data1.keys():
-        if not attr in exclude and data1[attr] != data2[attr]: differences.append(attr)
-    
-    return differences
+    def compareActions(self, action1, action2):
+        '''
+        Compares two actions by their attributes and returns a list of attributes that have different values 
+        or an empty list.
+        '''
+        assert isinstance(action1, ActionDefinition), 'Invalid action %s' % action1
+        assert isinstance(action2, ActionDefinition), 'Invalid action %s' % action2
+        
+        differences = []
+        data1, data2 = asData(action1, ActionData), asData(action2, ActionData)
+        for name in attributesOf(ActionData):
+            if data1.get(name) != data2.get(name): differences.append(name)
+        
+        return differences
     

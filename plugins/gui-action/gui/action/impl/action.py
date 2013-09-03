@@ -12,9 +12,10 @@ Action Manager Implementation
 from ally.container.ioc import injected
 from ally.container.support import setup
 from gui.action.api.action import Action, IActionManagerService
-from sql_alchemy.impl.entity import EntityNQServiceAlchemy, EntitySupportAlchemy
-from sqlalchemy.exc import SQLAlchemyError
 from gui.action.meta.action import ActionMapped
+from sql_alchemy.impl.entity import EntityNQServiceAlchemy, EntitySupportAlchemy
+from sql_alchemy.support.util_service import iterateCollection, insertModel
+from sqlalchemy.sql.expression import not_
 
 # --------------------------------------------------------------------
 
@@ -27,13 +28,20 @@ class ActionManagerServiceAlchemy(EntityNQServiceAlchemy, IActionManagerService)
 
     def __init__(self):
         EntitySupportAlchemy.__init__(self, ActionMapped)
+        
+    def getRoots(self, **options):
+        '''
+        @see: IActionManagerService.getRoots
+        '''
+        sql = self.session().query(ActionMapped.Path).filter(not_(ActionMapped.Path.like('%.%')))
+        return iterateCollection(sql, **options)
 
     def getChildren(self, path, **options):
         '''
         @see: IActionManagerService.getChildren
         '''
         assert isinstance(path, str), 'Invalid path %s' % path
-        sql = self.session().query(ActionMapped.Path).filter(ActionMapped.Path.like('%s.%' % path))
+        sql = self.session().query(ActionMapped.Path).filter(ActionMapped.Path.like('%s.%%' % path))
         return iterateCollection(sql, **options)
     
     def insert(self, action):

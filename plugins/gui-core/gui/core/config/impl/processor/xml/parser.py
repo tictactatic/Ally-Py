@@ -9,13 +9,13 @@ Created on Aug 22, 2013
 Parses XML files based on digester rules.
 '''
 
+from ally.container.ioc import injected
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
+from ally.design.processor.execution import Chain
 from ally.design.processor.handler import HandlerProcessor
 from ally.xml.context import DigesterArg, prepare
-from ally.container.ioc import injected
-from ally.design.processor.execution import Chain
-from ally.xml.digester import Node, DigesterError
+from ally.xml.digester import Node
 import logging
 
 # --------------------------------------------------------------------
@@ -62,15 +62,16 @@ class ParserHandler(HandlerProcessor):
         assert isinstance(chain, Chain), 'Invalid chain %s' % chain
         assert isinstance(solicit, Solicit), 'Invalid solicit %s' % solicit
         
-        digester = DigesterArg(chain.arg, self.rootNode)
+        digester = DigesterArg(chain.arg, self.rootNode, acceptUnknownTags=False)
         digester.stack.append(Repository())
         try:
-            digester.parse('utf8', open(solicit.file, 'rb'))
+            with open(solicit.file, 'rb') as source: digester.parse('utf8', source)
             if self._inError: log.warning('XML parsing OK')
             self._inError = False
-        except DigesterError as e:
+        except Exception as e:
             if not self._inError: log.error(e)
             self._inError = True
             chain.cancel()
-            
+            return
+        
         solicit.repository = digester.stack.pop()

@@ -59,7 +59,7 @@ class Element(Context):
     '''
     The element context.
     '''
-    # ---------------------------------------------------------------- Optional
+    # ---------------------------------------------------------------- Defined
     shadowing = definesIf(Context, doc='''
     @rtype: Context
     The element that this shadow element is based on.

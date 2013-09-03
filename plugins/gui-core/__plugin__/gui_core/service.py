@@ -9,7 +9,6 @@ Created on Jan 9, 2012
 Contains the services for the gui core.
 '''
 
-from ..sql_alchemy.processor import transaction
 from ally.container import ioc, app, support
 from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import defines, requires
@@ -68,7 +67,7 @@ def updateRootNodeXMLForGroups():
 
 @ioc.before(assemblyConfiguration)
 def updateAssemblyConfiguration():
-    assemblyConfiguration().add(parserXML(), transaction(), synchronizeAction())
+    assemblyConfiguration().add(parserXML(), synchronizeAction())
 
 @app.deploy
 def cleanup():
@@ -88,7 +87,7 @@ def cleanup():
         
     proc = assemblyConfiguration().create(solicit=TestSolicit)
     assert isinstance(proc, Processing)
-    solicit = proc.ctx.solicit(file='/home/mihai/acl_right.1.xml')
+    solicit = proc.ctx.solicit(file='acl_right_2.xml')
     
     schedule = scheduler(time.time, time.sleep)
     def executeCleanup():
@@ -117,7 +116,7 @@ def cleanup():
 def addNodeAccess(node):
     assert isinstance(node, Node), 'Invalid node %s' % node
     
-    access = node.addRule(AccessRule(), 'Access')
+    access = node.addRule(AccessRule(), 'Allows')
     access.addRule(MethodRule(fromAttributes=True))
     access.addRule(URLRule(), 'URL')
     access.addRule(MethodRule(), 'Method')
