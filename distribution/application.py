@@ -61,9 +61,8 @@ def __deploy__():
 if __name__ == '__main__':
     # First we need to set the working directory relative to the application deployer just in case the application is
     # started from somewhere else
-    #os.chdir(os.path.dirname(os.path.abspath(__file__)))
-    os.chdir(os.path.dirname(os.path.abspath(sys.argv[0])))
-   
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    
     def findLibraries(folder):
         '''Finds all the libraries (that have extension .egg or are folders) if the provided folder'''
         if os.path.isdir(folder): return (os.path.join(folder, name) for name in os.listdir(folder))

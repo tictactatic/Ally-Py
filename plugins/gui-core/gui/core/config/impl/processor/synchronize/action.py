@@ -75,7 +75,7 @@ class SynchronizeActionHandler(HandlerProcessor):
         super().__init__()
         
         #will keep a track of the warnings displayed to avoid displaying the same warning multiple times
-        self.warnings = set()
+        self._warnings = set()
         
     def process(self, chain, solicit:Solicit, Repository:Context, **keyargs):
         '''
@@ -97,18 +97,18 @@ class SynchronizeActionHandler(HandlerProcessor):
                 if diffs:
                     isWarning = True
                     warningId = '%s_%s_%s' % (action.path, action1.lineNumber, action2.lineNumber)
-                    if warningId in self.warnings: continue
+                    if warningId in self._warnings: continue
                     
                     log.warning('Attributes: "%s" are different for Action with path="%s" at Line %s and Line %s',
                                 ', '.join(diffs), action1.path, action1.lineNumber, action2.lineNumber)
                     
-                    self.warnings.add(warningId)
+                    self._warnings.add(warningId)
                     
             else: actionsFromConfig[action.path] = action
         #if everything was ok, erase all warnings
-        if not isWarning and len(self.warnings)>0: 
+        if not isWarning and len(self._warnings)>0: 
             log.warning('Actions OK')
-            self.warnings = set()
+            self._warnings = set()
             
         actionsFromDb = set(self.actionManagerService.getAll())
         
