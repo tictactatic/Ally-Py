@@ -44,7 +44,7 @@ def beginWith(sessionCreator):
     @param sessionCreator: class
         The session creator class.
     '''
-    assert sessionCreator, 'A session creator is required'
+    assert sessionCreator is not None, 'Required a session creator'
     try: creators = current_thread()._ally_db_session_create
     except AttributeError: creators = current_thread()._ally_db_session_create = deque()
     assert isinstance(creators, deque)
@@ -196,7 +196,7 @@ class SessionBinder(IProxyHandler):
         @param sessionCreator: class
             The session creator class that will create the session.
         '''
-        assert sessionCreator, 'A session creator is required'
+        assert sessionCreator is not None, 'Required a session creator'
         self.sessionCreator = sessionCreator
     
     def handle(self, execution):
