@@ -142,6 +142,8 @@ function($, superdesk, gizmo, Action, jsSHA, AuthToken, AuthLogin)
             })
             .on('success', function(evt)
             { 
+                self.password.val('');
+                self.loginerr.addClass('hide');
                 // close auth dialog if any 
                 $(self._dialog).dialog('close');
                 self._loggedIn = true;
@@ -164,6 +166,9 @@ function($, superdesk, gizmo, Action, jsSHA, AuthToken, AuthLogin)
             // make new authentication process
             AuthTokenApp.get(username.val(), password.val());
             event.preventDefault();
+
+            this.password = password;
+            this.loginerr = $(el).find('#login-failed-msg');
         },
         /*!
          * remove authentication

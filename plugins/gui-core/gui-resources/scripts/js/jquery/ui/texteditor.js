@@ -443,10 +443,10 @@ define('jqueryui/texteditor', ['jquery','jqueryui/widget', 'jqueryui/ext', 'jque
                         
                         var ap = $($(self.lib.selectionParent()).eq(0)),
                             a = ap.is('a') ? ap : $(this.lib.selectionHas('a')).eq(0),
-                            selText = self.lib.selectionText(),
+                            selText = this.selectedText,
                             aText = $.trim(selText) != '' ? selText : a.text(),
                             urlRe = new RegExp();
-                        
+
                         urlRe.compile("^[A-Za-z]+://[A-Za-z0-9-_]+\\.[A-Za-z0-9-_%&\?\/.=]+$");
                         var isA = a.is('a'),
                             isUrl = urlRe.test(aText),
@@ -529,6 +529,9 @@ define('jqueryui/texteditor', ['jquery','jqueryui/widget', 'jqueryui/ext', 'jque
                     });
                     $(elem).on( "click", function(evt) 
                     {
+                        var selected = 'getSelection' in window ?
+                            window.getSelection().getRangeAt(0).toString() : '';
+                        command.selectedText = selected;
                         command.execute();
                         $(this).trigger('command-executed.text-editor');
                     });
@@ -853,7 +856,7 @@ define('jqueryui/texteditor', ['jquery','jqueryui/widget', 'jqueryui/ext', 'jque
                         '<input id="editor-image-text" data-option="image-text" class="input-large" />'+
                     '</div>'+
                 '</div>'+
-                '<div class="control-group">'+
+                '<div class="control-group hide">'+
                     '<label class="control-label" for="editor-image-value">URL:</label>'+
                     '<div class="controls">'+
                         '<input id="editor-image-value" data-option="image-value" class="input-large" />'+
@@ -867,7 +870,7 @@ define('jqueryui/texteditor', ['jquery','jqueryui/widget', 'jqueryui/ext', 'jque
                         '<button class="btn" data-value="right"><i class="icon-align-right" /></button>'+
                     '</div></div>'+
                 '</div>'+
-                '<div class="control-group">'+
+                '<div class="control-group hide">'+
                     '<label class="control-label" for="editor-image-value">Size:</label>'+
                     '<div class="controls">'+
                         '<input type="text" class="input-mini" placeholder="width" data-option="image-width" /> x '+

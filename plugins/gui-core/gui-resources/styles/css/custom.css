@@ -1735,3 +1735,7 @@ a.collaborator-name-large  {
 	font-size: 16px;
 }
 /* end of login popup style override */
+
+.tmploader {
+	height: 100%;
+}
