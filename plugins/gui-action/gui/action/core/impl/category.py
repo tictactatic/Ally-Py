@@ -16,6 +16,7 @@ from gui.action.meta.category import WithCategoryAction
 from sql_alchemy.support.mapper import MappedSupport, mappingFor
 from sql_alchemy.support.util_service import SessionSupport
 from sqlalchemy.orm.exc import NoResultFound
+from gui.action.core.spec import listCompletePaths, listRootPaths
 
 # --------------------------------------------------------------------
 
@@ -52,11 +53,20 @@ class ActionCategoryServiceAlchemy(SessionSupport):
         sql = self.session().query(self.CategoryAction.actionPath).join(self.Category)
         sql = sql.filter(self.CategoryIdentifier == identifier)
         
-        return processCollection(self.listPaths(sql), **options)
+        return processCollection(listCompletePaths(path for path, in sql.all()), **options)
     
-    def getChildren(self, identifier, parentPath, **options):
+    def getActionsRoot(self, identifier, **options):
         '''
-        @see: IActionCategoryPrototype.getChildren
+        @see: IActionCategoryPrototype.getActionsRoot
+        '''
+        sql = self.session().query(self.CategoryAction.actionPath).join(self.Category)
+        sql = sql.filter(self.CategoryIdentifier == identifier)
+        
+        return processCollection(listRootPaths(path for path, in sql.all()), **options)
+    
+    def getSubActions(self, identifier, parentPath, **options):
+        '''
+        @see: IActionCategoryPrototype.getSubActions
         '''
         assert isinstance(parentPath, str), 'Invalid parent path %s' % parentPath
         
@@ -64,7 +74,7 @@ class ActionCategoryServiceAlchemy(SessionSupport):
         sql = sql.filter(self.CategoryIdentifier == identifier)
         sql = sql.filter(self.CategoryAction.actionPath.like('%s.%%' % parentPath))
         
-        return processCollection(self.listPaths(sql, len(parentPath) + 1), **options)
+        return processCollection(listRootPaths((path for path, in sql.all()), len(parentPath) + 1), **options)
     
     def addAction(self, identifier, actionPath):
         '''
@@ -102,16 +112,3 @@ class ActionCategoryServiceAlchemy(SessionSupport):
         
         self.session().delete(actionCategory)
         return True
-
-    # ----------------------------------------------------------------
-    
-    def listPaths(self, sql, start=0):
-        '''
-        Iterates the paths for the provided sql.
-        '''
-        paths = set()
-        for path, in sql.all():
-            ipath = path.find('.', start)
-            if ipath >= 0: paths.add(path[:ipath])
-            else: paths.add(path)
-        return sorted(paths)

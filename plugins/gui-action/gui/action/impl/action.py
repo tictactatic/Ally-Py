@@ -29,16 +29,16 @@ class ActionManagerServiceAlchemy(EntityNQServiceAlchemy, IActionManagerService)
     def __init__(self):
         EntitySupportAlchemy.__init__(self, ActionMapped)
         
-    def getRoots(self, **options):
+    def getActionsRoot(self, **options):
         '''
-        @see: IActionManagerService.getRoots
+        @see: IActionManagerService.getActionsRoot
         '''
         sql = self.session().query(ActionMapped.Path).filter(not_(ActionMapped.Path.like('%.%')))
         return iterateCollection(sql, **options)
 
-    def getChildren(self, path, **options):
+    def getSubActions(self, path, **options):
         '''
-        @see: IActionManagerService.getChildren
+        @see: IActionManagerService.getSubActions
         '''
         assert isinstance(path, str), 'Invalid path %s' % path
         sql = self.session().query(ActionMapped.Path).filter(ActionMapped.Path.like('%s.%%' % path))

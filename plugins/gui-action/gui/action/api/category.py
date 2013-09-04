@@ -11,10 +11,10 @@ Provides the actions category support.
 
 from .action import Action
 from ally.api.config import prototype, DELETE
-from ally.api.option import SliceAndTotal # @UnusedImport
+from ally.api.option import SliceAndTotal  # @UnusedImport
 from ally.api.type import Iter
 from ally.support.api.util_service import modelId
-import abc # @UnusedImport
+import abc  # @UnusedImport
 
 # --------------------------------------------------------------------
 
@@ -23,10 +23,10 @@ class IActionCategoryGetPrototype(metaclass=abc.ABCMeta):
     The action category prototype service provides support for fetching actions based on category entities.
     '''
     
-    @prototype
+    @prototype(webName='All')
     def getActions(self, identifier:lambda p:p.CATEGORY, **options:SliceAndTotal) -> Iter(Action.Path):
         '''
-        Provides the actions paths for the provided identifier.
+        Provides all the actions paths for the provided identifier.
         
         @param identifier: object
             The action category object identifier.
@@ -35,9 +35,22 @@ class IActionCategoryGetPrototype(metaclass=abc.ABCMeta):
         @return: Iterable(Action.Path)
             An iterator containing the action paths.
         '''
+    
+    @prototype
+    def getActionsRoot(self, identifier:lambda p:p.CATEGORY, **options:SliceAndTotal) -> Iter(Action.Path):
+        '''
+        Provides the root actions paths for the provided identifier.
+        
+        @param identifier: object
+            The action category object identifier.
+        @param options: key arguments
+            The result iteration options.
+        @return: Iterable(Action.Path)
+            An iterator containing the root action paths.
+        '''
         
     @prototype(webName='Sub')
-    def getChildren(self, identifier:lambda p:p.CATEGORY, parentPath:Action.Path, **options:SliceAndTotal) -> Iter(Action.Path):
+    def getSubActions(self, identifier:lambda p:p.CATEGORY, parentPath:Action.Path, **options:SliceAndTotal) -> Iter(Action.Path):
         '''
         Provides the actions paths for the provided identifier and parent path.
         

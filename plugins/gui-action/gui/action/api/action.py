@@ -41,13 +41,13 @@ class IActionManagerService(IEntityNQPrototype):
     '''
     
     @call
-    def getRoots(self, **options:SliceAndTotal) -> Iter(Action.Path):
+    def getActionsRoot(self, **options:SliceAndTotal) -> Iter(Action.Path):
         '''
         Get all root actions registered
         '''
         
     @call(webName='Sub')
-    def getChildren(self, path:Action.Path, **options:SliceAndTotal) -> Iter(Action.Path):
+    def getSubActions(self, path:Action.Path, **options:SliceAndTotal) -> Iter(Action.Path):
         '''
         Get all actions registered
         '''
