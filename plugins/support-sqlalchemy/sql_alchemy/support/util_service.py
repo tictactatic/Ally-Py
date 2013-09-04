@@ -10,6 +10,7 @@ Provides utility methods for SQL alchemy service implementations.
 '''
 
 from .mapper import MappedSupport, mappingFor, tableFor
+from .session import openSession
 from ally.api.criteria import AsLike, AsOrdered, AsBoolean, AsEqual, AsDate, \
     AsTime, AsDateTime, AsRange
 from ally.api.error import IdError
@@ -17,12 +18,11 @@ from ally.api.extension import IterSlice
 from ally.api.operator.type import TypeProperty, TypeCriteria, TypeModel
 from ally.api.type import typeFor
 from ally.support.api.util_service import namesFor
-from .session import openSession
 from ally.support.util import modifyFirst
 from inspect import isclass
 from itertools import chain
-from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.orm.interfaces import PropComparator
 from sqlalchemy.orm.mapper import Mapper
 from sqlalchemy.sql.expression import ColumnElement
 
@@ -58,7 +58,7 @@ def buildLimits(sql, offset=None, limit=None):
     if limit is not None: sql = sql.limit(limit)
     return sql
 
-def buildQuery(sql, query, Mapped, only=None, exclude=None, **mapping):
+def buildQuery(sql, query, Mapped, only=None, exclude=None, orderBy=None, autoJoin=False, **mapping):
     '''
     Builds the query on the SQL alchemy query.
 
@@ -74,10 +74,16 @@ def buildQuery(sql, query, Mapped, only=None, exclude=None, **mapping):
     @param exclude: tuple(string|TypeCriteriaEntry)|string|TypeCriteriaEntry|None
         The criteria names or references to be excluded when processing the query. If you provided a only parameter you cannot
         provide an exclude.
+    @param orderBy: object
+        The default order by if none has been provided.
+    @param autoJoin: boolean
+        If True then it means that the query should auto join the tables that are for other columns then the mapped table.
     @param mapping: key arguments of columns or callable(sql, criteria) -> sql
         The column or sql build callable mappings provided for criteria name, the mapping columns will be automatically joined.
     '''
     assert query is not None, 'A query object is required'
+    assert isinstance(autoJoin, bool), 'Invalid auto join flag %s' % autoJoin
+    if autoJoin: table = tableFor(Mapped)
     
     columns = {}
     for name in namesFor(Mapped):
@@ -122,15 +128,16 @@ def buildQuery(sql, query, Mapped, only=None, exclude=None, **mapping):
         
         mapped = mapping.get(criteria)
         if mapped is not None:
-            if isinstance(mapped, InstrumentedAttribute):
-                sql = sql.join(tableFor(mapped))
-                column = mapped
+            if isinstance(mapped, PropComparator): column = mapped
             else:
                 assert callable(mapped), 'Invalid criteria \'%s\' mapping' % criteria
                 sql = mapped(sql, getattr(query, criteria))
                 continue
-            
+        
         if column is None: continue
+        if autoJoin:
+            ctable = tableFor(column)
+            if ctable != table: sql = sql.join(ctable)
 
         crt = getattr(query, criteria)
         if isinstance(crt, AsBoolean):
@@ -159,10 +166,12 @@ def buildQuery(sql, query, Mapped, only=None, exclude=None, **mapping):
                 else:
                     unordered.append((column, crt.ascending, None))
 
-        ordered.sort(key=lambda pack: pack[2])
-        for column, asc, _priority in chain(ordered, unordered):
-            if asc: sql = sql.order_by(column)
-            else: sql = sql.order_by(column.desc())
+        if ordered or unordered:
+            if ordered: ordered.sort(key=lambda pack: pack[2])
+            for column, asc, _priority in chain(ordered, unordered):
+                if asc: sql = sql.order_by(column)
+                else: sql = sql.order_by(column.desc())
+        elif orderBy is not None: sql.order_by(orderBy)
 
     return sql
 

@@ -32,6 +32,17 @@ class CompensateServiceAlchemy(SessionSupport, ICompensateProvider):
     '''
     
     def __init__(self, Acl, AclAccess, Compensate, signatures=None):
+        '''
+        Construct the compensate service alchemy.
+        
+        @param AclAccess: class of WithAclAccess
+            The ACL access relation mapped class.
+        @param Compensate: class of WithCompensate
+            The compensate relation mapped class.
+        @param signatures: dictionary{string: string|callable(identifier) -> string}
+            A dictionary containing as keys the signatures that will be injected and as a value either the marker to be injected
+            or a callable that takes the identifier as a parameter and provides the marker string value.
+        '''
         assert isinstance(Acl, MappedSupport), 'Invalid mapped class %s' % Acl
         assert issubclass(AclAccess, WithAclAccess), 'Invalid acl access class %s' % AclAccess
         assert issubclass(Compensate, WithCompensate), 'Invalid compensate class %s' % Compensate
@@ -40,7 +51,7 @@ class CompensateServiceAlchemy(SessionSupport, ICompensateProvider):
                 assert isinstance(signatures, dict), 'Invalid fill in signatures %s' % signatures
                 for signature, marker in signatures.items():
                     assert isinstance(signature, str), 'Invalid signature %s' % signature
-                    assert isinstance(marker, str), 'Invalid marker %s' % marker
+                    assert isinstance(marker, str) or callable(marker), 'Invalid marker %s' % marker
         
         self.Acl = Acl
         self.AclIdentifier = modelId(Acl)
@@ -108,7 +119,11 @@ class CompensateServiceAlchemy(SessionSupport, ICompensateProvider):
             for k, saccess in enumerate(saccesses[len(scompensateds):]):
                 for signature, marker in self.signatures.items():
                     if isCompatible(signature, saccess):
-                        items.append(marker)
+                        if isinstance(marker, str): items.append(marker)
+                        else:
+                            value = marker(identifier)
+                            assert isinstance(value, str), 'Invalid maker %s return value \'%s\'' % (marker, value)
+                            items.append(value)
                         items.append(next(fixed))
                         break
                 else:

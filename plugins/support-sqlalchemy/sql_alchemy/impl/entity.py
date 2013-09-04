@@ -98,7 +98,7 @@ class EntityQueryServiceAlchemy(EntitySupportAlchemy):
         sql = self.session().query(self.MappedId)
         if q is not None:
             assert isinstance(q, self.QEntity), 'Invalid query %s' % q
-            sql = buildQuery(sql, q, self.Mapped, **self._mapping)
+            sql = buildQuery(sql, q, self.Mapped, orderBy=self.MappedId, autoJoin=True, **self._mapping)
         return iterateCollection(sql, **options)
 
 class EntityCRUDServiceAlchemy(EntitySupportAlchemy):

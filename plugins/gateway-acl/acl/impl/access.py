@@ -12,7 +12,6 @@ Implementation for the ACL access.
 from ..api.access import IAccessService, AccessCreate, generateId, QAccess, \
     generateHash
 from ..meta.access import AccessMapped, EntryMapped, PropertyMapped
-from ..meta.acl_intern import Path, Method
 from ally.api.error import InputError
 from ally.container.ioc import injected
 from ally.container.support import setup
@@ -21,6 +20,7 @@ from sql_alchemy.impl.entity import EntityGetServiceAlchemy, \
     EntityQueryServiceAlchemy, EntitySupportAlchemy
 from sql_alchemy.support.util_service import deleteModel, iterateCollection, \
     insertModel
+from ally.api.criteria import AsBoolean
     
 # --------------------------------------------------------------------
 
@@ -32,7 +32,7 @@ class AccessServiceAlchemy(EntityGetServiceAlchemy, EntityQueryServiceAlchemy, I
     '''
     
     def __init__(self):
-        EntitySupportAlchemy.__init__(self, AccessMapped, QAccess, path=Path.path, method=Method.name)
+        EntitySupportAlchemy.__init__(self, AccessMapped, QAccess, isShadow=self.queryShadow)
     
     def getEntry(self, accessId, position):
         '''
@@ -183,3 +183,11 @@ class AccessServiceAlchemy(EntityGetServiceAlchemy, EntityQueryServiceAlchemy, I
             prop.accessId = accessId
             prop.Signature = signature
             self.session().add(prop)
+
+    def queryShadow(self, sql, crit):
+        '''
+        Processes the shadow query.
+        '''
+        assert isinstance(crit, AsBoolean), 'Invalid criteria %s' % crit
+        if crit.value: return sql.filter(AccessMapped.Shadowing != None)
+        return sql.filter(AccessMapped.Shadowing == None)

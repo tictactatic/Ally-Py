@@ -14,6 +14,7 @@ from ally.api.operator.type import TypeModel, TypeProperty
 from ally.api.type import typeFor
 from ally.support.util import modifyFirst, toUnderscore
 from ally.support.util_sys import callerLocals
+from collections import OrderedDict
 from inspect import isclass
 from operator import attrgetter
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -22,6 +23,24 @@ from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.orm.properties import ColumnProperty
 from sqlalchemy.schema import Column, ForeignKey
 from sqlalchemy.sql.expression import join, select
+from sqlalchemy.types import TypeDecorator, String
+import json
+
+# --------------------------------------------------------------------
+
+class JSONEncodedDict(TypeDecorator):
+    '''
+    Provides a JSON dictionary type encoded.
+    @see: http://docs.sqlalchemy.org/en/rel_0_8/core/types.html#marshal-json-strings
+    '''
+
+    impl = String
+
+    def process_bind_param(self, value, dialect):
+        if value is not None: return json.dumps(value, sort_keys=True)
+
+    def process_result_value(self, value, dialect):
+        if value is not None: return json.loads(value, object_hook=OrderedDict)
 
 # --------------------------------------------------------------------
 

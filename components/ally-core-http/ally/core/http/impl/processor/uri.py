@@ -150,7 +150,8 @@ class URIHandler(HandlerProcessor):
             # We need to check if the last path element is not a string property ant there might be confusion
             # with the extension
             MISSING_SLASH.set(response)
-            addError(response, 'Unclear extension, you need to add a trailing slash to URI')
+            addError(response, 'Unclear extension, you need to add a trailing slash to URI, something like: %(paths)s',
+                     paths=['%s/.%s' % ('/'.join(paths), extension), '%s.%s/' % ('/'.join(paths), extension)])
             return
                 
         assert log.debug('Found resource for URI %s', request.uri) or True

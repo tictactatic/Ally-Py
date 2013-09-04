@@ -70,8 +70,8 @@ class Converter:
         if type.isOf(int): return int(value)
         if type.isOf(float): return float(value)
         if type.isOf(bool):
-            if value.strip() == 'true': return True
-            elif value.strip() == 'false': return True
+            if value.strip().lower() == 'true': return True
+            elif value.strip().lower() == 'false': return False
             raise ValueError('Invalid boolean value \'%s\'' % value)
         if type.isOf(datetime): return datetime.strptime(value, '%Y-%m-%dT%H:%M:%SZ')
         if type.isOf(date): return datetime.strptime(value, '%Y-%m-%d').date()

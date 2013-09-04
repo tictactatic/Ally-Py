@@ -11,8 +11,10 @@ Implementation for the ACL group.
 
 from ..api.group import IGroupService, QGroup
 from ..meta.group import GroupMapped, GroupAccess, GroupCompensate
+from acl.api.group import Group
 from acl.core.impl.acl import AclServiceAlchemy
 from acl.core.impl.compensate import CompensateServiceAlchemy
+from acl.core.spec import signature
 from ally.container.ioc import injected
 from ally.container.support import setup
 from sql_alchemy.impl.entity import EntityServiceAlchemy, EntitySupportAlchemy
@@ -29,4 +31,5 @@ class GroupServiceAlchemy(EntityServiceAlchemy, AclServiceAlchemy, CompensateSer
     def __init__(self):
         EntitySupportAlchemy.__init__(self, GroupMapped, QGroup)
         AclServiceAlchemy.__init__(self, GroupMapped, GroupAccess)
-        CompensateServiceAlchemy.__init__(self, GroupMapped, GroupAccess, GroupCompensate)
+        CompensateServiceAlchemy.__init__(self, GroupMapped, GroupAccess, GroupCompensate,
+                                          signatures={signature(Group.Name): lambda identifier: identifier})

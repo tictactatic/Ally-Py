@@ -11,7 +11,7 @@ API specifications for service access.
 
 from .domain_acl import modelACL
 from ally.api.config import service, call, query
-from ally.api.criteria import AsEqualOrdered, AsLikeOrdered
+from ally.api.criteria import AsEqualOrdered, AsLikeOrdered, AsBoolean
 from ally.api.type import Iter, Dict
 from ally.support.api.entity_ided import Entity, IEntityGetService, QEntity, \
     IEntityQueryService
@@ -99,6 +99,7 @@ class QAccess(QEntity):
     '''
     path = AsLikeOrdered
     method = AsEqualOrdered
+    isShadow = AsBoolean
     
 # --------------------------------------------------------------------
 

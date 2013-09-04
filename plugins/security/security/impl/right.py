@@ -16,6 +16,7 @@ from acl.core.impl.compensate import CompensateServiceAlchemy
 from ally.container import wire
 from ally.container.ioc import injected
 from ally.container.support import setup
+from security.meta.right_type import RightTypeMapped
 from sql_alchemy.impl.entity import EntityGetServiceAlchemy, \
     EntityCRUDServiceAlchemy, EntitySupportAlchemy
 from sql_alchemy.support.util_service import buildQuery, iterateCollection
@@ -42,7 +43,7 @@ class RightServiceAlchemy(EntityGetServiceAlchemy, EntityCRUDServiceAlchemy, Acl
         @see: IRightService.getAll
         '''
         sql = self.session().query(RightMapped.Id)
-        if typeName: sql = sql.filter(RightMapped.Type == typeName)
+        if typeName: sql = sql.join(RightTypeMapped).filter(RightTypeMapped.Name == typeName)
         if q is not None:
             assert isinstance(q, QRight), 'Invalid query %s' % q
             sql = buildQuery(sql, q, RightMapped)

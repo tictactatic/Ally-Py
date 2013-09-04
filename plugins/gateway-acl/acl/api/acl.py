@@ -117,25 +117,25 @@ class IAclPrototype(metaclass=abc.ABCMeta):
     @prototype
     def addAcl(self, identifier:lambda p: modelId(p.ACL), accessId:Access.Id):
         '''
-        Adds a new ACL object for the access.
+        Adds a new access for the ACL object.
         The ACL object will also propagate to the shadow, shadowing and shadowed accesses.
         
         @param identifier: object
             The ACL object identifier.
         @param accessId: integer
-            The access id to add to.
+            The access id to add.
         '''
         
     @prototype(method=DELETE)
     def remAcl(self, identifier:lambda p: p.ACL, accessId:Access) -> bool:
         '''
-        Removes ACL object for the access.
+        Removes the access for ACL object.
         The ACL object will also propagate to the shadow, shadowing and shadowed accesses.
         
         @param identifier: object
             The ACL object identifier.
         @param accessId: integer
-            The access id to remove from.
+            The access id to remove.
         @return: boolean
             True if a ACL object has been successfully removed, False otherwise. 
         '''

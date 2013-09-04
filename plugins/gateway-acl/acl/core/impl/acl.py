@@ -44,6 +44,8 @@ class AclServiceAlchemy(SessionSupport, IAclPermissionProvider):
         
         @param Acl: Base class
             The ACL mapped class that organizes the ACL structure.
+        @param AclAccess: class of WithAclAccess
+            The ACL access relation mapped class.
         '''
         assert isinstance(Acl, MappedSupport), 'Invalid mapped class %s' % Acl
         assert issubclass(AclAccess, WithAclAccess), 'Invalid acl access class %s' % AclAccess
@@ -66,6 +68,7 @@ class AclServiceAlchemy(SessionSupport, IAclPermissionProvider):
         
         sql = self.session().query(self.AclIdentifier).join(self.AclAccess)
         sql = sql.filter(self.AclAccess.accessId == accessId)
+        sql = sql.order_by(self.AclIdentifier)
         return iterateCollection(sql, **options)
     
     def getAccesses(self, identifier, **options):
@@ -74,6 +77,7 @@ class AclServiceAlchemy(SessionSupport, IAclPermissionProvider):
         '''
         sql = self.session().query(self.AclAccess.accessId).join(self.Acl)
         sql = sql.filter(self.AclIdentifier == identifier)
+        sql = sql.order_by(self.AclAccess.accessId)
         return iterateCollection(sql, **options)
     
     def getEntriesFiltered(self, identifier, accessId, **options):
