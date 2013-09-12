@@ -17,14 +17,17 @@ from ally.support.util_sys import callerLocals
 from collections import OrderedDict
 from inspect import isclass
 from operator import attrgetter
+from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship, mapper, column_property
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.orm.properties import ColumnProperty
 from sqlalchemy.schema import Column, ForeignKey
+from sqlalchemy.sql import expression
 from sqlalchemy.sql.expression import join, select
-from sqlalchemy.types import TypeDecorator, String
+from sqlalchemy.types import DateTime, TypeDecorator, String
 import json
+
 
 # --------------------------------------------------------------------
 
@@ -152,3 +155,20 @@ def joined(mapped, other):
     setattr(mapped, name, clazz)
     
     return clazz
+
+# --------------------------------------------------------------------
+
+class UtcNow(expression.FunctionElement):
+    '''
+    A function that works like “CURRENT_TIMESTAMP” except applies the appropriate
+    conversions so that the time is in UTC time.
+    @see: http://docs.sqlalchemy.org/en/latest/core/compiler.html at Further Examples
+    '''
+    type = DateTime()
+
+@compiles(UtcNow, 'postgresql')
+def pgUtcNow(element, compiler, **kw): return 'TIMEZONE(\'utc\', CURRENT_TIMESTAMP)'
+@compiles(UtcNow, 'mssql')
+def mssqlUtcNow(element, compiler, **kw): return 'GETUTCDATE()'
+@compiles(UtcNow, 'sqlite')
+def sqliteUtcNow(element, compiler, **kw): return 'datetime(\'now\',\'localtime\')'
