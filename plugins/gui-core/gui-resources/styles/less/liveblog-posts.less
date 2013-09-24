@@ -736,6 +736,12 @@ overrides
 		}
 
 		&.flickr  {
+			padding: 0 !important;
+			background: none;
+			border-color: #f4f4f4;
+			.drag-bar {
+				background-color: none;
+			}
 			width:85px !important;
 			height:75px !important;
 			overflow: hidden;
@@ -767,6 +773,13 @@ overrides
 				}
 			}
 			&:hover {
+				background: #fff;
+				border: 1px solid #d4d4d4;
+				.result-content {
+					figure {
+						.border-radius(0 2px 2px 0);
+					}
+				}
 				.result-description {
 					display: block;
 				}
