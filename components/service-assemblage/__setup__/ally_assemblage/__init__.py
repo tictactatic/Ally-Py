@@ -14,4 +14,14 @@ Contains the assemblage setup files.
 NAME = 'assemblage service'
 GROUP = 'assemblage'
 VERSION = '1.0'
+<<<<<<< Updated upstream:components/service-assemblage/__setup__/ally_assemblage/__init__.py
 DESCRIPTION = 'Provides the assemblage service'
+=======
+DESCRIPTION = 'Provides the gateway reCAPTCHA service'
+AUTHOR = 'Gabriel Nistor'
+AUTHOR_EMAIL = 'gabriel.nistor@sourcefabric.org'
+KEYWORDS = ['Ally', 'REST', 'gateway', 'service', 'reCAPTCHA']
+TEST_SUITE = '__unit_test__'
+CLASSIFIERS = ['Development Status :: 4 - Beta']
+INSTALL_REQUIRES = []
+>>>>>>> Stashed changes:components/service-gateway-recaptcha/__setup__/ally_gateway_recaptcha/__init__.py

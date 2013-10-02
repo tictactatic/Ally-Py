@@ -9,11 +9,15 @@ Created on Jul 15, 2011
 The plugin support for REST.
 '''
 
-from .. import ally
-
 # --------------------------------------------------------------------
 
 NAME = 'ally plugin'
-GROUP = ally.GROUP
 VERSION = '1.0'
-DESCRIPTION = 'Provides the plugin support'
+DESCRIPTION = 'The plugin support for REST.'
+AUTHOR = 'Gabriel Nistor'
+AUTHOR_EMAIL = 'gabriel.nistor@sourcefabric.org'
+KEYWORDS = ['Ally', 'REST', 'plugin']
+LONG_DESCRIPTION = '''This component handles the plugins and incorporates them in the application.'''
+TEST_SUITE = '__unit_test__'
+CLASSIFIERS = ['Development Status :: 4 - Beta']
+INSTALL_REQUIRES = ['ally>=1.0']

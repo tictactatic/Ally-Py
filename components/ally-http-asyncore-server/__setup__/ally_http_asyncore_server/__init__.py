@@ -9,15 +9,17 @@ Created on Jul 15, 2011
 Contains setup and configuration files for the HTTP REST server.
 '''
 
-from .. import ally_http
-from ally.container import ioc
 
 # --------------------------------------------------------------------
 
 NAME = 'ally HTTP asyncore server'
-GROUP = ally_http.GROUP
 VERSION = '1.0'
 DESCRIPTION = 'Provides the HTTP asyncore server'
-
-# --------------------------------------------------------------------
-# The default configurations
+AUTHOR = 'Gabriel Nistor'
+AUTHOR_EMAIL = 'gabriel.nistor@sourcefabric.org'
+KEYWORDS = ['Ally', 'REST', 'HTTP', 'asyncore', 'server']
+LONG_DESCRIPTION = '''Provides an HTTP server substitute for the basic server from ally-http 
+that handles the requests in an asyncore manner by using the python built in asyncore package.'''
+TEST_SUITE = '__unit_test__'
+CLASSIFIERS = ['Development Status :: 4 - Beta']
+INSTALL_REQUIRES = ['ally-http>=1.0']
