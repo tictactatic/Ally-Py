@@ -44,22 +44,21 @@ def setKeepAlive(keep):
     '''
     Set the flag that indicates if a session should be closed or kept alive after a call has finalized.
     If the session is left opened then other processes need to close it.
-    
+
     @param keep: boolean
         Flag indicating that the session should be left open (True) or not (False).
     '''
     assert isinstance(keep, bool), 'Invalid keep flag %s' % keep
     current_thread()._ally_db_session_alive = keep
-    
+
 
 def beginWith(sessionCreator):
     '''
     Begins a session (on demand) based on the provided session creator for this thread.
-    
+
     @param sessionCreator: class
         The session creator class.
     '''
-    assert issubclass(sessionCreator, Session), 'Invalid session creator %s' % sessionCreator
     try: creators = current_thread()._ally_db_session_create
     except AttributeError: creators = current_thread()._ally_db_session_create = deque()
     assert isinstance(creators, deque)
@@ -68,7 +67,7 @@ def beginWith(sessionCreator):
 
 def openSession():
     '''
-    Function to provide the session on the current thread, this will automatically create a session based on the current 
+    Function to provide the session on the current thread, this will automatically create a session based on the current
     thread session creator if one is not already created.
     '''
     thread = current_thread()
@@ -103,7 +102,7 @@ def hasSession():
 def endCurrent(sessionCloser=None):
     '''
     Ends the transaction for the current thread session creator.
-    
+
     @param sessionCloser: Callable|None
         A Callable that will be invoked for the ended transaction. It will take as a parameter the session to be closed.
     '''
@@ -122,7 +121,7 @@ def endCurrent(sessionCloser=None):
 def endSessions(sessionCloser=None):
     '''
     Ends all the transaction for the current thread session.
-    
+
     @param sessionCloser: Callable|None
         A Callable that will be invoked for the ended transactions. It will take as a parameter the session to be closed.
     '''
@@ -141,7 +140,7 @@ def endSessions(sessionCloser=None):
 def commit(session):
     '''
     Commit the session.
-    
+
     @param session: Session
         The session to be committed.
     '''
@@ -156,7 +155,7 @@ def commit(session):
 def rollback(session):
     '''
     Roll back the session.
-    
+
     @param session: Session
         The session to be rolled back.
     '''
@@ -167,7 +166,7 @@ def rollback(session):
 def commitNow():
     '''
     Commits the current session right now.
-    
+
     @return: boolean
         True if a session was commited, False otherwise.
     '''
@@ -188,7 +187,7 @@ def commitNow():
 def bindSession(proxy, sessionCreator):
     '''
     Binds a session creator wrapping for the provided proxy.
-    
+
     @param proxy: Proxy
         The proxy to wrap with session creator.
     @param sessionCreator: class
@@ -203,23 +202,22 @@ class SessionBinder(IProxyHandler):
     Implementation for @see: IProxyHandler for binding sql alchemy session.
     '''
     __slots__ = ('sessionCreator',)
-    
+
     def __init__(self, sessionCreator):
         '''
         Binds a session creator wrapping for the provided proxy.
-    
+
         @param sessionCreator: class
             The session creator class that will create the session.
         '''
-        assert issubclass(sessionCreator, Session), 'Invalid session creator %s' % sessionCreator
         self.sessionCreator = sessionCreator
-    
+
     def handle(self, execution):
         '''
         @see: IProxyHandler.handle
         '''
         assert isinstance(execution, Execution), 'Invalid execution %s' % execution
-        
+
         beginWith(self.sessionCreator)
         try: returned = execution.invoke()
         except:
@@ -238,7 +236,7 @@ class SessionBinder(IProxyHandler):
             return returned
 
     # ----------------------------------------------------------------
-    
+
     def wrapGenerator(self, generator):
         '''
         Wraps the generator with the session creator.
