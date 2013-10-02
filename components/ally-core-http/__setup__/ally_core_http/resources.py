@@ -108,8 +108,8 @@ def encodingPath() -> Handler: return EncodingPathHandler()
 def updateAssemblyAssemblerForHTTPCore():
     assemblyAssembler().add(methodHTTP(), pathInput(), pathUpdate(), invokerShadow(), pathTarget(),
                             pathDomain(), pathWebName(), invokerResources(), invokerNode(), conflictShadow(),
-                            conflictReplace(), conflictResolve(), pathSlash(), pathGetModel(), pathGetAccesible(),
-                            requiredShadow(), assemblerScheme(), encodingPath(), after=processMethod())
+                            conflictReplace(), conflictResolve(), pathGetModel(), pathGetAccesible(),
+                            requiredShadow(), pathSlash(), assemblerScheme(), encodingPath(), after=processMethod())
 
 @ioc.after(updateAssemblyEncodeExportForPath)
 def updateAssemblyEncodeExportForEncodingPath():

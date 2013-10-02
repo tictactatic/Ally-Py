@@ -10,7 +10,7 @@ Contains the services for gateway.
 '''
     
 from ..plugin.registry import registerService
-from .db_gateway import bindGatewaySession
+from .database import binders
 from ally.container import support, ioc, bind, app
 from ally.container.support import entityFor
 from ally.design.processor.assembly import Assembly
@@ -28,15 +28,13 @@ asPattern = lambda rootURI: '^%s(?:/|(?=\\.)|$)(.*)' % re.escape(rootURI)
 
 # --------------------------------------------------------------------
 
-databaseGateways = gatewayMethodMerge = registerMethodOverride = support.notCreated  # Just to avoid errors
+registerDatabaseGateway = gatewayMethodMerge = registerMethodOverride = support.notCreated  # Just to avoid errors
 
 SERVICES = 'gateway.api.**.I*Service'
-@ioc.entity
-def binders(): return [bindGatewaySession]
 
-bind.bindToEntities('gateway.impl.**.*Alchemy', binders=binders)
+bind.bindToEntities('gateway.impl.**.*Alchemy', 'gateway.core.impl.**.*Alchemy', binders=binders)
 support.createEntitySetup('gateway.impl.**.*', 'gateway.core.impl.**.*')
-support.listenToEntities(SERVICES, listeners=registerService, beforeBinding=False)
+support.listenToEntities(SERVICES, listeners=registerService)
 support.loadAllEntities(SERVICES)
 
 # --------------------------------------------------------------------
@@ -55,7 +53,7 @@ def defaultGateways() -> list: return []
 
 @ioc.before(assemblyAnonymousGateways)
 def updateAssemblyAnonymousGateways():
-    assemblyAnonymousGateways().add(databaseGateways(), gatewayMethodMerge(), registerMethodOverride())
+    assemblyAnonymousGateways().add(registerDatabaseGateway(), gatewayMethodMerge(), registerMethodOverride())
 
 @app.populate(app.DEVEL)
 def populateDefaulyGateways():

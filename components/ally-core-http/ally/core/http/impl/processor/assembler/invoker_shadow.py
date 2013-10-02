@@ -10,7 +10,7 @@ Provides the shadow invokers that just have duty to capture data in the path mos
 '''
 
 from ally.api.operator.type import TypeProperty
-from ally.design.processor.attribute import requires, defines
+from ally.design.processor.attribute import requires, defines, definesIf
 from ally.design.processor.context import Context
 from ally.design.processor.execution import Abort
 from ally.design.processor.handler import HandlerProcessor
@@ -40,9 +40,13 @@ class Invoker(Context):
     The invoker context.
     '''
     # ---------------------------------------------------------------- Defined
-    shadowOf = defines(Context, doc='''
+    shadowing = defines(Context, doc='''
     @rtype: Context
-    The invoker that this shadow is based on.
+    The invoker that this shadow is made for.
+    ''')
+    shadowed = definesIf(Context, doc='''
+    @rtype: Context
+    The invoker that is shadowed.
     ''')
     # ---------------------------------------------------------------- Required
     id = requires(str)
@@ -55,6 +59,15 @@ class Element(Context):
     '''
     The element context.
     '''
+    # ---------------------------------------------------------------- Defined
+    shadowing = definesIf(Context, doc='''
+    @rtype: Context
+    The element that this shadow element is based on.
+    ''')
+    shadowed = definesIf(Context, doc='''
+    @rtype: Context
+    The element that this element shadows.
+    ''')
     # ---------------------------------------------------------------- Required
     property = requires(TypeProperty)
     
@@ -103,7 +116,7 @@ class InvokerShadowHandler(HandlerProcessor):
             for cinvoker in collections:
                 assert isinstance(cinvoker, Invoker), 'Invalid invoker %s' % cinvoker
                 
-                invokerId = '(%s shadow for %s)' % (invoker.id, cinvoker.id)
+                invokerId = '(%s shadowed %s)' % (invoker.id, cinvoker.id)
                 if invokerId in register.exclude: continue
                 path = self.merge(cinvoker.path, invoker.path, register.doCopyElement)
                 if not path: continue
@@ -112,7 +125,8 @@ class InvokerShadowHandler(HandlerProcessor):
                 assert isinstance(shadow, Invoker), 'Invalid invoker %s' % shadow
                 shadow.id = invokerId
                 shadow.path = path
-                shadow.shadowOf = invoker
+                shadow.shadowing = invoker
+                if Invoker.shadowed in shadow: shadow.shadowed = cinvoker
                 register.doCopyInvoker(shadow, invoker)
                 
                 ninvokers.append(shadow)
@@ -137,9 +151,17 @@ class InvokerShadowHandler(HandlerProcessor):
                 assert isinstance(cel, Element), 'Invalid element %s' % cel
                 if not cel.property: continue
                 if isCompatible(gel.property, cel.property): return
-                
-        path.extend(copyElement(el.__class__(), el) for el in cpath)
-        path.extend(copyElement(el.__class__(), el) for el in gpath)
+        
+        for el in cpath:
+            sel = copyElement(el.__class__(), el)
+            if Element.shadowed in sel: sel.shadowed = el
+            path.append(sel)
+            
+        for el in gpath:
+            sel = copyElement(el.__class__(), el)
+            if Element.shadowing in sel: sel.shadowing = el
+            path.append(sel)
+            
         return path
 
 # --------------------------------------------------------------------
@@ -156,7 +178,7 @@ class InvokerShadow(Context):
     The invoker context.
     '''
     # ---------------------------------------------------------------- Required
-    shadowOf = requires(Context)
+    shadowing = requires(Context)
     
 class NodeConflict(Context):
     '''
@@ -197,7 +219,7 @@ class ConflictShadowHandler(HandlerProcessor):
                     invoker = invokers[k]
                     k += 1
                     assert isinstance(invoker, InvokerShadow), 'Invalid invoker %s' % invoker
-                    if invoker.shadowOf:
+                    if invoker.shadowing:
                         aborted.append(invoker)
                         k -= 1
                         del invokers[k]
@@ -246,16 +268,16 @@ class RequiredShadowHandler(HandlerProcessor):
             if not node.invokers or HTTP_GET not in node.invokers: continue
             invoker = node.invokers[HTTP_GET]
             assert isinstance(invoker, InvokerRequired), 'Invalid invoker %s' % invoker
-            if not invoker.shadowOf: continue
-            assert isinstance(invoker.shadowOf, InvokerRequired), 'Invalid invoker %s' % invoker.shadowOf
-            assert isinstance(invoker.shadowOf.node, NodeRequired), 'Invalid node %s' % invoker.shadowOf.node
+            if not invoker.shadowing: continue
+            assert isinstance(invoker.shadowing, InvokerRequired), 'Invalid invoker %s' % invoker.shadowing
+            assert isinstance(invoker.shadowing.node, NodeRequired), 'Invalid node %s' % invoker.shadowing.node
             
             if not node.invokersAccessible: aborted.append(invoker)
             else:
                 assert isinstance(node.invokersAccessible, list), 'Invalid accessible invokers %s' % node.invokersAccessible
-                if invoker.shadowOf.node.invokersAccessible:
+                if invoker.shadowing.node.invokersAccessible:
                     node.invokersAccessible.reverse()
-                    node.invokersAccessible.extend(invoker.shadowOf.node.invokersAccessible)
+                    node.invokersAccessible.extend(invoker.shadowing.node.invokersAccessible)
                     node.invokersAccessible.reverse()
         
         if aborted: raise Abort(*aborted)

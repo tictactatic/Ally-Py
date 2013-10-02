@@ -11,12 +11,12 @@ Provides the decorators used for APIs in a much easier to use form.
 
 from .operator.descriptor import processWithProperties, processAsQuery, \
     processAsService
-from .operator.extract import extractCriterias, extractProperties, \
+from .operator.extract import Prototype, extractCriterias, extractProperties, \
     extractInputOuput, processGenericCall, inheritedTypesFrom
-from .operator.type import Call, TypeCall, TypeModel, TypeProperty, TypeCriteria, \
+from .operator.type import TypeCall, TypeModel, TypeProperty, TypeCriteria, \
     TypeQuery, TypeService, TypeExtension, TypeOption
 from .type import typeFor
-from ally.api.operator.type import TypePropertyContainer, TypeInput
+from ally.api.operator.type import TypePropertyContainer
 from ally.api.type import List, Input
 from ally.support.util_sys import locationStack
 from inspect import isclass, isfunction
@@ -271,16 +271,60 @@ def call(*args, method=None, **hints):
                 if match(regex, name):
                     method = m
                     break
-            else: raise Exception('Cannot deduce method for function name "%s"' % name)
+            else: raise Exception('Cannot deduce method for function name \'%s\'' % name)
 
         inputs, output = extractInputOuput(function, types, modelToId=method in (GET, DELETE))
         for inp in inputs:
             assert isinstance(inp, Input), 'Invalid input %s' % inp
             if not match(RULE_CALL_ARGUMENTS[0], inp.name):
                 raise Exception(RULE_CALL_ARGUMENTS[1] % (inp.name, locationStack(function)))
-        function._ally_call = Call(name, method, inputs, output, hints)
+        
+        function.__isabstractmethod__ = True  # Flag that notifies the ABCMeta that is is an actual abstract method.
+        function._ally_call = name, method, inputs, output, hints
         return function
 
+    if function is not None: return decorator(function)
+    return decorator
+
+def prototype(*args, method=None, **hints):
+    '''
+    Used for decorating prototype class methods that are used as APIs. The usage is the same
+    as for @see: call, with the exception that as annotations also callable functions are allowed
+    that are going to be invoked with the replacements when the prototype is used in a service.
+    '''
+    function = None
+    if not args: types = None
+    elif not isfunction(args[0]): types = args
+    else:
+        types = None
+        assert len(args) == 1, \
+        'Expected only one argument that is the decorator function, got %s arguments' % len(args)
+        function = args[0]
+
+    def decorator(function):
+        assert isfunction(function), 'Invalid function %s' % function
+        nonlocal method
+        name = function.__name__
+        if method is None:
+            for regex, m in NAME_TO_METHOD.items():
+                if match(regex, name):
+                    method = m
+                    break
+            else: raise Exception('Cannot deduce method for function name \'%s\'' % name)
+        
+        def prototype(prototype):
+            assert isinstance(prototype, Prototype), 'Invalid replaces %s' % prototype
+            inputs, output = extractInputOuput(function, types, modelToId=method in (GET, DELETE), prototype=prototype)
+            for inp in inputs:
+                assert isinstance(inp, Input), 'Invalid input %s' % inp
+                if not match(RULE_CALL_ARGUMENTS[0], inp.name):
+                    raise Exception(RULE_CALL_ARGUMENTS[1] % (inp.name, locationStack(function)))
+            return name, method, inputs, output, hints
+        
+        function.__isabstractmethod__ = True  # Flag that notifies the ABCMeta that is is an actual abstract method.
+        function._ally_call_prototype = prototype
+        return function
+        
     if function is not None: return decorator(function)
     return decorator
 
@@ -302,53 +346,67 @@ def service(*generic):
             @call(Number, Issue.x)
             def multipy(self, x):
             
-    @param generic: arguments((genericClass, replaceClass)|[...(genericClass, replaceClass)])
-        The classes of that will be generically replaced. Can also be provided as arguments.
+    @param generic: arguments((replaced:class|prototype:string, replacer:class))
+        The classes that will be generically replaced or prototype names that will be replaced.
     '''
+    generics, replaces = {}, {}
     if generic:
-        if len(generic) == 1 and isclass(generic[0]):
-            clazz = generic[0]
-            generic = {}
+        if len(generic) == 1 and isclass(generic[0]): clazz = generic[0]
         else:
-            if __debug__:
-                for gen in generic:
-                    assert isinstance(gen, (tuple, list)), 'Invalid generic entry %s' % gen
-                    assert len(gen) == 2, 'Invalid generic entry %s has to many entries %s, expected 2' % (gen, len(gen))
-                    replaced, replacer = gen
-                    assert isclass(replacer) and isinstance(typeFor(replacer), (TypeModel, TypeQuery)), \
-                    'Invalid replacer class %s in generic entry %s' % (replacer, gen)
-                    assert isclass(replaced) and isinstance(typeFor(replaced), (TypeModel, TypeQuery)), \
-                    'Invalid replaced class %s in generic entry %s' % (replaced, gen)
-                    assert issubclass(replacer, replaced), \
-                    'Invalid replacer class %s does not extend the replaced class %s' % (replacer, replaced)
-            generic = dict(generic)
+            for gen in generic:
+                assert isinstance(gen, (tuple, list)), 'Invalid generic entry %s' % gen
+                assert len(gen) == 2, 'Invalid generic entry %s has to many entries %s, expected 2' % (gen, len(gen))
+                replaced, replacer = gen
+                assert isclass(replacer) and isinstance(typeFor(replacer), (TypeModel, TypeQuery)), \
+                'Invalid replacer class %s in generic entry %s' % (replacer, gen)
+                if isinstance(replaced, str):
+                    replaces[replaced] = replacer
+                    continue
+                assert isclass(replaced) and isinstance(typeFor(replaced), (TypeModel, TypeQuery)), \
+                'Invalid replaced class %s in generic entry %s' % (replaced, gen)
+                assert issubclass(replacer, replaced), \
+                'Invalid replacer class %s does not extend the replaced class %s' % (replacer, replaced)
+                generics[replaced] = replacer
             clazz = None
-    else:
-        generic = {}
-        clazz = None
+    else: clazz = None
 
     def decorator(clazz):
         assert isclass(clazz), 'Invalid class %s' % clazz
     
+        prototype = None
         service = clazz._ally_type = TypeService(clazz)
         for name, function in clazz.__dict__.items():
-            if isfunction(function):
-                try: service.calls[name] = TypeCall(service, function._ally_call)
-                except AttributeError: raise Exception('No call for method at:%s' % locationStack(function))
-                del function._ally_call
-    
-        for inherited in inheritedTypesFrom(clazz, TypeService):
-            assert isinstance(inherited, TypeService)
-            for name, call in inherited.calls.items():
-                assert isinstance(call, TypeCall)
-                if name not in service.calls:
-                    service.calls[name] = TypeCall(service, processGenericCall(call.call, generic))
-                    
-        for call in service.calls.values():
-            assert isinstance(call.call, Call), 'Invalid call %s' % call.call
-            for inp in call.call.inputs:
-                assert isinstance(inp, Input), 'Invalid input %s' % inp
-                call.inputs[inp.name] = TypeInput(call, inp)
+            if not isfunction(function): continue
+            try: service.calls[name] = TypeCall(service, clazz, *function._ally_call)
+            except AttributeError: raise Exception('No call for method at:%s' % locationStack(function))
+            del function._ally_call
+
+        classes = list(clazz.__bases__)
+        while classes:
+            base = classes.pop()
+            inherited = typeFor(base)
+            if inherited is None:
+                if base == object: continue
+                for name, function in base.__dict__.items():
+                    if not isfunction(function) or name in service.calls: continue
+                    try: callPrototype = function._ally_call_prototype
+                    except AttributeError: pass
+                    else:
+                        if prototype is None: prototype = Prototype(replaces, clazz)
+                        service.calls[name] = TypeCall(service, base, *callPrototype(prototype))
+                        continue
+                    try: service.calls[name] = TypeCall(service, base, *function._ally_call)
+                    except AttributeError: raise Exception('No call for inherited method at:%s' % locationStack(function))
+                classes.extend(base.__bases__)
+                
+            elif not isinstance(inherited, TypeService): raise Exception('Unexpected inherited type %s' % inherited)
+            
+            else:
+                assert isinstance(inherited, TypeService)
+                for name, cal in inherited.calls.items():
+                    assert isinstance(cal, TypeCall)
+                    if name not in service.calls:
+                        service.calls[name] = TypeCall(service, cal.definer, *processGenericCall(cal, generics))
     
         return processAsService(clazz, service)
     if clazz: return decorator(clazz)
@@ -412,3 +470,26 @@ def option(*args):
         return processWithProperties(clazz, option)
     if args: return decorator(*args)
     return decorator
+
+# --------------------------------------------------------------------
+
+def hints(*targets, **hints):
+    '''
+    Places hints on the provided target type.
+    
+    @param targets: arguments[container TypeModel or TypeCall]
+        The target call or model to place the hints.
+    @param hints: key arguments
+        The hints to place on the targets.
+    '''
+    assert targets, 'At least a target is required'
+    assert hints, 'At least a hint is required'
+    
+    for target in targets:
+        typ = typeFor(target)
+        if isinstance(typ, TypeCall):
+            assert isinstance(typ, TypeCall)
+            typ.hints.update(hints)
+        else:
+            assert isinstance(typ, TypeModel), 'Invalid target %s' % target
+            typ.hints.update(hints)

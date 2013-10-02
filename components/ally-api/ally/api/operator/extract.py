@@ -10,9 +10,8 @@ Provides the configuration functions.
 '''
 
 from ..type import Non, Type, Input, Iter, typeFor
-from .type import TypeContainer, TypeCriteria, TypeQuery, TypeModel
-from ally.api.operator.type import TypeProperty, TypeOption, Call, \
-    TypePropertyContainer
+from .type import TypeContainer, TypeCriteria, TypeQuery, TypeModel, \
+    TypeProperty, TypeOption, TypePropertyContainer, TypeCall, TypeInput
 from ally.support.util_sys import locationStack
 from inspect import isfunction, getfullargspec, isclass
 import logging
@@ -126,7 +125,7 @@ def extractCriterias(clazz):
 
     return definitions
 
-def extractInputOuput(function, types=None, modelToId=False):
+def extractInputOuput(function, types=None, modelToId=False, prototype=None):
     '''
     Extracts the input and output for a call based on the provided function.
     
@@ -139,6 +138,9 @@ def extractInputOuput(function, types=None, modelToId=False):
         Flag indicating that the extract should convert all inputs that are model types to their actually
         corresponding property type, used in order not to constantly provide the id property of the model when in fact
         we can deduce that the API annotation actually refers to the id and not the model.
+    @param prototype: object
+        The prototype object used in calling the annotation callables, only if this prototype is provided the callables
+        will be invoked.
     @return: tuple(list[Input], Type)
         A tuple containing on the first position the list of inputs for the call, and second the output type of the call.
     '''
@@ -163,12 +165,12 @@ def extractInputOuput(function, types=None, modelToId=False):
 
     mandatory = len(args)
     if defaults: mandatory -= len(defaults)
-    typ = annotations.get('return')
-    output, inputs = typeFor(Non if typ is None else typ), []
+    output, inputs = extractType(Non if 'return' not in annotations else annotations['return'], prototype), []
     for k, arg in enumerate(args):
         if arg not in annotations: raise Exception('There is no type for \'%s\'' % arg)
-        typ = typeFor(annotations[arg])
-        assert isinstance(typ, Type), 'Could not obtain a valid type for \'%s\' with %s' % (arg, annotations[arg])
+        typ = extractType(annotations[arg], prototype)
+        assert isinstance(typ, Type), 'Could not obtain a valid type \'%s\' for \'%s\' with %s, at:%s' \
+                                      % (typ, arg, annotations[arg], locationStack(function))
         if modelToId and isinstance(typ, TypeModel):
             assert isinstance(typ, TypeModel)
             assert typ.propertyId, 'The model %s has not id to use' % typ
@@ -178,7 +180,7 @@ def extractInputOuput(function, types=None, modelToId=False):
     
     if keywords:
         if keywords not in annotations: raise Exception('There is option type for keywords \'%s\'' % keywords)
-        option = typeFor(annotations[keywords])
+        option = extractType(annotations[keywords], prototype)
         assert isinstance(option, TypeOption), 'Invalid option \'%s\' with %s' % (keywords, annotations[keywords])
         obj = option.clazz()
         for name, prop in option.properties.items():
@@ -189,6 +191,24 @@ def extractInputOuput(function, types=None, modelToId=False):
 
     return inputs, output
 
+def extractType(annotation, prototype):
+    '''
+    Extracts the annotation type.
+    
+    @param annotation: object
+        The annotation object to extract the type for.
+    @param prototype: object
+        The prototype object used in calling the annotation callables, only if this prototype is provided the callables
+        will be invoked.
+    @return: Type|None
+        The annotation type or None if not found.
+    '''
+    if annotation is not None:
+        typ = typeFor(annotation)
+        if typ is None and prototype is not None and callable(annotation):
+            return typeFor(annotation(prototype))
+        return typ
+
 # --------------------------------------------------------------------
 
 def processGenericCall(call, generic):
@@ -196,7 +216,7 @@ def processGenericCall(call, generic):
     If either the output or input of the call is based on the provided super model or query then it will create 
     new call that will have the super model or query replaced with the new model or query in the types of the call.
     
-    @param call: Call
+    @param call: TypeCall
         The call to be analyzed.
     @param generic: dictionary{class, class}
         The dictionary containing as a key the class to be generically replaced and as a value the class to replace with.
@@ -204,25 +224,18 @@ def processGenericCall(call, generic):
         If the provided call is not depended on the super model it will be returned as it is, if not a new call
         will be created with all the dependencies from super model replaced with the new model.
     '''
-    assert isinstance(call, Call), 'Invalid call %s' % call
+    assert isinstance(call, TypeCall), 'Invalid call %s' % call
     assert isinstance(generic, dict), 'Invalid generic %s' % generic
-    updated = False
     output = processGenericType(call.output, generic)
-    if output: updated = True
-    else: output = call.output
+    if not output: output = call.output
     inputs = []
-    for inp in call.inputs:
-        assert isinstance(inp, Input)
-        genericType = processGenericType(inp.type, generic)
-        if genericType:
-            inputs.append(Input(inp.name, genericType, inp.hasDefault, inp.default))
-            updated = True
-        else: inputs.append(inp)
-    if updated:
-        newCall = Call(call.name, call.method, inputs, output, call.hints)
-        log.info('Generic call transformation from %s to %s' % (call, newCall))
-        call = newCall
-    return call
+    for itype in call.inputs.values():
+        assert isinstance(itype, TypeInput), 'Invalid input type %s' % itype
+        assert isinstance(itype.input, Input), 'Invalid input %s' % itype.input
+        genericType = processGenericType(itype.input.type, generic)
+        if genericType: inputs.append(Input(itype.input.name, genericType, itype.input.hasDefault, itype.input.default))
+        else: inputs.append(itype.input)
+    return call.name, call.method, inputs, output, call.hints
 
 def processGenericType(forType, generic):
     '''
@@ -268,3 +281,22 @@ def processGenericType(forType, generic):
         assert isinstance(forType, Iter)
         itemType = processGenericType(forType.itemType, generic)
         if itemType: return forType.__class__(itemType)
+
+# --------------------------------------------------------------------
+
+class Prototype:
+    '''
+    The prototype object passed on to the prototype calls.
+    '''
+    
+    def __new__(cls, replaces, clazz):
+        assert isinstance(replaces, dict), 'Invalid replaces %s' % replaces
+        assert isclass(clazz), 'Invalid class %s' % clazz
+        self = object.__new__(cls)
+        self.__dict__.update(replaces)
+        self._clazz = clazz
+        return self
+    
+    def __getattr__(self, name):
+        if not name.startswith('_'):
+            raise Exception('A generic replace is required for \'%s\' at:%s' % (name, locationStack(self._clazz)))

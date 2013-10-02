@@ -10,39 +10,16 @@ Contains the SQL alchemy meta for ACL group.
 '''
 
 from ..api.group import Group
-from .access import AccessMapped
-from .filter import FilterMapped
+from .acl import WithAclAccess
+from .compensate import WithCompensate
 from .metadata_acl import Base
-from ally.support.sqlalchemy.mapper import validate
+from sql_alchemy.support.mapper import validate
 from sqlalchemy.dialects.mysql.base import INTEGER
-from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.schema import Column, ForeignKey, UniqueConstraint
-from sqlalchemy.types import String
+from sqlalchemy.schema import Column, ForeignKey
+from sqlalchemy.types import String, Boolean
 
 # --------------------------------------------------------------------
 
-class AccessToGroup(Base):
-    '''
-    Provides the Access to Group mapping.
-    '''
-    __tablename__ = 'acl_access_group'
-    __table_args__ = (UniqueConstraint('fk_access_id', 'fk_group_id', name='uix_acl_access_group'), dict(mysql_engine='InnoDB'))
-    
-    id = Column('id', INTEGER(unsigned=True), primary_key=True)
-    accessId = Column('fk_access_id', ForeignKey(AccessMapped.Id, ondelete='CASCADE'))
-    groupId = Column('fk_group_id', ForeignKey('acl_group.id', ondelete='CASCADE'))
-    
-class FilterToEntry(Base):
-    '''
-    Provides the Filter to Entry mapping.
-    '''
-    __tablename__ = 'acl_filter_access_entry'
-    __table_args__ = dict(mysql_engine='InnoDB')
-    
-    accessGroupId = Column('fk_access_group_id', ForeignKey(AccessToGroup.id, ondelete='CASCADE'), primary_key=True)
-    filterId = Column('fk_filter_id', ForeignKey(FilterMapped.id, ondelete='CASCADE'), primary_key=True)
-    position = Column('position', INTEGER(unsigned=True), autoincrement=False, primary_key=True)
-    
 @validate
 class GroupMapped(Base, Group):
     '''
@@ -52,8 +29,23 @@ class GroupMapped(Base, Group):
     __table_args__ = dict(mysql_engine='InnoDB')
     
     Name = Column('name', String(255), nullable=False, unique=True)
+    IsAnonymous = Column('is_anonymous', Boolean, nullable=False, default=False)
     Description = Column('description', String(255))
-    Target = association_proxy('target', 'name')
-    Paths = association_proxy('paths', 'path.path')
     # Non REST model attribute --------------------------------------
     id = Column('id', INTEGER(unsigned=True), primary_key=True)
+
+class GroupAccess(Base, WithAclAccess):
+    '''
+    Provides the Group to Access mapping.
+    '''
+    __tablename__ = 'acl_group_access'
+    
+    aclId = Column('fk_group_id', ForeignKey(GroupMapped.id, ondelete='CASCADE'))
+    
+class GroupCompensate(Base, WithCompensate):
+    '''
+    Provides the Group to Compensate mapping.
+    '''
+    __tablename__ = 'acl_group_compensate'
+    
+    aclAccessId = Column('fk_group_access_id', ForeignKey(GroupAccess.id, ondelete='CASCADE'))

@@ -30,6 +30,7 @@ from ally.http.impl.processor.header_parameter import HeaderParameterHandler, \
 from ally.http.impl.processor.method_override import METHOD_OVERRIDE
 from ally.http.spec.headers import CONTENT_LENGTH
 from ally.indexing.impl import perform_do
+from ally.support.http.request import RequesterOptions, RequesterGetJSON
 
 # --------------------------------------------------------------------
 
@@ -97,6 +98,36 @@ def inner_headers_remove() -> list:
 # --------------------------------------------------------------------
 
 @ioc.entity
+def assemblyRESTRequest() -> Assembly:
+    '''
+    The assembly containing the handlers that will be used in processing the assemblage REST requests.
+    '''
+    return Assembly('Assemblage REST data')
+
+@ioc.entity
+def assemblyForward() -> Assembly:
+    '''
+    The assembly containing the handlers that will be used for forwarding the request.
+    '''
+    return Assembly('Assemblage forward')
+
+@ioc.entity
+def assemblyContent() -> Assembly:
+    '''
+    The assembly containing the handlers that will be used for processing the assemblage content.
+    '''
+    return Assembly('Assemblage content')
+
+@ioc.entity
+def assemblyAssemblage() -> Assembly:
+    '''
+    The assembly containing the handlers that will be used in processing the assemblages resources.
+    '''
+    return Assembly('Assemblage')
+
+# --------------------------------------------------------------------
+
+@ioc.entity
 def headersCustom() -> set:
     '''
     Provides the custom header names defined by processors.
@@ -110,6 +141,12 @@ def parametersAsHeaders() -> list: return sorted(headersCustom())
 # Creating the processors used in handling the request
 
 @ioc.entity
+def requesterForwardOptions() -> RequesterOptions: return RequesterOptions(assemblyForward())
+
+@ioc.entity
+def requesterRESTGetJSON() -> RequesterGetJSON: return RequesterGetJSON(assemblyRESTRequest())
+
+@ioc.entity
 def headerParameter() -> Handler:
     b = HeaderParameterHandler()
     b.parameters = parametersAsHeaders()
@@ -118,7 +155,7 @@ def headerParameter() -> Handler:
 @ioc.entity
 def headerParameterOptions() -> Handler:
     b = HeaderParameterOptionsHandler()
-    b.assembly = assemblyForward()
+    b.requesterOptions = requesterForwardOptions()
     return b
 
 @ioc.entity
@@ -128,7 +165,7 @@ def requestNode(): return RequestNodeHandler()
 def block() -> Handler:
     b = BlockHandler()
     b.uri = assemblage_indexes_uri()
-    b.assembly = assemblyRESTRequest()
+    b.requesterGetJSON = requesterRESTGetJSON()
     return b
 
 @ioc.entity
@@ -166,36 +203,6 @@ def externalForwardREST() -> Handler:
     b.externalHost = external_rest_host()
     b.externalPort = external_rest_port()
     return b
-
-# --------------------------------------------------------------------
-
-@ioc.entity
-def assemblyRESTRequest() -> Assembly:
-    '''
-    The assembly containing the handlers that will be used in processing the assemblage REST requests.
-    '''
-    return Assembly('Assemblage REST data')
-
-@ioc.entity
-def assemblyForward() -> Assembly:
-    '''
-    The assembly containing the handlers that will be used for forwarding the request.
-    '''
-    return Assembly('Assemblage forward')
-
-@ioc.entity
-def assemblyContent() -> Assembly:
-    '''
-    The assembly containing the handlers that will be used for processing the assemblage content.
-    '''
-    return Assembly('Assemblage content')
-
-@ioc.entity
-def assemblyAssemblage() -> Assembly:
-    '''
-    The assembly containing the handlers that will be used in processing the assemblages resources.
-    '''
-    return Assembly('Assemblage')
 
 # --------------------------------------------------------------------
 

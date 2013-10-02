@@ -9,7 +9,7 @@ Created on Jul 27, 2012
 Provides the invoker encoder.
 '''
 
-from ally.api.type import Type
+from ally.api.type import Type, Iter
 from ally.container.ioc import injected
 from ally.core.spec.transform import ITransfrom
 from ally.design.processor.assembly import Assembly
@@ -100,9 +100,8 @@ class EncodingHandler(HandlerBranching):
             
             if invoker.invokerGet:
                 if invoker.isCollection:
-                    # TODO: Gabriel: This is a temporary fix to get the same rendering as before until we refactor the plugins
-                    # to return only ids.
-                    invoker.hideProperties = True
+                    assert isinstance(invoker.output, Iter), 'Invalid output %s' % invoker.output
+                    if isModelId(invoker.output.itemType): invoker.hideProperties = True
                 elif isModelId(invoker.output): invoker.hideProperties = True
             
             try: arg = processing.execute(FILL_ALL, create=processing.ctx.create(objType=invoker.output),

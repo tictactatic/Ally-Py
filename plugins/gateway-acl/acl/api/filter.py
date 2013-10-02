@@ -11,33 +11,24 @@ API specifications for service filters.
 
 from .domain_acl import modelACL
 from ally.api.config import service, call, query
-from ally.api.criteria import AsEqualOrdered
-from ally.api.type import List
+from ally.api.criteria import AsLikeOrdered
 from ally.support.api.entity_named import Entity, IEntityGetService, QEntity, \
     IEntityQueryService
 
 # --------------------------------------------------------------------
 
 @modelACL
-class Allowed:
-    '''
-    Defines the allowed model that is returned by filters.
-    '''
-    IsAllowed = bool
-    
-@modelACL
 class Filter(Entity):
     '''
-    The filter model.
-        Target -     the target type name that this filter is designed for.
-        Paths -      a list of paths that are used to check the filter, at least one path needs to provide an allowed
-                     answer in order to consider the filter passed. The path contains beside the fixed string
-                     names also a marker '*' for where the filtered value should be placed before using the service.
-                     The paths might also contain other value place holders.
+    Contains data required for an ACL filter.
+        Path -       contains the path that the filter maps to. The path contains beside the fixed string
+                     names also markers '*' for where the filtered values or injected values will be placed.
+        Hash -       the hash that represents the full aspect of the filter.
+        Signature -  the type signature associated with the target path entry.
     '''
-    Target = str
-    Paths = List(str)
-
+    Path = str
+    Signature = str
+    
 # --------------------------------------------------------------------
 
 @query(Filter)
@@ -45,7 +36,7 @@ class QFilter(QEntity):
     '''
     Provides the query for filter.
     '''
-    target = AsEqualOrdered
+    path = AsLikeOrdered
 
 # --------------------------------------------------------------------
 
@@ -62,6 +53,8 @@ class IFilterService(IEntityGetService, IEntityQueryService):
         
         @param filter: Filter
             The filter to be inserted.
+        @return: string
+            The name of the filter.
         '''
     
     @call

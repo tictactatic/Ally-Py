@@ -12,7 +12,10 @@ Contains the SQL alchemy meta for right API.
 from ..api.right import Right
 from .metadata_security import Base
 from .right_type import RightTypeMapped
-from ally.support.sqlalchemy.mapper import validate
+from acl.meta.acl import WithAclAccess
+from acl.meta.compensate import WithCompensate
+from sql_alchemy.support.mapper import validate
+from sql_alchemy.support.util_meta import relationshipModel
 from sqlalchemy.dialects.mysql.base import INTEGER
 from sqlalchemy.schema import Column, ForeignKey, UniqueConstraint
 from sqlalchemy.types import String
@@ -29,7 +32,22 @@ class RightMapped(Base, Right):
                       dict(mysql_engine='InnoDB', mysql_charset='utf8'))
 
     Id = Column('id', INTEGER(unsigned=True), primary_key=True)
-    Type = Column('fk_right_type_id', ForeignKey(RightTypeMapped.Id), nullable=False)
-    Name = Column('name', String(150), nullable=False)
+    Type = relationshipModel(RightTypeMapped.id)
+    Name = Column('name', String(150), nullable=False, unique=True)
     Description = Column('description', String(255))
 
+class RightAccess(Base, WithAclAccess):
+    '''
+    Provides the Right to Access mapping.
+    '''
+    __tablename__ = 'acl_right_access'
+    
+    aclId = Column('fk_right_id', ForeignKey(RightMapped.Id, ondelete='CASCADE'))
+    
+class RightCompensate(Base, WithCompensate):
+    '''
+    Provides the Right to Compensate mapping.
+    '''
+    __tablename__ = 'acl_right_compensate'
+    
+    aclAccessId = Column('fk_right_access_id', ForeignKey(RightAccess.id, ondelete='CASCADE'))

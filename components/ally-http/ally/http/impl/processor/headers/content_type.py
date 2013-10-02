@@ -66,16 +66,18 @@ class ContentTypeRequestDecodeHandler(HandlerProcessor):
         assert isinstance(response, Response), 'Invalid response %s' % response
 
         value = CONTENT_TYPE.decode(request)
-        if value:
-            if len(value) > 1:
-                CONTENT_TYPE_ERROR.set(response)
-                response.text = 'Invalid value \'%s\' for header \'%s\''\
-                ', expected only one type entry' % (value, self.nameContentType)
-                return
-            value, attributes = value[0]
-            requestCnt.type = value
-            requestCnt.charSet = attributes.get(CONTENT_TYPE_ATTR_CHAR_SET, None)
-            if RequestContentDecode.typeAttr in requestCnt: requestCnt.typeAttr = attributes
+        if not value: return
+        
+        if len(value) > 1:
+            CONTENT_TYPE_ERROR.set(response)
+            response.text = 'Invalid value \'%s\' for header \'%s\''\
+            ', expected only one type entry' % (value, self.nameContentType)
+            return
+        
+        value, attributes = value[0]
+        requestCnt.type = value
+        requestCnt.charSet = attributes.get(CONTENT_TYPE_ATTR_CHAR_SET, None)
+        if RequestContentDecode.typeAttr in requestCnt: requestCnt.typeAttr = attributes
 
 # --------------------------------------------------------------------
 
@@ -114,18 +116,20 @@ class ContentTypeResponseDecodeHandler(HandlerProcessor):
         assert isinstance(responseCnt, ResponseContentDecode), 'Invalid response content %s' % responseCnt
         
         value = CONTENT_TYPE.decode(response)
-        if value:
-            if len(value) > 1:
-                CONTENT_TYPE_ERROR.set(response)
-                response.text = 'Invalid value \'%s\' for header \'%s\''\
-                ', expected only one type entry' % (value, self.nameContentType)
-                return
-            value, attributes = value[0]
-            if ResponseContentDecode.type in responseCnt:
-                responseCnt.type = value
-            responseCnt.charSet = attributes.get(CONTENT_TYPE_ATTR_CHAR_SET, None)
-            if ResponseContentDecode.typeAttr in responseCnt:
-                responseCnt.typeAttr = attributes
+        if not value: return
+        
+        if len(value) > 1:
+            CONTENT_TYPE_ERROR.set(response)
+            response.text = 'Invalid value \'%s\' for header \'%s\''\
+            ', expected only one type entry' % (value, self.nameContentType)
+            return
+        
+        value, attributes = value[0]
+        if ResponseContentDecode.type in responseCnt:
+            responseCnt.type = value
+        responseCnt.charSet = attributes.get(CONTENT_TYPE_ATTR_CHAR_SET, None)
+        if ResponseContentDecode.typeAttr in responseCnt:
+            responseCnt.typeAttr = attributes
 
 # --------------------------------------------------------------------
  

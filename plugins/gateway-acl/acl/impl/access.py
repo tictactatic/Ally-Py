@@ -9,19 +9,18 @@ Created on Aug 6, 2013
 Implementation for the ACL access.
 '''
 
-from ..api.access import IAccessService, Construct, generateId, QAccess
-from ..meta.access import AccessMapped, EntryMapped
-from ..meta.acl_intern import Path, Method, Type
-from acl.api.access import generateHash
+from ..api.access import IAccessService, AccessCreate, generateId, QAccess, \
+    generateHash
+from ..meta.access import AccessMapped, EntryMapped, PropertyMapped
 from ally.api.error import InputError
 from ally.container.ioc import injected
 from ally.container.support import setup
 from ally.internationalization import _
-from ally.support.sqlalchemy.util_service import deleteModel, iterateCollection
 from sql_alchemy.impl.entity import EntityGetServiceAlchemy, \
     EntityQueryServiceAlchemy, EntitySupportAlchemy
-from sqlalchemy.orm.exc import NoResultFound
-import re
+from sql_alchemy.support.util_service import deleteModel, iterateCollection, \
+    insertModel
+from ally.api.criteria import AsBoolean
     
 # --------------------------------------------------------------------
 
@@ -33,17 +32,7 @@ class AccessServiceAlchemy(EntityGetServiceAlchemy, EntityQueryServiceAlchemy, I
     '''
     
     def __init__(self):
-        EntitySupportAlchemy.__init__(self, AccessMapped, QAccess, path=Path.path, method=Method.name)
-    
-    def getAll(self, q=None, **options):
-        '''
-        @see: IAccessService.getAll
-        '''
-        if q:
-            assert isinstance(q, QAccess), 'Invalid query %s' % q
-            if QAccess.path.equal in q: q.path.equal = q.path.equal.strip().strip('/')
-            if QAccess.method.equal in q: q.method.equal = q.method.equal.strip().upper()
-        return super().getAll(q=q, **options)
+        EntitySupportAlchemy.__init__(self, AccessMapped, QAccess, isShadow=self.queryShadow)
     
     def getEntry(self, accessId, position):
         '''
@@ -52,9 +41,9 @@ class AccessServiceAlchemy(EntityGetServiceAlchemy, EntityQueryServiceAlchemy, I
         assert isinstance(accessId, int), 'Invalid access id %s' % accessId
         assert isinstance(position, int), 'Invalid position %s' % position
         
-        sqlQuery = self.session().query(EntryMapped)
-        sqlQuery = sqlQuery.filter(EntryMapped.accessId == accessId).filter(EntryMapped.Position == position)
-        return sqlQuery.one()
+        sql = self.session().query(EntryMapped)
+        sql = sql.filter(EntryMapped.accessId == accessId).filter(EntryMapped.Position == position)
+        return sql.one()
         
     def getEntries(self, accessId):
         '''
@@ -63,108 +52,142 @@ class AccessServiceAlchemy(EntityGetServiceAlchemy, EntityQueryServiceAlchemy, I
         assert isinstance(accessId, int), 'Invalid access id %s' % accessId
         return iterateCollection(self.session().query(EntryMapped.Position).filter(EntryMapped.accessId == accessId))
     
+    def getProperty(self, accessId, name):
+        '''
+        @see: IAccessService.getProperty
+        '''
+        assert isinstance(accessId, int), 'Invalid access id %s' % accessId
+        assert isinstance(name, str), 'Invalid property name %s' % name
+        
+        sql = self.session().query(PropertyMapped)
+        sql = sql.filter(PropertyMapped.accessId == accessId).filter(PropertyMapped.Name == name)
+        return sql.one()
+        
+    def getProperties(self, accessId):
+        '''
+        @see: IAccessService.getProperties
+        '''
+        assert isinstance(accessId, int), 'Invalid access id %s' % accessId
+        return iterateCollection(self.session().query(PropertyMapped.Name).filter(PropertyMapped.accessId == accessId))
+    
     def insert(self, access):
         '''
         @see: IAccessService.insert
         '''
-        assert isinstance(access, Construct), 'Invalid access %s' % access
+        assert isinstance(access, AccessCreate), 'Invalid access %s' % access
 
-        dbAccess = AccessMapped()
-        items, dbAccess.pathId = self.pathId(access.Path)
-        dbAccess.methodId = self.methodId(access.Method)
-        dbAccess.Id = generateId(access.Path, access.Method)
-        dbAccess.ShadowOf = access.ShadowOf
-        dbAccess.Hash = generateHash(access)
-        self.session().add(dbAccess)
+        dbAccess = insertModel(AccessMapped, access, Id=generateId(access.Path, access.Method), Hash=generateHash(access))
+        assert isinstance(dbAccess, AccessMapped), 'Invalid mapped access %s' % dbAccess
         
-        position = 0
-        for item in items:
-            if item == '*':
-                if not access.Types: raise InputError(_('Expected at least one type for first *', Construct.Types))
-                if len(access.Types) <= position:
-                    raise InputError(_('Expected a type for * at %(position)i'), Construct.Types, position=position + 1)
-                entry = EntryMapped()
-                entry.Position = position
-                entry.typeId = self.typeId(access.Types[position])
-                entry.accessId = dbAccess.Id
-                self.session().add(entry)
-                position += 1
-        
-        return dbAccess.Id
+        self.generateEntries(access, dbAccess.Id, dbAccess.Path.split('/'))
+        self.generateProperties(access, dbAccess.Id)
+
+        return access.Id
         
     def delete(self, accessId):
         '''
         @see: IAccessService.delete
         '''
         return deleteModel(AccessMapped, accessId)
-    
+        
     # ----------------------------------------------------------------
     
-    def pathId(self, path):
+    def generateEntries(self, access, accessId, items):
         '''
-        Provides the path id for the provided path.
+        Generates the access entries.
         '''
-        assert isinstance(path, str), 'Invalid path %s' % path
+        assert isinstance(access, AccessCreate), 'Invalid access %s' % access
         
-        path = path.strip().strip('/')
-        items = path.split('/')
-        try: pathId, = self.session().query(Path.id).filter(Path.path == path).one()
-        except NoResultFound:
-            aclPath = Path()
-            aclPath.path = path
+        if access.Shadowing or access.Shadowed:
+            if access.Shadowing is None:
+                raise InputError(_('Expected a shadowing if a shadowed is provided'), AccessCreate.Shadowed)
+            if access.Shadowed is None:
+                raise InputError(_('Expected a shadowed if a shadowing is provided'), AccessCreate.Shadowed)
+            if access.Entries:
+                raise InputError(_('No entries expected for shadows'), AccessCreate.Entries)
+            assert isinstance(access.Shadowing, int), 'Invalid shadowing %s' % access.Shadowing
+            assert isinstance(access.Shadowed, int), 'Invalid shadowed id %s' % access.Shadowed
             
-            for k, item in enumerate(items, 1):
-                if item == '*':
-                    if aclPath.priority is None: aclPath.priority = k
-                elif not re.match('\w*$', item):
-                    raise InputError(_('Invalid path item \'%(item)s\', expected only alpha numeric characters or *'),
-                                     Construct.Path, item=item)
-            if aclPath.priority is None: aclPath.priority = 0
+            sql = self.session().query(EntryMapped).filter(EntryMapped.accessId == access.Shadowing)
+            shadowingEntries = {entry.Position: entry.Signature for entry in sql.all()}
             
-            self.session().add(aclPath)
-            self.session().flush((aclPath,))
-            pathId = aclPath.id
+            sql = self.session().query(EntryMapped).filter(EntryMapped.accessId == access.Shadowed)
+            shadowedEntries = {entry.Position: entry.Signature for entry in sql.all()}
+            
+            isShadow = True
+        else: isShadow = False
+
+        position = 1
+        for item in items:
+            if item != '*': continue
+            entry = EntryMapped()
+            entry.Position = position
+            entry.accessId = accessId
+            
+            if isShadow:
+                # Handling a shadow access.
+                if access.EntriesShadowing:
+                    assert isinstance(access.EntriesShadowing, dict), 'Invalid shadowing entries %s' % access.EntriesShadowing
+                    sposition = access.EntriesShadowing.get(position)
+                else: sposition = None
+                if sposition is not None:
+                    if sposition not in shadowingEntries:
+                        raise InputError(_('Invalid shadowing position %(shadowing)i for position %(position)s'),
+                                         AccessCreate.EntriesShadowing, shadowing=sposition, position=position)
+                    signature = shadowingEntries.pop(sposition)
+                    entry.Shadowing = sposition
+                else:
+                    if access.EntriesShadowed:
+                        assert isinstance(access.EntriesShadowed, dict), 'Invalid shadowed entries %s' % access.EntriesShadowed
+                        sposition = access.EntriesShadowed.get(position)
+                    else: sposition = None
+                    if sposition is None:
+                        raise InputError(_('Cannot find shadowing or shadowed type for position %(position)s'))
+                    if sposition not in shadowedEntries:
+                        raise InputError(_('Invalid shadowed position %(shadowed)i for position %(position)s'),
+                                         AccessCreate.EntriesShadowed, shadowed=sposition, position=position)
+                    signature = shadowedEntries.pop(sposition)
+                    entry.Shadowed = sposition
+            
+            else:
+                # Handling a normal access.
+                if not access.Entries: raise InputError(_('Expected at least one entry for first *'), AccessCreate.Entries)
+                assert isinstance(access.Entries, dict), 'Invalid access entries %s' % access.Entries
+                if position not in access.Entries:
+                    raise InputError(_('Expected an entry for * at %(position)i'), AccessCreate.Entries, position=position)
+                signature = access.Entries[position]
+            
+            entry.Signature = signature
+            self.session().add(entry)
+            position += 1
+
+        if isShadow:
+            if shadowingEntries:
+                raise InputError(_('This shadowing lacks entries for shadow access at positions %(positions)s'),
+                             AccessCreate.EntriesShadowing, positions=', '.join(shadowingEntries))
+            if shadowedEntries:
+                raise InputError(_('This shadowed lacks entries for shadow access at positions %(positions)s'),
+                             AccessCreate.EntriesShadowed, positions=', '.join(shadowedEntries))
+                
+    def generateProperties(self, access, accessId):
+        '''
+        Generates the access properties.
+        '''
+        assert isinstance(access, AccessCreate), 'Invalid access %s' % access
         
-        return items, pathId
-    
-    def methodId(self, method):
+        if not access.Properties: return
+        assert isinstance(access.Properties, dict), 'Invalid access properties %s' % access.Properties
+        for name, signature in access.Properties.items():
+            prop = PropertyMapped()
+            prop.Name = name
+            prop.accessId = accessId
+            prop.Signature = signature
+            self.session().add(prop)
+
+    def queryShadow(self, sql, crit):
         '''
-        Provides the method id for the provided method.
+        Processes the shadow query.
         '''
-        assert isinstance(method, str), 'Invalid method %s' % method
-        
-        method = method.strip().upper()
-        try: methodId, = self.session().query(Method.id).filter(Method.name == method).one()
-        except NoResultFound:
-            aclMethod = Method()
-            aclMethod.name = method
-            self.session().add(aclMethod)
-            self.session().flush((aclMethod,))
-            methodId = aclMethod.id
-        return methodId
-    
-    def typeId(self, name):
-        '''
-        Provides the type id for the provided type name.
-        '''
-        assert isinstance(name, str), 'Invalid type name %s' % name
-        
-        name = name.strip()
-        try: typeId, = self.session().query(Type.id).filter(Type.name == name).one()
-        except NoResultFound:
-            aclType = Type()
-            aclType.name = name
-            self.session().add(aclType)
-            self.session().flush((aclType,))
-            typeId = aclType.id
-        return typeId
-    
-    # TODO: remove    
-    def isDummy1Filter(self, id):
-        print(id)
-        return id == '00000000'
-    
-    # TODO: remove    
-    def isDummy2Filter(self, id):
-        print(id)
-        return id == '2036D140'
+        assert isinstance(crit, AsBoolean), 'Invalid criteria %s' % crit
+        if crit.value: return sql.filter(AccessMapped.Shadowing != None)
+        return sql.filter(AccessMapped.Shadowing == None)

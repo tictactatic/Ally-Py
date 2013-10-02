@@ -9,10 +9,10 @@ Created on May 2, 2012
 General specifications for the entities API that poses a string Name identifier.
 '''
 
-from ally.api.config import model, query, service, call
-from ally.api.option import SliceAndTotal # @UnusedImport
-from ally.api.type import Iter
-
+from .entity import IEntityCRUDPrototype, IEntityGetPrototype, \
+    IEntityFindPrototype, IEntityQueryPrototype
+from ally.api.config import model, query, service
+    
 # --------------------------------------------------------------------
 
 @model(id='Name')
@@ -32,90 +32,29 @@ class QEntity:
 
 # --------------------------------------------------------------------
 
-# The Entity model will be replaced by the specific model when the API will be inherited.
-@service
-class IEntityGetService:
+@service(('Entity', Entity))
+class IEntityGetService(IEntityGetPrototype):
     '''
-    Provides the basic entity service. This means locate by id.
-    '''
-
-    @call
-    def getById(self, name:Entity.Name) -> Entity:
-        '''
-        Provides the entity based on the name.
-        
-        @param name: string
-            The name of the entity to find.
-        '''
-
-@service
-class IEntityFindService:
-    '''
-    Provides the basic entity find service.
+    Entity Name identifier service for @see: IEntityGetPrototype
     '''
 
-    @call
-    def getAll(self, **options:SliceAndTotal) -> Iter(Entity.Name):
-        '''
-        Provides the entities.
-        
-        @param options: @see: SliceAndTotal
-            The options to fetch the entities with.
-        '''
-
-@service
-class IEntityQueryService:
+@service(('Entity', Entity))
+class IEntityFindService(IEntityFindPrototype):
     '''
-    Provides the entity find service based on a query.
+    Entity Name identifier service for @see: IEntityFindService
     '''
 
-    @call
-    def getAll(self, q:QEntity=None, **options:SliceAndTotal) -> Iter(Entity.Name):
-        '''
-        Provides the entities searched by the provided query.
-        
-        @param q: QEntity|None
-            The query to search by.
-        @param options: @see: SliceAndTotal
-            The options to fetch the entities with.
-        '''
-
-@service
-class IEntityCRUDService:
+@service(('Entity', Entity), ('QEntity', QEntity))
+class IEntityQueryService(IEntityQueryPrototype):
     '''
-    Provides the entity the CRUD services.
+    Entity Name identifier service for @see: IEntityQueryService
     '''
 
-    @call
-    def insert(self, entity:Entity) -> Entity.Name:
-        '''
-        Insert the entity.
-        
-        @param entity: Entity
-            The entity to be inserted.
-        @return: string
-            The name assigned to the entity
-        '''
-
-    @call
-    def update(self, entity:Entity):
-        '''
-        Update the entity.
-        
-        @param entity: Entity
-            The entity to be updated.
-        '''
-
-    @call
-    def delete(self, name:Entity.Name) -> bool:
-        '''
-        Delete the entity for the provided key.
-        
-        @param name: string
-            The name of the entity to be deleted.
-        @return: boolean
-            True if the delete is successful, false otherwise.
-        '''
+@service(('Entity', Entity))
+class IEntityCRUDService(IEntityCRUDPrototype):
+    '''
+    Entity Name identifier service for @see: IEntityCRUDService
+    '''
 
 @service
 class IEntityGetCRUDService(IEntityGetService, IEntityCRUDService):

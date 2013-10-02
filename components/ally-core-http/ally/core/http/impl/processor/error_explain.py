@@ -182,7 +182,7 @@ class ErrorExplainHandler(HandlerProcessor):
                 value = value.get(definition)
                 
             if value is not None:
-                if isinstance(value, list): tansformed[key] = ', '.join(str(item) for item in value)
+                if isinstance(value, list): tansformed[key] = '\n%s\n' % '\n'.join(str(item) for item in value)
                 else: tansformed[key] = str(value)
             
         return tansformed

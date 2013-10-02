@@ -26,6 +26,7 @@ from ally.gateway.http.impl.processor.selector import GatewaySelectorHandler
 from ally.http.impl.processor.forward import ForwardHTTPHandler
 from ally.http.impl.processor.header_parameter import HeaderParameterHandler, \
     HeaderParameterOptionsHandler
+from ally.support.http.request import RequesterOptions, RequesterGetJSON
     
 # --------------------------------------------------------------------
 
@@ -94,74 +95,6 @@ def read_from_params():
 # --------------------------------------------------------------------
 
 @ioc.entity
-def headersCustom() -> set:
-    '''
-    Provides the custom header names defined by processors.
-    '''
-    return set()
-
-@ioc.entity
-def parametersAsHeaders() -> list: return sorted(headersCustom())
-
-# --------------------------------------------------------------------
-# Creating the processors used in handling the request
-
-@ioc.entity
-def headerParameter():
-    b = HeaderParameterHandler()
-    b.parameters = parametersAsHeaders()
-    return b
-
-@ioc.entity
-def headerParameterOptions() -> Handler:
-    b = HeaderParameterOptionsHandler()
-    b.assembly = assemblyForward()
-    return b
-
-@ioc.entity
-def gatewayRepository() -> Handler:
-    b = GatewayRepositoryHandler()
-    b.uri = gateway_uri()
-    b.cleanupInterval = cleanup_interval()
-    b.assembly = assemblyRESTRequest()
-    return b
-
-@ioc.entity
-def gatewayAuthorizedRepository() -> Handler:
-    b = GatewayAuthorizedRepositoryHandler()
-    b.uri = gateway_authorized_uri()
-    b.cleanupInterval = cleanup_authorized_interval()
-    b.assembly = assemblyRESTRequest()
-    return b
-
-@ioc.entity
-def gatewaySelector() -> Handler: return GatewaySelectorHandler()
-
-@ioc.entity
-def gatewayFilter() -> Handler:
-    b = GatewayFilterHandler()
-    b.assembly = assemblyRESTRequest()
-    return b
-
-@ioc.entity
-def gatewayError() -> Handler: return GatewayErrorHandler()
-
-@ioc.entity
-def gatewayForward() -> Handler:
-    b = GatewayForwardHandler()
-    b.assembly = assemblyForward()
-    return b
-
-@ioc.entity
-def externalForward() -> Handler:
-    b = ForwardHTTPHandler()
-    b.externalHost = external_host()
-    b.externalPort = external_port()
-    return b
-
-# --------------------------------------------------------------------
-
-@ioc.entity
 def assemblyRESTRequest() -> Assembly:
     '''
     The assembly containing the handlers that will be used in processing the gateway REST requests.
@@ -181,6 +114,80 @@ def assemblyGateway() -> Assembly:
     The assembly containing the handlers that will be used in processing the gateway.
     '''
     return Assembly('Gateway')
+
+# --------------------------------------------------------------------
+
+@ioc.entity
+def headersCustom() -> set:
+    '''
+    Provides the custom header names defined by processors.
+    '''
+    return set()
+
+@ioc.entity
+def parametersAsHeaders() -> list: return sorted(headersCustom())
+
+# --------------------------------------------------------------------
+# Creating the processors used in handling the request
+
+@ioc.entity
+def requesterForwardOptions() -> RequesterOptions: return RequesterOptions(assemblyForward())
+
+@ioc.entity
+def requesterRESTGetJSON() -> RequesterGetJSON: return RequesterGetJSON(assemblyRESTRequest())
+
+@ioc.entity
+def headerParameter():
+    b = HeaderParameterHandler()
+    b.parameters = parametersAsHeaders()
+    return b
+
+@ioc.entity
+def headerParameterOptions() -> Handler:
+    b = HeaderParameterOptionsHandler()
+    b.requesterOptions = requesterForwardOptions()
+    return b
+
+@ioc.entity
+def gatewayRepository() -> Handler:
+    b = GatewayRepositoryHandler()
+    b.uri = gateway_uri()
+    b.cleanupInterval = cleanup_interval()
+    b.requesterGetJSON = requesterRESTGetJSON()
+    return b
+
+@ioc.entity
+def gatewayAuthorizedRepository() -> Handler:
+    b = GatewayAuthorizedRepositoryHandler()
+    b.uri = gateway_authorized_uri()
+    b.cleanupInterval = cleanup_authorized_interval()
+    b.requesterGetJSON = requesterRESTGetJSON()
+    return b
+
+@ioc.entity
+def gatewaySelector() -> Handler: return GatewaySelectorHandler()
+
+@ioc.entity
+def gatewayFilter() -> Handler:
+    b = GatewayFilterHandler()
+    b.requesterGetJSON = requesterRESTGetJSON()
+    return b
+
+@ioc.entity
+def gatewayError() -> Handler: return GatewayErrorHandler()
+
+@ioc.entity
+def gatewayForward() -> Handler:
+    b = GatewayForwardHandler()
+    b.assembly = assemblyForward()
+    return b
+
+@ioc.entity
+def externalForward() -> Handler:
+    b = ForwardHTTPHandler()
+    b.externalHost = external_host()
+    b.externalPort = external_port()
+    return b
 
 # --------------------------------------------------------------------
 

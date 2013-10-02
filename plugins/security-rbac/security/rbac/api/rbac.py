@@ -1,5 +1,5 @@
 '''
-Created on Dec 21, 2012
+Created on Aug 28, 2013
 
 @package: security - role based access control
 @copyright: 2012 Sourcefabric o.p.s.
@@ -9,85 +9,101 @@ Created on Dec 21, 2012
 API specifications for RBAC right.
 '''
 
-from .domain_rbac import modelRbac
-from ally.api.config import query, service, call
-from ally.api.criteria import AsLikeOrdered
-from ally.api.option import SliceAndTotal  # @UnusedImport
+from .role import Role, QRole
+from ally.api.config import prototype, DELETE
+from ally.api.option import SliceAndTotal # @UnusedImport
 from ally.api.type import Iter
-from ally.support.api.entity_ided import Entity, QEntity, IEntityService
-from security.api.right import Right, QRight
+from ally.support.api.util_service import modelId
+from security.api.right import QRight, Right
+from security.api.right_type import RightType
+import abc # @UnusedImport
 
 # --------------------------------------------------------------------
 
-@modelRbac
-class Rbac(Entity):
+class IRbacPrototype(metaclass=abc.ABCMeta):
     '''
-    Provides the base model that has role based access.
-    '''
-
-@modelRbac
-class Role(Rbac):
-    '''
-    Provides the role related data.
-    '''
-    Name = str
-    Description = str
-
-# --------------------------------------------------------------------
-
-@query(Role)
-class QRole(QEntity):
-    '''
-    Query for role service
-    '''
-    name = AsLikeOrdered
-
-# --------------------------------------------------------------------
-
-@service((Entity, Role), (QEntity, QRole))
-class IRoleService(IEntityService):
-    '''
-    Role model service API.
+    Rbac prototype service.
     '''
     
-    @call(webName='ByName')
-    def getByName(self, name:Role.Name) -> Role:
+    @prototype
+    def getRoles(self, identifier:lambda p:p.RBAC, q:QRole=None, **options:SliceAndTotal) -> Iter(Role.Name):
         '''
-        Provides the role based on a provided name.
+        Provides the roles for the provided identifier.
+        
+        @param identifier: object
+            The RBAC object identifier to provide the roles for.
+        @param q: QRole|None
+            The query to apply on the roles.
+        @param options: key arguments
+            The result iteration options.
+        @return: Iterable(Role.Name)
+            An iterator containing the role names.
         '''
     
-    @call(webName='Sub')
-    def getRoles(self, roleId:Role, q:QRole=None, **options:SliceAndTotal) -> Iter(Role.Id):
+    @prototype
+    def getRights(self, identifier:lambda p:p.RBAC, typeName:RightType.Name=None,
+                  q:QRight=None, **options:SliceAndTotal) -> Iter(Right.Id):
         '''
-        Provides the roles searched by the provided query.
+        Provides the rights for the provided identifier.
+        
+        @param identifier: object
+            The RBAC object identifier to provide the rights for.
+        @param typeName: string|None
+            The right type name to provide the rights for, if not provided all rights will be iterated.
+        @param q: QRight|None
+            The query to apply on the rights.
+        @param options: key arguments
+            The result iteration options.
+        @return: Iterable(Right.Id)
+            An iterator containing the rights ids.
         '''
         
-    @call
-    def getRights(self, roleId:Role, q:QRight=None, **options:SliceAndTotal) -> Iter(Right.Id):
+    @prototype
+    def addRole(self, identifier:lambda p:modelId(p.RBAC), roleName:Role.Name):
         '''
-        Provides the rights for the provided role id searched by the query.
+        Add to the RBAC object with identifier the role.
+        
+        @param identifier: object
+            The RBAC object identifier to add the role to.
+        @param roleName: string
+            The role name to assign to identifier.
+        @return: boolean
+            True if the role has been added, False otherwise.
         '''
     
-    @call(webName='Sub')
-    def assignRole(self, toRoleId:Role.Id, roleId:Role.Id):
+    @prototype(method=DELETE)
+    def remRole(self, identifier:lambda p:modelId(p.RBAC), roleName:Role.Name) -> bool:
         '''
-        Assign to the role the other role. 
-        '''
-    
-    @call(webName='Sub')
-    def removeRole(self, toRoleId:Role.Id, roleId:Role.Id) -> bool:
-        '''
-        Remove from the role the other role. 
+        Remove from the RBAC object with identifier the role. 
+        
+        @param identifier: object
+            The RBAC object identifier to add remove the role from.
+        @param roleName: string
+            The role name to remove.
+        @return: boolean
+            True if a role has been removed, False otherwise.
         '''
         
-    @call
-    def assignRight(self, roleId:Role.Id, rightId:Right.Id):
+    @prototype
+    def addRight(self, identifier:lambda p:modelId(p.RBAC), rightId:Right.Id):
         '''
-        Assign to the role the right. 
+        Add to the RBAC object with identifier the right.
+        
+        @param identifier: object
+            The RBAC object identifier to add the right to.
+        @param rightId: integer
+            The right id to assign to identifier.
         '''
     
-    @call
-    def removeRight(self, roleId:Role.Id, rightId:Right.Id) -> bool:
+    @prototype(method=DELETE)
+    def remRight(self, identifier:lambda p:modelId(p.RBAC), rightId:Right.Id) -> bool:
         '''
-        Remove from the role the right. 
+        Remove from the RBAC object with identifier the right.
+        
+        @param identifier: object
+            The RBAC object identifier to add remove the right from.
+        @param rightId: integer
+            The right id to remove.
+        @return: boolean
+            True if a right has been removed, False otherwise.
         '''

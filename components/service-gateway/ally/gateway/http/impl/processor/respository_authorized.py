@@ -15,11 +15,9 @@ from .respository import GatewayRepositoryHandler, Repository, Identifier, \
 from ally.container.ioc import injected
 from ally.design.processor.attribute import requires, defines
 from ally.design.processor.context import Context
-from ally.design.processor.execution import Processing
 from ally.gateway.http.spec.gateway import IRepository, RepositoryJoined
 from ally.http.spec.codes import BAD_REQUEST, BAD_GATEWAY, INVALID_AUTHORIZATION
 from ally.http.spec.headers import HeaderRaw, HeadersRequire
-from ally.support.http.util_dispatch import obtainJSON
 from datetime import datetime, timedelta
 from urllib.parse import quote
 import logging
@@ -63,13 +61,12 @@ class GatewayAuthorizedRepositoryHandler(GatewayRepositoryHandler):
         
         self._timeOut = timedelta(seconds=self.cleanupInterval)
 
-    def process(self, chain, processing, request:Request, response:Response, Gateway:Context, Match:Context, **keyargs):
+    def process(self, chain, request:Request, response:Response, Gateway:Context, Match:Context, **keyargs):
         '''
         @see: HandlerBranching.process
         
         Obtains the repository.
         '''
-        assert isinstance(processing, Processing), 'Invalid processing %s' % processing
         assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(response, Response), 'Invalid response %s' % response
         if response.isSuccess is False: return  # Skip in case the response is in error
@@ -79,22 +76,21 @@ class GatewayAuthorizedRepositoryHandler(GatewayRepositoryHandler):
         
         repository = self._repositories.get(authentication)
         if repository is None:
-            jobj, status, text = obtainJSON(processing, self.uri % quote(authentication), details=True)
+            jobj, error = self.requesterGetJSON.request(self.uri % quote(authentication), details=True)
             if jobj is None:
-                if status == BAD_REQUEST.status:
+                if error.status == BAD_REQUEST.status:
                     INVALID_AUTHORIZATION.set(response)
                     if request.repository:
                         assert isinstance(request.repository, IRepository), 'Invalid repository %s' % request.repository
                         request.match = request.repository.find(request.method, request.headers, request.uri,
                                                                 INVALID_AUTHORIZATION.status)
                 else:
-                    log.error('Cannot fetch the authorized gateways from URI \'%s\', with response %s %s',
-                              self.uri, status, text)
                     BAD_GATEWAY.set(response)
-                    response.text = text
+                    response.text = error.text
                 return
             assert 'GatewayList' in jobj, 'Invalid objects %s, not GatewayList' % jobj
-            repository = Repository([self.populate(Identifier(Gateway()), obj) for obj in jobj['GatewayList']], Match)
+            repository = Repository(request.clientIP, [self.populate(Identifier(Gateway()), obj)
+                                                       for obj in jobj['GatewayList']], Match)
             self._repositories[authentication] = repository
         self._lastAccess[authentication] = datetime.now()
         

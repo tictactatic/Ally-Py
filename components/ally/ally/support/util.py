@@ -12,6 +12,7 @@ Provides implementations that provide general behavior or functionality.
 from collections import Iterable, Iterator, namedtuple, deque
 from inspect import isclass
 from weakref import WeakKeyDictionary
+import re
 
 # --------------------------------------------------------------------
 
@@ -290,6 +291,60 @@ def firstLastCheck(iterator):
         isFirst = False
 
 # --------------------------------------------------------------------
+
+def intToString(number, numerals='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'):
+    '''
+    Converts an integer to a string using the provided numerals.
+    
+    @param number: integer
+        The number to convert.
+    @param numerals: string
+        The numerals to use in the conversion.
+    @return: string
+        The converted number.
+    '''
+    assert isinstance(number, int), 'Invalid number %s' % number
+    assert number >= 0, 'Only positive numbers are allowed %s' % number
+    assert isinstance(numerals, str), 'Invalid numerals %s' % numerals
+    assert len(numerals) > 2, 'At least two numerals are required'
+    base = len(numerals)
+
+    if number == 0: return numerals[0]
+
+    result = []
+    while number:
+        result.append(numerals[int(number % base)])
+        number = int(number / base)
+    result.reverse()
+
+    return ''.join(result)
+
+def modifyFirst(value, upper=False):
+    '''
+    Modifies the first letter to an upper or lower letter.
+    
+    @param value: string
+        The value to convert.
+    @param upper: boolean
+        If true converts the letter to upper, otherwise to a lower one.
+    @return: string
+        The converted value.
+    '''
+    assert isinstance(value, str), 'Invalid value %s' % value
+    assert value, 'At least one letter is required'
+    if upper: return '%s%s' % (value[0].upper(), value[1:])
+    return '%s%s' % (value[0].lower(), value[1:])
+
+def toUnderscore(value):
+    '''
+    Converts from a camel case string to an underscore one.
+    
+    @param value: string
+        The value to convert.
+    @return: string
+        The converted value.
+    '''
+    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', re.sub('(.)([A-Z][a-z]+)', r'\1_\2', value)).lower()
 
 class TextTable:
     '''

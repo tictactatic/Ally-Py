@@ -16,8 +16,9 @@ from ally.design.processor.execution import Chain, Processing, FILL_ALL
 from ally.http.spec.server import RequestHTTP, ResponseHTTP, RequestContentHTTP, \
     ResponseContentHTTP, HTTP
 from ally.support.util_io import IInputStream, IClosable
+from ally.support.util_spec import IDo
 from asyncore import dispatcher, loop
-from collections import Callable, deque
+from collections import deque
 from http.server import BaseHTTPRequestHandler
 from io import BytesIO
 from urllib.parse import urlparse, parse_qsl
@@ -35,15 +36,7 @@ class RequestContentHTTPAsyncore(RequestContentHTTP):
     The request content context.
     '''
     # ---------------------------------------------------------------- Optional
-    contentReader = optional(Callable, doc='''
-    @rtype: Callable
-    The content reader callable used for pushing data from the asyncore read, returns True in order to get more data.
-    Once the reader is finalized it will return either None or remaining bytes.
-    ''')
-    contentRequired = optional(bool, doc='''
-    @rtype: boolean
-    Flag indicating if content is required.
-    ''')
+    doContentReader = optional(IDo)
 
 # --------------------------------------------------------------------
 
@@ -294,19 +287,15 @@ class RequestHandler(dispatcher, BaseHTTPRequestHandler):
         chain = Chain(proc, FILL_ALL, request=request, requestCnt=requestCnt)
         chain.onFinalize(self._processRespond)
         
-        if RequestContentHTTPAsyncore.contentRequired in requestCnt:
+        if RequestContentHTTPAsyncore.doContentReader in requestCnt:
             while True:
                 if not chain.do():
                     self._readContinue()
                     break
-                if requestCnt.contentRequired is True:
-                    assert callable(requestCnt.contentReader), 'Invalid content reader %s' % requestCnt.contentReader
-                    self._chain, self._reader = chain, requestCnt.contentReader
+                if requestCnt.doContentReader:
+                    assert callable(requestCnt.doContentReader), 'Invalid content reader %s' % requestCnt.doContentReader
+                    self._chain, self._reader = chain, requestCnt.doContentReader
                     self._readContent()  # Now we proceed to read content stage
-                    break
-                elif requestCnt.contentRequired is False:
-                    self._readContinue()
-                    chain.execute()
                     break
         else:
             self._readContinue()

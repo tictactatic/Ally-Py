@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Config>
+	<Anonymous>
+		<Action path="menu" label="Menu">
+			<Action path="request" label="Request" />
+		</Action>
+		<Action path="mucu" label="Mucu" parent="menu" />
+
+		<Allows filter="userAuth">
+			<URL>User/*</URL>
+			<URL>User/*/Blog</URL>
+			<URL>User/#/SubUser/*</URL>
+		</Allows>
+	</Anonymous>
+	
+	<!-- 
+	<Captcha>
+		<Allows filter="userAuth">
+			<URL>User/*</URL>
+			<URL>User/*/Blog</URL>
+			<URL>User/#/SubUser/*</URL>
+		</Allows>
+	</Captcha>
+	
+	<Right name="Requests inspection">
+		<Actions>
+			<Action path="menu"/>
+			<Action path="menu.request" script="/js/aaa.js">Request</Action>
+		</Actions>
+		<Action path="menu" label="Menu">
+			<Action path="request" label="Request" />
+		</Action>
+		<Action path="mucu" label="Mucu" parent="menu" />
+
+		<Allows filter="userAuth">
+			<URL>User/*</URL>
+			<URL>User/*/Blog</URL>
+			<URL>User/#/SubUser/*</URL>
+		</Allows>
+
+		<Description>Allows for the viewing of all possible requests that can be made on the REST server, also the plugins and
+			components that are part of the
+			application are also visible.
+		</Description>
+	</Right>
+	 -->
+</Config>

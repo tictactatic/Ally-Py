@@ -10,17 +10,14 @@ Provides the gateway filter processor.
 '''
 
 from ally.container.ioc import injected
-from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import requires, defines
-from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context
-from ally.design.processor.execution import Processing
-from ally.design.processor.handler import HandlerBranching
+from ally.design.processor.handler import HandlerProcessor
 from ally.gateway.http.spec.gateway import IRepository
 from ally.http.spec.codes import FORBIDDEN_ACCESS, BAD_GATEWAY, CodedHTTP
 from ally.http.spec.headers import HeadersRequire
-from ally.support.http.util_dispatch import RequestDispatch, obtainJSON
 import logging
+from ally.support.http.request import RequesterGetJSON
 
 # --------------------------------------------------------------------
 
@@ -33,8 +30,8 @@ class Gateway(Context):
     The gateway context.
     '''
     # ---------------------------------------------------------------- Required
-    filters = requires(list)
-    
+    filters = requires(dict)
+
 class Match(Context):
     '''
     The match context.
@@ -42,7 +39,7 @@ class Match(Context):
     # ---------------------------------------------------------------- Required
     gateway = requires(Context)
     groupsURI = requires(tuple)
-    
+
 class Request(HeadersRequire):
     '''
     The request context.
@@ -52,10 +49,10 @@ class Request(HeadersRequire):
     uri = requires(str)
     repository = requires(IRepository)
     match = requires(Context)
-    
+
 class Response(CodedHTTP):
     '''
-    Context for response. 
+    Context for response.
     '''
     # ---------------------------------------------------------------- Defined
     text = defines(str)
@@ -63,49 +60,48 @@ class Response(CodedHTTP):
 # --------------------------------------------------------------------
 
 @injected
-class GatewayFilterHandler(HandlerBranching):
+class GatewayFilterHandler(HandlerProcessor):
     '''
     Implementation for a handler that provides the gateway filter.
     '''
-    
-    assembly = Assembly
-    # The assembly to be used in processing the request for the filters.
-    
-    def __init__(self):
-        assert isinstance(self.assembly, Assembly), 'Invalid assembly %s' % self.assembly
-        super().__init__(Branch(self.assembly).using('requestCnt', 'response', 'responseCnt', request=RequestDispatch),
-                         Gateway=Gateway, Match=Match)
 
-    def process(self, chain, processing, request:Request, response:Response, **keyargs):
+    requesterGetJSON = RequesterGetJSON
+    # The requester for getting the filters.
+
+    def __init__(self):
+        assert isinstance(self.requesterGetJSON, RequesterGetJSON), 'Invalid requester JSON %s' % self.requesterGetJSON
+        super().__init__(Gateway=Gateway, Match=Match)
+
+    def process(self, chain, request:Request, response:Response, **keyargs):
         '''
-        @see: HandlerBranching.process
+        @see: HandlerProcessor.process
         '''
-        assert isinstance(processing, Processing), 'Invalid processing %s' % processing
         assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(response, Response), 'Invalid response %s' % response
         if not request.match: return  # No filtering is required if there is no match on request
-        
+
         assert isinstance(request.repository, IRepository), 'Invalid request repository %s' % request.repository
         match = request.match
         assert isinstance(match, Match), 'Invalid response match %s' % match
         assert isinstance(match.gateway, Gateway), 'Invalid gateway %s' % match.gateway
-        
+
         if match.gateway.filters:
-            for filterGroup in match.gateway.filters:
-                assert isinstance(filterGroup, list), 'Invalid filter group %s' % filterGroup
-                for filterURI in filterGroup:
-                    assert isinstance(filterURI, str), 'Invalid filter %s' % filterURI
-                    try: filterURI = filterURI.format(None, *match.groupsURI)
-                    except IndexError:
-                        BAD_GATEWAY.set(response)
-                        response.text = 'Invalid filter URI \'%s\' for %s' % (filterURI, match.groupsURI)
-                        return
+            for group, paths in match.gateway.filters.items():
+                assert isinstance(paths, list), 'Invalid filter paths %s' % paths
+
+                if group > len(match.groupsURI):
+                    BAD_GATEWAY.set(response)
+                    response.text = 'Invalid filter group \'%s\' for %s' % (group, match.groupsURI)
+                    return
+
+                for path in paths:
+                    assert isinstance(path, str), 'Invalid path %s' % path
                     
-                    jobj, status, text = obtainJSON(processing, filterURI, details=True)
+                    path = path.replace('*', match.groupsURI[group - 1])
+                    jobj, error = self.requesterGetJSON.request(path, details=True)
                     if jobj is None:
-                        log.error('Cannot fetch the filter from URI \'%s\', with response %s %s', request.uri, status, text)
                         BAD_GATEWAY.set(response)
-                        response.text = text
+                        response.text = error.text
                         return
                     
                     if jobj['IsAllowed'] == True: break

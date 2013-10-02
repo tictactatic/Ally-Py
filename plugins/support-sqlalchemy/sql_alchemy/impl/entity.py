@@ -11,12 +11,11 @@ SQL alchemy implementation for the generic ided or named entities API.
 
 from ally.api.operator.type import TypeModel, TypeProperty, TypeQuery
 from ally.api.type import typeFor
-from ally.support.api.util_service import getModelId
-from ally.support.sqlalchemy.mapper import MappedSupport
-from ally.support.sqlalchemy.session import SessionSupport
-from ally.support.sqlalchemy.util_service import buildQuery, \
-    iterateCollection, insertModel, updateModel, deleteModel
+from ally.support.api.util_service import modelId
 from inspect import isclass
+from sql_alchemy.support.mapper import MappedSupport
+from sql_alchemy.support.util_service import SessionSupport, buildQuery, \
+    iterateCollection, insertModel, updateModel, deleteModel
 import logging
 
 # --------------------------------------------------------------------
@@ -50,7 +49,7 @@ class EntitySupportAlchemy(SessionSupport):
         
         self.Entity = model.clazz
         self.Mapped = Mapped
-        self.MappedId = getModelId(Mapped)
+        self.MappedId = modelId(Mapped)
 
         if QEntity is not None:
             assert isclass(QEntity), 'Invalid class %s' % QEntity
@@ -66,73 +65,73 @@ class EntitySupportAlchemy(SessionSupport):
 
 class EntityGetServiceAlchemy(EntitySupportAlchemy):
     '''
-    Generic implementation for @see: IEntityGetService
+    Generic implementation for @see: IEntityGetPrototype
     '''
 
-    def getById(self, id):
+    def getById(self, identifier):
         '''
-        @see: IEntityGetService.getById
+        @see: IEntityGetPrototype.getById
         '''
-        return self.session().query(self.Mapped).filter(self.MappedId == id).one()
+        return self.session().query(self.Mapped).filter(self.MappedId == identifier).one()
 
 class EntityFindServiceAlchemy(EntitySupportAlchemy):
     '''
-    Generic implementation for @see: IEntityFindService
+    Generic implementation for @see: IEntityFindPrototype
     '''
 
     def getAll(self, **options):
         '''
-        @see: IEntityQueryService.getAll
+        @see: IEntityFindPrototype.getAll
         '''
-        return iterateCollection(self.session().query(self.MappedId), **options)
+        return iterateCollection(self.session().query(self.MappedId).order_by(self.MappedId), **options)
 
 class EntityQueryServiceAlchemy(EntitySupportAlchemy):
     '''
-    Generic implementation for @see: IEntityQueryService
+    Generic implementation for @see: IEntityQueryPrototype
     '''
 
     def getAll(self, q=None, **options):
         '''
-        @see: IEntityQueryService.getAll
+        @see: IEntityQueryPrototype.getAll
         '''
         assert self.QEntity is not None, 'No query available for this service'
-        sqlQuery = self.session().query(self.MappedId)
+        sql = self.session().query(self.MappedId)
         if q is not None:
             assert isinstance(q, self.QEntity), 'Invalid query %s' % q
-            sqlQuery = buildQuery(sqlQuery, q, self.Mapped, **self._mapping)
-        return iterateCollection(sqlQuery, **options)
+            sql = buildQuery(sql, q, self.Mapped, orderBy=self.MappedId, autoJoin=True, **self._mapping)
+        return iterateCollection(sql, **options)
 
 class EntityCRUDServiceAlchemy(EntitySupportAlchemy):
     '''
-    Generic implementation for @see: IEntityCRUDService
+    Generic implementation for @see: IEntityCRUDPrototype
     '''
 
     def insert(self, entity):
         '''
-        @see: IEntityCRUDService.insert
+        @see: IEntityCRUDPrototype.insert
         '''
-        return getModelId(insertModel(self.Mapped, entity))
+        return modelId(insertModel(self.Mapped, entity))
 
     def update(self, entity):
         '''
-        @see: IEntityCRUDService.update
+        @see: IEntityCRUDPrototype.update
         '''
         updateModel(self.Mapped, entity)
 
-    def delete(self, id):
+    def delete(self, identifier):
         '''
-        @see: IEntityCRUDService.delete
+        @see: IEntityCRUDPrototype.delete
         '''
-        return deleteModel(self.Mapped, id)
+        return deleteModel(self.Mapped, identifier)
 
 class EntityGetCRUDServiceAlchemy(EntityGetServiceAlchemy, EntityCRUDServiceAlchemy):
     '''
-    Generic implementation for @see: IEntityGetCRUDService
+    Generic implementation for @see: IEntityGetCRUDPrototype
     '''
 
 class EntityNQServiceAlchemy(EntityGetServiceAlchemy, EntityFindServiceAlchemy, EntityCRUDServiceAlchemy):
     '''
-    Generic implementation for @see: IEntityService
+    Generic implementation for @see: IEntityNQPrototype
     '''
 
     def __init__(self, Entity):
@@ -143,6 +142,6 @@ class EntityNQServiceAlchemy(EntityGetServiceAlchemy, EntityFindServiceAlchemy, 
 
 class EntityServiceAlchemy(EntityGetServiceAlchemy, EntityQueryServiceAlchemy, EntityCRUDServiceAlchemy):
     '''
-    Generic implementation for @see: IEntityService
+    Generic implementation for @see: IEntityPrototype
     '''
 

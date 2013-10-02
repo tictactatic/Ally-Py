@@ -62,7 +62,13 @@ require(['concat', 'backbone'], function(){
 	], 
 	function(MenuView, authView, $, superdesk, Action, router)
 	{
-	    $(authView).on('logout login', function(){ Action.clearCache(); });
+	    $(authView).on('logout login', function() {
+            Action.clearCache();
+        });
+
+        $(authView).on('login', function() {
+            router.reload();
+        });
 
         // initialize menu before auth because we have some events bound to auth there
         var menu = new MenuView({ el: $('#navbar-top') });

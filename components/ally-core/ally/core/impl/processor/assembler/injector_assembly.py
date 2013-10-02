@@ -156,7 +156,7 @@ class InjectorAssemblyHandler(Handler, IProcessor):
             del self.calls
             del self.report
         
-        exclude = set()
+        exclude, aborted = set(), 0
         while True:
             suggestions = []
             register = self.processing.ctx.register(services=iter(services),
@@ -179,7 +179,9 @@ class InjectorAssemblyHandler(Handler, IProcessor):
                     log.error('Could not locate any invoker reason in %s', e.reasons)
                     return
                 exclude.update(found)
-        
+                aborted += 1
+                
+        log.info('Finalized assemblers after %i aborts' % aborted)
         if suggestions:
             log.warn('Available suggestions:\n%s', '\n'.join(suggest[0] % suggest[1:] for suggest in suggestions))
             

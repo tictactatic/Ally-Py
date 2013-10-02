@@ -9,20 +9,19 @@ Created on Jan 28, 2013
 Contains the SQL alchemy meta for ACL access.
 '''
 
-from . import acl_intern
-from ..api.access import Access, Entry
+from ..api.access import Access, Entry, Property
+from .acl_intern import WithMethod, WithPath, WithSignature
 from .metadata_acl import Base
-from ally.support.sqlalchemy.mapper import validate
+from sql_alchemy.support.mapper import validate
 from sqlalchemy.dialects.mysql.base import INTEGER
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.orm import relationship
 from sqlalchemy.schema import Column, ForeignKey, UniqueConstraint
 from sqlalchemy.types import String
 
 # --------------------------------------------------------------------
 
 @validate
-class AccessMapped(Base, Access):
+class AccessMapped(Base, WithPath, WithMethod, WithSignature, Access):
     '''
     Provides the ACL access mapping.
     '''
@@ -30,30 +29,39 @@ class AccessMapped(Base, Access):
     __table_args__ = (UniqueConstraint('fk_path_id', 'fk_method_id', name='uix_acl_access'), dict(mysql_engine='InnoDB'))
     
     Id = Column('id', INTEGER(unsigned=True), autoincrement=False, primary_key=True)
-    Path = association_proxy('path', 'path')
-    Method = association_proxy('method', 'name')
-    ShadowOf = Column('fk_shadow_of_id', ForeignKey('acl_access.id', ondelete='CASCADE'))
-    Hash = Column('hash', String(30), nullable=False, unique=True)
-    # Non REST model attribute --------------------------------------
-    pathId = Column('fk_path_id', ForeignKey(acl_intern.Path.id, ondelete='RESTRICT'), nullable=False)
-    methodId = Column('fk_method_id', ForeignKey(acl_intern.Method.id, ondelete='RESTRICT'), nullable=False)
-    # Relationships -------------------------------------------------
-    path = relationship(acl_intern.Path, lazy='joined', uselist=False)
-    method = relationship(acl_intern.Method, lazy='joined', uselist=False)
-    
+    Priority = association_proxy('path', 'priority')
+    Shadowing = Column('fk_shadowing_id', ForeignKey('acl_access.id', ondelete='CASCADE'))
+    Shadowed = Column('fk_shadowed_id', ForeignKey('acl_access.id', ondelete='CASCADE'))
+    Output = WithSignature.createSignature()
+    Hash = Column('hash', String(50), nullable=False, unique=True)
+
 @validate
-class EntryMapped(Base, Entry):
+class EntryMapped(Base, WithSignature, Entry):
     '''
     Provides the ACL access entry mapping.
     '''
     __tablename__ = 'acl_access_entry'
-    __table_args__ = dict(mysql_engine='InnoDB')
+    __table_args__ = (UniqueConstraint('fk_access_id', 'position', name='uix_acl_access_entry'), dict(mysql_engine='InnoDB'))
     
-    Position = Column('position', INTEGER(unsigned=True), autoincrement=False, primary_key=True)
-    Type = association_proxy('type', 'name')
+    Position = Column('position', INTEGER(unsigned=True))
+    Shadowing = Column('shadowing_position', INTEGER(unsigned=True))
+    Shadowed = Column('shadowed_position', INTEGER(unsigned=True))
+    Signature = WithSignature.createSignature()
     # Non REST model attribute --------------------------------------
-    accessId = Column('fk_access_id', ForeignKey(AccessMapped.Id, ondelete='CASCADE'), nullable=False, primary_key=True)
-    typeId = Column('fk_type_id', ForeignKey(acl_intern.Type.id, ondelete='RESTRICT'), nullable=False)
-    # Relationships -------------------------------------------------
-    type = relationship(acl_intern.Type, lazy='joined', uselist=False)
+    id = Column('id', INTEGER(unsigned=True), primary_key=True)
+    accessId = Column('fk_access_id', ForeignKey(AccessMapped.Id, ondelete='CASCADE'), nullable=False)
+    
+@validate
+class PropertyMapped(Base, WithSignature, Property):
+    '''
+    Provides the ACL access property mapping.
+    '''
+    __tablename__ = 'acl_access_property'
+    __table_args__ = (UniqueConstraint('fk_access_id', 'name', name='uix_acl_access_property'), dict(mysql_engine='InnoDB'))
+    
+    Name = Column('name', String(255))
+    Signature = WithSignature.createSignature()
+    # Non REST model attribute --------------------------------------
+    id = Column('id', INTEGER(unsigned=True), primary_key=True)
+    accessId = Column('fk_access_id', ForeignKey(AccessMapped.Id, ondelete='CASCADE'), nullable=False)
     

@@ -40,11 +40,33 @@ class InputError(Exception):
         @param items: arguments[string|Type reference]
             Other item(s) that compose this input error, they can be messages optionally with place holders which have the value 
             provided in the data or type references linking all the previous messages with a type.
+        @param data: key arguments
+            Data that will be used in the messages place holders.
         '''
         assert isinstance(msg, str), 'Invalid message %s' % msg
         
         self.data = data
         self.messageByType = {}
+        self.messages = []
+        self.update(msg, *items)
+        
+        super().__init__()
+        
+    def update(self, msg, *items, **data):
+        '''
+        Updates the input error with new information.
+
+        @param msg: string
+            The mandatory message to be associated with the error, optionally with place holders which have the value provided
+            in the data
+        @param items: arguments[string|Type reference]
+            Item(s) that update this input error, they can be messages optionally with place holders which have the value 
+            provided in the data or type references linking all the previous messages with a type.
+        @param data: key arguments
+            Data that will be used in the messages place holders.
+        '''
+        assert isinstance(msg, str), 'Invalid message %s' % msg
+        
         msgs = [msg]
         for item in items:
             if isinstance(item, str): msgs.append(item)
@@ -52,11 +74,12 @@ class InputError(Exception):
                 typ = typeFor(item)
                 assert isinstance(typ, Type), 'Invalid type %s' % typ
                 assert msgs, 'Please provide messages for type %s' % typ
-                self.messageByType[typ] = msgs
+                if typ not in self.messageByType: self.messageByType[typ] = msgs
+                else: self.messageByType[typ].extend(msgs)
                 msgs = []
-        self.messages = msgs
-        
-        super().__init__()
+                
+        self.messages.extend(msgs)
+        self.data.update(data)
         
     def __str__(self):
         '''

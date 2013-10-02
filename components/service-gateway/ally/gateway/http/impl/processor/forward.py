@@ -33,7 +33,7 @@ class Gateway(Context):
     '''
     # ---------------------------------------------------------------- Required
     navigate = requires(str)
-    putHeaders = requires(list)
+    putHeaders = requires(dict)
     
 class Match(Context):
     '''

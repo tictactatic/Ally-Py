@@ -48,12 +48,12 @@ class Identifier:
 class Gateway(Identifier):
     '''
     Provides the gateway.
-        Filters -   contains a list of grouped URIs that need to be called in order to allow the gateway Navigate. The filters are
-                    allowed to have place holders of form '{1}' or '{2}' ... '{n}' where n is the number of groups obtained
-                    from the Pattern, the place holders will be replaced with their respective group value. All groups of filters
-                    need to return a True value in order to allow the gateway Navigate, also pre populated parameters are allowed
-                    for filter URI. The filters in a group entry are separated by '|', if any filter in the group returns true
-                    it means the group is true.
+        Filters -   contains a list of URIs that need to be called in order to allow the gateway Navigate. The filters
+                    are provided as 'group:URI' where group is a number from 1 to n where n is the number of capture 
+                    groups  obtained from the Pattern, the filter URI is allowed to have place holders of form '*'
+                    where the provided group value will be injected. In order to validate navigation at least one filter
+                    from the each group will have to return an allowed access, also pre populated parameters are allowed
+                    for filter URI.
         Host -      The host where the request needs to be resolved, if not provided the request will be delegated to the
                     default host.
         Protocol -  The protocol to be used in the communication with the server that handles the request, if not provided
@@ -62,6 +62,7 @@ class Gateway(Identifier):
                     have place holders and also the '*' which stands for the actual called URI, also parameters are allowed
                     for navigate URI, the parameters will be appended to the actual parameters.
         PutHeaders -The headers to be put on the forwarded requests.
+        Exclude -   The list of index block names to be excluded from the response.
     '''
     # The navigation attributes
     Filters = List(str)
@@ -69,7 +70,18 @@ class Gateway(Identifier):
     Protocol = str
     Navigate = str
     PutHeaders = Dict(str, str)
-    
+    # The response attributes
+    Exclude = List(str)
+
+@model
+class Allowed:
+    '''
+    Defines the allowed model that is returned by filters.
+    '''
+    IsAllowed = bool
+
+# --------------------------------------------------------------------
+   
 @model(domain='Gateway')
 class Custom(Entity, Gateway):
     '''

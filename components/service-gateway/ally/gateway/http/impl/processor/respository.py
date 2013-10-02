@@ -10,16 +10,13 @@ Provides the gateway repository processor.
 '''
 
 from ally.container.ioc import injected
-from ally.design.processor.assembly import Assembly
 from ally.design.processor.attribute import defines, requires
-from ally.design.processor.branch import Branch
 from ally.design.processor.context import Context
-from ally.design.processor.execution import Processing
-from ally.design.processor.handler import HandlerBranching
+from ally.design.processor.handler import HandlerProcessor
 from ally.gateway.http.spec.gateway import IRepository, RepositoryJoined
 from ally.http.spec.codes import BAD_GATEWAY, CodedHTTP
 from ally.http.spec.server import HTTP_OPTIONS
-from ally.support.http.util_dispatch import RequestDispatch, obtainJSON
+from ally.support.http.request import RequesterGetJSON
 from sched import scheduler
 from threading import Thread
 import logging
@@ -37,13 +34,9 @@ class GatewayRepository(Context):
     The gateway context based on @see: gateway-http/gateway.http.gateway
     '''
     # ---------------------------------------------------------------- Defined
-    filters = defines(list, doc='''
-    @rtype: list[list[string]]
-    Contains a list of grouped URIs that need to be called in order to allow the gateway Navigate. The filters are
-    allowed to have place holders of form '{1}' or '{2}' ... '{n}' where n is the number of groups obtained
-    from the Pattern, the place holders will be replaced with their respective group value. All groups of filters
-    need to return a True value in order to allow the gateway Navigate, also pre populated parameters are allowed
-    for filter URI. If any filter in the group returns true it means the group is true.
+    filters = defines(dict, doc='''
+    @rtype: dictionary{integer: list[string]}
+    Contains a dictionary of filter URIs indexed by the represented group. @see: Gateway.Filters.
     ''')
 #    host = defines(str, doc='''
 #    @rtype: string
@@ -61,10 +54,9 @@ class GatewayRepository(Context):
     have place holders and also the '*' which stands for the actual called URI, also parameters are allowed
     for navigate URI, the parameters will be appended to the actual parameters.
     ''')
-    putHeaders = defines(list, doc='''
-    @rtype: list[tuple(string, string)]
-    The headers to be put on the forwarded requests. The values are provided as 'Name:Value', the name is
-    not allowed to contain ':'.
+    putHeaders = defines(dict, doc='''
+    @rtype: dictionary{string: string}
+    The headers to be put on the forwarded requests.
     ''')
 
 class MatchRepository(Context):
@@ -103,7 +95,7 @@ class Response(CodedHTTP):
 # --------------------------------------------------------------------
 
 @injected
-class GatewayRepositoryHandler(HandlerBranching):
+class GatewayRepositoryHandler(HandlerProcessor):
     '''
     Implementation for a handler that provides the gateway repository by using REST data received from either internal or
     external server. The Gateway structure is defined as in the @see: gateway-http plugin.
@@ -113,35 +105,32 @@ class GatewayRepositoryHandler(HandlerBranching):
     # The URI used in fetching the gateways.
     cleanupInterval = float
     # The number of seconds to perform clean up for cached gateways.
-    assembly = Assembly
-    # The assembly to be used in processing the request for the gateways.
+    requesterGetJSON = RequesterGetJSON
+    # The requester for getting the JSON gateway objects.
     
     def __init__(self):
         assert isinstance(self.uri, str), 'Invalid URI %s' % self.uri
         assert isinstance(self.cleanupInterval, int), 'Invalid cleanup interval %s' % self.cleanupInterval
-        assert isinstance(self.assembly, Assembly), 'Invalid assembly %s' % self.assembly
-        super().__init__(Branch(self.assembly).using('requestCnt', 'response', 'responseCnt', request=RequestDispatch))
+        assert isinstance(self.requesterGetJSON, RequesterGetJSON), 'Invalid requester JSON %s' % self.requesterGetJSON
+        super().__init__()
         self.initialize()
 
-    def process(self, chain, processing, request:Request, response:Response,
-                Gateway:GatewayRepository, Match:MatchRepository, **keyargs):
+    def process(self, chain, request:Request, response:Response, Gateway:GatewayRepository, Match:MatchRepository, **keyargs):
         '''
-        @see: HandlerBranching.process
+        @see: HandlerProcessor.process
         
         Obtains the repository.
         '''
-        assert isinstance(processing, Processing), 'Invalid processing %s' % processing
         assert isinstance(request, Request), 'Invalid request %s' % request
         assert isinstance(response, Response), 'Invalid response %s' % response
         assert issubclass(Gateway, GatewayRepository), 'Invalid gateway class %s' % Gateway
         assert issubclass(Match, MatchRepository), 'Invalid match class %s' % Match
         
         if self._identifiers is None:
-            jobj, status, text = obtainJSON(processing, self.uri, details=True)
+            jobj, error = self.requesterGetJSON.request(self.uri, details=True)
             if jobj is None:
-                log.error('Cannot fetch the gateways from URI \'%s\', with response %s %s', self.uri, status, text)
                 BAD_GATEWAY.set(response)
-                response.text = text
+                response.text = error.text
                 return
             assert 'GatewayList' in jobj, 'Invalid objects %s, not GatewayList' % jobj
             self._identifiers = [self.populate(Identifier(Gateway()), obj) for obj in jobj['GatewayList']]
@@ -237,10 +226,16 @@ class GatewayRepositoryHandler(HandlerBranching):
         filters = obj.get('Filters')
         if filters:
             assert isinstance(filters, list), 'Invalid filters %s' % filters
-            gateway.filters = []
+            gateway.filters = {}
             for item in filters:
                 assert isinstance(item, str), 'Invalid filter value %s' % item
-                gateway.filters.append(item.split('|'))
+                assert ':' in item, 'Invalid filter item %s, has no group specified' % item
+                group, path = item.split(':', 1)
+                try: group = int(group)
+                except ValueError: raise ValueError('Invalid group value \'%s\'' % group)
+                paths = gateway.filters.get(group)
+                if paths is None: paths = gateway.filters[group] = []
+                paths.append(path)
                 
 #        gateway.host = obj.get('Host')
 #        assert not gateway.host or isinstance(gateway.host, str), 'Invalid host %s' % gateway.host
@@ -251,14 +246,8 @@ class GatewayRepositoryHandler(HandlerBranching):
         gateway.navigate = obj.get('Navigate')
         assert not gateway.navigate or isinstance(gateway.navigate, str), 'Invalid navigate %s' % gateway.navigate
         
-        putHeaders = obj.get('PutHeaders')
-        if putHeaders:
-            assert isinstance(putHeaders, list), 'Invalid put headers %s' % putHeaders
-            if __debug__:
-                for putHeader in putHeaders:
-                    assert isinstance(putHeader, str), 'Invalid put header value %s' % putHeader
-                    assert len(putHeader.split(':')), 'Invalid put header value %s' % putHeader
-            gateway.putHeaders = [putHeader.split(':', 1) for putHeader in putHeaders]
+        gateway.putHeaders = obj.get('PutHeaders')
+        assert not gateway.putHeaders or isinstance(gateway.putHeaders, dict), 'Invalid put headers %s' % gateway.putHeaders
         
         return identifier
         

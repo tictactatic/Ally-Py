@@ -138,7 +138,8 @@ class ContentHandler(HandlerBranching):
         data.Request, data.RequestContent = request.__class__, requestCnt.__class__
         data.Response, data.ResponseContent = response.__class__, responseCnt.__class__
         data.Content = Content
-        data.clientIP, data.scheme, data.headers = request.clientIP, request.scheme, dict(request.headers)
+        data.clientIP, data.scheme = request.clientIP, request.scheme
+        data.headers = dict(request.headers) if request.headers else {}
         
         remove(data.headers, self.innerHeadersRemove)
         
