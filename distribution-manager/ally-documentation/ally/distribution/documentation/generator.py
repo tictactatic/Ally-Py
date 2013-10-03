@@ -11,13 +11,11 @@ Provides the creation of documentation based on wheezy template engine.
 
 from ally.container.ioc import injected
 from ally.support.http.request import RequesterGetJSON
-from wheezy.template.engine import Engine
-from wheezy.template.ext.core import CoreExtension
-from wheezy.template.loader import FileLoader
+from jinja2 import Environment, FileSystemLoader
 import logging
 import os
-import sys
 import re
+import sys
 
 # --------------------------------------------------------------------
 
@@ -59,9 +57,8 @@ class DocumentGenerator:
             sys.exit()
         if not os.path.exists(self.pathLocation): os.makedirs(self.pathLocation)
         
-        self.loader = FileLoader((self.pathTemplate,))
-        self.engine = Engine(loader=self.loader, extensions=[CoreExtension()])
-        
+        self.loader = FileSystemLoader(self.pathTemplate)
+        self.environment = Environment(loader=self.loader)
         self.reexclude = re.compile(self.excludePattern)
         
     def process(self):
@@ -69,9 +66,9 @@ class DocumentGenerator:
         Process the documentation.
         '''
         modelPaths, modelIndexPaths = [], []
-        
+
         modelIndexFolder = os.path.join(self.modelFolder, self.indexFolder)
-        for path in self.loader.list_names():
+        for path in self.loader.list_templates():
             if self.reexclude.match(path): continue
             
             dirName = os.path.dirname(path) 
@@ -84,22 +81,19 @@ class DocumentGenerator:
             if obj is None:
                 log.error('Cannot get the model API data')
                 return False
-            ctx = {'models': obj['ModelList']}
             
             for path in modelIndexPaths:
-                template = self.engine.get_template(path)
+                template = self.environment.get_template(path)
                 location = path.replace(os.sep, '_')
                 location = os.path.join(self.pathLocation, location)
-                with open(location, 'w') as f: f.write(template.render(ctx))
+                with open(location, 'w') as f: f.write(template.render(models=obj['ModelList']))
                 
             for model in obj['ModelList']:
-                ctx = {'model': model}
-                
                 for path in modelPaths:
-                    template = self.engine.get_template(path)
+                    template = self.environment.get_template(path)
                     location = path.replace(os.sep, '_')
                     location = location.replace('*', model['API'].replace('.', '_'))
                     location = os.path.join(self.pathLocation, location)
-                    with open(location, 'w') as f: f.write(template.render(ctx))
+                    with open(location, 'w') as f: f.write(template.render(model=model))
                     
         else: log.warn('No model templates to process')
