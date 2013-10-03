@@ -9,15 +9,19 @@ Created on Jul 15, 2011
 Contains setup and configuration files for the HTTP REST server.
 '''
 
-from .. import ally_api
-from ally.container import ioc
 
 # --------------------------------------------------------------------
 
 NAME = 'ally HTTP mongrel2 server'
-GROUP = ally_api.GROUP
 VERSION = '1.0'
 DESCRIPTION = 'Provides the HTTP mongrel2 server'
-
+AUTHOR = 'Gabriel Nistor'
+AUTHOR_EMAIL = 'gabriel.nistor@sourcefabric.org'
+KEYWORDS = ['Ally', 'REST', 'HTTP,' 'mongrel2', 'server']
+LONG_DESCRIPTION = '''Similar to the asyncore server but provides support for using 
+0MQ messaging in order to communicate with Mongrel2 HTTP server.'''
+TEST_SUITE = '__unit_test__'
+CLASSIFIERS = ['Development Status :: 4 - Beta']
+INSTALL_REQUIRES = ['ally-http>=1.0']
 # --------------------------------------------------------------------
 # The default configurations

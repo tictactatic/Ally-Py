@@ -12,6 +12,12 @@ The API of ally py framework for REST.
 # --------------------------------------------------------------------
 
 NAME = 'ally API'
-GROUP = 'ally'
 VERSION = '1.0'
+AUTHOR = 'Gabriel Nistor'
+AUTHOR_EMAIL = 'gabriel.nistor@sourcefabric.org'
+KEYWORDS = ['Ally', 'REST', 'API']
+INSTALL_REQUIRES = ['ally>=1.0']
 DESCRIPTION = 'Provides the REST API support for marking REST services and models'
+LONG_DESCRIPTION = '''Contains HTTP specific handling for requests and also the basic HTTP server based on the python built in server.'''
+TEST_SUITE = '__unit_test__'
+CLASSIFIERS = ['Development Status :: 4 - Beta']

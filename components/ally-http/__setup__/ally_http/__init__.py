@@ -9,49 +9,16 @@ Created on Jul 15, 2011
 Contains setup and configuration files for the HTTP REST server.
 '''
 
-from ally.container import ioc
-
 # --------------------------------------------------------------------
 
 NAME = 'ally HTTP'
 GROUP = 'ally'
 VERSION = '1.0'
 DESCRIPTION = 'Provides the HTTP communication support'
-
-# --------------------------------------------------------------------
-
-SERVER_BASIC = 'basic'
-# The basic server name
-
-# --------------------------------------------------------------------
-# The default configurations
-
-@ioc.config
-def server_type() -> str:
-    '''
-    The type of the server to use, the options are:
-    "basic"- single threaded server, the safest but slowest server to use.
-    '''
-    return SERVER_BASIC
-
-@ioc.config
-def server_protocol() -> str:
-    '''
-    The HTTP protocol to be used for the server.
-    '''
-    return 'HTTP/1.1'
-
-@ioc.config
-def server_host() -> str:
-    '''The IP address to bind the server to, something like 127.0.0.1'''
-    return '0.0.0.0'
-
-@ioc.config
-def server_port() -> int:
-    '''The port on which the server will run'''
-    return 8080
-
-@ioc.config
-def server_version() -> str:
-    '''The server version name'''
-    return 'Ally/0.1'
+AUTHOR = 'Gabriel Nistor'
+AUTHOR_EMAIL = 'gabriel.nistor@sourcefabric.org'
+KEYWORDS = ['Ally', 'REST', 'http']
+LONG_DESCRIPTION = '''Contains HTTP specific handling for requests and also the basic HTTP server based on the python built in server.'''
+INSTALL_REQUIRES = ['ally>=1.0']
+TEST_SUITE = '__unit_test__'
+CLASSIFIERS = ['Development Status :: 4 - Beta']

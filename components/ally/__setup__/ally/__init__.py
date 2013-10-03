@@ -12,6 +12,14 @@ Contains ally base setup files.
 # --------------------------------------------------------------------
 
 NAME = 'ally'
-GROUP = 'ally'
 VERSION = '1.0'
-DESCRIPTION = 'Provides the base for the ally framework'
+DESCRIPTION = 'Ally framework - utilities component'
+AUTHOR = 'Gabriel Nistor'
+AUTHOR_EMAIL = 'gabriel.nistor@sourcefabric.org'
+KEYWORDS = ['Ally', 'REST']
+LONG_DESCRIPTION = '''This is the main component and is the application entry point. 
+'This component provides also support for inversion of control container.
+'Basically this component contains general support for the application that is not in any way linked with a particular technology.'''
+TEST_SUITE = '__unit_test__'
+CLASSIFIERS = ['Development Status :: 4 - Beta']
+INSTALL_REQUIRES = []
