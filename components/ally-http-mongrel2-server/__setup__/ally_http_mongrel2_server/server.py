@@ -9,8 +9,8 @@ Created on Nov 23, 2011
 Runs the Mongrel2 web server.
 '''
 
-from ..ally_http import server_host, server_port, server_type, server_version
-from ..ally_http.server import assemblyServer
+from ..ally_http.server import assemblyServer, server_host, server_port, \
+    server_type, server_version
 from ally.container import ioc
 from threading import Thread
 

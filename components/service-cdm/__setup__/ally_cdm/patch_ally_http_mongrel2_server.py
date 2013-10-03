@@ -10,7 +10,7 @@ Provides the Mongrel2 web server plugins patch for the cdm.
 '''
 
 from ..ally_cdm.server import server_provide_content
-from ..ally_http import server_type
+from ..ally_http.server import server_type
 from ally.container import ioc, support
 import logging
 

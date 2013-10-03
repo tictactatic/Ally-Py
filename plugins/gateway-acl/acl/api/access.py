@@ -18,22 +18,30 @@ from ally.support.api.entity_ided import Entity, IEntityGetService, QEntity, \
 from binascii import crc32
 import hashlib
 
+#TODO: Gabriel: resarch more the documentation conventions.
 # --------------------------------------------------------------------
 
 class Access(Entity):
-    '''
-    Contains data required for an ACL access.
-        Id -         the id of the access.
-        Path -       contains the path that the access maps to. The path contains beside the fixed string
-                     names also markers '*' for where dynamic path elements are expected.
-        Method -     the method name that this access maps to.
-        Shadowing -  the access that this access is actually shadowing, this means that the access path is just a reroute
-                     for the shadowing access.
-        Shadowed -   the access that this access is shadowed, this means that this access is overridden by the shadow in
-                     required cases.
-        Priority -   the ACL priority when constructing gateways on it.
-        Output -     the output type signature for access.
-        Hash -       the hash that represents the full aspect of the access.
+    '''The access model contains data that relates to an available REST resource URI that access can be granted based on.
+    
+    :Id: The unique identifier of the access.
+    
+    :Path: Contains the path that the access maps to. The path contains beside the fixed string names 
+    also markers '*' for where dynamic path elements are expected.
+           
+    :Method: The HTTP method name that this access maps to.
+    
+    :Shadowing: The access that this access is actually shadowing, this means that the access path is just a reroute
+    for the shadowing access.
+    
+    :Shadowed: The access that this access is shadowed, this means that this access is overridden by the shadow in
+    required cases.
+    
+    :Priority: The ACL priority when constructing gateways on it.
+    
+    :Output: The output type signature for access.
+    
+    :Hash: The hash that represents the full aspect of the access.
     '''
     Path = str
     Method = str
@@ -47,18 +55,20 @@ Access = modelACL(Access)
 
 @modelACL(name=Access)
 class AccessCreate(Access):
-    '''
-    Contains data required for creating an ACL access.
-        Entries -            the entries dictionary needs to have entries as there are '*' in the access 'Path' except if access
-                             is a shadow in that case the entries from the shadowed will be used, the dictionary
-                             key is the position of the '*' starting from 1 for the first '*', and as a value the type signature.
-        EntriesShadowing -   the dictionary containing as a key the position of the '*' in the 'Path' and as a value the 
-                             the position in the shadowing access entry.
-        EntriesShadowed -    the dictionary containing as a key the position of the '*' in the 'Path' and as a value the 
-                             the position in the shadowed access entry.
-        Properties -         the properties dictionary associated with the access, as a key the property name and as a value
-                             the property type name.
-                         
+    '''Contains data required for creating an ACL access.
+    
+    :Entries: The entries dictionary needs to have entries as there are '*' in the access 'Path' except if access
+              is a shadow in that case the entries from the shadowed will be used, the dictionary
+              key is the position of the '*' starting from 1 for the first '*', and as a value the type signature.
+    
+    :EntriesShadowing: The dictionary containing as a key the position of the '*' in the 'Path' and as a value the 
+                       the position in the shadowing access entry.
+                       
+    :EntriesShadowed: The dictionary containing as a key the position of the '*' in the 'Path' and as a value the 
+                      the position in the shadowed access entry.
+                      
+    :Properties: The properties dictionary associated with the access, as a key the property name and as a value
+                 the property type name.
     '''
     Entries = Dict(int, str)
     EntriesShadowing = Dict(int, int)
@@ -67,13 +77,16 @@ class AccessCreate(Access):
     
 @modelACL(id='Position')
 class Entry:
-    '''
-    The path entry that corresponds to a '*' dynamic path input.
-        Position -           the position of the entry in the access path.
-        Shadowing -          the position that this entry is shadowing.
-        Shadowed -           the position of the shadowed entry, also it means that the values belonging to it 
-                             will not be actually used by the access path request.
-        Signature -          the type signature associated with the path entry.
+    '''The path entry that corresponds to a '*' dynamic path input.
+    
+    :Position: The position of the entry in the access path.
+    
+    :Shadowing: The position that this entry is shadowing.
+    
+    :Shadowed: The position of the shadowed entry, also it means that the values belonging to it 
+               will not be actually used by the access path request.
+               
+    :Signature: The type signature associated with the path entry.
     '''
     Position = int
     Shadowing = int
@@ -82,8 +95,8 @@ class Entry:
 
 @modelACL(id='Name')
 class Property:
-    '''
-    The input model property associated with an access.
+    '''The input model property associated with an access.
+    
         Name -            the property name.
         Signature -       the type signature associated with the input model property.
     '''
@@ -105,38 +118,27 @@ class QAccess(QEntity):
 
 @service((Entity, Access), (QEntity, QAccess))
 class IAccessService(IEntityGetService, IEntityQueryService):
-    '''
-    The ACL access service provides the means of setting up the access control layer for services.
-    '''
+    '''The ACL access service provides the means of setting up the access control layer for services.'''
     
     @call
     def getEntry(self, accessId:Access, position:Entry) -> Entry:
-        '''
-        Provides the path dynamic entry for access and position.
-        '''
+        '''Provides the path dynamic entry for access and position.'''
         
     @call
     def getEntries(self, accessId:Access) -> Iter(Entry.Position):
-        '''
-        Provides the path dynamic entries for access.
-        '''
+        '''Provides the path dynamic entries for access.'''
         
     @call
     def getProperty(self, accessId:Access, name:Property) -> Property:
-        '''
-        Provides the input property with the provided name and access.
-        '''
+        '''Provides the input property with the provided name and access.'''
         
     @call
     def getProperties(self, accessId:Access) -> Iter(Property.Name):
-        '''
-        Provides the input properties for access.
-        '''
+        '''Provides the input properties for access.'''
     
     @call
     def insert(self, access:AccessCreate) -> Access.Id:
-        '''
-        Insert the access.
+        '''Insert the access.
         
         @param access: AccessCreate
             The access to be inserted.
@@ -146,8 +148,7 @@ class IAccessService(IEntityGetService, IEntityQueryService):
     
     @call
     def delete(self, accessId:Access) -> bool:
-        '''
-        Delete the access for the provided id.
+        '''Delete the access for the provided id.
         
         @param id: integer
             The id of the access to be deleted.
@@ -158,8 +159,7 @@ class IAccessService(IEntityGetService, IEntityQueryService):
 # --------------------------------------------------------------------
 
 def generateId(path, method):
-    '''
-    Generates a unique id for the provided path and method.
+    '''Generates a unique id for the provided path and method.
     
     @param path: string
         The path to generate the id for.
@@ -173,8 +173,7 @@ def generateId(path, method):
     return crc32(method.strip().upper().encode(), crc32(path.strip().strip('/').encode()))
 
 def generateHash(access):
-    '''
-    Generates hash for the provided access create.
+    '''Generates hash for the provided access create.
     
     @param access: AccessCreate
         The access to generate the has for.

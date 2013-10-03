@@ -9,7 +9,7 @@ Created on Jan 25, 2013
 Provides the setup patch when the server is asyncore.
 '''
 
-from ..ally_http import server_type
+from ..ally_http.server import server_type
 from .processor import updateAssemblyResources, assemblyResources, multipart
 from ally.container import ioc
 import logging

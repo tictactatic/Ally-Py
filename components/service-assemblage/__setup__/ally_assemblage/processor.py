@@ -9,11 +9,10 @@ Created on Jan 5, 2012
 Provides the processors setups for assemblage.
 '''
 
-from ..ally_http import server_protocol
 from ..ally_http.processor import chunkedTransferEncoding, \
     contentTypeResponseDecode, internalError, acceptRequestEncode, \
     contentLengthDecode
-from ..ally_http.server import notFoundRouter
+from ..ally_http.server import notFoundRouter, server_protocol
 from ally.assemblage.http.impl.processor.assembler import AssemblerHandler
 from ally.assemblage.http.impl.processor.block import BlockHandler
 from ally.assemblage.http.impl.processor.content import ContentHandler

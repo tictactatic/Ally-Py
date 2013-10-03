@@ -9,9 +9,8 @@ Created on Nov 23, 2011
 Runs the asyncore py web server.
 '''
 
-from ..ally_http import server_type, server_protocol, server_version, \
-    server_host, server_port
-from ..ally_http.server import assemblyServer
+from ..ally_http.server import assemblyServer, server_type, server_protocol, \
+    server_version, server_host, server_port
 from ally.container import ioc
 from ally.http.server import server_asyncore
 from threading import Thread

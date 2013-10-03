@@ -10,7 +10,7 @@ Special module that is used in deploying the application.
 '''
  
 from .prepare import OptionsMongrel2
-from __setup__.ally_http import server_port, server_type
+from __setup__.ally_http.server import server_port, server_type
 from __setup__.ally_http_mongrel2_server.server import send_spec, send_ident, \
     recv_spec, recv_ident
 from ally.container import aop, ioc, support, context

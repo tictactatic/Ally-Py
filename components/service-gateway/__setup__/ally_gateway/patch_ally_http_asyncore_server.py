@@ -9,8 +9,8 @@ Created on Jan 25, 2013
 Provides the setup patch when the server is asyncore.
 '''
 
-from ..ally_http import server_type
 from ..ally_http.processor import contentLengthDecode
+from ..ally_http.server import server_type
 from .processor import updateAssemblyForwardForExternal, server_provide_gateway, \
     assemblyForward, externalForward, GATEWAY_EXTERNAL
 from ally.container import ioc

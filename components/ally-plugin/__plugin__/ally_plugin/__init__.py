@@ -14,6 +14,5 @@ from __setup__ import ally
 # --------------------------------------------------------------------
 
 NAME = 'ally plugin'
-GROUP = ally.GROUP
 VERSION = '1.0'
 DESCRIPTION = 'Provides the plugin support'
