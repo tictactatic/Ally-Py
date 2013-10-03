@@ -8,14 +8,14 @@ Created on Feb 2, 2012
 
 Contains the GUI configuration setup for the node presenter plugin.
 '''
-
-from ..gui_core.gui_core import publishGui
-from ally.container import app
-
-# --------------------------------------------------------------------
-
-@app.populate(app.DEVEL)
-def publishJS():
-    publishGui('superdesk/request')
+#TODO: separate UI.
+#from ..gui_core.gui_core import publishGui
+#from ally.container import app
+#
+## --------------------------------------------------------------------
+#
+#@app.populate(app.DEVEL)
+#def publishJS():
+#    publishGui('superdesk/request')
 
     

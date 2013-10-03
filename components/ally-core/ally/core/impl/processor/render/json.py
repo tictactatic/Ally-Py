@@ -172,7 +172,7 @@ def createJSONBlockForIndexed(name, *actions, injectAttributes=None, captureAttr
     actionsNamed = list(actions)
     actionsNamed.extend(BLOCK_JSON_NAMED.actions)
     actionsNamed.append(Action(ACTION_INJECT,
-                               feed(SIND_NAME), push(VAR_JSON_NAME, EIND_NAME), feedValue(VAR_JSON_NAME),
+                               feed(SIND_NAME), push(VAR_JSON_NAME, EIND_NAME), feedName(VAR_JSON_NAME),
                                feed(SIND_VALUE),
                                skip(SIND_ATTRS), push(VAR_JSON_ATTRS, EIND_ATTRS),
                                skip(EIND_VALUE),

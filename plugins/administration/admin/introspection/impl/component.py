@@ -10,53 +10,55 @@ Implementation for the components introspection.
 '''
 
 from ..api.component import IComponentService, Component
+from ally.api.error import IdError
 from ally.container.aop import modulesIn
 from ally.container.ioc import injected
 from ally.container.support import setup
-from ally.exception import InputError, Ref
-from ally.internationalization import _
 from ally.support.api.util_service import processCollection
+from collections import OrderedDict
 from os import path
 import sys
 
 # --------------------------------------------------------------------
 
-@injected
-@setup(IComponentService, name='componentService')
-class ComponentService(IComponentService):
+class ComponentServiceBase:
     '''
-    Provides the implementation for @see: IComponentService.
+    Provides the base implementation for component services.
     '''
-
-    package = '__setup__'
-    # The top package where the components are configured
-    default_locale = 'en'
-    # The default locale in which the components are defined.
+    
+    package = str
+    # The top package where the components are configured.
+    Component = Component
+    # The model class to use as a component.
 
     def __init__(self):
         '''
         Constructs the components service.
         '''
-        assert isinstance(self.package, str), 'Invalid package pattern %s' % self.package
-        assert isinstance(self.default_locale, str), 'Invalid locale %s' % self.default_locale
-
+        assert isinstance(self.package, str), 'Invalid package %s' % self.package
+        assert issubclass(self.Component, Component), 'Invalid component class %s' % Component
+        
+        self._modules = None
+        
     def getById(self, id):
         '''
+        Provides the component based on the provided id.
         @see: IComponentService.getById
         '''
         assert isinstance(id, str), 'Invalid id %s' % id
-        modules = modulesIn('%s.%s' % (self.package, id)).asList()
-        if len(modules) != 1: raise InputError(Ref(_('Invalid component id'), ref=Component.Id))
+        module = self.modules().get(id)
+        if module is None: raise IdError(self.Component)
         
-        c = Component()
+        c = self.Component()
+        assert isinstance(c, Component), 'Invalid component %s' % c
+        
         c.Id = id
-        m = sys.modules.get(modules[0])
+        m = sys.modules.get(module)
         if m:
             c.Loaded = True
             c.Name = getattr(m, 'NAME', None)
             c.Group = getattr(m, 'GROUP', None)
             c.Version = getattr(m, 'VERSION', None)
-            c.Locale = getattr(m, 'LANGUAGE', self.default_locale)
             c.Description = getattr(m, 'DESCRIPTION', None)
             c.Path = path.relpath(path.dirname(path.dirname(path.dirname(m.__file__))))
             c.InEgg = not path.isfile(m.__file__)
@@ -65,11 +67,34 @@ class ComponentService(IComponentService):
             
         return c
 
-    def getComponents(self, q=None, **options):
+    def getAll(self, q=None, **options):
         '''
-        @see: IComponentService.getComponents
+        Provides the components ids.
+        @see: IComponentService.getAll
         '''
-        modules = modulesIn('%s.*' % self.package).asList()
-        modules.sort()
-        modules = (module[len(self.package) + 1:] for module in modules)
-        return processCollection(modules, Component, q, self.getById, withTotal=True, **options)
+        return processCollection(self.modules().keys(), self.Component, q, self.getById, **options)
+    
+    # ----------------------------------------------------------------
+    
+    def modules(self):
+        '''
+        Provides the modules in the current distribution.
+        '''
+        if self._modules is None:
+            modules = modulesIn('%s.*' % self.package).asList()
+            modules.sort()
+            self._modules = OrderedDict(((module[len(self.package) + 1:], module) for module in modules))
+        return self._modules
+
+# --------------------------------------------------------------------
+
+@injected
+@setup(IComponentService, name='componentService')
+class ComponentService(ComponentServiceBase, IComponentService):
+    '''
+    Provides the implementation for @see: IComponentService.
+    '''
+
+    package = '__setup__'
+    # The top package where the components are configured
+

@@ -120,7 +120,7 @@ class URIHandler(HandlerProcessor):
             if node.childByName:
                 if path not in node.childByName:
                     PATH_NOT_FOUND.set(response)
-                    addError(response, 'Instead of \'%(item)s\' or before it is expected, maybe you meant: %(paths)s',
+                    addError(response, 'Unknown item \'%(item)s\', maybe you meant: %(paths)s',
                              item=path, paths=['%s/%s/%s' % ('/'.join(paths[:k]), item, '/'.join(paths[k:]))
                                                for item in sorted(node.childByName)])
                     return

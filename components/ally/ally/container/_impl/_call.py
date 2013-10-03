@@ -495,6 +495,7 @@ class CallEventControlled(WithCall, WithListeners):
         Assembly.stack.append(self.assembly)
         try:
             try: self._value = self.call()
+            except SystemExit: raise
             except:
                 log.exception('A problem occurred for controlled event: %s' % self.name)
                 self._value = False

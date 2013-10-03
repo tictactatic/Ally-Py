@@ -89,6 +89,8 @@ PATH_FOUND = CodeHTTP('OK', 200)  # HTTP code 200 OK
 METHOD_NOT_AVAILABLE = CodeHTTP('Method not allowed', 405)  # HTTP code 405 Method Not Allowed
 
 MISSING_SLASH = CodeHTTP('Missing trailing slash', 400)  # HTTP code 400 Bad Request
+CONTENT_LENGHT_ERROR = CodeHTTP('Length required ', 411)  # HTTP code 411 length required 
+
 BAD_REQUEST = CodeHTTP('Bad Request', 400)  # HTTP code 400 Bad Request
 
 HEADER_ERROR = CodeHTTP('Invalid header', 400)  # HTTP code 400 Bad Request

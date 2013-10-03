@@ -10,7 +10,7 @@ Provides the decoding/encoding for the content length header.
 '''
 
 from ally.container.ioc import injected
-from ally.core.http.spec.codes import CONTENT_LENGHT_ERROR
+from ally.http.spec.codes import CONTENT_LENGHT_ERROR
 from ally.design.processor.attribute import requires, defines, optional
 from ally.design.processor.context import Context
 from ally.design.processor.handler import HandlerProcessor

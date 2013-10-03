@@ -43,7 +43,6 @@ CODE_TO_TEXT = {
 MUTLIPART_ERROR = CodeHTTP('Invalid multipart', 400)  # HTTP code 400 Bad Request
 MUTLIPART_NO_BOUNDARY = CodeHTTP('No boundary found in multipart content', 400)  # HTTP code 400 Bad Request
 
-CONTENT_LENGHT_ERROR = CodeHTTP('Length required ', 411)  # HTTP code 411 length required 
 CONTENT_TYPE_ERROR = CodeHTTP('Content type not acceptable ', 406)  # HTTP code 406 Not acceptable
 
 PARAMETER_ILLEGAL = CodeHTTP('Illegal parameter', 400)  # HTTP code 400 Bad Request

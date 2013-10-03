@@ -9,45 +9,31 @@ Created on Mar 4, 2012
 Provides the plugin introspection.
 '''
 
-from ..api.component import Component
+from ..api.component import Component, QComponent, IComponentService
 from admin.api.domain_admin import modelAdmin
-from ally.api.config import service, call
-from ally.api.type import Iter
+from ally.api.config import service, query
 
 # --------------------------------------------------------------------
 
-@modelAdmin(id='Id')
-class Plugin:
+@modelAdmin
+class Plugin(Component):
     '''
     Provides the plugin data.
     '''
-    Id = str
-    Name = str
-    Group = str
-    Version = str
-    Locale = str
-    Description = str
-    Loaded = bool
-    Path = str
-    InEgg = bool
     Component = Component
-
+    
 # --------------------------------------------------------------------
 
-@service
-class IPluginService:
+@query(Plugin)
+class QPlugin(QComponent):
+    '''
+    Provides the component query.
+    '''
+    
+# --------------------------------------------------------------------
+
+@service((Component, Plugin), (QComponent, QPlugin))
+class IPluginService(IComponentService):
     '''
     Provides services for ally plugins.
     '''
-    
-    @call
-    def getById(self, id:Plugin.Id) -> Plugin:
-        '''
-        Provides the plugin based on the provided id.
-        '''
-
-    @call
-    def getPlugins(self, offset:int=None, limit:int=None) -> Iter(Plugin.Id):
-        '''
-        Provides all the plugins.
-        '''

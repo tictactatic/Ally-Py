@@ -9,9 +9,10 @@ Created on Sep 14, 2012
 Contains ZIP utils
 '''
 
-from os.path import join, isdir
+from ally.container.event import Trigger
 from ally.support.util_io import synchronizeURIToDir
 from ally.zip.util_zip import getZipFilePath, validateInZipPath, ZIPSEP
+from os.path import join, isdir
 from platform import system, machine, system_alias, release, version, \
     linux_distribution
 from zipfile import ZipFile
@@ -79,3 +80,56 @@ def deploy(source, destination, systemName=None, machineName=None):
             deployed = True
 
     return (systemName, rel, ver, deployed)
+
+# --------------------------------------------------------------------
+    
+PREPARE = Trigger('prepare')
+# Trigger used for controlled event prepare deployment setup functions.
+DEPLOY = Trigger('deploy')
+# Trigger used for controlled event deployment setup functions.
+
+class Options:
+    '''
+    Provides the container for arguments options.
+    '''
+    
+    def __init__(self):
+        '''
+        Construct the options.
+        '''
+        self._registeredFlags = {}
+        self._flags = set()
+        
+    def registerFlag(self, name, *invalidate):
+        '''
+        Register a flag with the provided name.
+        
+        @param name: string
+            The flag name to register.
+        @param invalidate: arguments[string]
+            The flag names to invalidate (set to False) if this flag is set to True.
+        '''
+        assert isinstance(name, str), 'Invalid name %s' % name
+        if __debug__:
+            for fname in invalidate: assert isinstance(fname, str), 'Invalid invalidate flag name %s' % fname
+        self._registeredFlags[name] = invalidate
+    
+    def isFlag(self, name):
+        '''
+        Checks if the flag is set.
+        
+        @param name: string
+            The flag name to check.
+        @return: boolean
+            True if the flag is set, False otherwise
+        '''
+        assert isinstance(name, str), 'Invalid name %s' % name
+        return name in self._flags
+    
+    def __setattr__(self, name, value):
+        assert isinstance(name, str), 'Invalid name %s' % name
+        if name.startswith('_') or name not in self._registeredFlags: object.__setattr__(self, name, value)
+        elif value:
+            self._flags.difference_update(self._registeredFlags[name])
+            self._flags.add(name)
+        else: self._flags.discard(name)

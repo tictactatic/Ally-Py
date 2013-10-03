@@ -10,10 +10,10 @@ Provides the components introspection.
 '''
 
 from admin.api.domain_admin import modelAdmin
-from ally.api.config import service, call, query
+from ally.api.config import service, query
 from ally.api.criteria import AsLike, AsBoolean
 from ally.api.option import Slice #@UnusedImport
-from ally.api.type import Iter
+from ally.support.api.entity import IEntityGetPrototype, IEntityQueryPrototype
 
 # --------------------------------------------------------------------
 
@@ -26,7 +26,6 @@ class Component:
     Name = str
     Group = str
     Version = str
-    Locale = str
     Description = str
     Loaded = bool
     Path = str
@@ -42,27 +41,14 @@ class QComponent:
     name = AsLike
     group = AsLike
     version = AsLike
-    locale = AsLike
     loaded = AsBoolean
     path = AsLike
     inEgg = AsBoolean
 
 # --------------------------------------------------------------------
 
-@service
-class IComponentService:
+@service(('Entity', Component), ('QEntity', QComponent))
+class IComponentService(IEntityGetPrototype, IEntityQueryPrototype):
     '''
     Provides services for ally components.
     '''
-
-    @call
-    def getById(self, id:Component.Id) -> Component:
-        '''
-        Provides the component based on the provided id.
-        '''
-
-    @call
-    def getComponents(self, q:QComponent=None, **options:Slice) -> Iter(Component.Id):
-        '''
-        Provides all the components.
-        '''

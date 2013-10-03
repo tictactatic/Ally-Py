@@ -98,6 +98,7 @@ def pushKey(index, perform, value):
         
         stack = values.get(perform.name)
         if stack is None: stack = values[perform.name] = []
+        
         stack.append(index.values.get(perform.key))
     return do
 

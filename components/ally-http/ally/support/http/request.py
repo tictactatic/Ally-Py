@@ -16,12 +16,12 @@ from ally.http.spec.codes import isSuccess
 from ally.http.spec.server import HTTP, RequestHTTP, ResponseContentHTTP, \
     ResponseHTTP, HTTP_GET, HTTP_OPTIONS, RequestContentHTTP
 from ally.support.util_io import IInputStream, IClosable
+from collections import namedtuple
 from io import BytesIO
 from urllib.parse import urlparse, parse_qsl
 import codecs
 import json
 import logging
-from collections import namedtuple
 
 # --------------------------------------------------------------------
 
@@ -127,7 +127,7 @@ class RequesterGetJSON:
         self._contentType = contentType
         self._encoding = encoding
         
-    def request(self, uri, details=False):
+    def request(self, uri, details=False, headers=None):
         '''
         Request the JSON object for URI.
         
@@ -135,6 +135,8 @@ class RequesterGetJSON:
             The URI to call, parameters are allowed.
         @param details: boolean
             If True will provide beside the JSON object also the response status and text.
+        @param headers: dictionary{string: string}|None
+            Additional headers to be placed on the request.
         @return: object|tuple(object, integer, string)
             Provides the loaded JSON object if details is False, otherwise a tuple containing as the first entry the JSON
             object, None if the object cannot be fetched, on the second position the response status and on the last
@@ -142,6 +144,7 @@ class RequesterGetJSON:
         '''
         assert isinstance(uri, str), 'Invalid URI %s' % uri
         assert isinstance(details, bool), 'Invalid details flag %s' % details
+        assert headers is None or isinstance(headers, dict), 'Invalid headers %s' % headers
         
         proc = self._processing
         assert isinstance(proc, Processing)
@@ -155,6 +158,7 @@ class RequesterGetJSON:
         request.parameters = parse_qsl(url.query, True, False)
         request.accTypes = [self._contentType]
         request.accCharSets = [self._encoding]
+        request.headers = headers
         
         arg = proc.execute(FILL_ALL, request=request)
         response, responseCnt = arg.response, arg.responseCnt
