@@ -9,9 +9,14 @@ Created on Sep 30, 2013
 Simple implementation for distribution manager project.
 '''
 
+from ally.container.ioc import injected
+import logging
 import os
 import sys
-import logging 
+
+# --------------------------------------------------------------------
+
+log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 
@@ -42,7 +47,6 @@ SETUP_TEMPLATE_END = '''packages=find_packages('.'),
       url='http://www.sourcefabric.org/en/superdesk/', # project home page
       )
 '''
-COMPONENTS_DIR = '../components'
 IGNORE_DIRS = ['__pycache__']
 ATTRIBUTE_MAPPING = {'NAME'            : 'name',
                      'VERSION'         : 'version',
@@ -59,15 +63,18 @@ EXTRA_DICT_ATT = '__extra__'
 
 # --------------------------------------------------------------------
 
-class Distribution:
+@injected
+class Packager:
     '''
     @todo: update description
     Distribution class for managing requirements, deploy path
     '''
-    def __init__(self, path):
-        
-        assert isinstance(path, str), 'Invalid path provided %s' % path
-        self.path = path
+    
+    pathSource = str
+    # The path where the components/plugins are located.
+    
+    def __init__(self):
+        assert isinstance(self.pathSource, str), 'Invalid path provided %s' % self.pathSource
 
     def getDirs(self, path):
         '''
@@ -83,7 +90,7 @@ class Distribution:
         @purpose: setuptools 
         '''
         
-        assert isinstance(module, ), 'Invalid module name '
+        assert isinstance(module,), 'Invalid module name '
         setupDict = {}
         for attribute, value in ATTRIBUTE_MAPPING.items():
             if hasattr(module, attribute):
@@ -107,19 +114,19 @@ class Distribution:
     def generateSetupFiles(self):
         
         all = success = failed = 0
-        components = self.getDirs(self.path)
+        components = self.getDirs(self.pathSource)
  
         for packageName in components:
             all += 1
-            assert logging.info('-' * 50) or True
-            assert logging.info('*** Package name *** {0} ***'.format(packageName)) or True
-            packagePath = os.path.join(COMPONENTS_DIR, packageName)
+            assert log.info('-' * 50) or True
+            assert log.info('*** Package name *** {0} ***'.format(packageName)) or True
+            packagePath = os.path.join(self.pathSource, packageName)
             if '__setup__' in self.getDirs(packagePath):
-                setupPath = os.path.join(COMPONENTS_DIR, packageName, '__setup__')
+                setupPath = os.path.join(self.pathSource, packageName, '__setup__')
                 setupDirs = self.getDirs(setupPath)
                 sys.path.append(os.path.abspath(setupPath))
                 if len(setupDirs) != 1:
-                    assert logging.info('''No setup module to configure or 
+                    assert log.info('''No setup module to configure or 
                             more than one setup module in this package 
                             *** SKIPING *** {0) ***'''.format(packageName)) or True
                     continue
@@ -130,23 +137,18 @@ class Distribution:
                         try: 
                             info = self.constructDict(module)
                             self.writeSetupFile(packagePath, info)
-                            assert logging.info('*** File succesfully writen *** {0} *** OK'.format(packagePath)) or True
+                            assert log.info('*** File succesfully writen *** {0} *** OK'.format(packagePath)) or True
                         except: 
-                            assert logging.info('*** File writing failed *** {0} *** NOK'.format(packagePath)) or True
-                        assert logging.info('*** Setup module *** {0} *** OK'.format(setupModule)) or True
+                            assert log.info('*** File writing failed *** {0} *** NOK'.format(packagePath)) or True
+                        assert log.info('*** Setup module *** {0} *** OK'.format(setupModule)) or True
                         success += 1
                     except: 
-                        assert logging.info('*** Setup module *** {0} *** NOK'.format(setupModule)) or True
+                        assert log.info('*** Setup module *** {0} *** NOK'.format(setupModule)) or True
                         failed += 1
         
-        assert logging.info('-' * 50) or True                
-        assert logging.info('All components: {0}'.format(all)) or True
-        assert logging.info('Succeded: {0}'.format(success)) or True
-        assert logging.info('Failed: {0}'.format(failed)) or True
+        assert log.info('-' * 50) or True                
+        assert log.info('All components: {0}'.format(all)) or True
+        assert log.info('Succeded: {0}'.format(success)) or True
+        assert log.info('Failed: {0}'.format(failed)) or True
         print('***All:{0}***Succ:{1}***Fail:{2}***'.format(all, success, failed))
 
-
-if __name__ == '__main__':
-    
-    dist = Distribution(COMPONENTS_DIR)
-    dist.generateSetupFiles()

@@ -97,7 +97,7 @@ class Options:
         '''
         Construct the options.
         '''
-        self._registeredFlags = {}
+        self._flagsRegistered = {}
         self._flags = set()
         
     def registerFlag(self, name, *invalidate):
@@ -112,7 +112,19 @@ class Options:
         assert isinstance(name, str), 'Invalid name %s' % name
         if __debug__:
             for fname in invalidate: assert isinstance(fname, str), 'Invalid invalidate flag name %s' % fname
-        self._registeredFlags[name] = invalidate
+        self._flagsRegistered[name] = invalidate
+        
+    def registerFlagTrue(self, name, *invalidate):
+        '''
+        Register a flag with the provided name that is by default true.
+        
+        @param name: string
+            The flag name to register.
+        @param invalidate: arguments[string]
+            The flag names to invalidate (set to False) if this flag is set to True.
+        '''
+        self.registerFlag(name)
+        self._flags.add(name)
     
     def isFlag(self, name):
         '''
@@ -128,8 +140,8 @@ class Options:
     
     def __setattr__(self, name, value):
         assert isinstance(name, str), 'Invalid name %s' % name
-        if name.startswith('_') or name not in self._registeredFlags: object.__setattr__(self, name, value)
+        if name.startswith('_') or name not in self._flagsRegistered: object.__setattr__(self, name, value)
         elif value:
-            self._flags.difference_update(self._registeredFlags[name])
+            self._flags.difference_update(self._flagsRegistered[name])
             self._flags.add(name)
         else: self._flags.discard(name)
