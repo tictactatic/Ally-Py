@@ -1739,3 +1739,17 @@ a.collaborator-name-large  {
 .tmploader {
 	height: 100%;
 }
+
+.limited-submenu {
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+  height: auto;
+  max-height: 192px; /* step is 24px (for new row(title) to display) */
+  overflow: auto;
+}
+.limited-submenu li a {
+  max-width: 230px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
