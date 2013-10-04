@@ -23,8 +23,7 @@ from copy import copy
 from datetime import datetime
 from genericpath import isdir, isfile
 from internationalization.api.message import IMessageService, Message
-from internationalization.api.source import ISourceService, QSource, \
-    TYPE_JAVA_SCRIPT
+from internationalization.api.source import ISourceService, QSource
 from internationalization.core.spec import IPOFileManager, InvalidLocaleError
 from internationalization.support.babel.util_babel import msgId, isMsgTranslated, \
     copyTranslation, fixBabelCatalogAddBug
@@ -163,7 +162,7 @@ class POFileManager(IPOFileManager):
         try: locale = Locale.parse(locale)
         except UnknownLocaleError: raise InvalidLocaleError(locale)
 
-        messages = self.messageService.getMessages(qs=QSource(type=TYPE_JAVA_SCRIPT))
+        messages = self.messageService.getMessages()
         catalog = self._build(locale, messages, self._filePath(locale))
         return self._toDict('', catalog)
 
@@ -183,7 +182,7 @@ class POFileManager(IPOFileManager):
         '''
         try: locale = Locale.parse(locale)
         except UnknownLocaleError: raise InvalidLocaleError(locale)
-        messages = self.messageService.getComponentMessages(component, qs=QSource(type=TYPE_JAVA_SCRIPT))
+        messages = self.messageService.getComponentMessages(component)
         catalog = self._build(locale, messages, self._filePath(locale, component=component),
                               self._filePath(locale))
         return self._toDict(component, catalog)
@@ -204,7 +203,7 @@ class POFileManager(IPOFileManager):
         '''
         try: locale = Locale.parse(locale)
         except UnknownLocaleError: raise InvalidLocaleError(locale)
-        messages = self.messageService.getPluginMessages(plugin, qs=QSource(type=TYPE_JAVA_SCRIPT))
+        messages = self.messageService.getPluginMessages(plugin)
         catalog = self._build(locale, messages, self._filePath(locale, plugin=plugin),
                               self._filePath(locale))
         return self._toDict(plugin, catalog)
