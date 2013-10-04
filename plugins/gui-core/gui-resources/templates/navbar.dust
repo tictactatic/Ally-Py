@@ -11,7 +11,7 @@
 			<li class="divider-vertical"></li>
 			{#superdesk.menu}
 				<li class="dropdown">
-					<a href="#{NavBar}" script-path="{Script.href}"
+					<a href="#{NavBar}" target="_self" script-path="{Script.href}"
 						{?Subs}class="menu-{Name} dropdown-toggle" data-toggle="dropdown" data-loader="false"{:else}class="menu-{Name}"{/Subs}>
 						{Label} {?Subs}<b class="caret"></b>{/Subs}</a>
 					{?Subs}

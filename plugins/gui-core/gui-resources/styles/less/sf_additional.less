@@ -19,10 +19,10 @@
 	}
 }
 
-
 .active-bg {
 	background-color:#e4f8de !important;
 }
+
 
 /* SEARCHBAR */
 .searchbar-container {
@@ -46,76 +46,6 @@
 	}
 }
 
-/*  searchbar container with tags
-.searchbar-container {
-	min-width:300px;
-	width:60%;
-	.border-radius(5px);
-	border:1px solid #adadad;
-	height:28px;
-	background:url(../../images/search-icon.png) no-repeat 9px 6px #ffffff;
-	padding:0 0 0 35px;		
-	.box-shadow(inset 0 5px 5px -5px #acacac);
-	position:relative;
-	input {
-		border:0;
-		.box-shadow(inset 0px 0px 0px 0px #000);
-		.reset-bootstrap-effects;
-		min-width: 200px;
-		max-width:450px;
-		height: 21px;
-		padding: 0px;
-		margin: 4px 0 0 0;
-		font-size: 13px;
-		line-height: 18px;
-		color: #333;
-		.border-radius(0px);
-		position:absolute;
-	}
-	button {
-		border-width: 0 0 0 1px;
-		padding: 5px 15px;
-	}
-	ul.search-tags {
-		 width:auto;
-		 overflow: hidden; 
-		 height: auto !important;
-		 position:relative;
-		 float:right;
-		 margin:4px 5px;
-		 
-		 
-		 li {
-		 	float: left; 
-			list-style-type: none; 
-			margin: 0 5px 4px 0; 
-			background-color:#007fb3;
-			.border-radius(4px);
-			color:#fff;
-			font-size:12px;
-			line-height:15px;
-			padding: 3px 9px 2px;
-			padding-right: 29px;
-			position: relative;
-			a.closebutton { 
-				position: absolute; 
-				border-left: 1px dotted #fff;
-				top:1px;
-				right:0px; 
-				display: block; 
-				width: 20px; 
-				height: 18px; 
-				font-size: 1px; 
-				background: url('../../images/close.png'); 
-			}
-		 	&.disabled {
-				background-color:#e2e2e2;
-			}
-		 }
-		 	
-		 
-	}
-}*/
 .dropdown {
 	&:focus {
 		outline: 0 !important;
@@ -435,6 +365,69 @@
 	}
 }
 
+
+.sf-toggle-custom {
+  display:inline-block;
+  width:55px;
+  height:16px;
+  background: #444;
+  position:relative;
+  border:1px solid #3a3a3a;
+  cursor:pointer;
+  .border-radius(3px); 
+  overflow: hidden;
+  &.on-off-toggle {
+  	&:before {
+    	content: "ON";
+    	position: absolute;
+    	font-size: 11px;
+    	color: #ebebeb;
+    	top: 0;
+    	left: 5px;
+    }
+    &:after {
+      	content: "OFF";
+    	position: absolute;
+    	font-size: 11px;
+    	color: #ebebeb;
+    	top: 0;
+    	left: 32px;
+    }
+  }
+  .sf-toggle-custom-inner {
+    position:absolute;
+    left:2px;
+    width:21px;
+    top:2px;
+    height:12px;
+    background:#ebebeb;
+    .border-radius(2px);
+    .transition( all 0.3s ease);
+  }
+  &.sf-checked {
+  	&.on-off-toggle {
+  		background: #369dbb;
+  		border-color:#3091ad; 
+  	}
+    .sf-toggle-custom-inner {
+      left:32px !important;
+    }
+  }
+  input[type="checkbox"] {
+    display:none;
+  }
+  &.sf-disable {
+    background: #e0e0e0;
+    border:1px solid #d8d8d8;
+    &:hover {
+    	cursor: default;
+    }
+    .sf-toggle-custom-inner {
+      background:#f0f0f0;
+    }
+  }
+}
+
 /* special types of checkboxes */
 // public private
 
@@ -460,6 +453,7 @@
 	}
 	.sf-toggle-custom {
 		margin-top: -1px;
+		float: right;
 	}
 }
 .checklist-selection {
@@ -723,69 +717,6 @@
 	}
 }
 
-
-.sf-toggle-custom {
-  display:inline-block;
-  width:55px;
-  height:16px;
-  background: #444;
-  position:relative;
-  border:1px solid #3a3a3a;
-  float:right;
-  cursor:pointer;
-  .border-radius(3px); 
-  overflow: hidden;
-  &.on-off-toggle {
-  	&:before {
-    	content: "ON";
-    	position: absolute;
-    	font-size: 11px;
-    	color: #ebebeb;
-    	top: 0;
-    	left: 5px;
-    }
-    &:after {
-      	content: "OFF";
-    	position: absolute;
-    	font-size: 11px;
-    	color: #ebebeb;
-    	top: 0;
-    	left: 32px;
-      }
-  }
-  .sf-toggle-custom-inner {
-    position:absolute;
-    left:2px;
-    width:21px;
-    top:2px;
-    height:12px;
-    background:#ebebeb;
-    .border-radius(2px);
-    .transition( all 0.3s ease);
-  }
-  &.sf-checked {
-  	&.on-off-toggle {
-  		background: #369dbb;
-  		border-color:#3091ad; 
-  	}
-    .sf-toggle-custom-inner {
-      left:32px !important;
-    }
-  }
-  input[type="checkbox"] {
-    display:none;
-  }
-   &.sf-disable {
-    background: #e0e0e0;
-    border:1px solid #d8d8d8;
-    &:hover {
-    	cursor: default;
-    }
-    .sf-toggle-custom-inner {
-      background:#f0f0f0;
-    }
-  }
-}
 
 
 .plain-table {

@@ -69,12 +69,11 @@
     
 	.post-info {
 		padding:3px 0 5px 60px; 
+		height: 18px;
 		p[rel="author"] {
 			font-size:12px;
 			font-weight:bold;
 			color:#000;
-			padding-right:6px;
-			border-right: 1px solid #ccc;
 			margin:0 6px 0 0;
 			float:left;
 			line-height:14px;
@@ -84,6 +83,8 @@
 			font-size:11px;
 			line-height:14px;
 			vertical-align:top;
+			border-left: 1px solid #ccc;
+			padding-left:6px;
 		}
 
 	}
@@ -102,6 +103,9 @@
 			}
 			&.annotation {
 				margin: 3px 0; 
+			}
+			img {
+				max-width: 100%;
 			}
 		}		
 		.result-content {
@@ -736,6 +740,12 @@ overrides
 		}
 
 		&.flickr  {
+			padding: 0 !important;
+			background: none;
+			border-color: #f4f4f4;
+			.drag-bar {
+				background-color: none;
+			}
 			width:85px !important;
 			height:75px !important;
 			overflow: hidden;
@@ -767,6 +777,13 @@ overrides
 				}
 			}
 			&:hover {
+				background: #fff;
+				border: 1px solid #d4d4d4;
+				.result-content {
+					figure {
+						.border-radius(0 2px 2px 0);
+					}
+				}
 				.result-description {
 					display: block;
 				}
