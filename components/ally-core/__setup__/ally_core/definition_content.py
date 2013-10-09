@@ -9,14 +9,18 @@ Created on Jul 14, 2013
 Provides the content definitions.
 '''
 
+from datetime import datetime
+
+from ally.api.type import typeFor
+from ally.container import ioc
+from ally.core.impl.definition import ModelId, PropertyType
+
+from ..ally_core.processor import converter
 from .definition import descriptions, desc, categories, category
 from .parsing_rendering import CATEGORY_CONTENT_XML, CATEGORY_CONTENT_OBJECT
-from ally.container import ioc
-from ally.core.impl.definition import ModelId
 
 
 # --------------------------------------------------------------------
-
 @ioc.before(categories)
 def updateCategoriesForContent():
     category(CATEGORY_CONTENT_XML, 'XML content xpaths')
@@ -24,6 +28,8 @@ def updateCategoriesForContent():
 
 @ioc.before(descriptions)
 def updateDescriptionsForContent():
-    desc(ModelId(), 'represents the model id')  # This is based on @see: modelDecode()
+    desc(ModelId(), 'represents the model id') # This is based on @see: modelDecode()
+    desc(PropertyType(datetime), 'example %(sample)s', sample=converter().asString(datetime(1982, 1, 18, 2, 40, 12), typeFor(datetime)))
+
     # TODO: Gabriel: Add more content definitions
 

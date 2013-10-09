@@ -26,7 +26,7 @@ class InputError(Exception):
         Initializes the exception based on the items(s).
         
         ex:
-            raise InputError('No idea what is wrong %(reason)s', Entity.Id, reason='blame Gabriel')
+            raise InputError('No idea what is wrong %(reason)s', reason='blame Gabriel')
             # The message is not associated with any type.
             
             raise InputError('Something wrong with the id', Entity.Id) # The message is associated with the entity id.
