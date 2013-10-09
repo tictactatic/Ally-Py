@@ -23,6 +23,7 @@ class GatewayData(Base):
     __table_args__ = dict(mysql_engine='InnoDB')
 
     name = Column('name', String(255), primary_key=True)
-    identifier = Column('identifier', BLOB, nullable=False, unique=True)
+    hash = Column('hash', String(255), unique=True)
+    identifier = Column('identifier', BLOB, nullable=False)
     navigate = Column('navigate', BLOB, nullable=False)
 

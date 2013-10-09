@@ -23,6 +23,7 @@ from ally.internationalization import _
 from ally.support.api.util_service import namesFor, copyContainer
 from collections import Iterable
 from sql_alchemy.support.util_service import SessionSupport, iterateCollection
+from hashlib import sha512
 import json
 import re
 
@@ -110,6 +111,7 @@ class GatewayServiceAlchemy(IGatewayService, SessionSupport):
         data = GatewayData()
         data.name = gateway.Name
         data.identifier, data.navigate = identifier.encode(), navigate.encode()
+        data.hash = sha512(data.identifier).hexdigest()
         
         self.session().add(data)
         return gateway.Name

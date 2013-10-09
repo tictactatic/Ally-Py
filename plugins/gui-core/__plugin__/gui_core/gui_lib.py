@@ -12,11 +12,11 @@ Contains the GUI configuration setup for the node presenter plugin.
 from ..gui_core import publish_gui_resources
 from .gui_core import cdmGUI, getGuiPath, lib_folder_format, publishLib, \
     getPublishedLib, gui_folder_format, publish
-from __setup__.ally_http import server_port
 from ally.container import ioc
 from ally.support.util_io import openURI
 from io import BytesIO
 import logging
+from __setup__.ally_http.server import server_port
 
 # --------------------------------------------------------------------
 
